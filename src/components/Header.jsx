@@ -1,0 +1,194 @@
+import React, { useState } from 'react';
+import { Search, Layers, Tag, PackageCheck, PhoneCall, Menu, ChevronDown, Info } from 'lucide-react';
+import MegaMenu from './MegaMenu';
+import MobileDrawer from './MobileDrawer';
+
+export default function Header({ 
+  activeTab, 
+  onNavigate,
+  searchTerm, 
+  setSearchTerm,
+  productsCount,
+  categoriesCount,
+  brandsCount,
+  categories,
+  brands,
+  products
+}) {
+  const [activeMegaMenu, setActiveMegaMenu] = useState(null);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+
+  const formattedPhone = "(61) 98348-5671";
+  const whatsappUrl = "https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+informa%C3%A7%C3%B5es.";
+
+  const toggleMegaMenu = (menuType) => {
+    setActiveMegaMenu(activeMegaMenu === menuType ? null : menuType);
+  };
+
+  return (
+    <>
+      <header className="sticky top-0 z-50 bg-white border-b border-slate-200/90 shadow-xs">
+        <div className="container-custom">
+          <div className="flex items-center justify-between h-20">
+            
+            {/* Logo & Brand Name */}
+            <div 
+              onClick={() => onNavigate('catalog')} 
+              className="flex items-center gap-3 cursor-pointer group shrink-0"
+            >
+              <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl border border-slate-200 overflow-hidden bg-slate-950 p-1 shadow-xs">
+                <img 
+                  src="/logo.jpg" 
+                  alt="Athena Soluções Automotivas Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="font-display font-extrabold text-lg sm:text-xl tracking-tight text-slate-900 group-hover:text-amber-600 transition-colors">
+                    ATHENA
+                  </span>
+                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                    Automotivas
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500 tracking-wide font-medium hidden sm:block">
+                  Soluções para Oficinas & Auto Centers
+                </span>
+              </div>
+            </div>
+
+            {/* Desktop Navigation Links */}
+            <nav className="hidden md:flex items-center justify-center gap-1 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/90">
+              <button
+                onClick={() => {
+                  onNavigate('catalog');
+                  setActiveMegaMenu(null);
+                }}
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                  activeTab === 'catalog' && !activeMegaMenu
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                }`}
+              >
+                <PackageCheck className="w-4 h-4 shrink-0" />
+                <span>Catálogo</span>
+              </button>
+
+              <button
+                onClick={() => toggleMegaMenu('categories')}
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                  activeMegaMenu === 'categories' || activeTab.startsWith('category')
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                }`}
+              >
+                <Layers className="w-4 h-4 shrink-0" />
+                <span>Categorias</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activeMegaMenu === 'categories' ? 'rotate-180' : ''}`} />
+              </button>
+
+              <button
+                onClick={() => toggleMegaMenu('brands')}
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                  activeMegaMenu === 'brands' || activeTab.startsWith('brand')
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                }`}
+              >
+                <Tag className="w-4 h-4 shrink-0" />
+                <span>Marcas</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activeMegaMenu === 'brands' ? 'rotate-180' : ''}`} />
+              </button>
+
+              <button
+                onClick={() => {
+                  onNavigate('about');
+                  setActiveMegaMenu(null);
+                }}
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                  activeTab === 'about'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                }`}
+              >
+                <Info className="w-4 h-4 shrink-0" />
+                <span>Sobre</span>
+              </button>
+            </nav>
+
+            {/* Desktop Search Bar & Phone */}
+            <div className="hidden lg:flex items-center gap-3">
+              <div className="relative w-60">
+                <input
+                  type="text"
+                  placeholder="Buscar equipamento..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-xl pl-9 pr-4 py-2.5 outline-none transition-colors"
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-xl hover:bg-emerald-100 transition-colors shadow-xs shrink-0"
+              >
+                <PhoneCall className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>{formattedPhone}</span>
+              </a>
+            </div>
+
+            {/* Mobile Header: Search Input + Hamburger */}
+            <div className="flex md:hidden items-center gap-2">
+              <div className="relative w-36 sm:w-48">
+                <input
+                  type="text"
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-lg pl-8 pr-2 py-1.5 outline-none"
+                />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              <button
+                onClick={() => setIsMobileDrawerOpen(true)}
+                className="p-2 rounded-xl bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 shadow-xs"
+                title="Abrir Menu"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Mega Menu Dropdown */}
+        {activeMegaMenu && (
+          <MegaMenu
+            type={activeMegaMenu}
+            categories={categories}
+            brands={brands}
+            products={products}
+            onNavigate={onNavigate}
+            onClose={() => setActiveMegaMenu(null)}
+          />
+        )}
+      </header>
+
+      {/* Mobile Drawer */}
+      <MobileDrawer
+        isOpen={isMobileDrawerOpen}
+        onClose={() => setIsMobileDrawerOpen(false)}
+        categories={categories}
+        brands={brands}
+        products={products}
+        onNavigate={onNavigate}
+      />
+    </>
+  );
+}
