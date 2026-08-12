@@ -9,33 +9,29 @@ export default function HeroSlim({
   setSelectedCategory 
 }) {
   return (
-    <div className="relative bg-slate-950 text-white border-b border-slate-800 py-10 sm:py-12 overflow-hidden shadow-lg">
+    <div className="relative bg-slate-950 text-white border-b border-slate-800 py-8 sm:py-12 overflow-hidden shadow-lg">
       
-      {/* Background Image with Crisp Visibility Overlay */}
+      {/* Background Image with High Visibility */}
       <div className="absolute inset-0 z-0">
         <img 
           src="/hero-bg.jpg" 
           alt="Oficina Automotiva Athena" 
-          className="w-full h-full object-cover object-center opacity-65 filter brightness-90 scale-105 transition-transform duration-1000"
+          className="w-full h-full object-cover object-center opacity-80 filter brightness-95 contrast-105 scale-105 transition-transform duration-1000"
         />
-        {/* Soft Contrast Overlay to enhance image visibility & keep text crisp */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/50 to-slate-950/85" />
+        {/* Soft Contrast Overlay for Image Depth & Text Legibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/35 to-slate-950/70" />
       </div>
 
       <div className="container-custom relative z-10">
-        <div className="max-w-4xl mx-auto space-y-5 text-center">
+        <div className="max-w-4xl mx-auto space-y-4 text-center">
           
-          {/* Header Tagline & Title */}
+          {/* Header Title with Special Class .hero-catalog-title (No capsule wrapper) */}
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/30 text-amber-300 border border-amber-400/40 text-[11px] font-extrabold tracking-wider uppercase shadow-md backdrop-blur-xs">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin-slow shrink-0" />
-              <span>ATHENA SOLUÇÕES AUTOMOTIVAS</span>
-            </div>
-            
-            <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+            <h1 className="hero-catalog-title text-2xl sm:text-4xl font-black tracking-tight">
               Catálogo de Equipamentos Automotivos
             </h1>
-            <p className="text-xs sm:text-sm text-slate-100 max-w-xl mx-auto font-semibold drop-shadow-md">
+
+            <p className="text-xs sm:text-sm text-slate-200 max-w-xl mx-auto font-semibold drop-shadow-md">
               Elevadores hidráulicos, scanners de diagnóstico com IA, alinhadores 3D e ferramentas para o seu centro automotivo.
             </p>
           </div>

@@ -10,6 +10,7 @@ import CategoryPage from './pages/CategoryPage';
 import BrandPage from './pages/BrandPage';
 import AboutPage from './pages/AboutPage';
 import LoginPage from './pages/LoginPage';
+import BottomNavBar from './components/BottomNavBar';
 
 import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
@@ -597,16 +598,16 @@ export default function App() {
       />
 
       {/* Main Page Content */}
-      <main className="flex-1">
+      <main className="flex-1 pt-16 sm:pt-20">
         {renderCurrentPage()}
       </main>
 
-      {/* Floating WhatsApp Action Button */}
+      {/* Floating WhatsApp Action Button (Desktop Only) */}
       <a
         href="https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento."
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-6 left-6 z-40 p-3.5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-500 hover:scale-110 active:scale-95 transition-all flex items-center gap-2 group text-xs font-extrabold"
+        className="hidden md:flex fixed bottom-6 left-6 z-40 p-3.5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-500 hover:scale-110 active:scale-95 transition-all items-center gap-2 group text-xs font-extrabold"
         title="Falar no WhatsApp (61) 98348-5671"
       >
         <MessageCircle className="w-6 h-6 fill-current text-white shrink-0" />
@@ -615,11 +616,16 @@ export default function App() {
         </span>
       </a>
 
+      {/* App-style Bottom Navigation Bar for Mobile */}
+      <BottomNavBar activeTab={currentRoute} onNavigate={navigateTo} />
+
       {/* Toast Notification */}
       <Toast toast={toast} onClose={() => setToast(null)} />
 
       {/* Footer */}
-      <Footer setActiveTab={navigateTo} />
+      <div className="pb-14 md:pb-0">
+        <Footer setActiveTab={navigateTo} />
+      </div>
 
     </div>
   );

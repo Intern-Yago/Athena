@@ -27,16 +27,16 @@ export default function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-white border-b border-slate-200/90 shadow-xs">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200/90 shadow-md">
         <div className="container-custom">
-          <div className="flex items-center justify-between h-20">
+          <div className="flex items-center justify-between h-16 sm:h-20 gap-2">
             
             {/* Logo & Brand Name */}
             <div 
               onClick={() => onNavigate('catalog')} 
-              className="flex items-center gap-3 cursor-pointer group shrink-0"
+              className="flex items-center gap-2 sm:gap-3 cursor-pointer group shrink-0"
             >
-              <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl border border-slate-200 overflow-hidden bg-slate-950 p-1 shadow-xs">
+              <div className="relative w-9 h-9 sm:w-12 sm:h-12 rounded-xl border border-slate-200 overflow-hidden bg-slate-950 p-0.5 sm:p-1 shadow-xs shrink-0">
                 <img 
                   src="/logo.jpg" 
                   alt="Athena Soluções Automotivas Logo" 
@@ -45,16 +45,11 @@ export default function Header({
               </div>
               
               <div className="flex flex-col">
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <span className="font-display font-extrabold text-lg sm:text-xl tracking-tight text-slate-900 group-hover:text-amber-600 transition-colors">
-                    ATHENA
-                  </span>
-                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                    Automotivas
-                  </span>
-                </div>
-                <span className="text-[11px] text-slate-500 tracking-wide font-medium hidden sm:block">
-                  Soluções para Oficinas & Auto Centers
+                <span className="font-display font-black text-base sm:text-xl tracking-tight text-slate-900 group-hover:text-amber-600 transition-colors leading-none">
+                  ATHENA
+                </span>
+                <span className="hidden min-[380px]:block text-[9px] sm:text-[11px] font-bold text-amber-700 uppercase tracking-wider mt-0.5 whitespace-nowrap">
+                  Soluções Automotivas
                 </span>
               </div>
             </div>
@@ -126,7 +121,7 @@ export default function Header({
                   placeholder="Buscar equipamento..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-xl pl-9 pr-4 py-2.5 outline-none transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-xl !pl-9 pr-4 py-2.5 outline-none transition-colors"
                 />
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -142,25 +137,25 @@ export default function Header({
               </a>
             </div>
 
-            {/* Mobile Header: Search Input + Hamburger */}
-            <div className="flex md:hidden items-center gap-2">
-              <div className="relative w-36 sm:w-48">
+            {/* Mobile Header: Search Input + Hamburger (Locked on Screen) */}
+            <div className="flex md:hidden items-center gap-1.5 min-w-0 shrink">
+              <div className="relative min-w-0 flex-1 max-w-[130px] min-[380px]:max-w-[180px]">
                 <input
                   type="text"
                   placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-lg pl-8 pr-2 py-1.5 outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-lg !pl-7 pr-2 py-1.5 outline-none"
                 />
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
               <button
                 onClick={() => setIsMobileDrawerOpen(true)}
-                className="p-2 rounded-xl bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 shadow-xs"
+                className="p-1.5 rounded-xl bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 shadow-xs shrink-0"
                 title="Abrir Menu"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-5 h-5" />
               </button>
             </div>
 
@@ -184,10 +179,10 @@ export default function Header({
       <MobileDrawer
         isOpen={isMobileDrawerOpen}
         onClose={() => setIsMobileDrawerOpen(false)}
+        activeTab={activeTab}
+        onNavigate={onNavigate}
         categories={categories}
         brands={brands}
-        products={products}
-        onNavigate={onNavigate}
       />
     </>
   );

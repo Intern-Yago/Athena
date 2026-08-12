@@ -1,6 +1,7 @@
 import React from 'react';
 import ProductCard from '../components/ProductCard';
-import { ArrowLeft, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, PhoneCall, Sparkles, Truck, Package, FileText, Download } from 'lucide-react';
+import ProductImageGallery from '../components/ProductImageGallery';
+import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, PhoneCall, Sparkles, Truck, Package, FileText, Download } from 'lucide-react';
 
 export const formatAttachmentLabel = (fileName) => {
   if (!fileName) return 'Baixe Documento';
@@ -122,25 +123,9 @@ export default function ProductDetailPage({ productSlugOrId, products, categorie
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column: Image & Badges */}
+          {/* Left Column: Interactive Carousel & Zoom Gallery + Trust Badges */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs aspect-square relative flex items-center justify-center overflow-hidden">
-              <img 
-                src={product.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
-                alt={product.altText || product.name}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-full object-cover rounded-2xl"
-                onError={(e) => {
-                  e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
-                }}
-              />
-
-              {product.badge && (
-                <span className="absolute top-6 left-6 badge badge-gold shadow-md">
-                  {product.badge}
-                </span>
-              )}
-            </div>
+            <ProductImageGallery product={product} />
 
             {/* Trust Badges */}
             <div className="grid grid-cols-2 gap-3">
@@ -290,32 +275,72 @@ export default function ProductDetailPage({ productSlugOrId, products, categorie
 
         </div>
 
-        {/* SMART RELATED PRODUCTS SECTION */}
+        {/* SMART RELATED PRODUCTS SECTION (Ultra-Compact Mini Cards) */}
         {relatedProducts.length > 0 && (
-          <div className="pt-10 border-t border-slate-200 space-y-6">
+          <div className="pt-8 border-t border-slate-200 space-y-4">
             <div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-                <Package className="w-5 h-5 text-amber-600" />
-                Produtos Relacionados Recomendados
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                <Package className="w-5 h-5 text-amber-600 shrink-0" />
+                <span>Equipamentos Relacionados</span>
               </h2>
               <p className="text-xs text-slate-500">
-                Outros equipamentos da mesma categoria ou marca que você também pode se interessar.
+                Opções similares da mesma categoria para o seu centro automotivo.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
               {relatedProducts.map((relProduct) => {
                 const relCat = categories.find((c) => c.id === relProduct.categoryId);
                 const relBrand = brands.find((b) => b.id === relProduct.brandId);
+                const relPrice = relProduct.price 
+                  ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(relProduct.price)
+                  : 'Sob Consulta';
+
                 return (
-                  <ProductCard
+                  <div 
                     key={relProduct.id}
-                    product={relProduct}
-                    category={relCat}
-                    brand={relBrand}
-                    onSelectProduct={(p) => onNavigate(`produto/${p.slug || p.id}`)}
-                    isAdmin={false}
-                  />
+                    onClick={() => onNavigate(`produto/${relProduct.slug || relProduct.id}`)}
+                    className="group bg-white border border-slate-200 hover:border-amber-400 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Compact Image */}
+                      <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+                        <img 
+                          src={relProduct.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
+                          alt={relProduct.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {relCat && (
+                          <span className="absolute top-1.5 right-1.5 bg-white/95 text-slate-800 text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs truncate max-w-[80px]">
+                            {relCat.name}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Compact Content */}
+                      <div className="p-2.5 space-y-1">
+                        {relBrand && (
+                          <span className="text-[9px] font-bold text-slate-400 block truncate">
+                            {relBrand.name}
+                          </span>
+                        )}
+                        <h3 className="text-xs font-bold text-slate-900 line-clamp-2 leading-tight group-hover:text-amber-600 transition-colors">
+                          {relProduct.name}
+                        </h3>
+                      </div>
+                    </div>
+
+                    {/* Price & Action */}
+                    <div className="p-2.5 pt-0 space-y-1.5">
+                      <div className="text-xs font-extrabold text-amber-700">
+                        {relPrice}
+                      </div>
+                      <button className="w-full py-1.5 rounded-lg bg-slate-100 group-hover:bg-amber-600 group-hover:text-white text-slate-700 text-[10px] font-bold transition-colors flex items-center justify-center gap-1">
+                        <span>Ver Ficha</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>

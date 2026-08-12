@@ -149,6 +149,7 @@ export default function AdminPanel({
       badge: 'Disponível',
       status: 'published',
       image: '',
+      images: [],
       altText: '',
       description: '',
       specs: ['Elevada resistência e durabilidade', 'Manual e certificado inclusos', 'Garantia de fábrica'],
@@ -161,6 +162,7 @@ export default function AdminPanel({
     setEditingProduct(product);
     setProductForm({
       ...product,
+      images: Array.isArray(product.images) ? [...product.images] : [],
       specs: product.specs && product.specs.length ? [...product.specs] : ['', ''],
       attachments: product.attachments ? [...product.attachments] : []
     });

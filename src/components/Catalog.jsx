@@ -31,12 +31,27 @@ export default function Catalog({
     setCurrentPage(1);
   }, [selectedCategories, selectedBrands, maxPriceFilter, searchTerm, sortBy]);
 
+  // Helper for accent-insensitive search matching
+  const normalizeText = (text) => {
+    if (!text) return '';
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  };
+
   // Filter products according to all active multi-selections
   const filteredProducts = products.filter((prod) => {
-    const matchesSearch = !searchTerm || 
-      prod.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prod.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (prod.specs && prod.specs.some(s => s.toLowerCase().includes(searchTerm.toLowerCase())));
+    const term = normalizeText(searchTerm);
+    const category = categories.find((c) => c.id === prod.categoryId);
+    const brand = brands.find((b) => b.id === prod.brandId);
+
+    const matchesSearch = !term || 
+      normalizeText(prod.name).includes(term) ||
+      normalizeText(prod.description).includes(term) ||
+      normalizeText(prod.badge).includes(term) ||
+      normalizeText(prod.altText).includes(term) ||
+      normalizeText(prod.slug).includes(term) ||
+      (category && (normalizeText(category.name).includes(term) || normalizeText(category.description).includes(term) || normalizeText(category.slug).includes(term))) ||
+      (brand && (normalizeText(brand.name).includes(term) || normalizeText(brand.description).includes(term) || normalizeText(brand.slug).includes(term))) ||
+      (prod.specs && prod.specs.some(s => normalizeText(s).includes(term)));
 
     const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prod.categoryId);
     const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(prod.brandId);
@@ -89,14 +104,14 @@ export default function Catalog({
   };
 
   return (
-    <section className="py-8">
-      <div className="container-custom space-y-6">
+    <section className="py-6 sm:py-8 w-full">
+      <div className="w-full px-3 sm:px-6 lg:px-8 space-y-6">
         
-        {/* Main E-commerce Layout: Fixed Left Sidebar (1 col) + Right Product Area (3 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start relative">
+        {/* Full-Width E-commerce Layout: Sidebar Glued to Far Left + Cards Fill Entire Monitor */}
+        <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-start relative w-full">
           
-          {/* Fixed Left Sidebar Filter Column */}
-          <div className="lg:col-span-1 lg:sticky lg:top-24 z-30">
+          {/* Sidebar Glued to Left Edge */}
+          <div className="w-full lg:w-72 shrink-0 lg:sticky lg:top-24 z-30">
             <FilterSidebar
               products={products}
               categories={categories}
@@ -113,8 +128,8 @@ export default function Catalog({
             />
           </div>
 
-          {/* Right Product Grid Area */}
-          <div className="lg:col-span-3 space-y-6">
+          {/* Product Grid Area (Takes 100% of remaining viewport width) */}
+          <div className="flex-1 min-w-0 space-y-6 w-full">
             
             {/* Top Toolbar */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
@@ -202,7 +217,7 @@ export default function Catalog({
 
                     {maxPriceFilter !== null && (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                        <DollarSign className="w-3 h-3 text-emerald-700" />
+                        <DollarSign className="w-3.5 h-3.5 text-emerald-700" />
                         <span>Até {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(maxPriceFilter)}</span>
                         <button 
                           onClick={() => setMaxPriceFilter(null)}
@@ -240,10 +255,10 @@ export default function Catalog({
               )}
             </div>
 
-            {/* Product Cards Grid */}
+            {/* Dynamic Product Grid (Fills 100% width up to 5-6 columns) */}
             {paginatedProducts.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-5">
                   {paginatedProducts.map((product) => {
                     const category = categories.find((c) => c.id === product.categoryId);
                     const brand = brands.find((b) => b.id === product.brandId);

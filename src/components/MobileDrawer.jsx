@@ -22,7 +22,7 @@ export default function MobileDrawer({ isOpen, onClose, categories, brands, prod
       />
 
       {/* Drawer Sidebar Content */}
-      <div className="relative w-full max-w-xs bg-white h-full shadow-2xl z-10 flex flex-col justify-between overflow-y-auto animate-fade-in">
+      <div className="relative w-full max-w-xs bg-white h-full shadow-2xl z-10 flex flex-col justify-between overflow-y-auto animate-slide-right">
         
         {/* Header inside Drawer */}
         <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
