@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 const cloudinary = require('cloudinary').v2;
+const swaggerUi = require('swagger-ui-express');
+const basicAuth = require('express-basic-auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,7 +22,100 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// PostgreSQL Pool setup (Used if DATABASE_URL env is set)
+// -------------------------------------------------------------
+// SECURE PROTECTED SWAGGER DOCUMENTATION SETUP (/api-docs)
+// -------------------------------------------------------------
+const SWAGGER_USER = process.env.SWAGGER_USER || 'admin';
+const SWAGGER_PASSWORD = process.env.SWAGGER_PASSWORD || 'AthenaAdmin2026!';
+
+const swaggerAuth = basicAuth({
+  users: { [SWAGGER_USER]: SWAGGER_PASSWORD },
+  challenge: true,
+  realm: 'Athena API Documentation Restricted Access'
+});
+
+const swaggerDocument = {
+  openapi: '3.0.0',
+  info: {
+    title: 'Athena Soluções Automotivas — API Documentation',
+    version: '1.0.0',
+    description: 'API RESTful protegida para gerenciamento de equipamentos, categorias, marcas parceiras e upload na nuvem.'
+  },
+  servers: [
+    { url: 'https://athena-backend-hu1m.onrender.com', description: 'Servidor de Produção (Render)' },
+    { url: 'http://localhost:3001', description: 'Servidor Local (Desenvolvimento)' }
+  ],
+  paths: {
+    '/api/products': {
+      get: {
+        summary: 'Listar todos os equipamentos',
+        responses: { 200: { description: 'Lista de produtos retornada com sucesso' } }
+      },
+      post: {
+        summary: 'Cadastrar novo equipamento',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', example: 'Elevador Automotivo 4.000kg' },
+                  categoryId: { type: 'string', example: 'cat_elevadores' },
+                  brandId: { type: 'string', example: 'brand_engecass' },
+                  price: { type: 'number', example: 18900.0 },
+                  priceNegotiable: { type: 'boolean', example: true },
+                  status: { type: 'string', example: 'published' }
+                }
+              }
+            }
+          }
+        },
+        responses: { 201: { description: 'Produto cadastrado com sucesso' } }
+      }
+    },
+    '/api/products/{id}': {
+      put: {
+        summary: 'Atualizar equipamento existente',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { 200: { description: 'Produto atualizado' } }
+      },
+      delete: {
+        summary: 'Apagar equipamento',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { 200: { description: 'Produto removido' } }
+      }
+    },
+    '/api/categories': {
+      get: { summary: 'Listar categorias de produtos' },
+      post: { summary: 'Criar nova categoria' }
+    },
+    '/api/categories/{id}': {
+      delete: { summary: 'Remover categoria' }
+    },
+    '/api/brands': {
+      get: { summary: 'Listar marcas parceiras' },
+      post: { summary: 'Cadastrar nova marca' }
+    },
+    '/api/brands/{id}': {
+      put: { summary: 'Atualizar marca parceira (logo, site, nome)' },
+      delete: { summary: 'Remover marca' }
+    },
+    '/api/upload': {
+      post: {
+        summary: 'Upload de Imagens e PDFs para a Nuvem Cloudinary',
+        responses: { 200: { description: 'URL segura da CDN Cloudinary' } }
+      }
+    }
+  }
+};
+
+// Serve Password-Protected Swagger UI at /api-docs
+app.use('/api-docs', swaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+// -------------------------------------------------------------
+// POSTGRESQL POOL SETUP
+// -------------------------------------------------------------
 let pool = null;
 if (process.env.DATABASE_URL) {
   pool = new Pool({
@@ -97,7 +192,7 @@ async function initDb() {
           ('brand_sun', 'Sun Equipment', 'sun-equipment', 'Sistemas de alinhamento 3D e diagnóstico premium.', 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80', 'https://www.sun.com.br', 5);
         `);
       }
-      // Products table initialized empty for user catalog creation
+
       console.log('✅ PostgreSQL athena-db pronto!');
 
     } catch (err) {
@@ -395,4 +490,5 @@ app.delete('/api/products/:id', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Athena API Backend rodando na porta ${PORT}`);
+  console.log(`🔒 Swagger API Docs protegida em: http://localhost:${PORT}/api-docs`);
 });
