@@ -115,15 +115,6 @@ export default function Footer({ setActiveTab }) {
         <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <div className="flex items-center gap-4">
             <p>© {new Date().getFullYear()} Athena Soluções Automotivas. Todos os direitos reservados.</p>
-            {/* Discreet Admin Link */}
-            <button 
-              onClick={() => { setActiveTab('admin'); scrollToTop(); }}
-              className="text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1 text-[11px]"
-              title="Acesso Restrito ao Painel Admin"
-            >
-              <Lock className="w-3 h-3" />
-              <span>Acesso Admin</span>
-            </button>
           </div>
           
           <button 

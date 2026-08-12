@@ -39,82 +39,37 @@ const swaggerDocument = {
   info: {
     title: 'Athena Soluções Automotivas — API Documentation',
     version: '1.0.0',
-    description: 'API RESTful protegida para gerenciamento de equipamentos, categorias, marcas parceiras e upload na nuvem.'
+    description: 'API RESTful para catálogo automotivo, usuários, permissões e uploads.'
   },
   servers: [
     { url: 'https://athena-backend-hu1m.onrender.com', description: 'Servidor de Produção (Render)' },
     { url: 'http://localhost:3001', description: 'Servidor Local (Desenvolvimento)' }
   ],
   paths: {
+    '/api/auth/login': {
+      post: { summary: 'Autenticar funcionário (Login)' }
+    },
+    '/api/users': {
+      get: { summary: 'Listar funcionários e permissões' },
+      post: { summary: 'Cadastrar novo funcionário' }
+    },
+    '/api/users/{id}': {
+      delete: { summary: 'Revogar acesso / Apagar funcionário' }
+    },
     '/api/products': {
-      get: {
-        summary: 'Listar todos os equipamentos',
-        responses: { 200: { description: 'Lista de produtos retornada com sucesso' } }
-      },
-      post: {
-        summary: 'Cadastrar novo equipamento',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  name: { type: 'string', example: 'Elevador Automotivo 4.000kg' },
-                  categoryId: { type: 'string', example: 'cat_elevadores' },
-                  brandId: { type: 'string', example: 'brand_engecass' },
-                  price: { type: 'number', example: 18900.0 },
-                  priceNegotiable: { type: 'boolean', example: true },
-                  status: { type: 'string', example: 'published' }
-                }
-              }
-            }
-          }
-        },
-        responses: { 201: { description: 'Produto cadastrado com sucesso' } }
-      }
-    },
-    '/api/products/{id}': {
-      put: {
-        summary: 'Atualizar equipamento existente',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { 200: { description: 'Produto atualizado' } }
-      },
-      delete: {
-        summary: 'Apagar equipamento',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { 200: { description: 'Produto removido' } }
-      }
-    },
-    '/api/categories': {
-      get: { summary: 'Listar categorias de produtos' },
-      post: { summary: 'Criar nova categoria' }
-    },
-    '/api/categories/{id}': {
-      delete: { summary: 'Remover categoria' }
-    },
-    '/api/brands': {
-      get: { summary: 'Listar marcas parceiras' },
-      post: { summary: 'Cadastrar nova marca' }
-    },
-    '/api/brands/{id}': {
-      put: { summary: 'Atualizar marca parceira (logo, site, nome)' },
-      delete: { summary: 'Remover marca' }
+      get: { summary: 'Listar equipamentos' },
+      post: { summary: 'Cadastrar equipamento' }
     },
     '/api/upload': {
-      post: {
-        summary: 'Upload de Imagens e PDFs para a Nuvem Cloudinary',
-        responses: { 200: { description: 'URL segura da CDN Cloudinary' } }
-      }
+      post: { summary: 'Upload de mídia para Cloudinary' }
     }
   }
 };
 
-// Serve Password-Protected Swagger UI at /api-docs
 app.use('/api-docs', swaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // -------------------------------------------------------------
-// POSTGRESQL POOL SETUP
+// POSTGRESQL POOL SETUP & USERS TABLE
 // -------------------------------------------------------------
 let pool = null;
 if (process.env.DATABASE_URL) {
@@ -125,10 +80,31 @@ if (process.env.DATABASE_URL) {
   console.log('🐘 PostgreSQL athena-db conectado via DATABASE_URL');
 }
 
-// Ensure Database & Tables Exist (PostgreSQL or JSON File)
 async function initDb() {
   if (pool) {
     try {
+      // Create Users Table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(100) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
+          role VARCHAR(50) NOT NULL DEFAULT 'vendedor',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Seed Initial Super Admin User if empty
+      const userCheck = await pool.query('SELECT COUNT(*) FROM users');
+      if (parseInt(userCheck.rows[0].count, 10) === 0) {
+        console.log('👤 Criando usuário Administrador Padrão (admin@athena.com.br)...');
+        await pool.query(`
+          INSERT INTO users (id, name, email, password_hash, role) VALUES
+          ('user_admin_default', 'Administrador Geral', 'admin@athena.com.br', 'admin123', 'admin');
+        `);
+      }
+
       await pool.query(`
         CREATE TABLE IF NOT EXISTS categories (
           id VARCHAR(100) PRIMARY KEY,
@@ -203,6 +179,9 @@ async function initDb() {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     if (!fs.existsSync(DB_PATH)) {
       const initialData = {
+        users: [
+          { id: 'user_admin_default', name: 'Administrador Geral', email: 'admin@athena.com.br', passwordHash: 'admin123', role: 'admin' }
+        ],
         categories: [
           { id: 'cat_elevadores', name: 'Elevadores', slug: 'elevadores', description: 'Elevadores hidráulicos', icon: 'Layers', order: 1 }
         ],
@@ -217,7 +196,7 @@ async function initDb() {
 }
 
 function readDbJson() {
-  if (!fs.existsSync(DB_PATH)) return { categories: [], brands: [], products: [] };
+  if (!fs.existsSync(DB_PATH)) return { users: [], categories: [], brands: [], products: [] };
   const raw = fs.readFileSync(DB_PATH, 'utf-8');
   return JSON.parse(raw);
 }
@@ -256,7 +235,128 @@ app.post('/api/upload', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// REST API ENDPOINTS
+// AUTH & USER ROLES ENDPOINTS
+// -------------------------------------------------------------
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Informe e-mail e senha.' });
+  }
+
+  if (pool) {
+    try {
+      const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role FROM users WHERE email = $1', [email.trim().toLowerCase()]);
+      if (result.rows.length === 0) {
+        return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
+      }
+      const user = result.rows[0];
+      if (user.passwordHash !== password) {
+        return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
+      }
+      return res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        token: `token_${user.id}_${Date.now()}`
+      });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ error: 'Erro ao autenticar.' });
+    }
+  }
+
+  const db = readDbJson();
+  const user = (db.users || []).find(u => u.email.toLowerCase() === email.trim().toLowerCase());
+  if (!user || user.passwordHash !== password) {
+    return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
+  }
+  return res.json({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    token: `token_${user.id}_${Date.now()}`
+  });
+});
+
+// List Users
+app.get('/api/users', async (req, res) => {
+  if (pool) {
+    try {
+      const result = await pool.query('SELECT id, name, email, role, created_at as "createdAt" FROM users ORDER BY created_at DESC');
+      return res.json(result.rows);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
+  const cleanUsers = (db.users || []).map(({ passwordHash, ...rest }) => rest);
+  res.json(cleanUsers);
+});
+
+// Create Employee User
+app.post('/api/users', async (req, res) => {
+  const { name, email, password, role } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Nome, E-mail e Senha são obrigatórios.' });
+  }
+
+  const newUser = {
+    id: `user_${Date.now()}`,
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    passwordHash: password,
+    role: role || 'vendedor'
+  };
+
+  if (pool) {
+    try {
+      await pool.query(
+        'INSERT INTO users (id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, $5)',
+        [newUser.id, newUser.name, newUser.email, newUser.passwordHash, newUser.role]
+      );
+      return res.status(201).json({ id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role });
+    } catch (e) {
+      console.error(e);
+      if (e.code === '23505') {
+        return res.status(400).json({ error: 'Este e-mail já está cadastrado.' });
+      }
+      return res.status(500).json({ error: 'Erro ao criar funcionário.' });
+    }
+  }
+
+  const db = readDbJson();
+  if (!db.users) db.users = [];
+  if (db.users.some(u => u.email.toLowerCase() === newUser.email)) {
+    return res.status(400).json({ error: 'Este e-mail já está cadastrado.' });
+  }
+
+  db.users.push(newUser);
+  writeDbJson(db);
+  res.status(201).json({ id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role });
+});
+
+// Delete / Revoke Employee Access
+app.delete('/api/users/:id', async (req, res) => {
+  if (pool) {
+    try {
+      await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+      return res.json({ success: true, id: req.params.id });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
+  db.users = (db.users || []).filter((u) => u.id !== req.params.id);
+  writeDbJson(db);
+  res.json({ success: true, id: req.params.id });
+});
+
+// -------------------------------------------------------------
+// REST API ENDPOINTS (CATEGORIES, BRANDS, PRODUCTS)
 // -------------------------------------------------------------
 
 // 1. CATEGORIES

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Package, 
   Layers, 
@@ -19,9 +19,16 @@ import {
   Paperclip,
   ArrowUp,
   ArrowDown,
-  Globe
+  Globe,
+  Users,
+  Printer,
+  LogOut,
+  UserCheck,
+  UserX,
+  Lock
 } from 'lucide-react';
 import { formatAttachmentLabel } from '../pages/ProductDetailPage';
+import PdfCatalogGenerator from './PdfCatalogGenerator';
 
 export default function AdminPanel({
   products,
@@ -38,10 +45,48 @@ export default function AdminPanel({
   showNotification,
   editingProduct,
   setEditingProduct,
-  onNavigate
+  onNavigate,
+  currentUser,
+  onLogout,
+  API_BASE_URL
 }) {
   const [activeAdminTab, setActiveAdminTab] = useState('products');
   const [imageSourceMode, setImageSourceMode] = useState('upload');
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+
+  // User Role checks
+  const userRole = currentUser?.role || 'admin';
+  const isAdminRole = userRole === 'admin';
+  const canEditContent = userRole === 'admin' || userRole === 'editor' || userRole === 'edicao';
+
+  // Employees Management State
+  const [usersList, setUsersList] = useState([]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'vendedor'
+  });
+
+  // Fetch Users List
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/users`);
+      if (res.ok) {
+        const data = await res.json();
+        setUsersList(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdminRole) {
+      fetchUsers();
+    }
+  }, [isAdminRole]);
 
   // Product Form State
   const [productForm, setProductForm] = useState(
@@ -66,7 +111,7 @@ export default function AdminPanel({
   const [isQuickCatModalOpen, setIsQuickCatModalOpen] = useState(false);
   const [quickCatName, setQuickCatName] = useState('');
 
-  // Brand Modal State (Create or Edit)
+  // Brand Modal State
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
   const [brandForm, setBrandForm] = useState({
@@ -77,12 +122,10 @@ export default function AdminPanel({
     imageSourceMode: 'upload'
   });
 
-  // Form Modal & Drag/Drop state
   const [isProductModalOpen, setIsProductModalOpen] = useState(!!editingProduct);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isDraggingBrandLogo, setIsDraggingBrandLogo] = useState(false);
 
-  // Auto Generate Slug
   const generateSlug = (nameStr) => {
     return nameStr
       .toLowerCase()
@@ -124,7 +167,6 @@ export default function AdminPanel({
     setIsProductModalOpen(true);
   };
 
-  // Image Upload File Handler (Cloudinary + Base64 fallback)
   const handleImageFileUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) {
       showNotification('Por favor, selecione um arquivo de imagem válido (JPG/PNG).', 'error');
@@ -138,7 +180,7 @@ export default function AdminPanel({
       showNotification('Enviando imagem para a nuvem Cloudinary...', 'info');
 
       try {
-        const res = await fetch('https://athena-backend-hu1m.onrender.com/api/upload', {
+        const res = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file: base64Data, folder: 'athena_produtos' })
@@ -149,7 +191,7 @@ export default function AdminPanel({
           showNotification('Foto enviada para o Cloudinary com sucesso! ☁️', 'success');
         }
       } catch (err) {
-        showNotification('Imagem salva localmente (offline fallback).', 'info');
+        showNotification('Imagem salva localmente.', 'info');
       }
     };
     reader.readAsDataURL(file);
@@ -163,7 +205,6 @@ export default function AdminPanel({
     }
   };
 
-  // Brand Logo Upload File Handler (Cloudinary)
   const handleBrandLogoFileUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) {
       showNotification('Selecione uma imagem válida para a logo da marca.', 'error');
@@ -177,7 +218,7 @@ export default function AdminPanel({
       showNotification('Enviando logo para a nuvem Cloudinary...', 'info');
 
       try {
-        const res = await fetch('https://athena-backend-hu1m.onrender.com/api/upload', {
+        const res = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file: base64Data, folder: 'athena_marcas' })
@@ -202,7 +243,6 @@ export default function AdminPanel({
     }
   };
 
-  // Attachment File Upload Handler (Cloudinary)
   const handleAttachmentUpload = async (file) => {
     if (!file) return;
 
@@ -215,7 +255,7 @@ export default function AdminPanel({
 
       let finalUrl = base64Data;
       try {
-        const res = await fetch('https://athena-backend-hu1m.onrender.com/api/upload', {
+        const res = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file: base64Data, folder: 'athena_anexos' })
@@ -254,7 +294,6 @@ export default function AdminPanel({
     showNotification('Anexo removido.', 'info');
   };
 
-  // Auto Generate Alt Text
   const generateAutoAltText = () => {
     const cat = categories.find((c) => c.id === productForm.categoryId)?.name || '';
     const brand = brands.find((b) => b.id === productForm.brandId)?.name || '';
@@ -263,8 +302,8 @@ export default function AdminPanel({
     showNotification('Alt Text gerado para SEO!', 'info');
   };
 
-  // Toggle Status directly from table list
   const toggleProductStatus = (product) => {
+    if (!canEditContent) return;
     const newStatus = product.status === 'published' ? 'draft' : 'published';
     const updated = { ...product, status: newStatus };
     onUpdateProduct(updated);
@@ -274,8 +313,8 @@ export default function AdminPanel({
     );
   };
 
-  // Move Category Up or Down in Manual Order
   const moveCategoryOrder = (index, direction) => {
+    if (!canEditContent) return;
     const newCategories = [...categories];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= newCategories.length) return;
@@ -289,8 +328,8 @@ export default function AdminPanel({
     showNotification(`Ordem das categorias atualizada!`, 'success');
   };
 
-  // Move Brand Up or Down in Manual Order
   const moveBrandOrder = (index, direction) => {
+    if (!canEditContent) return;
     const newBrands = [...brands];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= newBrands.length) return;
@@ -304,7 +343,6 @@ export default function AdminPanel({
     showNotification(`Ordem das marcas atualizada!`, 'success');
   };
 
-  // Open Brand Modal (New or Edit)
   const openNewBrandModal = () => {
     setEditingBrand(null);
     setBrandForm({
@@ -329,7 +367,6 @@ export default function AdminPanel({
     setIsBrandModalOpen(true);
   };
 
-  // Submit Brand Modal
   const handleBrandSubmit = (e) => {
     e.preventDefault();
     if (!brandForm.name.trim()) {
@@ -366,7 +403,6 @@ export default function AdminPanel({
     setEditingBrand(null);
   };
 
-  // Quick Category Create
   const handleQuickCategoryCreate = (e) => {
     e.preventDefault();
     if (!quickCatName.trim()) return;
@@ -388,7 +424,6 @@ export default function AdminPanel({
     showNotification(`Categoria "${newCat.name}" criada!`, 'success');
   };
 
-  // Handle Product Submit
   const handleProductSubmit = (e) => {
     e.preventDefault();
 
@@ -425,6 +460,50 @@ export default function AdminPanel({
     setEditingProduct(null);
   };
 
+  // Submit New Employee User Form (Admin Only)
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!userForm.name || !userForm.email || !userForm.password) {
+      showNotification('Preencha nome, e-mail e senha do funcionário.', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userForm)
+      });
+
+      if (res.ok) {
+        showNotification(`Funcionário "${userForm.name}" cadastrado com sucesso!`, 'success');
+        setUserForm({ name: '', email: '', password: '', role: 'vendedor' });
+        setIsUserModalOpen(false);
+        fetchUsers();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showNotification(data.error || 'Erro ao cadastrar funcionário.', 'error');
+      }
+    } catch (err) {
+      showNotification('Erro ao conectar ao servidor de usuários.', 'error');
+    }
+  };
+
+  // Revoke Employee Access / Delete User (Admin Only)
+  const handleDeleteUser = async (userId, userName) => {
+    if (confirm(`Tem certeza que deseja revogar o acesso de "${userName}"? Ele será removido permanentemente.`)) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/${userId}`, { method: 'DELETE' });
+        if (res.ok) {
+          showNotification(`Acesso de "${userName}" revogado com sucesso.`, 'info');
+          fetchUsers();
+        }
+      } catch (err) {
+        showNotification('Erro ao revogar acesso.', 'error');
+      }
+    }
+  };
+
   return (
     <div className="py-8">
       <div className="container-custom space-y-6">
@@ -433,24 +512,58 @@ export default function AdminPanel({
         <div className="bg-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-400/30">
-                <Shield className="w-3.5 h-3.5" /> GESTÃO DE PRODUTOS & CATÁLOGO ATHENA
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-400/30">
+                  <Shield className="w-3.5 h-3.5" /> PAINEL ADMINISTRATIVO ATHENA
+                </div>
+                {currentUser && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800 text-slate-200 text-xs font-bold border border-slate-700">
+                    <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{currentUser.name} ({userRole.toUpperCase()})</span>
+                  </span>
+                )}
               </div>
+
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-                Painel Administrativo
+                Gestão da Plataforma
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-                Gerencie marcas, logos por arquivo/URL, links de parceiros, categorias e anexos de equipamentos.
+                {userRole === 'vendedor' 
+                  ? 'Modo Vendedor (Leitura & Geração de Catálogos em PDF para Clientes).' 
+                  : 'Gerencie equipamentos, fotos no Cloudinary, marcas parceiras e usuários da equipe.'}
               </p>
             </div>
 
-            <button
-              onClick={openNewProductModal}
-              className="btn-gold text-xs sm:text-sm font-bold py-3 px-5 shadow-md shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Novo Equipamento</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* PDF Catalog Button */}
+              <button
+                onClick={() => setIsPdfModalOpen(true)}
+                className="btn-secondary text-xs sm:text-sm font-bold py-3 px-4 shadow-md shrink-0 bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700"
+              >
+                <Printer className="w-4 h-4 text-amber-400" />
+                <span>Gerar Catálogo PDF</span>
+              </button>
+
+              {canEditContent && (
+                <button
+                  onClick={openNewProductModal}
+                  className="btn-gold text-xs sm:text-sm font-bold py-3 px-5 shadow-md shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Novo Equipamento</span>
+                </button>
+              )}
+
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="btn-danger text-xs font-bold py-3 px-3 shrink-0"
+                  title="Sair da Conta"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -491,6 +604,21 @@ export default function AdminPanel({
             <Tag className="w-4 h-4" />
             <span>Marcas ({brands.length})</span>
           </button>
+
+          {/* ADMIN ONLY: Employees & Access Management Tab */}
+          {isAdminRole && (
+            <button
+              onClick={() => setActiveAdminTab('users')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
+                activeAdminTab === 'users'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Funcionários & Permissões ({usersList.length})</span>
+            </button>
+          )}
         </div>
 
         {/* PRODUCTS MANAGEMENT TAB */}
@@ -500,9 +628,11 @@ export default function AdminPanel({
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Package className="w-5 h-5 text-amber-600" /> Lista de Produtos
               </h3>
-              <button onClick={openNewProductModal} className="btn-blue text-xs py-2 px-3">
-                <Plus className="w-3.5 h-3.5" /> Adicionar Produto
-              </button>
+              {canEditContent && (
+                <button onClick={openNewProductModal} className="btn-blue text-xs py-2 px-3">
+                  <Plus className="w-3.5 h-3.5" /> Adicionar Produto
+                </button>
+              )}
             </div>
 
             <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
@@ -549,13 +679,15 @@ export default function AdminPanel({
                           </td>
                           <td className="py-3 px-4">
                             <button
+                              disabled={!canEditContent}
                               onClick={() => toggleProductStatus(prod)}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${
+                                canEditContent ? 'cursor-pointer' : 'cursor-default'
+                              } ${
                                 isPublished 
                                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
                                   : 'bg-amber-50 text-amber-800 border-amber-300'
                               }`}
-                              title="Clique para alternar o status"
                             >
                               {isPublished ? <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-amber-600" />}
                               <span>{isPublished ? 'Publicado' : 'Rascunho'}</span>
@@ -580,26 +712,32 @@ export default function AdminPanel({
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
 
-                              <button
-                                onClick={() => openEditProductModal(prod)}
-                                className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200"
-                                title="Editar"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
+                              {canEditContent && (
+                                <>
+                                  <button
+                                    onClick={() => openEditProductModal(prod)}
+                                    className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200"
+                                    title="Editar"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
 
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Tem certeza que deseja apagar "${prod.name}"?`)) {
-                                    onDeleteProduct(prod.id);
-                                    showNotification('Produto apagado.', 'info');
-                                  }
-                                }}
-                                className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                                title="Apagar"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                                  {isAdminRole && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Tem certeza que deseja apagar "${prod.name}"?`)) {
+                                          onDeleteProduct(prod.id);
+                                          showNotification('Produto apagado.', 'info');
+                                        }
+                                      }}
+                                      className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                                      title="Apagar"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -621,9 +759,11 @@ export default function AdminPanel({
                 <p className="text-xs text-slate-500">Defina a ordem de exibição comercial no filtro (as de topo aparecem primeiro).</p>
               </div>
 
-              <button onClick={() => setIsQuickCatModalOpen(true)} className="btn-gold text-xs font-bold py-2 px-3">
-                <Plus className="w-3.5 h-3.5" /> Nova Categoria
-              </button>
+              {canEditContent && (
+                <button onClick={() => setIsQuickCatModalOpen(true)} className="btn-gold text-xs font-bold py-2 px-3">
+                  <Plus className="w-3.5 h-3.5" /> Nova Categoria
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-3">
@@ -640,28 +780,32 @@ export default function AdminPanel({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-                      <button
-                        onClick={() => moveCategoryOrder(idx, 'up')}
-                        disabled={idx === 0}
-                        className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
-                        title="Subir posição no filtro"
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => moveCategoryOrder(idx, 'down')}
-                        disabled={idx === categories.length - 1}
-                        className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
-                        title="Descer posição no filtro"
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {canEditContent && (
+                      <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                        <button
+                          onClick={() => moveCategoryOrder(idx, 'up')}
+                          disabled={idx === 0}
+                          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                          title="Subir posição no filtro"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moveCategoryOrder(idx, 'down')}
+                          disabled={idx === categories.length - 1}
+                          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                          title="Descer posição no filtro"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
 
-                    <button onClick={() => onDeleteCategory(cat.id)} className="btn-danger text-xs p-2">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {isAdminRole && (
+                      <button onClick={() => onDeleteCategory(cat.id)} className="btn-danger text-xs p-2">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -669,7 +813,7 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* BRANDS MANAGEMENT TAB (WITH PHOTO & WEBSITE URL SUPPORT) */}
+        {/* BRANDS MANAGEMENT TAB */}
         {activeAdminTab === 'brands' && (
           <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
@@ -678,9 +822,11 @@ export default function AdminPanel({
                 <p className="text-xs text-slate-500">Cadastre fotos por Upload/URL e insira o site oficial do parceiro.</p>
               </div>
 
-              <button onClick={openNewBrandModal} className="btn-gold text-xs font-bold py-2 px-3">
-                <Plus className="w-3.5 h-3.5" /> Nova Marca / Parceiro
-              </button>
+              {canEditContent && (
+                <button onClick={openNewBrandModal} className="btn-gold text-xs font-bold py-2 px-3">
+                  <Plus className="w-3.5 h-3.5" /> Nova Marca / Parceiro
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-3">
@@ -713,32 +859,38 @@ export default function AdminPanel({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-                      <button
-                        onClick={() => moveBrandOrder(idx, 'up')}
-                        disabled={idx === 0}
-                        className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
-                        title="Subir posição"
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => moveBrandOrder(idx, 'down')}
-                        disabled={idx === brands.length - 1}
-                        className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
-                        title="Descer posição"
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {canEditContent && (
+                      <>
+                        <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                          <button
+                            onClick={() => moveBrandOrder(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                            title="Subir posição"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => moveBrandOrder(idx, 'down')}
+                            disabled={idx === brands.length - 1}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                            title="Descer posição"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
 
-                    <button onClick={() => openEditBrandModal(b)} className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200" title="Editar Marca">
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
+                        <button onClick={() => openEditBrandModal(b)} className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200" title="Editar Marca">
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
 
-                    <button onClick={() => onDeleteBrand(b.id)} className="btn-danger text-xs p-2" title="Apagar Marca">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {isAdminRole && (
+                      <button onClick={() => onDeleteBrand(b.id)} className="btn-danger text-xs p-2" title="Apagar Marca">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -746,8 +898,156 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* EMPLOYEES & ACCESS CONTROL TAB (ADMIN ONLY) */}
+        {activeAdminTab === 'users' && isAdminRole && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-amber-600" />
+                  Gerenciamento de Funcionários & Níveis de Acesso
+                </h3>
+                <p className="text-xs text-slate-500">Cadastre contas de funcionários e revogue o acesso quando necessário.</p>
+              </div>
+
+              <button onClick={() => setIsUserModalOpen(true)} className="btn-gold text-xs font-bold py-2 px-3">
+                <Plus className="w-3.5 h-3.5" /> Cadastrar Funcionário
+              </button>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-100 uppercase text-[11px] text-slate-600 border-b border-slate-200 font-bold">
+                  <tr>
+                    <th className="py-3 px-4">Funcionário</th>
+                    <th className="py-3 px-4">E-mail Corporativo</th>
+                    <th className="py-3 px-4">Nível de Permissão</th>
+                    <th className="py-3 px-4 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {usersList.map((user) => {
+                    const roleLabels = {
+                      admin: { label: 'Administrador Geral', color: 'bg-amber-100 text-amber-900 border-amber-300' },
+                      editor: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
+                      edicao: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
+                      vendedor: { label: 'Vendedor (Somente Leitura & PDF)', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' }
+                    };
+                    const roleObj = roleLabels[user.role] || roleLabels.vendedor;
+
+                    return (
+                      <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 font-bold text-slate-900">
+                          {user.name}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-600">
+                          {user.email}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${roleObj.color}`}>
+                            {roleObj.label}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {user.id !== currentUser?.id ? (
+                            <button
+                              onClick={() => handleDeleteUser(user.id, user.name)}
+                              className="btn-danger text-xs py-1.5 px-2.5"
+                              title="Revogar Acesso / Apagar"
+                            >
+                              <UserX className="w-3.5 h-3.5" /> Revogar Acesso
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-semibold italic">Você</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* NEW EMPLOYEE MODAL (ADMIN ONLY) */}
+        {isUserModalOpen && (
+          <div className="modal-backdrop" onClick={() => setIsUserModalOpen(false)}>
+            <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
+              <button 
+                onClick={() => setIsUserModalOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-amber-600" /> Cadastrar Novo Funcionário
+              </h4>
+
+              <form onSubmit={handleCreateUser} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nome Completo *</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Carlos Silva"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">E-mail Corporativo *</label>
+                  <input
+                    type="email"
+                    placeholder="carlos@athena.com.br"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    className="form-input text-xs font-mono"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Senha Inicial *</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={userForm.password}
+                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    className="form-input text-xs font-mono"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nível de Permissão (Acesso) *</label>
+                  <select
+                    value={userForm.role}
+                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    className="form-select text-xs font-bold"
+                  >
+                    <option value="vendedor">Vendedor (Somente Leitura + Gerador de PDF)</option>
+                    <option value="editor">Edição / Gestor (Criar e Editar Conteúdo)</option>
+                    <option value="admin">Administrador Geral (Acesso Total + Gestão de Usuários)</option>
+                  </select>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                  <button type="button" onClick={() => setIsUserModalOpen(false)} className="btn-secondary text-xs">Cancelar</button>
+                  <button type="submit" className="btn-gold text-xs font-bold py-2.5 px-4">
+                    <Check className="w-4 h-4" /> Criar Conta
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* FULL PRODUCT FORM MODAL */}
-        {isProductModalOpen && (
+        {isProductModalOpen && canEditContent && (
           <div className="modal-backdrop" onClick={() => setIsProductModalOpen(false)}>
             <div className="modal-content max-w-2xl p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
               
@@ -765,7 +1065,6 @@ export default function AdminPanel({
 
               <form onSubmit={handleProductSubmit} className="space-y-4">
                 
-                {/* Title & Slug */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold text-slate-700 block mb-1">
@@ -802,7 +1101,6 @@ export default function AdminPanel({
                   </div>
                 </div>
 
-                {/* Category & Brand Selectors */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <div className="flex items-center justify-between mb-1">
@@ -851,7 +1149,6 @@ export default function AdminPanel({
                   </div>
                 </div>
 
-                {/* Status Toggle & Price */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                   <div>
                     <label className="text-xs font-bold text-slate-700 block mb-1">Status de Publicação</label>
@@ -1017,7 +1314,6 @@ export default function AdminPanel({
                   )}
                 </div>
 
-                {/* Alt Text & Auto Generation */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-slate-700">Texto Alternativo (Alt Text SEO)</label>
@@ -1038,7 +1334,6 @@ export default function AdminPanel({
                   />
                 </div>
 
-                {/* Description */}
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Descrição</label>
                   <textarea
@@ -1049,7 +1344,6 @@ export default function AdminPanel({
                   />
                 </div>
 
-                {/* Modal Action Buttons */}
                 <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
                   <button
                     type="button"
@@ -1076,8 +1370,8 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* COMPLETE BRAND CREATION / EDIT MODAL (WITH PHOTO & WEBSITE URL) */}
-        {isBrandModalOpen && (
+        {/* BRAND MODAL */}
+        {isBrandModalOpen && canEditContent && (
           <div className="modal-backdrop" onClick={() => setIsBrandModalOpen(false)}>
             <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
               <button 
@@ -1093,7 +1387,6 @@ export default function AdminPanel({
               </h4>
 
               <form onSubmit={handleBrandSubmit} className="space-y-4">
-                {/* Brand Name */}
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Nome da Marca *</label>
                   <input
@@ -1106,7 +1399,6 @@ export default function AdminPanel({
                   />
                 </div>
 
-                {/* Brand Logo Upload (Drag & Drop or URL) */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-700">Logo / Foto da Marca</label>
@@ -1179,7 +1471,6 @@ export default function AdminPanel({
                   )}
                 </div>
 
-                {/* Partner Website URL (Optional) */}
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
                     Site Oficial do Parceiro (Opcional)
@@ -1194,12 +1485,8 @@ export default function AdminPanel({
                     />
                     <Globe className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   </div>
-                  <span className="text-[10px] text-slate-400 block mt-1">
-                    Se preenchido, um botão "Visitar Site Oficial ↗" será exibido para os clientes.
-                  </span>
                 </div>
 
-                {/* Brand Description */}
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Descrição Breve</label>
                   <textarea
@@ -1210,7 +1497,6 @@ export default function AdminPanel({
                   />
                 </div>
 
-                {/* Action Buttons */}
                 <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
                   <button type="button" onClick={() => setIsBrandModalOpen(false)} className="btn-secondary text-xs">Cancelar</button>
                   <button type="submit" className="btn-gold text-xs font-bold py-2.5 px-4">
@@ -1224,7 +1510,7 @@ export default function AdminPanel({
         )}
 
         {/* QUICK CATEGORY MODAL */}
-        {isQuickCatModalOpen && (
+        {isQuickCatModalOpen && canEditContent && (
           <div className="modal-backdrop" onClick={() => setIsQuickCatModalOpen(false)}>
             <div className="modal-content max-w-sm p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
               <h4 className="text-base font-bold text-slate-900 mb-3">Criar Nova Categoria</h4>
@@ -1245,6 +1531,15 @@ export default function AdminPanel({
             </div>
           </div>
         )}
+
+        {/* COMMERCIAL PDF CATALOG GENERATOR MODAL */}
+        <PdfCatalogGenerator
+          products={products}
+          categories={categories}
+          brands={brands}
+          isOpen={isPdfModalOpen}
+          onClose={() => setIsPdfModalOpen(false)}
+        />
 
       </div>
     </div>

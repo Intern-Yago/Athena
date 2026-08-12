@@ -9,6 +9,7 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import CategoryPage from './pages/CategoryPage';
 import BrandPage from './pages/BrandPage';
 import AboutPage from './pages/AboutPage';
+import LoginPage from './pages/LoginPage';
 
 import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
@@ -33,6 +34,12 @@ export default function App() {
 
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
+  // Authenticated User State (Employee Login & Roles)
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('athena_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   // Hash Router & Previous Route State for Smart Back Navigation
   const [currentRoute, setCurrentRoute] = useState(() => {
     return window.location.hash ? window.location.hash.replace('#/', '') : 'catalog';
@@ -47,6 +54,21 @@ export default function App() {
 
   const [editingProduct, setEditingProduct] = useState(null);
   const [toast, setToast] = useState(null);
+
+  // Auth Handlers
+  const handleLoginSuccess = (userObj) => {
+    setCurrentUser(userObj);
+    localStorage.setItem('athena_user', JSON.stringify(userObj));
+    showNotification(`Bem-vindo, ${userObj.name}!`, 'success');
+    navigateTo('admin');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('athena_user');
+    showNotification('Sessão encerrada.', 'info');
+    navigateTo('catalog');
+  };
 
   // Hash Navigation helper that remembers previous route
   const navigateTo = (routePath) => {
@@ -70,7 +92,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Fetch from NestJS backend if available
+  // Fetch from NestJS / Node backend if available
   useEffect(() => {
     const fetchBackendData = async () => {
       try {
@@ -85,7 +107,6 @@ export default function App() {
           const catData = await catRes.json();
           const brandData = await brandRes.json();
 
-          // SMART MERGE: Retain items created in browser if backend resets on redeploy
           const localProds = JSON.parse(localStorage.getItem('athena_products') || '[]');
           const localCats = JSON.parse(localStorage.getItem('athena_categories') || '[]');
           const localBrands = JSON.parse(localStorage.getItem('athena_brands') || '[]');
@@ -289,11 +310,21 @@ export default function App() {
     navigateTo('admin');
   };
 
-  const isAdminView = currentRoute === 'admin';
+  const isAdminView = currentRoute === 'admin' && !!currentUser;
   const publicProducts = isAdminView ? products : products.filter(p => p.status !== 'draft');
 
   // Render Page Content Router
   const renderCurrentPage = () => {
+    if (currentRoute === 'login') {
+      return (
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onNavigate={navigateTo}
+          API_BASE_URL={API_BASE_URL}
+        />
+      );
+    }
+
     if (currentRoute.startsWith('produto/') || currentRoute.startsWith('product:')) {
       const slugOrId = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
       return (
@@ -462,6 +493,17 @@ export default function App() {
     }
 
     if (currentRoute === 'admin') {
+      // Guard admin route: if not logged in, redirect to login page!
+      if (!currentUser) {
+        return (
+          <LoginPage
+            onLoginSuccess={handleLoginSuccess}
+            onNavigate={navigateTo}
+            API_BASE_URL={API_BASE_URL}
+          />
+        );
+      }
+
       return (
         <AdminPanel
           products={products}
@@ -479,6 +521,9 @@ export default function App() {
           editingProduct={editingProduct}
           setEditingProduct={setEditingProduct}
           onNavigate={navigateTo}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          API_BASE_URL={API_BASE_URL}
         />
       );
     }
