@@ -34,32 +34,76 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
   const handleGeneratePdf = () => {
     const printWindow = window.open('', '_blank');
 
-    const productsHtml = filteredProducts.map((p) => {
-      const cat = categories.find(c => c.id === p.categoryId)?.name || '';
-      const brand = brands.find(b => b.id === p.brandId)?.name || '';
-      const priceText = showPrices && p.price > 0 && !p.priceNegotiable
-        ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.price)
-        : 'Sob Consulta';
+    // Grouping by Brand -> Category -> Products
+    const brandIdsWithProds = [...new Set(filteredProducts.map(p => p.brandId))];
+    const activeBrands = brands.filter(b => brandIdsWithProds.includes(b.id));
 
-      const specsList = (p.specs || []).map(s => `<li>${s}</li>`).join('');
+    // If there are products without matching brand ID in state
+    if (activeBrands.length === 0 && filteredProducts.length > 0) {
+      activeBrands.push({ id: 'other', name: 'Equipamentos Athena', logo: '' });
+    }
+
+    const groupedCatalogHtml = activeBrands.map((brand) => {
+      const brandProducts = filteredProducts.filter(p => p.brandId === brand.id || (brand.id === 'other' && !p.brandId));
+      if (brandProducts.length === 0) return '';
+
+      const catIdsInBrand = [...new Set(brandProducts.map(p => p.categoryId))];
+      const activeCatsInBrand = categories.filter(c => catIdsInBrand.includes(c.id));
+
+      const categoriesHtml = activeCatsInBrand.map((cat) => {
+        const catProds = brandProducts.filter(p => p.categoryId === cat.id);
+        if (catProds.length === 0) return '';
+
+        const productsGridHtml = catProds.map((p) => {
+          const priceText = showPrices && p.price > 0 && !p.priceNegotiable
+            ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.price)
+            : 'Sob Consulta';
+
+          const specsList = (p.specs || []).map(s => `<li>${s}</li>`).join('');
+
+          return `
+            <div class="product-card">
+              <div class="img-box">
+                <img src="${p.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=400'}" alt="${p.name}" />
+              </div>
+              <div class="info-box">
+                <h4 class="prod-title">${p.name}</h4>
+                <p class="desc">${p.description || ''}</p>
+                ${specsList ? `<ul class="specs">${specsList}</ul>` : ''}
+                <div class="price-box">
+                  <span>Valor Estimado:</span>
+                  <strong class="price-val">${priceText}</strong>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="category-block">
+            <div class="category-header">
+              <span class="cat-bullet"></span>
+              <h3 class="category-title">${cat.name}</h3>
+              <span class="cat-count">(${catProds.length} item(s))</span>
+            </div>
+            <div class="products-grid">
+              ${productsGridHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
 
       return `
-        <div class="product-card">
-          <div class="img-box">
-            <img src="${p.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=400'}" alt="${p.name}" />
+        <div class="brand-section">
+          <div class="brand-header">
+            ${brand.logo ? `<img src="${brand.logo}" alt="${brand.name}" class="brand-logo" />` : ''}
+            <div>
+              <h2 class="brand-name">${brand.name}</h2>
+              <p class="brand-desc">${brand.description || 'Fabricante parceiro oficial.'}</p>
+            </div>
           </div>
-          <div class="info-box">
-            <div class="pills">
-              <span class="pill cat-pill">${cat}</span>
-              <span class="pill brand-pill">${brand}</span>
-            </div>
-            <h3 class="prod-title">${p.name}</h3>
-            <p class="desc">${p.description || ''}</p>
-            ${specsList ? `<ul class="specs">${specsList}</ul>` : ''}
-            <div class="price-box">
-              <span>Valor Estimado:</span>
-              <strong class="price-val">${priceText}</strong>
-            </div>
+          <div class="brand-categories">
+            ${categoriesHtml}
           </div>
         </div>
       `;
@@ -75,6 +119,7 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
           * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
           body { background: #fff; color: #0f172a; padding: 30px; font-size: 12px; }
+          
           header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #f59e0b; padding-bottom: 20px; margin-bottom: 25px; }
           .logo-area { display: flex; align-items: center; gap: 15px; }
           .logo-area img { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; }
@@ -82,25 +127,40 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
           .brand-sub { font-size: 11px; font-weight: 700; color: #d97706; text-transform: uppercase; }
           .contact-info { text-align: right; font-size: 11px; color: #475569; line-height: 1.5; }
           .contact-info strong { color: #0f172a; }
-          .catalog-summary { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 18px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+
+          .catalog-summary { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 18px; border-radius: 12px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
           .summary-text { font-size: 11px; color: #64748b; font-weight: 600; }
-          .products-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-          .product-card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 15px; background: #fff; display: flex; gap: 15px; page-break-inside: avoid; }
-          .img-box { width: 130px; height: 130px; border-radius: 12px; overflow: hidden; background: #f1f5f9; shrink: 0; }
+
+          /* BRAND SECTION STYLING */
+          .brand-section { margin-bottom: 35px; page-break-inside: avoid; }
+          .brand-header { display: flex; align-items: center; gap: 15px; background: #0f172a; color: white; padding: 14px 20px; border-radius: 14px; margin-bottom: 20px; border-left: 6px solid #f59e0b; }
+          .brand-logo { width: 45px; height: 45px; object-fit: contain; background: white; padding: 4px; border-radius: 8px; shrink: 0; }
+          .brand-name { font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px; }
+          .brand-desc { font-size: 10.5px; color: #94a3b8; font-weight: 500; }
+
+          /* CATEGORY BLOCK STYLING */
+          .category-block { margin-bottom: 25px; padding-left: 10px; }
+          .category-header { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+          .cat-bullet { width: 10px; height: 10px; border-radius: 50%; background: #d97706; display: inline-block; }
+          .category-title { font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; }
+          .cat-count { font-size: 11px; font-weight: 600; color: #64748b; }
+
+          /* PRODUCTS GRID */
+          .products-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+          .product-card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; background: #ffffff; display: flex; gap: 12px; page-break-inside: avoid; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+          .img-box { width: 110px; height: 110px; border-radius: 10px; overflow: hidden; background: #f8fafc; shrink: 0; border: 1px solid #f1f5f9; }
           .img-box img { width: 100%; height: 100%; object-fit: cover; }
           .info-box { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
-          .pills { display: flex; gap: 6px; margin-bottom: 6px; }
-          .pill { font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; }
-          .cat-pill { background: #fef3c7; color: #92400e; }
-          .brand-pill { background: #e0f2fe; color: #075985; }
-          .prod-title { font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 6px; line-height: 1.3; }
-          .desc { font-size: 10px; color: #64748b; margin-bottom: 8px; line-clamp: 2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-          .specs { font-size: 9.5px; color: #334155; padding-left: 14px; margin-bottom: 10px; }
-          .specs li { margin-bottom: 2px; }
-          .price-box { background: #fffbeb; border: 1px solid #fde68a; padding: 6px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-          .price-box span { font-size: 10px; font-weight: 700; color: #78350f; }
-          .price-val { font-size: 14px; font-weight: 800; color: #b45309; }
-          footer { margin-top: 40px; border-top: 1px solid #e2e8f0; pt: 15px; text-align: center; font-size: 10px; color: #94a3b8; }
+          .prod-title { font-size: 12px; font-weight: 800; color: #0f172a; margin-bottom: 4px; line-height: 1.3; }
+          .desc { font-size: 9.5px; color: #64748b; margin-bottom: 6px; line-clamp: 2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+          .specs { font-size: 9px; color: #334155; padding-left: 12px; margin-bottom: 8px; }
+          .specs li { margin-bottom: 1.5px; }
+          .price-box { background: #fffbeb; border: 1px solid #fde68a; padding: 5px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+          .price-box span { font-size: 9.5px; font-weight: 700; color: #78350f; }
+          .price-val { font-size: 13px; font-weight: 800; color: #b45309; }
+
+          footer { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center; font-size: 10px; color: #94a3b8; }
+
           @media print {
             body { padding: 0; }
             .no-print { display: none; }
@@ -109,7 +169,7 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
       </head>
       <body>
         <div class="no-print" style="margin-bottom: 20px; text-align: right;">
-          <button onclick="window.print()" style="background: #d97706; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+          <button onclick="window.print()" style="background: #d97706; color: white; border: none; padding: 10px 22px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 13px;">
             🖨️ Imprimir / Salvar PDF
           </button>
         </div>
@@ -130,12 +190,12 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
         </header>
 
         <div class="catalog-summary">
-          <span class="summary-text">CATÁLOGO DE EQUIPAMENTOS E FERRAMENTAS AUTOMOTIVAS</span>
-          <span class="summary-text"><strong>${filteredProducts.length}</strong> equipamento(s) selecionado(s)</span>
+          <span class="summary-text">CATÁLOGO DE EQUIPAMENTOS ORGANIZADO POR MARCA E CATEGORIA</span>
+          <span class="summary-text"><strong>${filteredProducts.length}</strong> equipamento(s) em <strong>${activeBrands.length}</strong> marca(s)</span>
         </div>
 
-        <div class="products-grid">
-          ${productsHtml}
+        <div class="catalog-body">
+          ${groupedCatalogHtml}
         </div>
 
         <footer>
@@ -173,7 +233,7 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900">Gerador de Catálogo em PDF</h3>
-              <p className="text-xs text-slate-500">Filtre os produtos desejados para gerar um catálogo impresso comercial.</p>
+              <p className="text-xs text-slate-500">Organizado por Marca ➔ Categoria. Filtre apenas o que desejar.</p>
             </div>
           </div>
 
