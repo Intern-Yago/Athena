@@ -306,13 +306,82 @@ export default function AdminPanel({
 
   const toggleProductStatus = (product) => {
     if (!canEditContent) return;
+
+    // If trying to publish a draft product, check if brand or category is in draft
+    if (product.status === 'draft') {
+      const brand = brands.find(b => b.id === product.brandId);
+      const category = categories.find(c => c.id === product.categoryId);
+
+      if (brand && brand.status === 'draft') {
+        showNotification(
+          `⚠️ Bloqueado: A marca "${brand.name}" está em Rascunho. Ative/publique a marca no painel para liberar a publicação deste equipamento.`,
+          'warning'
+        );
+        return;
+      }
+
+      if (category && category.status === 'draft') {
+        showNotification(
+          `⚠️ Bloqueado: A categoria "${category.name}" está em Rascunho. Ative/publique a categoria no painel para liberar este equipamento.`,
+          'warning'
+        );
+        return;
+      }
+    }
+
     const newStatus = product.status === 'published' ? 'draft' : 'published';
     const updated = { ...product, status: newStatus };
     onUpdateProduct(updated);
     showNotification(
-      `Status do produto "${product.name}" alterado para ${newStatus === 'published' ? 'Publicado' : 'Rascunho'}.`,
+      `Status do equipamento "${product.name}" alterado para ${newStatus === 'published' ? 'Publicado' : 'Rascunho'}.`,
       'info'
     );
+  };
+
+  const toggleBrandStatus = (brandObj) => {
+    if (!canEditContent) return;
+    const newStatus = brandObj.status === 'draft' ? 'published' : 'draft';
+    const updatedBrand = { ...brandObj, status: newStatus };
+    onUpdateBrand(updatedBrand);
+
+    if (newStatus === 'draft') {
+      const relatedProds = products.filter(p => p.brandId === brandObj.id && p.status === 'published');
+      relatedProds.forEach(p => {
+        onUpdateProduct({ ...p, status: 'draft' });
+      });
+      showNotification(
+        `Marca "${brandObj.name}" colocada em Rascunho. ${relatedProds.length} equipamento(s) foram colocados em Rascunho e bloqueados.`,
+        'warning'
+      );
+    } else {
+      showNotification(
+        `Marca "${brandObj.name}" foi Publicada! Agora você pode liberar os equipamentos desta marca.`,
+        'success'
+      );
+    }
+  };
+
+  const toggleCategoryStatus = (catObj) => {
+    if (!canEditContent) return;
+    const newStatus = catObj.status === 'draft' ? 'published' : 'draft';
+    const updatedCat = { ...catObj, status: newStatus };
+    onUpdateCategory(updatedCat);
+
+    if (newStatus === 'draft') {
+      const relatedProds = products.filter(p => p.categoryId === catObj.id && p.status === 'published');
+      relatedProds.forEach(p => {
+        onUpdateProduct({ ...p, status: 'draft' });
+      });
+      showNotification(
+        `Categoria "${catObj.name}" colocada em Rascunho. ${relatedProds.length} equipamento(s) foram colocados em Rascunho e bloqueados.`,
+        'warning'
+      );
+    } else {
+      showNotification(
+        `Categoria "${catObj.name}" foi Publicada! Agora você pode liberar os equipamentos desta categoria.`,
+        'success'
+      );
+    }
   };
 
   const moveCategoryOrder = (index, direction) => {
@@ -815,7 +884,14 @@ export default function AdminPanel({
                       {idx + 1}
                     </span>
                     <div>
-                      <span className="font-bold text-xs text-slate-900 block">{cat.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-slate-900">{cat.name}</span>
+                        {cat.status === 'draft' && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold">
+                            Rascunho
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] font-mono text-slate-400">/categoria/{cat.slug || cat.id}</span>
                     </div>
                   </div>
@@ -823,6 +899,19 @@ export default function AdminPanel({
                   <div className="flex items-center gap-2">
                     {canEditContent && (
                       <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                        <button
+                          onClick={() => toggleCategoryStatus(cat)}
+                          className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 ${
+                            cat.status === 'draft'
+                              ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                          }`}
+                          title={cat.status === 'draft' ? 'Publicar Categoria' : 'Colocar Categoria em Rascunho'}
+                        >
+                          {cat.status === 'draft' ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          <span className="hidden sm:inline">{cat.status === 'draft' ? 'Rascunho' : 'Publicada'}</span>
+                        </button>
+
                         <button
                           onClick={() => moveCategoryOrder(idx, 'up')}
                           disabled={idx === 0}
@@ -900,6 +989,11 @@ export default function AdminPanel({
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-xs text-slate-900">{b.name}</span>
+                        {b.status === 'draft' && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold">
+                            Rascunho
+                          </span>
+                        )}
                         {b.websiteUrl && (
                           <a href={b.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-sky-700 hover:underline flex items-center gap-0.5 font-bold">
                             <Globe className="w-3 h-3 text-sky-600" /> Site Oficial ↗
@@ -914,6 +1008,19 @@ export default function AdminPanel({
                     {canEditContent && (
                       <>
                         <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                          <button
+                            onClick={() => toggleBrandStatus(b)}
+                            className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 ${
+                              b.status === 'draft'
+                                ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                            }`}
+                            title={b.status === 'draft' ? 'Publicar Marca' : 'Colocar Marca em Rascunho'}
+                          >
+                            {b.status === 'draft' ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{b.status === 'draft' ? 'Rascunho' : 'Publicada'}</span>
+                          </button>
+
                           <button
                             onClick={() => moveBrandOrder(idx, 'up')}
                             disabled={idx === 0}
