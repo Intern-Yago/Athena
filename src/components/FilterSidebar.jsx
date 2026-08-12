@@ -68,11 +68,16 @@ export default function FilterSidebar({
       if (a.isChecked && !b.isChecked) return -1;
       if (!a.isChecked && b.isChecked) return 1;
 
-      const orderA = a.order !== undefined ? a.order : 999;
-      const orderB = b.order !== undefined ? b.order : 999;
+      // Primary Rule: Highest product count comes first
+      if (b.count !== a.count) return b.count - a.count;
 
+      // Secondary Rule: Custom manual order if set
+      const orderA = (a.order !== undefined && a.order > 0) ? a.order : 999;
+      const orderB = (b.order !== undefined && b.order > 0) ? b.order : 999;
       if (orderA !== orderB) return orderA - orderB;
-      return b.count - a.count;
+
+      // Fallback: Alphabetical
+      return a.name.localeCompare(b.name);
     });
   }, [categories, products, selectedCategories, selectedBrands, maxPriceFilter, searchTerm]);
 
@@ -101,11 +106,16 @@ export default function FilterSidebar({
       if (a.isChecked && !b.isChecked) return -1;
       if (!a.isChecked && b.isChecked) return 1;
 
-      const orderA = a.order !== undefined ? a.order : 999;
-      const orderB = b.order !== undefined ? b.order : 999;
+      // Primary Rule: Highest product count comes first
+      if (b.count !== a.count) return b.count - a.count;
 
+      // Secondary Rule: Custom manual order if set
+      const orderA = (b.order !== undefined && b.order > 0) ? b.order : 999;
+      const orderB = (a.order !== undefined && a.order > 0) ? a.order : 999;
       if (orderA !== orderB) return orderA - orderB;
-      return b.count - a.count;
+
+      // Fallback: Alphabetical
+      return a.name.localeCompare(b.name);
     });
   }, [brands, products, selectedCategories, selectedBrands, maxPriceFilter, searchTerm]);
 

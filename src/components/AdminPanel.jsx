@@ -330,6 +330,20 @@ export default function AdminPanel({
     showNotification(`Ordem das categorias atualizada!`, 'success');
   };
 
+  const autoSortCategoriesByCount = () => {
+    if (!canEditContent) return;
+    const newCategories = [...categories].sort((a, b) => {
+      const countA = products.filter(p => p.categoryId === a.id).length;
+      const countB = products.filter(p => p.categoryId === b.id).length;
+      if (countB !== countA) return countB - countA;
+      return a.name.localeCompare(b.name);
+    });
+
+    newCategories.forEach((c, idx) => { c.order = idx + 1; });
+    localStorage.setItem('athena_categories', JSON.stringify(newCategories));
+    showNotification('Categorias reordenadas por quantidade de produtos com sucesso!', 'success');
+  };
+
   const moveBrandOrder = (index, direction) => {
     if (!canEditContent) return;
     const newBrands = [...brands];
@@ -343,6 +357,20 @@ export default function AdminPanel({
     newBrands.forEach((b, idx) => { b.order = idx + 1; });
     localStorage.setItem('athena_brands', JSON.stringify(newBrands));
     showNotification(`Ordem das marcas atualizada!`, 'success');
+  };
+
+  const autoSortBrandsByCount = () => {
+    if (!canEditContent) return;
+    const newBrands = [...brands].sort((a, b) => {
+      const countA = products.filter(p => p.brandId === a.id).length;
+      const countB = products.filter(p => p.brandId === b.id).length;
+      if (countB !== countA) return countB - countA;
+      return a.name.localeCompare(b.name);
+    });
+
+    newBrands.forEach((b, idx) => { b.order = idx + 1; });
+    localStorage.setItem('athena_brands', JSON.stringify(newBrands));
+    showNotification('Marcas reordenadas por quantidade de produtos com sucesso!', 'success');
   };
 
   const openNewBrandModal = () => {
@@ -762,9 +790,20 @@ export default function AdminPanel({
               </div>
 
               {canEditContent && (
-                <button onClick={() => setIsQuickCatModalOpen(true)} className="btn-gold text-xs font-bold py-2 px-3">
-                  <Plus className="w-3.5 h-3.5" /> Nova Categoria
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={autoSortCategoriesByCount} 
+                    className="btn-secondary text-xs font-bold py-2 px-3 flex items-center gap-1.5"
+                    title="Ordenar automaticamente da categoria com maior quantidade de produtos para a menor"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Ordenar Automaticamente</span>
+                  </button>
+
+                  <button onClick={() => setIsQuickCatModalOpen(true)} className="btn-gold text-xs font-bold py-2 px-3">
+                    <Plus className="w-3.5 h-3.5" /> Nova Categoria
+                  </button>
+                </div>
               )}
             </div>
 
@@ -825,9 +864,20 @@ export default function AdminPanel({
               </div>
 
               {canEditContent && (
-                <button onClick={openNewBrandModal} className="btn-gold text-xs font-bold py-2 px-3">
-                  <Plus className="w-3.5 h-3.5" /> Nova Marca / Parceiro
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={autoSortBrandsByCount} 
+                    className="btn-secondary text-xs font-bold py-2 px-3 flex items-center gap-1.5"
+                    title="Ordenar automaticamente da marca com maior quantidade de produtos para a menor"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Ordenar Automaticamente</span>
+                  </button>
+
+                  <button onClick={openNewBrandModal} className="btn-gold text-xs font-bold py-2 px-3">
+                    <Plus className="w-3.5 h-3.5" /> Nova Marca / Parceiro
+                  </button>
+                </div>
               )}
             </div>
 
