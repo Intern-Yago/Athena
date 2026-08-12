@@ -95,19 +95,25 @@ async function initDb() {
         );
       `);
 
-      // Seed Initial Super Admin User if empty (Configurable via ENV)
+      // Always Sync Super Admin User from environment variables (ADMIN_EMAIL & ADMIN_PASSWORD)
       const adminEmail = (process.env.ADMIN_EMAIL || 'admin@athena.com.br').trim().toLowerCase();
       const adminPassword = process.env.ADMIN_PASSWORD || 'AthenaAdmin2026!';
       const adminName = process.env.ADMIN_NAME || 'Administrador Geral';
 
-      const userCheck = await pool.query('SELECT COUNT(*) FROM users');
-      if (parseInt(userCheck.rows[0].count, 10) === 0) {
-        console.log(`👤 Criando usuário Administrador (${adminEmail})...`);
-        await pool.query(
-          'INSERT INTO users (id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (email) DO UPDATE SET password_hash = $4',
-          ['user_admin_default', adminName, adminEmail, adminPassword, 'admin']
-        );
-      }
+      console.log(`👤 Sincronizando usuário Administrador (${adminEmail})...`);
+      // Update default admin user or insert/update on email conflict
+      await pool.query(`
+        INSERT INTO users (id, name, email, password_hash, role) 
+        VALUES ($1, $2, $3, $4, $5) 
+        ON CONFLICT (email) 
+        DO UPDATE SET password_hash = $4, name = $2, role = 'admin'
+      `, ['user_admin_default', adminName, adminEmail, adminPassword, 'admin']);
+
+      // Also ensure user_admin_default ID matches the configured adminEmail
+      await pool.query(
+        'UPDATE users SET email = $1, password_hash = $2, name = $3 WHERE id = $4',
+        [adminEmail, adminPassword, adminName, 'user_admin_default']
+      );
 
       await pool.query(`
         CREATE TABLE IF NOT EXISTS categories (
@@ -249,9 +255,37 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ error: 'Informe e-mail e senha.' });
   }
 
+  const inputEmail = email.trim().toLowerCase();
+  const envAdminEmail = (process.env.ADMIN_EMAIL || 'admin@athena.com.br').trim().toLowerCase();
+  const envAdminPassword = process.env.ADMIN_PASSWORD || 'AthenaAdmin2026!';
+  const envAdminName = process.env.ADMIN_NAME || 'Administrador Geral';
+
+  // Direct ENV Super Admin match check (Guarantees instant login with environment variables)
+  if (inputEmail === envAdminEmail && password === envAdminPassword) {
+    if (pool) {
+      try {
+        await pool.query(`
+          INSERT INTO users (id, name, email, password_hash, role) 
+          VALUES ($1, $2, $3, $4, $5) 
+          ON CONFLICT (email) 
+          DO UPDATE SET password_hash = $4, name = $2, role = 'admin'
+        `, ['user_admin_default', envAdminName, envAdminEmail, envAdminPassword, 'admin']);
+      } catch (e) {
+        console.error('Erro ao auto-sync admin:', e);
+      }
+    }
+    return res.json({
+      id: 'user_admin_default',
+      name: envAdminName,
+      email: envAdminEmail,
+      role: 'admin',
+      token: `token_user_admin_default_${Date.now()}`
+    });
+  }
+
   if (pool) {
     try {
-      const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role FROM users WHERE email = $1', [email.trim().toLowerCase()]);
+      const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role FROM users WHERE email = $1', [inputEmail]);
       if (result.rows.length === 0) {
         return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
       }
