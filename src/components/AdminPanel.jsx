@@ -18,7 +18,8 @@ import {
   FileText,
   Paperclip,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Globe
 } from 'lucide-react';
 import { formatAttachmentLabel } from '../pages/ProductDetailPage';
 
@@ -60,15 +61,25 @@ export default function AdminPanel({
     }
   );
 
-  // Quick Modals
+  // Quick Category Modal State
   const [isQuickCatModalOpen, setIsQuickCatModalOpen] = useState(false);
-  const [isQuickBrandModalOpen, setIsQuickBrandModalOpen] = useState(false);
   const [quickCatName, setQuickCatName] = useState('');
-  const [quickBrandName, setQuickBrandName] = useState('');
+
+  // Brand Modal State (Create or Edit)
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [editingBrand, setEditingBrand] = useState(null);
+  const [brandForm, setBrandForm] = useState({
+    name: '',
+    description: '',
+    logo: '',
+    websiteUrl: '',
+    imageSourceMode: 'upload'
+  });
 
   // Form Modal & Drag/Drop state
   const [isProductModalOpen, setIsProductModalOpen] = useState(!!editingProduct);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [isDraggingBrandLogo, setIsDraggingBrandLogo] = useState(false);
 
   // Auto Generate Slug
   const generateSlug = (nameStr) => {
@@ -112,7 +123,7 @@ export default function AdminPanel({
     setIsProductModalOpen(true);
   };
 
-  // Image Upload File Handler (Base64)
+  // Image Upload File Handler (Base64) for Product
   const handleImageFileUpload = (file) => {
     if (!file || !file.type.startsWith('image/')) {
       showNotification('Por favor, selecione um arquivo de imagem válido (JPG/PNG).', 'error');
@@ -132,6 +143,29 @@ export default function AdminPanel({
     setIsDraggingImage(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleImageFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  // Brand Logo Upload File Handler
+  const handleBrandLogoFileUpload = (file) => {
+    if (!file || !file.type.startsWith('image/')) {
+      showNotification('Selecione uma imagem válida para a logo da marca.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setBrandForm((prev) => ({ ...prev, logo: e.target.result }));
+      showNotification('Logo da marca carregada!', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDropBrandLogo = (e) => {
+    e.preventDefault();
+    setIsDraggingBrandLogo(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleBrandLogoFileUpload(e.dataTransfer.files[0]);
     }
   };
 
@@ -198,7 +232,6 @@ export default function AdminPanel({
     newCategories[index] = newCategories[targetIndex];
     newCategories[targetIndex] = temp;
 
-    // Update order property
     newCategories.forEach((c, idx) => { c.order = idx + 1; });
     localStorage.setItem('athena_categories', JSON.stringify(newCategories));
     showNotification(`Ordem das categorias atualizada!`, 'success');
@@ -217,6 +250,66 @@ export default function AdminPanel({
     newBrands.forEach((b, idx) => { b.order = idx + 1; });
     localStorage.setItem('athena_brands', JSON.stringify(newBrands));
     showNotification(`Ordem das marcas atualizada!`, 'success');
+  };
+
+  // Open Brand Modal (New or Edit)
+  const openNewBrandModal = () => {
+    setEditingBrand(null);
+    setBrandForm({
+      name: '',
+      description: '',
+      logo: '',
+      websiteUrl: '',
+      imageSourceMode: 'upload'
+    });
+    setIsBrandModalOpen(true);
+  };
+
+  const openEditBrandModal = (brandObj) => {
+    setEditingBrand(brandObj);
+    setBrandForm({
+      name: brandObj.name || '',
+      description: brandObj.description || '',
+      logo: brandObj.logo || '',
+      websiteUrl: brandObj.websiteUrl || '',
+      imageSourceMode: 'upload'
+    });
+    setIsBrandModalOpen(true);
+  };
+
+  // Submit Brand Modal
+  const handleBrandSubmit = (e) => {
+    e.preventDefault();
+    if (!brandForm.name.trim()) {
+      showNotification('Informe o nome da marca.', 'error');
+      return;
+    }
+
+    const slug = generateSlug(brandForm.name);
+    const newBrandObj = {
+      id: editingBrand ? editingBrand.id : `brand_${Date.now()}`,
+      name: brandForm.name.trim(),
+      slug: slug,
+      description: brandForm.description || 'Fabricante parceiro de equipamentos automotivos.',
+      logo: brandForm.logo || 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80',
+      websiteUrl: brandForm.websiteUrl.trim() || '',
+      order: editingBrand ? editingBrand.order : brands.length + 1
+    };
+
+    if (editingBrand) {
+      // Update existing brand
+      const updatedBrands = brands.map(b => b.id === editingBrand.id ? newBrandObj : b);
+      localStorage.setItem('athena_brands', JSON.stringify(updatedBrands));
+      showNotification(`Marca "${newBrandObj.name}" atualizada!`, 'success');
+      window.location.reload();
+    } else {
+      onAddBrand(newBrandObj);
+      setProductForm((prev) => ({ ...prev, brandId: newBrandObj.id }));
+      showNotification(`Marca "${newBrandObj.name}" criada com sucesso!`, 'success');
+    }
+
+    setIsBrandModalOpen(false);
+    setEditingBrand(null);
   };
 
   // Quick Category Create
@@ -239,28 +332,6 @@ export default function AdminPanel({
     setQuickCatName('');
     setIsQuickCatModalOpen(false);
     showNotification(`Categoria "${newCat.name}" criada!`, 'success');
-  };
-
-  // Quick Brand Create
-  const handleQuickBrandCreate = (e) => {
-    e.preventDefault();
-    if (!quickBrandName.trim()) return;
-
-    const slug = generateSlug(quickBrandName);
-    const newBrand = {
-      id: `brand_${Date.now()}`,
-      name: quickBrandName.trim(),
-      slug: slug,
-      order: brands.length + 1,
-      description: 'Fabricante de equipamentos automotivos.',
-      logo: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80'
-    };
-
-    onAddBrand(newBrand);
-    setProductForm((prev) => ({ ...prev, brandId: newBrand.id }));
-    setQuickBrandName('');
-    setIsQuickBrandModalOpen(false);
-    showNotification(`Marca "${newBrand.name}" criada!`, 'success');
   };
 
   // Handle Product Submit
@@ -315,7 +386,7 @@ export default function AdminPanel({
                 Painel Administrativo
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
-                Reordene manualmente marcas e categorias comerciais, envie anexos opcionais e alterne o status de publicação.
+                Gerencie marcas, logos por arquivo/URL, links de parceiros, categorias e anexos de equipamentos.
               </p>
             </div>
 
@@ -394,8 +465,6 @@ export default function AdminPanel({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {products.map((prod) => {
-                      const cat = categories.find(c => c.id === prod.categoryId);
-                      const br = brands.find(b => b.id === prod.brandId);
                       const isPublished = prod.status === 'published';
                       const attCount = prod.attachments ? prod.attachments.length : 0;
 
@@ -489,7 +558,7 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* CATEGORIES MANAGEMENT TAB (WITH MANUAL REORDERING) */}
+        {/* CATEGORIES MANAGEMENT TAB */}
         {activeAdminTab === 'categories' && (
           <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
@@ -546,17 +615,17 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* BRANDS MANAGEMENT TAB (WITH MANUAL REORDERING) */}
+        {/* BRANDS MANAGEMENT TAB (WITH PHOTO & WEBSITE URL SUPPORT) */}
         {activeAdminTab === 'brands' && (
           <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Gerenciar & Reordenar Marcas</h3>
-                <p className="text-xs text-slate-500">Coloque marcas prioritárias (como Mahovi ou Engecass) no topo dos filtros.</p>
+                <h3 className="text-base font-bold text-slate-900">Gerenciar, Fotos & Links de Marcas</h3>
+                <p className="text-xs text-slate-500">Cadastre fotos por Upload/URL e insira o site oficial do parceiro.</p>
               </div>
 
-              <button onClick={() => setIsQuickBrandModalOpen(true)} className="btn-gold text-xs font-bold py-2 px-3">
-                <Plus className="w-3.5 h-3.5" /> Nova Marca
+              <button onClick={openNewBrandModal} className="btn-gold text-xs font-bold py-2 px-3">
+                <Plus className="w-3.5 h-3.5" /> Nova Marca / Parceiro
               </button>
             </div>
 
@@ -564,11 +633,27 @@ export default function AdminPanel({
               {brands.map((b, idx) => (
                 <div key={b.id} className="p-3.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50">
                   <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 font-extrabold text-xs flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 font-extrabold text-xs flex items-center justify-center shrink-0">
                       {idx + 1}
                     </span>
+
+                    <div className="w-12 h-10 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center p-1 shrink-0">
+                      {b.logo ? (
+                        <img src={b.logo} alt={b.name} className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <Tag className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+
                     <div>
-                      <span className="font-bold text-xs text-slate-900 block">{b.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-slate-900">{b.name}</span>
+                        {b.websiteUrl && (
+                          <a href={b.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-sky-700 hover:underline flex items-center gap-0.5 font-bold">
+                            <Globe className="w-3 h-3 text-sky-600" /> Site Oficial ↗
+                          </a>
+                        )}
+                      </div>
                       <span className="text-[10px] font-mono text-slate-400">/marca/{b.slug || b.id}</span>
                     </div>
                   </div>
@@ -579,7 +664,7 @@ export default function AdminPanel({
                         onClick={() => moveBrandOrder(idx, 'up')}
                         disabled={idx === 0}
                         className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
-                        title="Subir posição no filtro"
+                        title="Subir posição"
                       >
                         <ArrowUp className="w-3.5 h-3.5" />
                       </button>
@@ -587,13 +672,17 @@ export default function AdminPanel({
                         onClick={() => moveBrandOrder(idx, 'down')}
                         disabled={idx === brands.length - 1}
                         className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
-                        title="Descer posição no filtro"
+                        title="Descer posição"
                       >
                         <ArrowDown className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
-                    <button onClick={() => onDeleteBrand(b.id)} className="btn-danger text-xs p-2">
+                    <button onClick={() => openEditBrandModal(b)} className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200" title="Editar Marca">
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button onClick={() => onDeleteBrand(b.id)} className="btn-danger text-xs p-2" title="Apagar Marca">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -603,7 +692,7 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* FORM MODAL (CADASTRO E EDIÇÃO) */}
+        {/* FULL PRODUCT FORM MODAL */}
         {isProductModalOpen && (
           <div className="modal-backdrop" onClick={() => setIsProductModalOpen(false)}>
             <div className="modal-content max-w-2xl p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
@@ -689,7 +778,7 @@ export default function AdminPanel({
                       <label className="text-xs font-bold text-slate-700">Marca / Fabricante *</label>
                       <button
                         type="button"
-                        onClick={() => setIsQuickBrandModalOpen(true)}
+                        onClick={openNewBrandModal}
                         className="text-[11px] text-sky-700 font-bold hover:underline flex items-center gap-0.5"
                       >
                         <Plus className="w-3 h-3" /> Nova Marca
@@ -933,6 +1022,153 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* COMPLETE BRAND CREATION / EDIT MODAL (WITH PHOTO & WEBSITE URL) */}
+        {isBrandModalOpen && (
+          <div className="modal-backdrop" onClick={() => setIsBrandModalOpen(false)}>
+            <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
+              <button 
+                onClick={() => setIsBrandModalOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-sky-600" />
+                {editingBrand ? 'Editar Marca / Parceiro' : 'Cadastrar Nova Marca / Parceiro'}
+              </h4>
+
+              <form onSubmit={handleBrandSubmit} className="space-y-4">
+                {/* Brand Name */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nome da Marca *</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Mahovi, Engecass, Launch"
+                    value={brandForm.name}
+                    onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  />
+                </div>
+
+                {/* Brand Logo Upload (Drag & Drop or URL) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700">Logo / Foto da Marca</label>
+                    <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setBrandForm({ ...brandForm, imageSourceMode: 'upload' })}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          brandForm.imageSourceMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                        }`}
+                      >
+                        Upload Arquivo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBrandForm({ ...brandForm, imageSourceMode: 'url' })}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          brandForm.imageSourceMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                        }`}
+                      >
+                        URL da Imagem
+                      </button>
+                    </div>
+                  </div>
+
+                  {brandForm.imageSourceMode === 'upload' ? (
+                    <div 
+                      onDragOver={(e) => { e.preventDefault(); setIsDraggingBrandLogo(true); }}
+                      onDragLeave={() => setIsDraggingBrandLogo(false)}
+                      onDrop={handleDropBrandLogo}
+                      className={`border-2 border-dashed rounded-2xl p-4 text-center transition-colors cursor-pointer ${
+                        isDraggingBrandLogo ? 'border-sky-500 bg-sky-50' : 'border-slate-300 hover:border-sky-400 bg-slate-50'
+                      }`}
+                    >
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => e.target.files && handleBrandLogoFileUpload(e.target.files[0])}
+                        className="hidden" 
+                        id="brandLogoFileInput"
+                      />
+
+                      <label htmlFor="brandLogoFileInput" className="cursor-pointer space-y-1 block">
+                        <Upload className="w-5 h-5 mx-auto text-sky-600" />
+                        <span className="text-xs font-bold text-slate-800 block">
+                          Arraste e solte o logo ou clique para escolher
+                        </span>
+                        <span className="text-[10px] text-slate-400">JPG, PNG ou SVG</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        type="url"
+                        placeholder="https://marca.com/logo.png"
+                        value={brandForm.logo}
+                        onChange={(e) => setBrandForm({ ...brandForm, logo: e.target.value })}
+                        className="form-input text-xs pl-8"
+                      />
+                      <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    </div>
+                  )}
+
+                  {brandForm.logo && (
+                    <div className="flex items-center gap-3 p-2 bg-slate-100 rounded-xl border border-slate-200">
+                      <img src={brandForm.logo} alt="Preview Logo" className="w-10 h-10 object-contain rounded-lg bg-white p-1 border" />
+                      <span className="text-xs text-slate-600 truncate flex-1">Logo definida</span>
+                      <button type="button" onClick={() => setBrandForm({ ...brandForm, logo: '' })} className="text-xs text-red-600 font-bold">Remover</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Partner Website URL (Optional) */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Site Oficial do Parceiro (Opcional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="url"
+                      placeholder="https://www.fabricante.com.br"
+                      value={brandForm.websiteUrl}
+                      onChange={(e) => setBrandForm({ ...brandForm, websiteUrl: e.target.value })}
+                      className="form-input text-xs pl-8"
+                    />
+                    <Globe className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                  <span className="text-[10px] text-slate-400 block mt-1">
+                    Se preenchido, um botão "Visitar Site Oficial ↗" será exibido para os clientes.
+                  </span>
+                </div>
+
+                {/* Brand Description */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Descrição Breve</label>
+                  <textarea
+                    placeholder="Descrição da marca, história ou especialidade..."
+                    value={brandForm.description}
+                    onChange={(e) => setBrandForm({ ...brandForm, description: e.target.value })}
+                    className="form-textarea text-xs h-20"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                  <button type="button" onClick={() => setIsBrandModalOpen(false)} className="btn-secondary text-xs">Cancelar</button>
+                  <button type="submit" className="btn-gold text-xs font-bold py-2.5 px-4">
+                    <Check className="w-4 h-4" /> Salvar Marca
+                  </button>
+                </div>
+
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* QUICK CATEGORY MODAL */}
         {isQuickCatModalOpen && (
           <div className="modal-backdrop" onClick={() => setIsQuickCatModalOpen(false)}>
@@ -949,29 +1185,6 @@ export default function AdminPanel({
                 />
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={() => setIsQuickCatModalOpen(false)} className="btn-secondary text-xs">Cancelar</button>
-                  <button type="submit" className="btn-gold text-xs font-bold py-2 px-4">Salvar</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* QUICK BRAND MODAL */}
-        {isQuickBrandModalOpen && (
-          <div className="modal-backdrop" onClick={() => setIsQuickBrandModalOpen(false)}>
-            <div className="modal-content max-w-sm p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
-              <h4 className="text-base font-bold text-slate-900 mb-3">Criar Nova Marca</h4>
-              <form onSubmit={handleQuickBrandCreate} className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Nome da marca (ex: Gedore)"
-                  value={quickBrandName}
-                  onChange={(e) => setQuickBrandName(e.target.value)}
-                  className="form-input text-xs"
-                  required
-                />
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setIsQuickBrandModalOpen(false)} className="btn-secondary text-xs">Cancelar</button>
                   <button type="submit" className="btn-gold text-xs font-bold py-2 px-4">Salvar</button>
                 </div>
               </form>

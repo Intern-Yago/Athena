@@ -48,7 +48,8 @@ export const INITIAL_BRANDS = [
     slug: "engecass",
     order: 1,
     description: "Líder nacional em elevadores automotivos de alta resistência.",
-    logo: "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80"
+    logo: "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80",
+    websiteUrl: "https://engecass.com.br"
   },
   {
     id: "brand_launch",
@@ -56,7 +57,8 @@ export const INITIAL_BRANDS = [
     slug: "launch",
     order: 2,
     description: "Tecnologia global em scanners de diagnóstico e codificação de módulos.",
-    logo: "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80"
+    logo: "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80",
+    websiteUrl: "https://www.launchtech.com.br"
   },
   {
     id: "brand_raven",
@@ -64,7 +66,8 @@ export const INITIAL_BRANDS = [
     slug: "raven",
     order: 3,
     description: "Referência em ferramentas especiais e diagnóstico para oficinas.",
-    logo: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80"
+    logo: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80",
+    websiteUrl: "https://www.ravenferramentas.com.br"
   },
   {
     id: "brand_napro",
@@ -72,7 +75,8 @@ export const INITIAL_BRANDS = [
     slug: "napro",
     order: 4,
     description: "Pioneira em sistemas informatizados de diagnóstico automotivo.",
-    logo: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80"
+    logo: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80",
+    websiteUrl: "https://www.napro.com.br"
   },
   {
     id: "brand_sun",
@@ -80,7 +84,8 @@ export const INITIAL_BRANDS = [
     slug: "sun-equipment",
     order: 5,
     description: "Sistemas de alinhamento 3D e diagnóstico premium.",
-    logo: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80"
+    logo: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80",
+    websiteUrl: "https://www.sun.com.br"
   }
 ];
 
