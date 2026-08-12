@@ -53,9 +53,9 @@ export default function CategoryPage({ categoryId, categories, products, brands,
           </div>
         </div>
 
-        {/* Products Grid for this Category */}
+        {/* Products Grid for this Category (2 columns on mobile) */}
         {categoryProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
             {categoryProducts.map((product) => {
               const brand = brands.find((b) => b.id === product.brandId);
               return (
