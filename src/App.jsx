@@ -607,7 +607,7 @@ export default function App() {
         href="https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento."
         target="_blank"
         rel="noopener noreferrer"
-        className="hidden md:flex fixed bottom-6 left-6 z-40 p-3.5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-500 hover:scale-110 active:scale-95 transition-all items-center gap-2 group text-xs font-extrabold"
+        className="hidden md:flex fixed bottom-6 right-6 z-40 p-3.5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-500 hover:scale-110 active:scale-95 transition-all items-center gap-2 group text-xs font-extrabold"
         title="Falar no WhatsApp (61) 98348-5671"
       >
         <MessageCircle className="w-6 h-6 fill-current text-white shrink-0" />
