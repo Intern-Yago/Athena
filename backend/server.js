@@ -2,248 +2,378 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'data', 'athena-db.json');
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
-// Ensure DB File Exists
-function ensureDb() {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+// PostgreSQL Pool setup (Used if DATABASE_URL env is set)
+let pool = null;
+if (process.env.DATABASE_URL) {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+  console.log('🐘 PostgreSQL athena-db conectado via DATABASE_URL');
+}
 
-  if (!fs.existsSync(DB_PATH)) {
-    const initialData = {
-      categories: [
-        {
-          id: 'cat_elevadores',
-          name: 'Elevadores',
-          slug: 'elevadores',
-          description: 'Elevadores hidráulicos de 2 colunas, 4 colunas e tesoura para automóveis e utilitários.',
-          icon: 'Layers'
-        },
-        {
-          id: 'cat_scanners',
-          name: 'Scanners',
-          slug: 'scanners',
-          description: 'Scanners e leitores de diagnóstico automotivo multimarca de última geração com IA.',
-          icon: 'Cpu'
-        },
-        {
-          id: 'cat_alinhadores',
-          name: 'Alinhadores',
-          slug: 'alinhadores',
-          description: 'Sistemas de alinhamento de direção 3D computadorizados com câmeras de alta precisão.',
-          icon: 'Target'
-        },
-        {
-          id: 'cat_desmontadoras',
-          name: 'Desmontadoras & Balanceadoras',
-          slug: 'desmontadoras',
-          description: 'Equipamentos para serviços de borracharia, desmontadoras pneumáticas e balanceadoras de rodas.',
-          icon: 'Disc'
-        },
-        {
-          id: 'cat_ferramentas',
-          name: 'Ferramentas Especiais',
-          slug: 'ferramentas',
-          description: 'Kits de sincronismo, saca-filtros, prensas hidráulicas e ferramentas para centro automotivo.',
-          icon: 'Wrench'
-        }
-      ],
-      brands: [
-        {
-          id: 'brand_engecass',
-          name: 'Engecass',
-          description: 'Líder nacional em elevadores automotivos de alta resistência.',
-          logo: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80'
-        },
-        {
-          id: 'brand_raven',
-          name: 'Raven',
-          description: 'Referência em ferramentas especiais e diagnóstico para oficinas.',
-          logo: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80'
-        },
-        {
-          id: 'brand_launch',
-          name: 'Launch',
-          description: 'Tecnologia global em scanners de diagnóstico e codificação de módulos.',
-          logo: 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80'
-        },
-        {
-          id: 'brand_napro',
-          name: 'Napro',
-          description: 'Pioneira em sistemas informatizados de diagnóstico automotivo.',
-          logo: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80'
-        },
-        {
-          id: 'brand_sun',
-          name: 'Sun Equipment',
-          description: 'Sistemas de alinhamento 3D e diagnóstico premium.',
-          logo: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80'
-        }
-      ],
-      products: [
-        {
-          id: 'prod_1',
-          name: 'Elevador Automotivo 2 Colunas 4.000kg Trifásico - Engecass',
-          categoryId: 'cat_elevadores',
-          brandId: 'brand_engecass',
-          price: 18900.0,
-          priceNegotiable: false,
-          badge: 'Mais Vendido',
-          image: 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80',
-          description: 'Elevador eletro-hidráulico de 2 colunas com capacidade de carga para 4 toneladas. Ideal para carros de passeio, SUVs e caminhonetes leves.',
-          specs: [
-            'Capacidade: 4.000 kg',
-            'Altura Máxima de Elevação: 1.900 mm',
-            'Tempo de Elevação: ~45 segundos',
-            'Motor: 3.0 HP Trifásico (220V/380V)',
-            'Trava de Segurança: Automática dupla'
-          ],
-          inStock: true
-        },
-        {
-          id: 'prod_2',
-          name: 'Scanner Automotivo Multimarca X-431 PAD VII - Launch',
-          categoryId: 'cat_scanners',
-          brandId: 'brand_launch',
-          price: 24500.0,
-          priceNegotiable: false,
-          badge: 'Lançamento',
-          image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
-          description: 'Scanner de nível fabril com suporte a protocolos DoIP e CAN-FD. Diagnóstico completo de todos os sistemas eletrônicos.',
-          specs: [
-            'Tela: 13.3 polegadas IPS Full HD',
-            'Processador: 8-Core 2.0GHz + 8GB RAM',
-            'Conectividade: Wi-Fi 5GHz + Bluetooth Smart'
-          ],
-          inStock: true
-        },
-        {
-          id: 'prod_3',
-          name: 'Alinhador 3D de Direção Computadorizado com Torre Móvel',
-          categoryId: 'cat_alinhadores',
-          brandId: 'brand_sun',
-          price: 45900.0,
-          priceNegotiable: true,
-          badge: 'Destaque',
-          image: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80',
-          description: 'Alinhador 3D de alta precisão com 2 câmeras digitais de alta resolução e garras de fixação rápida.',
-          specs: [
-            'Câmeras: 2x Câmeras HD de Alta Velocidade',
-            'Garras: Fixação no pneu',
-            'Banco de Dados: Mais de 50.000 veículos'
-          ],
-          inStock: true
-        }
-      ]
-    };
-    fs.writeFileSync(DB_PATH, JSON.stringify(initialData, null, 2), 'utf-8');
+// Ensure Database & Tables Exist (PostgreSQL or JSON File)
+async function initDb() {
+  if (pool) {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS categories (
+          id VARCHAR(100) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          slug VARCHAR(255),
+          description TEXT,
+          icon VARCHAR(100),
+          "order" INT DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS brands (
+          id VARCHAR(100) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          slug VARCHAR(255),
+          description TEXT,
+          logo TEXT,
+          website_url TEXT,
+          "order" INT DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS products (
+          id VARCHAR(100) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          slug VARCHAR(255),
+          category_id VARCHAR(100) REFERENCES categories(id) ON DELETE CASCADE,
+          brand_id VARCHAR(100) REFERENCES brands(id) ON DELETE CASCADE,
+          price NUMERIC(12,2) DEFAULT 0,
+          price_negotiable BOOLEAN DEFAULT TRUE,
+          badge VARCHAR(100),
+          status VARCHAR(50) DEFAULT 'published',
+          image TEXT,
+          alt_text TEXT,
+          description TEXT,
+          specs JSONB,
+          attachments JSONB,
+          in_stock BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Check if categories table is empty and seed
+      const catCheck = await pool.query('SELECT COUNT(*) FROM categories');
+      if (parseInt(catCheck.rows[0].count, 10) === 0) {
+        console.log('🌱 Populando dados iniciais de Categorias no PostgreSQL...');
+        await pool.query(`
+          INSERT INTO categories (id, name, slug, description, icon, "order") VALUES
+          ('cat_elevadores', 'Elevadores', 'elevadores', 'Elevadores hidráulicos de 2 colunas, 4 colunas e tesoura para automóveis e utilitários.', 'Layers', 1),
+          ('cat_scanners', 'Scanners', 'scanners', 'Scanners e leitores de diagnóstico automotivo multimarca de última geração com IA.', 'Cpu', 2),
+          ('cat_alinhadores', 'Alinhadores', 'alinhadores', 'Sistemas de alinhamento de direção 3D computadorizados com câmeras de alta precisão.', 'Target', 3),
+          ('cat_desmontadoras', 'Desmontadoras & Balanceadoras', 'desmontadoras', 'Equipamentos para serviços de borracharia, desmontadoras pneumáticas e balanceadoras de rodas.', 'Disc', 4),
+          ('cat_ferramentas', 'Ferramentas Especiais', 'ferramentas', 'Kits de sincronismo, saca-filtros, prensas hidráulicas e ferramentas para centro automotivo.', 'Wrench', 5);
+        `);
+      }
+
+      // Check if brands table is empty and seed
+      const brandCheck = await pool.query('SELECT COUNT(*) FROM brands');
+      if (parseInt(brandCheck.rows[0].count, 10) === 0) {
+        console.log('🌱 Populando dados iniciais de Marcas no PostgreSQL...');
+        await pool.query(`
+          INSERT INTO brands (id, name, slug, description, logo, website_url, "order") VALUES
+          ('brand_engecass', 'Engecass', 'engecass', 'Líder nacional em elevadores automotivos de alta resistência.', 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80', 'https://engecass.com.br', 1),
+          ('brand_launch', 'Launch', 'launch', 'Tecnologia global em scanners de diagnóstico e codificação de módulos.', 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80', 'https://www.launchtech.com.br', 2),
+          ('brand_raven', 'Raven', 'raven', 'Referência em ferramentas especiais e diagnóstico para oficinas.', 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80', 'https://www.ravenferramentas.com.br', 3),
+          ('brand_napro', 'Napro', 'napro', 'Pioneira em sistemas informatizados de diagnóstico automotivo.', 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80', 'https://www.napro.com.br', 4),
+          ('brand_sun', 'Sun Equipment', 'sun-equipment', 'Sistemas de alinhamento 3D e diagnóstico premium.', 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80', 'https://www.sun.com.br', 5);
+        `);
+      }
+
+      // Check if products table is empty and seed
+      const prodCheck = await pool.query('SELECT COUNT(*) FROM products');
+      if (parseInt(prodCheck.rows[0].count, 10) === 0) {
+        console.log('🌱 Populando dados iniciais de Produtos no PostgreSQL...');
+        await pool.query(`
+          INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, image, alt_text, description, specs, attachments, in_stock) VALUES
+          ('prod_1', 'Elevador Automotivo 2 Colunas 4.000kg Trifásico - Engecass', 'elevador-automotivo-2-colunas-4000kg-engecass', 'cat_elevadores', 'brand_engecass', 18900.00, true, 'Mais Vendido', 'published', 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80', 'Elevador Automotivo 2 Colunas Engecass', 'Elevador eletro-hidráulico de 2 colunas com capacidade de carga para 4 toneladas.', '["Capacidade: 4.000 kg", "Altura Máxima de Elevação: 1.900 mm"]'::jsonb, '[{"id":"att_1","fileName":"Ficha_Tecnica.pdf","url":"data:application/pdf;base64,JVBERi0xLjQKJQ==","fileSize":"1.4 MB"}]'::jsonb, true),
+          ('prod_2', 'Scanner Automotivo Multimarca X-431 PAD VII - Launch', 'scanner-automotivo-multimarca-x431-pad-vii-launch', 'cat_scanners', 'brand_launch', 24500.00, true, 'Lançamento', 'published', 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80', 'Scanner Launch X-431 PAD VII', 'Scanner de nível fabril com suporte a protocolos DoIP e CAN-FD.', '["Tela: 13.3 polegadas IPS Full HD", "Processador: 8-Core 2.0GHz"]'::jsonb, '[]'::jsonb, true),
+          ('prod_3', 'Alinhador 3D de Direção Computadorizado com Torre Móvel', 'alinhador-3d-de-direcao-computadorizado-sun', 'cat_alinhadores', 'brand_sun', 45900.00, true, 'Destaque', 'published', 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80', 'Alinhador 3D Sun Equipment', 'Alinhador 3D de alta precisão com 2 câmeras digitais de alta resolução.', '["Câmeras: 2x Câmeras HD", "Banco de Dados: 50.000 veículos"]'::jsonb, '[]'::jsonb, true);
+        `);
+      }
+
+    } catch (err) {
+      console.error('Erro na inicialização do PostgreSQL:', err);
+    }
+  } else {
+    // Fallback Local JSON file
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(DB_PATH)) {
+      const initialData = {
+        categories: [
+          { id: 'cat_elevadores', name: 'Elevadores', slug: 'elevadores', description: 'Elevadores hidráulicos', icon: 'Layers', order: 1 }
+        ],
+        brands: [
+          { id: 'brand_engecass', name: 'Engecass', slug: 'engecass', description: 'Líder nacional', logo: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80', websiteUrl: 'https://engecass.com.br', order: 1 }
+        ],
+        products: []
+      };
+      fs.writeFileSync(DB_PATH, JSON.stringify(initialData, null, 2), 'utf-8');
+    }
   }
 }
 
-function readDb() {
-  ensureDb();
+// Helper JSON File Fallback
+function readDbJson() {
+  if (!fs.existsSync(DB_PATH)) return { categories: [], brands: [], products: [] };
   const raw = fs.readFileSync(DB_PATH, 'utf-8');
   return JSON.parse(raw);
 }
 
-function writeDb(data) {
+function writeDbJson(data) {
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
 }
 
-// Routes
-// 1. Categories
-app.get('/api/categories', (req, res) => {
-  const db = readDb();
+// Initialize Database Boot
+initDb();
+
+// -------------------------------------------------------------
+// REST API ENDPOINTS
+// -------------------------------------------------------------
+
+// 1. CATEGORIES
+app.get('/api/categories', async (req, res) => {
+  if (pool) {
+    try {
+      const result = await pool.query('SELECT id, name, slug, description, icon, "order" FROM categories ORDER BY "order" ASC, name ASC');
+      return res.json(result.rows);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   res.json(db.categories || []);
 });
 
-app.post('/api/categories', (req, res) => {
-  const db = readDb();
-  const newCat = { id: `cat_${Date.now()}`, ...req.body };
+app.post('/api/categories', async (req, res) => {
+  const newCat = { id: req.body.id || `cat_${Date.now()}`, ...req.body };
+  if (pool) {
+    try {
+      await pool.query(
+        'INSERT INTO categories (id, name, slug, description, icon, "order") VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name=$2, slug=$3, description=$4, icon=$5, "order"=$6',
+        [newCat.id, newCat.name, newCat.slug || '', newCat.description || '', newCat.icon || 'Layers', newCat.order || 0]
+      );
+      return res.status(201).json(newCat);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   db.categories.push(newCat);
-  writeDb(db);
+  writeDbJson(db);
   res.status(201).json(newCat);
 });
 
-app.delete('/api/categories/:id', (req, res) => {
-  const db = readDb();
+app.delete('/api/categories/:id', async (req, res) => {
+  if (pool) {
+    try {
+      await pool.query('DELETE FROM categories WHERE id = $1', [req.params.id]);
+      return res.json({ success: true, id: req.params.id });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   db.categories = db.categories.filter((c) => c.id !== req.params.id);
-  writeDb(db);
+  writeDbJson(db);
   res.json({ success: true, id: req.params.id });
 });
 
-// 2. Brands
-app.get('/api/brands', (req, res) => {
-  const db = readDb();
+// 2. BRANDS
+app.get('/api/brands', async (req, res) => {
+  if (pool) {
+    try {
+      const result = await pool.query('SELECT id, name, slug, description, logo, website_url as "websiteUrl", "order" FROM brands ORDER BY "order" ASC, name ASC');
+      return res.json(result.rows);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   res.json(db.brands || []);
 });
 
-app.post('/api/brands', (req, res) => {
-  const db = readDb();
-  const newBrand = { id: `brand_${Date.now()}`, ...req.body };
+app.post('/api/brands', async (req, res) => {
+  const newBrand = { id: req.body.id || `brand_${Date.now()}`, ...req.body };
+  if (pool) {
+    try {
+      await pool.query(
+        'INSERT INTO brands (id, name, slug, description, logo, website_url, "order") VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET name=$2, slug=$3, description=$4, logo=$5, website_url=$6, "order"=$7',
+        [newBrand.id, newBrand.name, newBrand.slug || '', newBrand.description || '', newBrand.logo || '', newBrand.websiteUrl || '', newBrand.order || 0]
+      );
+      return res.status(201).json(newBrand);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   db.brands.push(newBrand);
-  writeDb(db);
+  writeDbJson(db);
   res.status(201).json(newBrand);
 });
 
-app.put('/api/brands/:id', (req, res) => {
-  const db = readDb();
+app.put('/api/brands/:id', async (req, res) => {
+  const updatedBrand = { id: req.params.id, ...req.body };
+  if (pool) {
+    try {
+      await pool.query(
+        'UPDATE brands SET name=$1, slug=$2, description=$3, logo=$4, website_url=$5, "order"=$6 WHERE id=$7',
+        [updatedBrand.name, updatedBrand.slug || '', updatedBrand.description || '', updatedBrand.logo || '', updatedBrand.websiteUrl || '', updatedBrand.order || 0, req.params.id]
+      );
+      return res.json(updatedBrand);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   const index = db.brands.findIndex((b) => b.id === req.params.id);
   if (index !== -1) {
     db.brands[index] = { ...db.brands[index], ...req.body };
-    writeDb(db);
+    writeDbJson(db);
     return res.json(db.brands[index]);
   }
   res.status(404).json({ error: 'Marca não encontrada' });
 });
 
-app.delete('/api/brands/:id', (req, res) => {
-  const db = readDb();
+app.delete('/api/brands/:id', async (req, res) => {
+  if (pool) {
+    try {
+      await pool.query('DELETE FROM brands WHERE id = $1', [req.params.id]);
+      return res.json({ success: true, id: req.params.id });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   db.brands = db.brands.filter((b) => b.id !== req.params.id);
-  writeDb(db);
+  writeDbJson(db);
   res.json({ success: true, id: req.params.id });
 });
 
-// 3. Products
-app.get('/api/products', (req, res) => {
-  const db = readDb();
+// 3. PRODUCTS
+app.get('/api/products', async (req, res) => {
+  if (pool) {
+    try {
+      const result = await pool.query(`
+        SELECT id, name, slug, category_id as "categoryId", brand_id as "brandId", price::float, price_negotiable as "priceNegotiable", badge, status, image, alt_text as "altText", description, specs, attachments, in_stock as "inStock", created_at
+        FROM products 
+        ORDER BY created_at DESC
+      `);
+      return res.json(result.rows);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   res.json(db.products || []);
 });
 
-app.post('/api/products', (req, res) => {
-  const db = readDb();
-  const newProduct = { id: `prod_${Date.now()}`, ...req.body };
+app.post('/api/products', async (req, res) => {
+  const newProduct = { id: req.body.id || `prod_${Date.now()}`, ...req.body };
+  if (pool) {
+    try {
+      await pool.query(`
+        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, image, alt_text, description, specs, attachments, in_stock)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ON CONFLICT (id) DO UPDATE SET 
+          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, image=$10, alt_text=$11, description=$12, specs=$13, attachments=$14, in_stock=$15
+      `, [
+        newProduct.id,
+        newProduct.name,
+        newProduct.slug || '',
+        newProduct.categoryId,
+        newProduct.brandId,
+        newProduct.price || 0,
+        newProduct.priceNegotiable !== undefined ? newProduct.priceNegotiable : true,
+        newProduct.badge || 'Disponível',
+        newProduct.status || 'published',
+        newProduct.image || '',
+        newProduct.altText || '',
+        newProduct.description || '',
+        JSON.stringify(newProduct.specs || []),
+        JSON.stringify(newProduct.attachments || []),
+        newProduct.inStock !== undefined ? newProduct.inStock : true
+      ]);
+      return res.status(201).json(newProduct);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   db.products.unshift(newProduct);
-  writeDb(db);
+  writeDbJson(db);
   res.status(201).json(newProduct);
 });
 
-app.put('/api/products/:id', (req, res) => {
-  const db = readDb();
+app.put('/api/products/:id', async (req, res) => {
+  const updatedProduct = { id: req.params.id, ...req.body };
+  if (pool) {
+    try {
+      await pool.query(`
+        UPDATE products SET 
+          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, image=$9, alt_text=$10, description=$11, specs=$12, attachments=$13, in_stock=$14
+        WHERE id=$15
+      `, [
+        updatedProduct.name,
+        updatedProduct.slug || '',
+        updatedProduct.categoryId,
+        updatedProduct.brandId,
+        updatedProduct.price || 0,
+        updatedProduct.priceNegotiable !== undefined ? updatedProduct.priceNegotiable : true,
+        updatedProduct.badge || 'Disponível',
+        updatedProduct.status || 'published',
+        updatedProduct.image || '',
+        updatedProduct.altText || '',
+        updatedProduct.description || '',
+        JSON.stringify(updatedProduct.specs || []),
+        JSON.stringify(updatedProduct.attachments || []),
+        updatedProduct.inStock !== undefined ? updatedProduct.inStock : true,
+        req.params.id
+      ]);
+      return res.json(updatedProduct);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   const index = db.products.findIndex((p) => p.id === req.params.id);
   if (index !== -1) {
     db.products[index] = { ...db.products[index], ...req.body };
-    writeDb(db);
+    writeDbJson(db);
     return res.json(db.products[index]);
   }
   res.status(404).json({ error: 'Produto não encontrado' });
 });
 
-app.delete('/api/products/:id', (req, res) => {
-  const db = readDb();
+app.delete('/api/products/:id', async (req, res) => {
+  if (pool) {
+    try {
+      await pool.query('DELETE FROM products WHERE id = $1', [req.params.id]);
+      return res.json({ success: true, id: req.params.id });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  const db = readDbJson();
   db.products = db.products.filter((p) => p.id !== req.params.id);
-  writeDb(db);
+  writeDbJson(db);
   res.json({ success: true, id: req.params.id });
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Athena API Backend rodando em http://localhost:${PORT}/api`);
+  console.log(`🚀 Athena API Backend rodando na porta ${PORT}`);
 });
