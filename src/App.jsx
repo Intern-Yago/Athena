@@ -40,13 +40,14 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Dual Route Parser (Supports both clean URLs like /admin and Hash URLs like /#/admin)
+  // Clean HTML5 Router (Zero "#" symbols, beautiful URLs like /admin, /produto/elevador)
   const getRouteFromUrl = () => {
+    const path = window.location.pathname.replace(/^\//, '');
+    if (path) return path;
     if (window.location.hash) {
       return window.location.hash.replace('#/', '').replace('#', '');
     }
-    const path = window.location.pathname.replace(/^\//, '');
-    return path || 'catalog';
+    return 'catalog';
   };
 
   const [currentRoute, setCurrentRoute] = useState(getRouteFromUrl);
@@ -76,15 +77,16 @@ export default function App() {
     navigateTo('catalog');
   };
 
-  // Navigation helper that updates hash and history for clean URLs
+  // Navigation helper using HTML5 PushState (Clean URLs without hashtags)
   const navigateTo = (routePath) => {
     setPreviousRoute(currentRoute);
-    window.location.hash = `#/${routePath}`;
-    setCurrentRoute(routePath);
+    const cleanPath = routePath.startsWith('/') ? routePath : `/${routePath}`;
+    window.history.pushState({}, '', cleanPath);
+    setCurrentRoute(routePath.replace(/^\//, ''));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Route change listener for F5 browser persistence and back/forward navigation
+  // Route change listener for browser back/forward and F5 persistence
   useEffect(() => {
     const handleUrlChange = () => {
       const route = getRouteFromUrl();
@@ -94,11 +96,11 @@ export default function App() {
       });
     };
 
-    window.addEventListener('hashchange', handleUrlChange);
     window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
     return () => {
-      window.removeEventListener('hashchange', handleUrlChange);
       window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
     };
   }, []);
 
