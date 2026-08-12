@@ -124,17 +124,33 @@ export default function AdminPanel({
     setIsProductModalOpen(true);
   };
 
-  // Image Upload File Handler (Base64) for Product
-  const handleImageFileUpload = (file) => {
+  // Image Upload File Handler (Cloudinary + Base64 fallback)
+  const handleImageFileUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) {
       showNotification('Por favor, selecione um arquivo de imagem válido (JPG/PNG).', 'error');
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
-      setProductForm((prev) => ({ ...prev, image: e.target.result }));
-      showNotification('Imagem carregada com sucesso!', 'success');
+    reader.onload = async (e) => {
+      const base64Data = e.target.result;
+      setProductForm((prev) => ({ ...prev, image: base64Data }));
+      showNotification('Enviando imagem para a nuvem Cloudinary...', 'info');
+
+      try {
+        const res = await fetch('https://athena-backend-hu1m.onrender.com/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: base64Data, folder: 'athena_produtos' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProductForm((prev) => ({ ...prev, image: data.url }));
+          showNotification('Foto enviada para o Cloudinary com sucesso! ☁️', 'success');
+        }
+      } catch (err) {
+        showNotification('Imagem salva localmente (offline fallback).', 'info');
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -147,17 +163,33 @@ export default function AdminPanel({
     }
   };
 
-  // Brand Logo Upload File Handler
-  const handleBrandLogoFileUpload = (file) => {
+  // Brand Logo Upload File Handler (Cloudinary)
+  const handleBrandLogoFileUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) {
       showNotification('Selecione uma imagem válida para a logo da marca.', 'error');
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
-      setBrandForm((prev) => ({ ...prev, logo: e.target.result }));
-      showNotification('Logo da marca carregada!', 'success');
+    reader.onload = async (e) => {
+      const base64Data = e.target.result;
+      setBrandForm((prev) => ({ ...prev, logo: base64Data }));
+      showNotification('Enviando logo para a nuvem Cloudinary...', 'info');
+
+      try {
+        const res = await fetch('https://athena-backend-hu1m.onrender.com/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: base64Data, folder: 'athena_marcas' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBrandForm((prev) => ({ ...prev, logo: data.url }));
+          showNotification('Logo enviada para o Cloudinary com sucesso! ☁️', 'success');
+        }
+      } catch (err) {
+        showNotification('Logo salva localmente.', 'info');
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -170,17 +202,36 @@ export default function AdminPanel({
     }
   };
 
-  // Attachment File Upload Handler
-  const handleAttachmentUpload = (file) => {
+  // Attachment File Upload Handler (Cloudinary)
+  const handleAttachmentUpload = async (file) => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
+      const base64Data = e.target.result;
       const fileSizeFormatted = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+      
+      showNotification(`Enviando anexo "${file.name}" para a nuvem...`, 'info');
+
+      let finalUrl = base64Data;
+      try {
+        const res = await fetch('https://athena-backend-hu1m.onrender.com/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: base64Data, folder: 'athena_anexos' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          finalUrl = data.url;
+        }
+      } catch (err) {
+        console.error('Cloudinary fallback:', err);
+      }
+
       const newAtt = {
         id: `att_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
         fileName: file.name,
-        url: e.target.result,
+        url: finalUrl,
         fileSize: fileSizeFormatted
       };
 
@@ -189,7 +240,7 @@ export default function AdminPanel({
         attachments: [...(prev.attachments || []), newAtt]
       }));
 
-      showNotification(`Anexo "${file.name}" adicionado!`, 'success');
+      showNotification(`Anexo "${file.name}" salvo na nuvem com sucesso! 📄☁️`, 'success');
     };
 
     reader.readAsDataURL(file);

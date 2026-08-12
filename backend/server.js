@@ -3,13 +3,22 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
+const cloudinary = require('cloudinary').v2;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'data', 'athena-db.json');
 
+// Configure Cloudinary Credentials
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'y0p1s8mx',
+  api_key: process.env.CLOUDINARY_API_KEY || '899785827465275',
+  api_secret: process.env.CLOUDINARY_API_SECRET || 'aNKI_OYZcViunTnvMs1yUyBC7XY'
+});
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // PostgreSQL Pool setup (Used if DATABASE_URL env is set)
 let pool = null;
@@ -65,10 +74,8 @@ async function initDb() {
         );
       `);
 
-      // Check if categories table is empty and seed
       const catCheck = await pool.query('SELECT COUNT(*) FROM categories');
       if (parseInt(catCheck.rows[0].count, 10) === 0) {
-        console.log('🌱 Populando dados iniciais de Categorias no PostgreSQL...');
         await pool.query(`
           INSERT INTO categories (id, name, slug, description, icon, "order") VALUES
           ('cat_elevadores', 'Elevadores', 'elevadores', 'Elevadores hidráulicos de 2 colunas, 4 colunas e tesoura para automóveis e utilitários.', 'Layers', 1),
@@ -79,10 +86,8 @@ async function initDb() {
         `);
       }
 
-      // Check if brands table is empty and seed
       const brandCheck = await pool.query('SELECT COUNT(*) FROM brands');
       if (parseInt(brandCheck.rows[0].count, 10) === 0) {
-        console.log('🌱 Populando dados iniciais de Marcas no PostgreSQL...');
         await pool.query(`
           INSERT INTO brands (id, name, slug, description, logo, website_url, "order") VALUES
           ('brand_engecass', 'Engecass', 'engecass', 'Líder nacional em elevadores automotivos de alta resistência.', 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80', 'https://engecass.com.br', 1),
@@ -93,10 +98,8 @@ async function initDb() {
         `);
       }
 
-      // Check if products table is empty and seed
       const prodCheck = await pool.query('SELECT COUNT(*) FROM products');
       if (parseInt(prodCheck.rows[0].count, 10) === 0) {
-        console.log('🌱 Populando dados iniciais de Produtos no PostgreSQL...');
         await pool.query(`
           INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, image, alt_text, description, specs, attachments, in_stock) VALUES
           ('prod_1', 'Elevador Automotivo 2 Colunas 4.000kg Trifásico - Engecass', 'elevador-automotivo-2-colunas-4000kg-engecass', 'cat_elevadores', 'brand_engecass', 18900.00, true, 'Mais Vendido', 'published', 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80', 'Elevador Automotivo 2 Colunas Engecass', 'Elevador eletro-hidráulico de 2 colunas com capacidade de carga para 4 toneladas.', '["Capacidade: 4.000 kg", "Altura Máxima de Elevação: 1.900 mm"]'::jsonb, '[{"id":"att_1","fileName":"Ficha_Tecnica.pdf","url":"data:application/pdf;base64,JVBERi0xLjQKJQ==","fileSize":"1.4 MB"}]'::jsonb, true),
@@ -109,7 +112,6 @@ async function initDb() {
       console.error('Erro na inicialização do PostgreSQL:', err);
     }
   } else {
-    // Fallback Local JSON file
     const dir = path.dirname(DB_PATH);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     if (!fs.existsSync(DB_PATH)) {
@@ -127,7 +129,6 @@ async function initDb() {
   }
 }
 
-// Helper JSON File Fallback
 function readDbJson() {
   if (!fs.existsSync(DB_PATH)) return { categories: [], brands: [], products: [] };
   const raw = fs.readFileSync(DB_PATH, 'utf-8');
@@ -138,8 +139,34 @@ function writeDbJson(data) {
   fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
 }
 
-// Initialize Database Boot
 initDb();
+
+// -------------------------------------------------------------
+// CLOUDINARY UPLOAD ENDPOINT
+// -------------------------------------------------------------
+app.post('/api/upload', async (req, res) => {
+  try {
+    const { file, folder } = req.body;
+    if (!file) {
+      return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    }
+
+    const uploadResponse = await cloudinary.uploader.upload(file, {
+      folder: folder || 'athena_automotivas',
+      resource_type: 'auto'
+    });
+
+    return res.json({
+      url: uploadResponse.secure_url,
+      publicId: uploadResponse.public_id,
+      format: uploadResponse.format,
+      bytes: uploadResponse.bytes
+    });
+  } catch (error) {
+    console.error('Erro no upload Cloudinary:', error);
+    return res.status(500).json({ error: 'Erro ao fazer upload da imagem/arquivo para a nuvem.' });
+  }
+});
 
 // -------------------------------------------------------------
 // REST API ENDPOINTS
