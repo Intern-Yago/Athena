@@ -167,26 +167,30 @@ export default function MobileDrawer({ isOpen, onClose, categories, brands, prod
             <ChevronRight className="w-4 h-4 text-slate-400" />
           </button>
 
-        </div>
-
-        {/* Footer inside Drawer */}
-        <div className="p-5 border-t border-slate-200 space-y-3 bg-slate-50">
+          {/* Item 5: Falar no WhatsApp */}
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-gold w-full text-xs font-bold py-3 justify-center"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold text-xs border border-emerald-200 text-decoration-none transition-colors"
           >
-            <PhoneCall className="w-4 h-4" />
-            <span>Falar no WhatsApp ({formattedPhone})</span>
+            <div className="flex items-center gap-2.5">
+              <PhoneCall className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Falar no WhatsApp ({formattedPhone})</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-emerald-500" />
           </a>
 
+        </div>
+
+        {/* Footer inside Drawer */}
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-center pb-20 md:pb-4">
           <button
             onClick={() => {
               onNavigate('admin');
               onClose();
             }}
-            className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 py-1"
+            className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 py-1"
           >
             <Lock className="w-3.5 h-3.5" />
             <span>Painel do Administrador</span>
