@@ -7,17 +7,41 @@ const cloudinary = require('cloudinary').v2;
 const swaggerUi = require('swagger-ui-express');
 const basicAuth = require('express-basic-auth');
 
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const bcrypt = require('bcryptjs');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'data', 'athena-db.json');
 
-// Configure Cloudinary Credentials
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'y0p1s8mx',
-  api_key: process.env.CLOUDINARY_API_KEY || '899785827465275',
-  api_secret: process.env.CLOUDINARY_API_SECRET || 'aNKI_OYZcViunTnvMs1yUyBC7XY'
+// -------------------------------------------------------------
+// OWASP SECURITY HARDENING & RATE LIMITING MIDDLEWARES
+// -------------------------------------------------------------
+app.use(helmet({
+  contentSecurityPolicy: false, // Compatible with Cloudinary CDN & CORS
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// General API Rate Limiter against DoS Flooding Attacks
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // 300 requests per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições originadas deste IP. Por favor, aguarde alguns minutos.' }
 });
 
+// Strict Rate Limiter against Login Brute-Force Password Attacks
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Max 10 failed login attempts per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de login incorretas. Acesso bloqueado por 15 minutos por segurança contra ataques de força bruta.' }
+});
+
+app.use('/api/', apiLimiter);
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -248,8 +272,8 @@ app.post('/api/upload', async (req, res) => {
 // AUTH & USER ROLES ENDPOINTS
 // -------------------------------------------------------------
 
-// Login
-app.post('/api/auth/login', async (req, res) => {
+// Login (Protected by strict loginLimiter rate limiting)
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Informe e-mail e senha.' });
@@ -261,7 +285,7 @@ app.post('/api/auth/login', async (req, res) => {
   const envAdminName = process.env.ADMIN_NAME || 'Administrador Geral';
 
   // Direct ENV Super Admin match check (Guarantees instant login with environment variables)
-  if (inputEmail === envAdminEmail && password === envAdminPassword) {
+  if (inputEmail === envAdminEmail && (password === envAdminPassword || bcrypt.compareSync(password, envAdminPassword))) {
     if (pool) {
       try {
         await pool.query(`
@@ -290,7 +314,8 @@ app.post('/api/auth/login', async (req, res) => {
         return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
       }
       const user = result.rows[0];
-      if (user.passwordHash !== password) {
+      const isMatch = bcrypt.compareSync(password, user.passwordHash) || user.passwordHash === password;
+      if (!isMatch) {
         return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
       }
       return res.json({
