@@ -97,16 +97,8 @@ async function initDb() {
           ('brand_sun', 'Sun Equipment', 'sun-equipment', 'Sistemas de alinhamento 3D e diagnóstico premium.', 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80', 'https://www.sun.com.br', 5);
         `);
       }
-
-      const prodCheck = await pool.query('SELECT COUNT(*) FROM products');
-      if (parseInt(prodCheck.rows[0].count, 10) === 0) {
-        await pool.query(`
-          INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, image, alt_text, description, specs, attachments, in_stock) VALUES
-          ('prod_1', 'Elevador Automotivo 2 Colunas 4.000kg Trifásico - Engecass', 'elevador-automotivo-2-colunas-4000kg-engecass', 'cat_elevadores', 'brand_engecass', 18900.00, true, 'Mais Vendido', 'published', 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80', 'Elevador Automotivo 2 Colunas Engecass', 'Elevador eletro-hidráulico de 2 colunas com capacidade de carga para 4 toneladas.', '["Capacidade: 4.000 kg", "Altura Máxima de Elevação: 1.900 mm"]'::jsonb, '[{"id":"att_1","fileName":"Ficha_Tecnica.pdf","url":"data:application/pdf;base64,JVBERi0xLjQKJQ==","fileSize":"1.4 MB"}]'::jsonb, true),
-          ('prod_2', 'Scanner Automotivo Multimarca X-431 PAD VII - Launch', 'scanner-automotivo-multimarca-x431-pad-vii-launch', 'cat_scanners', 'brand_launch', 24500.00, true, 'Lançamento', 'published', 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80', 'Scanner Launch X-431 PAD VII', 'Scanner de nível fabril com suporte a protocolos DoIP e CAN-FD.', '["Tela: 13.3 polegadas IPS Full HD", "Processador: 8-Core 2.0GHz"]'::jsonb, '[]'::jsonb, true),
-          ('prod_3', 'Alinhador 3D de Direção Computadorizado com Torre Móvel', 'alinhador-3d-de-direcao-computadorizado-sun', 'cat_alinhadores', 'brand_sun', 45900.00, true, 'Destaque', 'published', 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80', 'Alinhador 3D Sun Equipment', 'Alinhador 3D de alta precisão com 2 câmeras digitais de alta resolução.', '["Câmeras: 2x Câmeras HD", "Banco de Dados: 50.000 veículos"]'::jsonb, '[]'::jsonb, true);
-        `);
-      }
+      // Products table initialized empty for user catalog creation
+      console.log('✅ PostgreSQL athena-db pronto!');
 
     } catch (err) {
       console.error('Erro na inicialização do PostgreSQL:', err);
