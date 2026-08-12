@@ -1247,7 +1247,7 @@ export default function AdminPanel({
                         placeholder="https://suaimagem.com/foto.jpg"
                         value={productForm.image}
                         onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
-                        className="form-input text-xs pl-8"
+                        className="form-input text-xs !pl-10"
                       />
                       <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     </div>
@@ -1456,7 +1456,7 @@ export default function AdminPanel({
                         placeholder="https://marca.com/logo.png"
                         value={brandForm.logo}
                         onChange={(e) => setBrandForm({ ...brandForm, logo: e.target.value })}
-                        className="form-input text-xs pl-8"
+                        className="form-input text-xs !pl-10"
                       />
                       <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     </div>
@@ -1481,7 +1481,7 @@ export default function AdminPanel({
                       placeholder="https://www.fabricante.com.br"
                       value={brandForm.websiteUrl}
                       onChange={(e) => setBrandForm({ ...brandForm, websiteUrl: e.target.value })}
-                      className="form-input text-xs pl-8"
+                      className="form-input text-xs !pl-10"
                     />
                     <Globe className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   </div>

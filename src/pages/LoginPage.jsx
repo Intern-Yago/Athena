@@ -83,10 +83,10 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
                 placeholder="seu.nome@athena.com.br"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="form-input text-xs pl-9"
+                className="form-input text-xs !pl-10"
                 required
               />
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
 
@@ -98,14 +98,14 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="form-input text-xs pl-9 pr-9"
+                className="form-input text-xs !pl-10 !pr-10"
                 required
               />
-              <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
