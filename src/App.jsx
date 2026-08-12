@@ -40,10 +40,16 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Hash Router & Previous Route State for Smart Back Navigation
-  const [currentRoute, setCurrentRoute] = useState(() => {
-    return window.location.hash ? window.location.hash.replace('#/', '') : 'catalog';
-  });
+  // Dual Route Parser (Supports both clean URLs like /admin and Hash URLs like /#/admin)
+  const getRouteFromUrl = () => {
+    if (window.location.hash) {
+      return window.location.hash.replace('#/', '').replace('#', '');
+    }
+    const path = window.location.pathname.replace(/^\//, '');
+    return path || 'catalog';
+  };
+
+  const [currentRoute, setCurrentRoute] = useState(getRouteFromUrl);
   const [previousRoute, setPreviousRoute] = useState(null);
 
   // Multi-Selection E-commerce Filter States
@@ -70,7 +76,7 @@ export default function App() {
     navigateTo('catalog');
   };
 
-  // Hash Navigation helper that remembers previous route
+  // Navigation helper that updates hash and history for clean URLs
   const navigateTo = (routePath) => {
     setPreviousRoute(currentRoute);
     window.location.hash = `#/${routePath}`;
@@ -78,18 +84,22 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Hash Route change listener for F5 browser persistence
+  // Route change listener for F5 browser persistence and back/forward navigation
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash ? window.location.hash.replace('#/', '') : 'catalog';
+    const handleUrlChange = () => {
+      const route = getRouteFromUrl();
       setCurrentRoute((prev) => {
         setPreviousRoute(prev);
-        return hash;
+        return route;
       });
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    window.addEventListener('popstate', handleUrlChange);
+    return () => {
+      window.removeEventListener('hashchange', handleUrlChange);
+      window.removeEventListener('popstate', handleUrlChange);
+    };
   }, []);
 
   // Fetch from NestJS / Node backend if available

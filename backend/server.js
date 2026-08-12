@@ -95,14 +95,18 @@ async function initDb() {
         );
       `);
 
-      // Seed Initial Super Admin User if empty
+      // Seed Initial Super Admin User if empty (Configurable via ENV)
+      const adminEmail = (process.env.ADMIN_EMAIL || 'admin@athena.com.br').trim().toLowerCase();
+      const adminPassword = process.env.ADMIN_PASSWORD || 'AthenaAdmin2026!';
+      const adminName = process.env.ADMIN_NAME || 'Administrador Geral';
+
       const userCheck = await pool.query('SELECT COUNT(*) FROM users');
       if (parseInt(userCheck.rows[0].count, 10) === 0) {
-        console.log('👤 Criando usuário Administrador Padrão (admin@athena.com.br)...');
-        await pool.query(`
-          INSERT INTO users (id, name, email, password_hash, role) VALUES
-          ('user_admin_default', 'Administrador Geral', 'admin@athena.com.br', 'admin123', 'admin');
-        `);
+        console.log(`👤 Criando usuário Administrador (${adminEmail})...`);
+        await pool.query(
+          'INSERT INTO users (id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (email) DO UPDATE SET password_hash = $4',
+          ['user_admin_default', adminName, adminEmail, adminPassword, 'admin']
+        );
       }
 
       await pool.query(`

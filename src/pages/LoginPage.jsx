@@ -128,13 +128,6 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
           </button>
         </form>
 
-        {/* Initial Seed Help Box */}
-        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-center space-y-1 text-[11px] text-slate-500">
-          <span className="font-bold text-slate-700 block">Credenciais Padrão do Super Admin:</span>
-          <span>E-mail: <strong className="text-amber-800">admin@athena.com.br</strong></span>
-          <span className="block">Senha: <strong className="text-amber-800">admin123</strong></span>
-        </div>
-
       </div>
     </div>
   );
