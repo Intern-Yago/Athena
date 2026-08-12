@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: athena-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    plan: free
+
+  - type: web
+    name: athena-frontend
+    env: static
+    buildCommand: npm run build
+    staticPublishPath: ./dist
+    plan: free
