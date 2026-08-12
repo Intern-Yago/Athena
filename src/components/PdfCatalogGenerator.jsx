@@ -216,38 +216,41 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content max-w-lg p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop p-3 sm:p-6" onClick={onClose}>
+      <div 
+        className="modal-content w-full max-w-lg p-4 sm:p-6 bg-white border-slate-200 relative max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-3xl shadow-2xl" 
+        onClick={(e) => e.stopPropagation()}
+      >
         
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900"
+          className="absolute top-3 sm:top-4 right-3 sm:right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors z-10"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pr-8">
             <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
               <Printer className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Gerador de Catálogo em PDF</h3>
-              <p className="text-xs text-slate-500">Organizado por Marca ➔ Categoria. Filtre apenas o que desejar.</p>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">Gerador de Catálogo em PDF</h3>
+              <p className="text-[11px] sm:text-xs text-slate-500">Organizado por Marca ➔ Categoria. Filtre como desejar.</p>
             </div>
           </div>
 
           {/* Filter Categories */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-amber-600" /> Categorias a Incluir:
+              <Layers className="w-3.5 h-3.5 text-amber-600 shrink-0" /> Categorias a Incluir:
             </label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="max-h-36 overflow-y-auto p-1.5 border border-slate-200/80 rounded-2xl bg-slate-50/50 flex flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() => setSelectedCatIds([])}
                 className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                  selectedCatIds.length === 0 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700'
+                  selectedCatIds.length === 0 ? 'bg-amber-600 text-white' : 'bg-white text-slate-700 border border-slate-200'
                 }`}
               >
                 Todas as Categorias
@@ -257,8 +260,8 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
                   key={c.id}
                   type="button"
                   onClick={() => toggleCat(c.id)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                    selectedCatIds.includes(c.id) ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all truncate max-w-[160px] sm:max-w-none ${
+                    selectedCatIds.includes(c.id) ? 'bg-amber-600 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                   }`}
                 >
                   {c.name}
@@ -270,14 +273,14 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
           {/* Filter Brands */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-sky-600" /> Marcas a Incluir:
+              <Tag className="w-3.5 h-3.5 text-sky-600 shrink-0" /> Marcas a Incluir:
             </label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="max-h-36 overflow-y-auto p-1.5 border border-slate-200/80 rounded-2xl bg-slate-50/50 flex flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() => setSelectedBrandIds([])}
                 className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                  selectedBrandIds.length === 0 ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700'
+                  selectedBrandIds.length === 0 ? 'bg-sky-600 text-white' : 'bg-white text-slate-700 border border-slate-200'
                 }`}
               >
                 Todas as Marcas
@@ -287,8 +290,8 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
                   key={b.id}
                   type="button"
                   onClick={() => toggleBrand(b.id)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                    selectedBrandIds.includes(b.id) ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all truncate max-w-[160px] sm:max-w-none ${
+                    selectedBrandIds.includes(b.id) ? 'bg-sky-600 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                   }`}
                 >
                   {b.name}
@@ -300,31 +303,31 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
           {/* Include Prices Option */}
           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
             <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <DollarSign className="w-4 h-4 text-emerald-600" /> Exibir Valores no PDF
+              <DollarSign className="w-4 h-4 text-emerald-600 shrink-0" /> Exibir Valores no PDF
             </span>
             <input
               type="checkbox"
               checked={showPrices}
               onChange={(e) => setShowPrices(e.target.checked)}
-              className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+              className="w-4 h-4 accent-amber-600 rounded cursor-pointer shrink-0"
             />
           </div>
 
           {/* Result Counter & Generate CTA */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-800">
+          <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <span className="text-xs font-bold text-amber-800 text-center sm:text-left">
               Total: <strong>{filteredProducts.length}</strong> equipamento(s)
             </span>
 
             <div className="flex items-center gap-2">
-              <button type="button" onClick={onClose} className="btn-secondary text-xs">Cancelar</button>
+              <button type="button" onClick={onClose} className="btn-secondary text-xs flex-1 sm:flex-none justify-center py-2.5">Cancelar</button>
               <button
                 type="button"
                 onClick={handleGeneratePdf}
                 disabled={filteredProducts.length === 0}
-                className="btn-gold text-xs font-bold py-2.5 px-4 gap-1.5 disabled:opacity-40"
+                className="btn-gold text-xs font-bold py-2.5 px-4 gap-1.5 flex-1 sm:flex-none justify-center disabled:opacity-40"
               >
-                <Printer className="w-4 h-4" />
+                <Printer className="w-4 h-4 shrink-0" />
                 <span>Gerar PDF Comercial</span>
               </button>
             </div>
