@@ -33,6 +33,7 @@ export default function AdminPanel({
   onAddCategory,
   onDeleteCategory,
   onAddBrand,
+  onUpdateBrand,
   onDeleteBrand,
   showNotification,
   editingProduct,
@@ -297,11 +298,13 @@ export default function AdminPanel({
     };
 
     if (editingBrand) {
-      // Update existing brand
-      const updatedBrands = brands.map(b => b.id === editingBrand.id ? newBrandObj : b);
-      localStorage.setItem('athena_brands', JSON.stringify(updatedBrands));
+      if (onUpdateBrand) {
+        onUpdateBrand(newBrandObj);
+      } else {
+        const updatedBrands = brands.map(b => b.id === editingBrand.id ? newBrandObj : b);
+        localStorage.setItem('athena_brands', JSON.stringify(updatedBrands));
+      }
       showNotification(`Marca "${newBrandObj.name}" atualizada!`, 'success');
-      window.location.reload();
     } else {
       onAddBrand(newBrandObj);
       setProductForm((prev) => ({ ...prev, brandId: newBrandObj.id }));

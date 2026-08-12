@@ -210,6 +210,22 @@ export default function App() {
     }
   };
 
+  const handleUpdateBrand = async (updatedBrand) => {
+    setBrands((prev) => prev.map((b) => (b.id === updatedBrand.id ? updatedBrand : b)));
+
+    if (isBackendConnected) {
+      try {
+        await fetch(`${API_BASE_URL}/brands/${updatedBrand.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedBrand)
+        });
+      } catch (e) {
+        console.error('Erro backend:', e);
+      }
+    }
+  };
+
   const handleDeleteBrand = async (brandId) => {
     setBrands((prev) => prev.filter((b) => b.id !== brandId));
     if (selectedBrands.includes(brandId)) {
@@ -416,6 +432,7 @@ export default function App() {
           onAddCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
           onAddBrand={handleAddBrand}
+          onUpdateBrand={handleUpdateBrand}
           onDeleteBrand={handleDeleteBrand}
           showNotification={showNotification}
           editingProduct={editingProduct}

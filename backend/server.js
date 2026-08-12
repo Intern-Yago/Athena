@@ -194,6 +194,17 @@ app.post('/api/brands', (req, res) => {
   res.status(201).json(newBrand);
 });
 
+app.put('/api/brands/:id', (req, res) => {
+  const db = readDb();
+  const index = db.brands.findIndex((b) => b.id === req.params.id);
+  if (index !== -1) {
+    db.brands[index] = { ...db.brands[index], ...req.body };
+    writeDb(db);
+    return res.json(db.brands[index]);
+  }
+  res.status(404).json({ error: 'Marca não encontrada' });
+});
+
 app.delete('/api/brands/:id', (req, res) => {
   const db = readDb();
   db.brands = db.brands.filter((b) => b.id !== req.params.id);
