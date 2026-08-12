@@ -85,9 +85,50 @@ export default function App() {
           const catData = await catRes.json();
           const brandData = await brandRes.json();
 
-          setProducts(prodData);
-          setCategories(catData);
-          setBrands(brandData);
+          // SMART MERGE: Retain items created in browser if backend resets on redeploy
+          const localProds = JSON.parse(localStorage.getItem('athena_products') || '[]');
+          const localCats = JSON.parse(localStorage.getItem('athena_categories') || '[]');
+          const localBrands = JSON.parse(localStorage.getItem('athena_brands') || '[]');
+
+          const mergedProducts = [...prodData];
+          localProds.forEach((lp) => {
+            if (!mergedProducts.some((sp) => sp.id === lp.id)) {
+              mergedProducts.unshift(lp);
+              fetch(`${API_BASE_URL}/products`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lp)
+              }).catch(() => {});
+            }
+          });
+
+          const mergedCategories = [...catData];
+          localCats.forEach((lc) => {
+            if (!mergedCategories.some((sc) => sc.id === lc.id)) {
+              mergedCategories.push(lc);
+              fetch(`${API_BASE_URL}/categories`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lc)
+              }).catch(() => {});
+            }
+          });
+
+          const mergedBrands = [...brandData];
+          localBrands.forEach((lb) => {
+            if (!mergedBrands.some((sb) => sb.id === lb.id)) {
+              mergedBrands.push(lb);
+              fetch(`${API_BASE_URL}/brands`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(lb)
+              }).catch(() => {});
+            }
+          });
+
+          setProducts(mergedProducts);
+          setCategories(mergedCategories);
+          setBrands(mergedBrands);
           setIsBackendConnected(true);
         }
       } catch (err) {
