@@ -12,7 +12,7 @@ import AboutPage from './pages/AboutPage';
 import LoginPage from './pages/LoginPage';
 import BottomNavBar from './components/BottomNavBar';
 
-import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
+import { INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
@@ -20,17 +20,51 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1
 export default function App() {
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem('athena_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
   });
 
   const [categories, setCategories] = useState(() => {
     const saved = localStorage.getItem('athena_categories');
-    return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...parsed];
+          INITIAL_CATEGORIES.forEach((ic) => {
+            if (!merged.some((c) => c.id === ic.id || (c.slug && c.slug === ic.slug))) {
+              merged.push(ic);
+            }
+          });
+          return merged;
+        }
+      } catch (e) {}
+    }
+    return INITIAL_CATEGORIES;
   });
 
   const [brands, setBrands] = useState(() => {
     const saved = localStorage.getItem('athena_brands');
-    return saved ? JSON.parse(saved) : INITIAL_BRANDS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...parsed];
+          INITIAL_BRANDS.forEach((ib) => {
+            if (!merged.some((b) => b.id === ib.id || (b.slug && b.slug === ib.slug))) {
+              merged.push(ib);
+            }
+          });
+          return merged;
+        }
+      } catch (e) {}
+    }
+    return INITIAL_BRANDS;
   });
 
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -120,49 +154,9 @@ export default function App() {
           const catData = await catRes.json();
           const brandData = await brandRes.json();
 
-          const localProds = JSON.parse(localStorage.getItem('athena_products') || '[]');
-          const localCats = JSON.parse(localStorage.getItem('athena_categories') || '[]');
-          const localBrands = JSON.parse(localStorage.getItem('athena_brands') || '[]');
-
-          const mergedProducts = [...prodData];
-          localProds.forEach((lp) => {
-            if (!mergedProducts.some((sp) => sp.id === lp.id)) {
-              mergedProducts.unshift(lp);
-              fetch(`${API_BASE_URL}/products`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(lp)
-              }).catch(() => {});
-            }
-          });
-
-          const mergedCategories = [...catData];
-          localCats.forEach((lc) => {
-            if (!mergedCategories.some((sc) => sc.id === lc.id)) {
-              mergedCategories.push(lc);
-              fetch(`${API_BASE_URL}/categories`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(lc)
-              }).catch(() => {});
-            }
-          });
-
-          const mergedBrands = [...brandData];
-          localBrands.forEach((lb) => {
-            if (!mergedBrands.some((sb) => sb.id === lb.id)) {
-              mergedBrands.push(lb);
-              fetch(`${API_BASE_URL}/brands`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(lb)
-              }).catch(() => {});
-            }
-          });
-
-          setProducts(mergedProducts);
-          setCategories(mergedCategories);
-          setBrands(mergedBrands);
+          setProducts(prodData);
+          setCategories(catData);
+          setBrands(brandData);
           setIsBackendConnected(true);
         }
       } catch (err) {

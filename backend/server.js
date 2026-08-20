@@ -203,6 +203,42 @@ async function initDb() {
         `);
       }
 
+      const prodCheck = await pool.query('SELECT COUNT(*) FROM products');
+      if (parseInt(prodCheck.rows[0].count, 10) === 0 && fs.existsSync(DB_PATH)) {
+        try {
+          const dbData = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+          if (dbData.products && Array.isArray(dbData.products) && dbData.products.length > 0) {
+            for (const prod of dbData.products) {
+              await pool.query(`
+                INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, image, alt_text, description, specs, attachments, in_stock)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                ON CONFLICT (id) DO UPDATE SET 
+                  name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, image=$10, alt_text=$11, description=$12, specs=$13, attachments=$14, in_stock=$15
+              `, [
+                prod.id,
+                prod.name,
+                prod.slug || '',
+                prod.categoryId,
+                prod.brandId,
+                prod.price || 0,
+                prod.priceNegotiable !== undefined ? prod.priceNegotiable : true,
+                prod.badge || 'Disponível',
+                prod.status || 'published',
+                prod.image || '',
+                prod.altText || '',
+                prod.description || '',
+                JSON.stringify(prod.specs || []),
+                JSON.stringify(prod.attachments || []),
+                prod.inStock !== undefined ? prod.inStock : true
+              ]);
+            }
+            console.log(`📦 Seeded ${dbData.products.length} produtos do athena-db.json no PostgreSQL!`);
+          }
+        } catch (seedErr) {
+          console.error('Erro ao sincronizar produtos do JSON para PostgreSQL:', seedErr);
+        }
+      }
+
       console.log('✅ PostgreSQL athena-db pronto!');
 
     } catch (err) {

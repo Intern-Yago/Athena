@@ -90,3 +90,4 @@ export const INITIAL_BRANDS = [
 ];
 
 export const INITIAL_PRODUCTS = [];
+

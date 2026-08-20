@@ -4,6 +4,7 @@
       "id": "cat_elevadores",
       "name": "Elevadores",
       "slug": "elevadores",
+      "order": 1,
       "description": "Elevadores hidráulicos de 2 colunas, 4 colunas e tesoura para automóveis e utilitários.",
       "icon": "Layers"
     },
@@ -11,6 +12,7 @@
       "id": "cat_scanners",
       "name": "Scanners",
       "slug": "scanners",
+      "order": 2,
       "description": "Scanners e leitores de diagnóstico automotivo multimarca de última geração com IA.",
       "icon": "Cpu"
     },
@@ -18,6 +20,7 @@
       "id": "cat_alinhadores",
       "name": "Alinhadores",
       "slug": "alinhadores",
+      "order": 3,
       "description": "Sistemas de alinhamento de direção 3D computadorizados com câmeras de alta precisão.",
       "icon": "Target"
     },
@@ -25,6 +28,7 @@
       "id": "cat_desmontadoras",
       "name": "Desmontadoras & Balanceadoras",
       "slug": "desmontadoras",
+      "order": 4,
       "description": "Equipamentos para serviços de borracharia, desmontadoras pneumáticas e balanceadoras de rodas.",
       "icon": "Disc"
     },
@@ -32,6 +36,7 @@
       "id": "cat_ferramentas",
       "name": "Ferramentas Especiais",
       "slug": "ferramentas",
+      "order": 5,
       "description": "Kits de sincronismo, saca-filtros, prensas hidráulicas e ferramentas para centro automotivo.",
       "icon": "Wrench"
     }
@@ -40,86 +45,744 @@
     {
       "id": "brand_engecass",
       "name": "Engecass",
+      "slug": "engecass",
+      "order": 1,
       "description": "Líder nacional em elevadores automotivos de alta resistência.",
-      "logo": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80"
-    },
-    {
-      "id": "brand_raven",
-      "name": "Raven",
-      "description": "Referência em ferramentas especiais e diagnóstico para oficinas.",
-      "logo": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80"
+      "logo": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80",
+      "websiteUrl": "https://engecass.com.br"
     },
     {
       "id": "brand_launch",
       "name": "Launch",
+      "slug": "launch",
+      "order": 2,
       "description": "Tecnologia global em scanners de diagnóstico e codificação de módulos.",
-      "logo": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80"
+      "logo": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80",
+      "websiteUrl": "https://www.launchtech.com.br"
+    },
+    {
+      "id": "brand_raven",
+      "name": "Raven",
+      "slug": "raven",
+      "order": 3,
+      "description": "Referência em ferramentas especiais e diagnóstico para oficinas.",
+      "logo": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80",
+      "websiteUrl": "https://www.ravenferramentas.com.br"
     },
     {
       "id": "brand_napro",
       "name": "Napro",
+      "slug": "napro",
+      "order": 4,
       "description": "Pioneira em sistemas informatizados de diagnóstico automotivo.",
-      "logo": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80"
+      "logo": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80",
+      "websiteUrl": "https://www.napro.com.br"
     },
     {
       "id": "brand_sun",
       "name": "Sun Equipment",
+      "slug": "sun-equipment",
+      "order": 5,
       "description": "Sistemas de alinhamento 3D e diagnóstico premium.",
-      "logo": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80"
+      "logo": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80",
+      "websiteUrl": "https://www.sun.com.br"
     }
   ],
   "products": [
     {
-      "id": "prod_1",
-      "name": "Elevador Automotivo 2 Colunas 4.000kg Trifásico - Engecass",
+      "id": "prod_elevador_2col_4000kg",
+      "name": "Elevador Automotivo 2 Colunas 4.000kg Trifásico - Engecass ECO-4000",
+      "slug": "elevador-automotivo-2-colunas-4000kg-engecass",
       "categoryId": "cat_elevadores",
       "brandId": "brand_engecass",
       "price": 18900,
       "priceNegotiable": false,
       "badge": "Mais Vendido",
+      "status": "published",
       "image": "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80",
-      "description": "Elevador eletro-hidráulico de 2 colunas com capacidade de carga para 4 toneladas. Ideal para carros de passeio, SUVs e caminhonetes leves.",
+      "images": [
+        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Elevador Automotivo 2 Colunas 4.000kg Trifásico Engecass",
+      "description": "Elevador eletromecânico de 2 colunas com capacidade nominal de 4.000 kg, desenvolvido para oficinas mecânicas e concessionárias de alto fluxo. Atende com facilidade veículos leves, utilitários, SUVs grandes e picapes cabine dupla. Possui sistema de segurança com porcas duplas de nylon e acionamento por fuso usinado em aço trefilado.",
       "specs": [
-        "Capacidade: 4.000 kg",
+        "Capacidade de Carga: 4.000 kg",
         "Altura Máxima de Elevação: 1.900 mm",
-        "Tempo de Elevação: ~45 segundos",
-        "Motor: 3.0 HP Trifásico (220V/380V)",
-        "Trava de Segurança: Automática dupla"
+        "Tempo Médio de Elevação: ~45 segundos",
+        "Motorização: 3.0 HP Trifásico (220V / 380V)",
+        "Sistema de Transmissão: Corrente ASA 60 de alta resistência",
+        "Braços Telescópicos: 4 braços articulados com sapatas de borracha ajustáveis",
+        "Dispositivos de Segurança: Porca de segurança automática e sensores fim de curso"
+      ],
+      "attachments": [
+        { "id": "att_eco4000_manual", "fileName": "Manual_Tecnico_Elevador_ECO4000_Engecass.pdf", "fileSize": "3.2 MB", "url": "#" },
+        { "id": "att_eco4000_laudo", "fileName": "Laudo_Homologacao_NR12_Engecass.pdf", "fileSize": "1.1 MB", "url": "#" }
       ],
       "inStock": true
     },
     {
-      "id": "prod_2",
-      "name": "Scanner Automotivo Multimarca X-431 PAD VII - Launch",
+      "id": "prod_elevador_tesoura_3500kg",
+      "name": "Elevador Pantográfico Tesoura 3.500kg de Sobrepor - Engecass SL-3500",
+      "slug": "elevador-pantografico-tesoura-3500kg-sobrepor-engecass",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_engecass",
+      "price": 29500,
+      "priceNegotiable": true,
+      "badge": "Alta Performance",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Elevador Pantográfico Tesoura 3.500kg de Sobrepor Engecass",
+      "description": "Elevador pantográfico de alta elevação (1.850 mm) modelo de sobrepor no piso, eliminando a necessidade de obras de fosso de alvenaria. Excelente para boxes de troca rápida de óleo, freios, suspensão e alinhamento com otimização total de espaço físico na oficina.",
+      "specs": [
+        "Capacidade de Carga: 3.500 kg",
+        "Altura Máxima de Elevação: 1.850 mm",
+        "Perfil Rebaixado: Apenas 110 mm quando totalmente recolhido",
+        "Comprimento da Plataforma: 1.450 mm a 2.050 mm (extensível)",
+        "Acionamento: Central eletro-hidráulica 24V com duplo cilindro sincronizado",
+        "Travamento de Segurança: Travas pneumáticas automáticas em múltiplos níveis",
+        "Painel de Controle: Torre móvel com botões de emergência e aviso sonoro"
+      ],
+      "attachments": [
+        { "id": "att_sl3500_manual", "fileName": "Manual_Elevador_Tesoura_SL3500.pdf", "fileSize": "2.8 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_elevador_4col_5000kg",
+      "name": "Elevador 4 Colunas 5.000kg para Alinhamento 3D - Engecass EC-5000 3D",
+      "slug": "elevador-4-colunas-5000kg-alinhamento-engecass",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_engecass",
+      "price": 42000,
+      "priceNegotiable": true,
+      "badge": "Linha Pesada",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Elevador 4 Colunas 5.000kg para Alinhamento 3D Engecass",
+      "description": "Elevador de quatro colunas especialmente projetado para geometria e alinhamento de direção automotivo. Plataformas longas e perfeitamente niveladas com rebaixos para pratos dianteiros e bandejas traseiras oscilantes de alta precisão.",
+      "specs": [
+        "Capacidade: 5.000 kg (suporta caminhonetes longas e blindadas)",
+        "Comprimento da Plataforma: 5.100 mm",
+        "Largura entre Colunas: 3.050 mm",
+        "Sistema de Elevação: Eletro-hidráulico com cabos de aço balanceados de alta tensão",
+        "Macaco Hidropneumático Central (Rolling Jack): Incluso para liberação de suspensão",
+        "Travamento de Segurança: Trava pneumática individual nas 4 colunas"
+      ],
+      "attachments": [
+        { "id": "att_ec5000_especs", "fileName": "Ficha_Tecnica_Elevador_4Colunas_EC5000.pdf", "fileSize": "2.1 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_elevador_2col_2500kg",
+      "name": "Elevador Automotivo 2 Colunas 2.500kg Eletromecânico - Engecass Standard",
+      "slug": "elevador-automotivo-2-colunas-2500kg-engecass",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_engecass",
+      "price": 14800,
+      "priceNegotiable": false,
+      "badge": "Excelente Custo-Benefício",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Elevador Automotivo 2 Colunas 2.500kg Engecass Standard",
+      "description": "O modelo mais consagrado e econômico do Brasil para veículos de passeio e utilitários leves. Simplicidade operacional, baixo consumo de energia e peças de reposição de fácil acesso.",
+      "specs": [
+        "Capacidade de Carga: 2.500 kg",
+        "Altura de Elevação: 1.850 mm",
+        "Motores: 2 motores elétricos de 1.5 HP sincronizados (Monofásico ou Trifásico)",
+        "Braços Telescópicos: 2 curtos e 2 longos com almofadas de borracha de alta densidade",
+        "Garantia de Fábrica: 12 meses"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_scanner_launch_pad7",
+      "name": "Scanner Automotivo Multimarca Launch X-431 PAD VII com SmartLink",
+      "slug": "scanner-automotivo-multimarca-launch-x431-pad-vii",
       "categoryId": "cat_scanners",
       "brandId": "brand_launch",
-      "price": 24500,
+      "price": 24900,
       "priceNegotiable": false,
-      "badge": "Lançamento",
+      "badge": "Topo de Linha",
+      "status": "published",
       "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
-      "description": "Scanner de nível fabril com suporte a protocolos DoIP e CAN-FD. Diagnóstico completo de todos os sistemas eletrônicos.",
+      "images": [
+        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Scanner Automotivo Multimarca Launch X-431 PAD VII com SmartLink",
+      "description": "O scanner automotivo topo de linha internacional da Launch. Desenvolvido para oficinas de alta tecnologia e especialistas que necessitam de diagnóstico fabril, suporte a protocolos CAN-FD, DoIP e reprogramação de centrais via J2534 Passthru com conector inteligente SmartLink C.",
       "specs": [
-        "Tela: 13.3 polegadas IPS Full HD",
-        "Processador: 8-Core 2.0GHz + 8GB RAM",
-        "Conectividade: Wi-Fi 5GHz + Bluetooth Smart"
+        "Tela: 13.3 polegadas IPS Full HD (1920x1080) Gorilla Glass resistente a impactos",
+        "Processador: Octa-Core 2.0 GHz com 8 GB RAM e 256 GB ROM",
+        "Conector SmartLink VCI: Diagnóstico remoto e protocolos CAN-FD, DoIP e J2534 Passthru",
+        "Cobertura Global: Mais de 110 montadoras (Leves, Utilitários, Híbridos e Elétricos)",
+        "Funções Especiais: Topologia de Redes CAN em tempo real, Calibração ADAS e Codificação Online",
+        "Bateria: 19.000 mAh de longa duração (até 12 horas contínuas)",
+        "Câmeras: Traseira de 13 MP e frontal de 8 MP com flash"
+      ],
+      "attachments": [
+        { "id": "att_pad7_datasheet", "fileName": "Catalogo_Tecnico_Launch_PAD_VII.pdf", "fileSize": "4.5 MB", "url": "#" },
+        { "id": "att_pad7_coverage", "fileName": "Tabela_Cobertura_Montadoras_Launch.pdf", "fileSize": "1.9 MB", "url": "#" }
       ],
       "inStock": true
     },
     {
-      "id": "prod_3",
-      "name": "Alinhador 3D de Direção Computadorizado com Torre Móvel",
+      "id": "prod_scanner_launch_pro3",
+      "name": "Scanner Automotivo Launch X-431 PRO3 V5.0 com Diagnóstico Guiado",
+      "slug": "scanner-automotivo-launch-x431-pro3-v5",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_launch",
+      "price": 15400,
+      "priceNegotiable": false,
+      "badge": "Mais Popular",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Scanner Automotivo Launch X-431 PRO3 V5.0",
+      "description": "A 5ª geração do scanner mais vendido no mundo. Equipado com conector sem fio DBScar VII, suporta os protocolos mais recentes CAN-FD e DoIP, além de mais de 37 funções de redefinição de serviço com diagnóstico inteligente com 1 clique.",
+      "specs": [
+        "Tela: 10.1 polegadas HD IPS Touchscreen (1280x800)",
+        "Sistema: Android 10.0 super otimizado com 4 GB RAM + 64 GB ROM",
+        "Conector VCI: DBScar VII com conexão Bluetooth rápida e estável",
+        "Resets de Serviço: 37+ funções de redefinição (Sangria ABS, DPF, SAS, EPB, BMS, Injetores)",
+        "Atualizações: 2 anos de atualizações de software gratuitas via Wi-Fi",
+        "Diagnóstico Guiado: Dicas de testes de componentes integrados"
+      ],
+      "attachments": [
+        { "id": "att_pro3_manual", "fileName": "Manual_Usuario_Launch_PRO3_V5.pdf", "fileSize": "3.7 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_scanner_napro_pcscan7000",
+      "name": "Scanner Automotivo Napro PC-Scan 7000 Evolution com VCI Sem Fio",
+      "slug": "scanner-automotivo-napro-pc-scan-7000-evolution",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_napro",
+      "price": 12900,
+      "priceNegotiable": true,
+      "badge": "Líder Nacional",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Scanner Automotivo Napro PC-Scan 7000 Evolution",
+      "description": "Referência absoluta em diagnóstico automotivo no Brasil. O PC-Scan 7000 Evolution da Napro conta com a maior profundidade de sistemas na frota nacional (Flex, Diesel Leve, GNV), interface sem fio Bluetooth e banco de esquemas elétricos completo.",
+      "specs": [
+        "Interface: Módulo VCI sem fio Bluetooth de longo alcance e cabo USB blindado",
+        "Software: PC-Scan Evolution para Windows (Notebook / PC da Oficina)",
+        "Banco de Esquemas Elétricos: Localização de pinagens e conectores integrada",
+        "Cobertura Nacional: Fiat, VW, GM, Ford, Renault, Peugeot, Citroën, Toyota, Honda, Hyundai e Diesel Leve",
+        "Leitura Gráfica: Modo osciloscópio de múltiplos sensores em tempo real",
+        "Suporte Técnico: Direto dos engenheiros da Napro no Brasil"
+      ],
+      "attachments": [
+        { "id": "att_napro7000_specs", "fileName": "Especificacoes_Napro_PC_Scan_7000.pdf", "fileSize": "2.4 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_scanner_raven_scanner3",
+      "name": "Scanner Automotivo Raven Scanner 3 com Tablet Dedicado e Osciloscópio",
+      "slug": "scanner-automotivo-raven-scanner-3-tablet",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_raven",
+      "price": 13800,
+      "priceNegotiable": false,
+      "badge": "Completo com Suporte",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Scanner Automotivo Raven Scanner 3 com Tablet Dedicado",
+      "description": "Equipamento robusto com tablet industrial emborrachado feito sob medida para a rotina pesada de oficina. Permite diagnóstico rápido, programação de corpos de borboleta, redefinição de intervalos de troca de óleo e testes de atuadores com extrema agilidade.",
+      "specs": [
+        "Hardware: Tablet industrial de 8 polegadas com capa protetora de borracha reforçada",
+        "Módulo de Comunicação: VCI sem fio Bluetooth integrado",
+        "Funções: Leitura de falhas DTC, ajustes de combustível A/F, aprendizado de corpo de borboleta",
+        "Diesel Leve: Hilux, Ranger, Amarok, S10, Toro, Master, Sprinter e Ducato",
+        "Atualizações Contínuas: Baixadas diretamente pelo app Raven Scanner 3"
+      ],
+      "attachments": [
+        { "id": "att_raven3_manual", "fileName": "Manual_Raven_Scanner_3.pdf", "fileSize": "3.1 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_osciloscopio_raven_scope",
+      "name": "Osciloscópio Automotivo 4 Canais Raven Scope com Software Integrado",
+      "slug": "osciloscopio-automotivo-4-canais-raven-scope",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_raven",
+      "price": 6850,
+      "priceNegotiable": false,
+      "badge": "Diagnóstico Avançado",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Osciloscópio Automotivo 4 Canais Raven Scope",
+      "description": "Instrumento indispensável para eletricistas e mecânicos avançados. Permite analisar formas de onda de sensores CKP/CMP, primário e secundário de ignição, tempo de injeção e transientes na rede CAN.",
+      "specs": [
+        "Canais: 4 canais analógicos isolados com taxa de amostragem de 100 MS/s",
+        "Testes Guiados: Biblioteca com mais de 100 formas de onda de referência",
+        "Acessórios Inclusos: Atenuadores 20:1, pinça capacitiva para cabos de vela e pontas de prova",
+        "Software: Raven Scope com interface intuitiva e captura de sinais automotivos"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_alinhador_sun_xd3d",
+      "name": "Alinhador de Direção 3D Computadorizado Sun XD High-Definition",
+      "slug": "alinhador-direcao-3d-computadorizado-sun-xd-hd",
       "categoryId": "cat_alinhadores",
       "brandId": "brand_sun",
-      "price": 45900,
+      "price": 48900,
       "priceNegotiable": true,
-      "badge": "Destaque",
+      "badge": "Tecnologia de Ponta",
+      "status": "published",
       "image": "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
-      "description": "Alinhador 3D de alta precisão com 2 câmeras digitais de alta resolução e garras de fixação rápida.",
-      "specs": [
-        "Câmeras: 2x Câmeras HD de Alta Velocidade",
-        "Garras: Fixação no pneu",
-        "Banco de Dados: Mais de 50.000 veículos"
+      "images": [
+        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80"
       ],
+      "altText": "Alinhador de Direção 3D Computadorizado Sun XD High-Definition",
+      "description": "O sistema de alinhamento 3D mais preciso do mercado automotivo. Equipado com câmeras digitais industriais de alta velocidade e alvos (targets) reflexivos sem pilhas ou baterias, realiza a leitura completa da geometria veicular em menos de 90 segundos com compensação de rolagem ultrarrápida.",
+      "specs": [
+        "Câmeras: 2x Câmeras digitais HD industriais com autofoco contínuo e iluminação estroboscópica IR",
+        "Alvos Passivos: Construídos em polímero de alta resistência, à prova de impactos e graxa",
+        "Garras de Fixação: Fixação direta na borracha do pneu de 12\" a 24\" (não arranha rodas de liga leve)",
+        "Banco de Dados: Mais de 65.000 veículos nacionais e importados com atualizações periódicas",
+        "Diagnósticos: Convergência total e individual, Camber, Caster, KPI/SAI, Ângulo de impulso e Divergência",
+        "Gabinete de Trabalho: Torre com PC de alta performance, monitor LED 32\", teclado e impressora colorida"
+      ],
+      "attachments": [
+        { "id": "att_sun_xd_folheto", "fileName": "Catalogo_Alinhador_3D_Sun_XD.pdf", "fileSize": "5.1 MB", "url": "#" },
+        { "id": "att_sun_xd_guia", "fileName": "Guia_Instalacao_Calibracao_Sun_3D.pdf", "fileSize": "2.3 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_alinhador_sun_movel",
+      "name": "Alinhador 3D de Direção com Torre Móvel e Câmeras de Alta Frequência - Sun Mobile 3D",
+      "slug": "alinhador-3d-direcao-torre-movel-sun-mobile",
+      "categoryId": "cat_alinhadores",
+      "brandId": "brand_sun",
+      "price": 43500,
+      "priceNegotiable": true,
+      "badge": "Versatilidade Total",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Alinhador 3D de Direção com Torre Móvel Sun Mobile 3D",
+      "description": "Versão compacta com coluna e torre montadas sobre rodízios industriais reforçados. Permite que o equipamento seja compartilhado entre elevador automotivo e vala de geometria com calibração automática instantânea.",
+      "specs": [
+        "Estrutura: Coluna móvel com freio de trava e ajuste suave de altura das câmeras",
+        "Compensação de Rolagem: Deslocamento do veículo de apenas 20 cm para frente e para trás",
+        "Garras Rápidas: Fixação em 4 pontos com centragem automática",
+        "Software: Sun Alignment System em português com gráficos didáticos em 3D e animações explicativas"
+      ],
+      "attachments": [
+        { "id": "att_sun_movel_spec", "fileName": "Ficha_Sun_Mobile_3D.pdf", "fileSize": "1.8 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_alinhador_sun_laser",
+      "name": "Alinhador de Direção a Laser 4 Cabeças para Linha Leve - Sun Laser Classic",
+      "slug": "alinhador-direcao-laser-4-cabecas-sun-classic",
+      "categoryId": "cat_alinhadores",
+      "brandId": "brand_sun",
+      "price": 14500,
+      "priceNegotiable": false,
+      "badge": "Econômico e Preciso",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Alinhador de Direção a Laser 4 Cabeças Sun Laser Classic",
+      "description": "Solução consagrada e acessível para centros automotivos e oficinas mecânicas. Fácil operação com feixes de laser de alta visibilidade e painéis milimétricos de leitura rápida.",
+      "specs": [
+        "Projetores: 4 cabeças laser de alta nitidez com baterias recarregáveis",
+        "Acessórios Inclusos: 2 pratos dianteiros giratórios, trava de volante e depressor de pedal de freio",
+        "Garras: Fixação no aro de 12\" a 20\"",
+        "Aferição: Medição de convergência, camber e caster de forma direta"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_alinhador_sun_truck3d",
+      "name": "Alinhador 3D para Linha Pesada (Caminhões, Ônibus e Carretas) - Sun Truck 3D",
+      "slug": "alinhador-3d-linha-pesada-caminhoes-sun-truck",
+      "categoryId": "cat_alinhadores",
+      "brandId": "brand_sun",
+      "price": 76000,
+      "priceNegotiable": true,
+      "badge": "Linha Pesada & Frotas",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Alinhador 3D para Linha Pesada Caminhões Sun Truck 3D",
+      "description": "Equipamento topo de linha para frotistas, concessionárias de caminhões e oficinas de alinhamento pesado. Alinha simultaneamente eixos direcionais, de tração, eixos intermediários e carretas com precisão a laser/3D de longo alcance.",
+      "specs": [
+        "Capacidade: Caminhões 4x2, 6x2, 6x4, 8x2, cavalos mecânicos, ônibus urbanos e carretas bitrem",
+        "Alcance Óptico: Até 18 metros de distância de medição com alta estabilidade",
+        "Garras Especiais: Garras de fixação para rodas de caminhão de 17.5\" a 24.5\"",
+        "Economia Comprovada: Reduz o desgaste irregular de pneus em até 35% e diminui consumo de diesel"
+      ],
+      "attachments": [
+        { "id": "att_sun_truck_folheto", "fileName": "Apresentacao_Sun_Truck_3D.pdf", "fileSize": "3.9 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_desmontadora_sun_turbo24",
+      "name": "Desmontadora de Pneus Automática com Braço Auxiliar Run Flat - Sun Turbo 24",
+      "slug": "desmontadora-pneus-automatica-braco-run-flat-sun",
+      "categoryId": "cat_desmontadoras",
+      "brandId": "brand_sun",
+      "price": 19800,
+      "priceNegotiable": false,
+      "badge": "Run-Flat & Perfil Baixo",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Desmontadora de Pneus Automática com Braço Run Flat Sun Turbo 24",
+      "description": "Desmontadora profissional automática com coluna basculante pneumática e braço auxiliar robotizado (Helper Arm). Desenvolvida para montar e desmontar com extrema facilidade pneus esportivos de perfil muito baixo, blindados e pneus com tecnologia Run Flat sem risco de riscar a roda.",
+      "specs": [
+        "Fixação de Aro: 10\" a 24\" (interna) e 12\" a 22\" (externa)",
+        "Braço Auxiliar: 3 roletes de pressão pneumáticos com controle independente",
+        "Descolador Lateral: Cilindro pneumático de dupla ação com força de descolamento de 2.800 kg",
+        "Coluna Basculante: Inclinável para trás via acionamento de pedal",
+        "Pressão de Trabalho: 8 a 10 Bar (115 a 145 PSI)",
+        "Acessórios: Kit de proteções plásticas para garras, bico de pato e espátula reforçada"
+      ],
+      "attachments": [
+        { "id": "att_sun_turbo24_manual", "fileName": "Manual_Desmontadora_Sun_Turbo24.pdf", "fileSize": "2.6 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_balanceadora_sun_b500",
+      "name": "Balanceadora de Rodas Computadorizada com Medição Automática 3D - Sun B-500",
+      "slug": "balanceadora-rodas-computadorizada-sun-b500",
+      "categoryId": "cat_desmontadoras",
+      "brandId": "brand_sun",
+      "price": 13900,
+      "priceNegotiable": false,
+      "badge": "Alta Precisão",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Balanceadora de Rodas Computadorizada Sun B-500",
+      "description": "Balanceadora computadorizada com réguas automáticas 3D que realizam a leitura imediata de distância, diâmetro e largura da roda. Possui freio elétrico automático e programa de divisão e ocultação de contrapesos adesivos atrás dos raios.",
+      "specs": [
+        "Diâmetro de Aro Suportado: 10\" a 28\"",
+        "Tempo de Ciclo de Balanceamento: 7 segundos",
+        "Precisão de Balanceamento: ± 1g",
+        "Programas: Estático, Dinâmico, 5 modos ALU para rodas de alumínio e modo Peso Oculto (Split)",
+        "Freio: Parada e travamento automático na posição exata de aplicação do contrapeso",
+        "Acessórios: Kit completo com 4 cones de centragem, alicate aplicador e porca de engate rápido"
+      ],
+      "attachments": [
+        { "id": "att_sun_b500_specs", "fileName": "Ficha_Balanceadora_Sun_B500.pdf", "fileSize": "1.9 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_desmontadora_engecass_truck",
+      "name": "Desmontadora de Pneus para Caminhões e Linha Pesada - Engecass Truck HD",
+      "slug": "desmontadora-pneus-linha-pesada-caminhao-engecass",
+      "categoryId": "cat_desmontadoras",
+      "brandId": "brand_engecass",
+      "price": 38500,
+      "priceNegotiable": true,
+      "badge": "Industrial & Pesada",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Desmontadora de Pneus para Caminhões Engecass Truck HD",
+      "description": "Máquina eletro-hidráulica para montagem e desmontagem de pneus com câmara e sem câmara de caminhões, carretas, ônibus e tratores leves com mesa giratória universal de 4 garras auto-centrantes.",
+      "specs": [
+        "Capacidade de Aro: 14\" a 26\"",
+        "Diâmetro Máximo do Pneu: 1.600 mm",
+        "Largura Máxima do Pneu: 780 mm",
+        "Controle Remoto: Unidade móvel de comando com joystick ergonômico",
+        "Motor da Bomba Hidráulica: 2.0 HP Trifásico de alta vazão"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_balanceadora_sun_hdtruck",
+      "name": "Balanceadora de Rodas Motorizada para Linha Pesada e Caminhões - Sun HD Truck",
+      "slug": "balanceadora-rodas-motorizada-caminhao-sun-hd",
+      "categoryId": "cat_desmontadoras",
+      "brandId": "brand_sun",
+      "price": 26900,
+      "priceNegotiable": true,
+      "badge": "Linha Pesada",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Balanceadora de Rodas Motorizada para Caminhões Sun HD Truck",
+      "description": "Balanceadora com elevador pneumático integrado de pneus, permitindo posicionar conjuntos pesados de rodas de caminhão sem qualquer esforço físico do operador.",
+      "specs": [
+        "Capacidade de Peso Máximo: 150 kg",
+        "Diâmetro de Aro: 13\" a 24\"",
+        "Elevador Pneumático: Integrado na base com acionamento por pedal",
+        "Precisão: ± 1g para autos e ± 10g para caminhões"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_ferramenta_raven_kit_sincronismo",
+      "name": "Kit Master de Sincronismo para Motores 3 Cilindros e Turbo - Raven Linha Completa",
+      "slug": "kit-master-sincronismo-motores-3-cilindros-turbo-raven",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_raven",
+      "price": 3490,
+      "priceNegotiable": false,
+      "badge": "Essencial para Oficina",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Kit Master de Sincronismo Motores 3 Cilindros Raven",
+      "description": "O conjunto de ferramentas especiais mais completo do mercado brasileiro para sincronismo e troca de correias dentadas e correntes de comando. Acomodado em maleta plástica de alta resistência com berço usinado em EVA.",
+      "specs": [
+        "Motores Atendidos: Fiat Firefly 1.0/1.3 6V/8V, GSE Turbo T270/T200, VW EA211 TSI 1.0/1.4/1.6 16V, GM Ecotec 1.0/1.2 Turbo (Onix/Tracker), Ford Fox 1.0 3 cil",
+        "Material: Aço especial usinado com acabamento zincado e tratamento térmico anticorrosão",
+        "Itens Inclusos: Ferramentas de travamento do comando de válvulas, pinos de PMS da árvore de manivelas e chaves de contra-apoio",
+        "Organização: Maleta plástica moldada com identificação indelével a laser"
+      ],
+      "attachments": [
+        { "id": "att_raven_kit_tabela", "fileName": "Tabela_Aplicacao_Motores_Kit_Raven.pdf", "fileSize": "1.4 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_prensa_engecass_p30",
+      "name": "Prensa Hidráulica de Oficina 30 Toneladas com Manômetro - Engecass P-30",
+      "slug": "prensa-hidraulica-oficina-30-toneladas-engecass",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_engecass",
+      "price": 4200,
+      "priceNegotiable": false,
+      "badge": "Robusta e Resistente",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Prensa Hidráulica de Oficina 30 Toneladas Engecass P-30",
+      "description": "Prensa de coluna reforçada em perfil de aço de alta resistência mecânica. Projetada para montagem e desmontagem de rolamentos de cubo de roda, buchas de bandeja, cruzetas de cardan e desempeno de peças.",
+      "specs": [
+        "Capacidade: 30 Toneladas reais de prensagem",
+        "Mesa de Trabalho: Altura regulável em 8 posições com guincho manual de cabo de aço",
+        "Manômetro de Pressão: Com escala calibrada em toneladas e PSI",
+        "Curso do Pistão Hidráulico: 160 mm com retorno por molas helicoidais duplas",
+        "Pintura: Eletrostática a pó com alta resistência a óleos e solventes"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_recicladora_napro_klima",
+      "name": "Recicladora e Recarregadora Automática de Ar Condicionado Automotivo - Napro Klima Auto",
+      "slug": "recicladora-recarregadora-ar-condicionado-automotivo-napro",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_napro",
+      "price": 21900,
+      "priceNegotiable": true,
+      "badge": "Automatizada",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Recicladora Automática de Ar Condicionado Napro Klima Auto",
+      "description": "Estação de serviço para ar condicionado veicular 100% automatizada. Realiza em sequência programada o recolhimento de gás refrigerante, reciclagem, teste de vácuo com detecção de micro-vazamentos, injeção de óleo PAG novo com contraste UV e recarga precisa de gás por balança eletrônica.",
+      "specs": [
+        "Fluido Suportado: Gás ecológico R134a (compatível com conversão para R1234yf)",
+        "Balança Eletrônica: Célula de carga com precisão de ± 5g",
+        "Bomba de Vácuo: Duplo estágio de 100 L/min",
+        "Banco de Dados Integrado: Especificações de carga e óleo para mais de 3.500 modelos de veículos",
+        "Impressora Térmica: Emissão de relatório de serviço para comprovação ao cliente"
+      ],
+      "attachments": [
+        { "id": "att_napro_klima_manual", "fileName": "Manual_Recicladora_Napro_Klima.pdf", "fileSize": "3.4 MB", "url": "#" }
+      ],
+      "inStock": true
+    },
+    {
+      "id": "prod_limpadora_bicos_napro",
+      "name": "Máquina Testadora e Limpadora de Bicos Injetores GDI e Convencionais - Napro Jet Clean",
+      "slug": "maquina-teste-limpeza-bicos-injetores-gdi-ultrassom-napro",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_napro",
+      "price": 7200,
+      "priceNegotiable": false,
+      "badge": "GDI Direta & Convencional",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Máquina de Limpeza e Teste de Bicos Injetores GDI Napro",
+      "description": "Equipamento eletrônico microprocessado para diagnóstico e limpeza simultânea por ultrassom de bicos injetores de injeção direta (GDI / FSI / TSI / THP) e injeção indireta convencional monoponto e multiponto.",
+      "specs": [
+        "Testes Automáticos: Estanqueidade sob pressão, padrão de leque e spray, vazão e equalização volumétrica",
+        "Cuba Ultrassônica: Capacidade de 3 litros com aquecimento automático e transdutor piezoelétrico industrial",
+        "Provetas: 4 tubos de vidro borosilicato graduados com iluminação LED de fundo e dreno automático elétrico",
+        "Simulação de RPM: Variação contínua de 500 a 8.000 RPM e tempos de abertura de 0.5 a 20 ms"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_guincho_girafa_engecass",
+      "name": "Guincho Hidráulico Tipo Girafa Dobrável 2 Toneladas com Prolongador - Engecass G-2000",
+      "slug": "guincho-hidraulico-girafa-dobravel-2-toneladas-engecass",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_engecass",
+      "price": 2650,
+      "priceNegotiable": false,
+      "badge": "Dobrável e Compacto",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Guincho Hidráulico Tipo Girafa 2 Toneladas Engecass G-2000",
+      "description": "Guincho hidráulico desenvolvido para remoção e instalação segura de conjuntos mecânicos pesados, como motores, câmbios automáticos e diferenciais. As pernas dobráveis permitem guardar o equipamento ocupando mínimo espaço.",
+      "specs": [
+        "Capacidade: 2.000 kg (1º estágio do braço) até 500 kg (braço estendido no 4º estágio)",
+        "Braço Telescópico: 4 posições de regulagem de comprimento com pino de trava de segurança",
+        "Rodas: 6 rodízios giratórios em poliuretano para manobras suaves mesmo sob carga",
+        "Gancho Forjado: Gancho com trava de segurança e rotação livre de 360°"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_sangrador_freio_raven",
+      "name": "Sangrador de Freio Eletrônico Pneumático com Reservatório Pressurizado - Raven SangraFácil",
+      "slug": "sangrador-freio-eletronico-pneumatico-raven",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_raven",
+      "price": 1890,
+      "priceNegotiable": false,
+      "badge": "1 Pessoa Opera",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Sangrador de Freio Eletrônico Raven SangraFácil",
+      "description": "Permite a troca rápida e sangria de fluido de freio e atuadores de embreagem por um único mecânico em minutos. Elimina 100% o risco de entrada de bolhas de ar nos blocos de válvulas do ABS.",
+      "specs": [
+        "Reservatório: Capacidade para 5 litros de fluido de freio",
+        "Compatibilidade de Fluido: DOT 3, DOT 4, DOT 5.1 e fluidos de baixa viscosidade para ESP",
+        "Controle de Pressão: Válvula reguladora com manômetro integrado de 0 a 3 Bar",
+        "Acessórios: Jogo universal de tampas rosqueadas e adaptadores de engate rápido"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_carrinho_ferramentas_raven",
+      "name": "Carrinho Organizador de Ferramentas com 7 Gavetas e Trava Central - Raven Box Pro",
+      "slug": "carrinho-organizador-ferramentas-7-gavetas-raven",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_raven",
+      "price": 3100,
+      "priceNegotiable": false,
+      "badge": "Organização Premium",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Carrinho de Ferramentas 7 Gavetas Raven Box Pro",
+      "description": "Carrinho organizador em chapa de aço carbono com gavetas sobre trilhos telescópicos de rolamentos. Agiliza a rotina da oficina mecânica e mantém as ferramentas protegidas e acessíveis no box de trabalho.",
+      "specs": [
+        "Gavetas: 7 gavetas (5 médias e 2 profundas para ferramentas pesadas)",
+        "Capacidade de Carga Total: Até 350 kg distribuídos",
+        "Fechamento: Chave com trava simultânea de todas as gavetas",
+        "Rodas: 4 rodas de 5\" (2 giratórias com freio e 2 fixas) e puxador ergonômico lateral",
+        "Tampo de Trabalho: Revestimento de borracha sintética canelada antiderrapante"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_torquimetro_digital_raven",
+      "name": "Torquímetro Digital de Precisão com Medição de Ângulo e Graus - Raven DigiTorque",
+      "slug": "torquimetro-digital-precisao-angulo-graus-raven",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_raven",
+      "price": 1450,
+      "priceNegotiable": false,
+      "badge": "Precisão Digital",
+      "status": "published",
+      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
+      "images": [
+        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
+      ],
+      "altText": "Torquímetro Digital com Ângulo Raven DigiTorque",
+      "description": "Torquímetro eletrônico com display digital e medição simultânea de torque e ângulo. Elimina a necessidade de goniômetros mecânicos avulsos no aperto de parafusos de cabeçote, mancais e bielas.",
+      "specs": [
+        "Encaixe Quadrado: 1/2 polegada com catraca reversível de 72 dentes",
+        "Faixa de Torque: 10 a 200 N.m (conversão instantânea para kgf.m, lbf.ft, lbf.in)",
+        "Faixa Angular: 1° a 360° com precisão de ± 1°",
+        "Avisos ao Operador: Indicador sonoro (Buzzer contínuo) e barra de LEDs progressivos com vibração no punho",
+        "Certificado de Calibração: Acompanha laudo e estojo protetor"
+      ],
+      "attachments": [],
       "inStock": true
     }
   ]
