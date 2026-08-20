@@ -11,6 +11,8 @@ import BrandPage from './pages/BrandPage';
 import AboutPage from './pages/AboutPage';
 import LoginPage from './pages/LoginPage';
 import BottomNavBar from './components/BottomNavBar';
+import ComparisonFloatingBar from './components/ComparisonFloatingBar';
+import ProductComparisonModal from './components/ProductComparisonModal';
 
 import { INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
@@ -96,6 +98,38 @@ export default function App() {
 
   const [editingProduct, setEditingProduct] = useState(null);
   const [toast, setToast] = useState(null);
+
+  // Side-by-Side Product Comparison States
+  const [comparisonList, setComparisonList] = useState([]);
+  const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+
+  const handleToggleComparison = (product) => {
+    if (comparisonList.some((p) => p.id === product.id)) {
+      setComparisonList((prev) => prev.filter((p) => p.id !== product.id));
+      showNotification('Equipamento removido do comparador.', 'info');
+    } else {
+      if (comparisonList.length >= 3) {
+        showNotification('Você pode comparar até 3 modelos simultaneamente.', 'info');
+        return;
+      }
+      setComparisonList((prev) => [...prev, product]);
+      showNotification(`"${product.name.slice(0, 28)}..." adicionado ao comparador!`, 'success');
+    }
+  };
+
+  const handleRemoveComparisonItem = (productId) => {
+    setComparisonList((prev) => {
+      const updated = prev.filter((p) => p.id !== productId);
+      if (updated.length === 0) setIsComparisonModalOpen(false);
+      return updated;
+    });
+  };
+
+  const handleClearComparison = () => {
+    setComparisonList([]);
+    setIsComparisonModalOpen(false);
+    showNotification('Comparador limpo.', 'info');
+  };
 
   // Auth Handlers
   const handleLoginSuccess = (userObj) => {
@@ -343,6 +377,8 @@ export default function App() {
           onNavigate={navigateTo}
           isPreview={slugOrId === 'preview'}
           previousRoute={previousRoute}
+          comparisonList={comparisonList}
+          onToggleComparison={handleToggleComparison}
         />
       );
     }
@@ -361,6 +397,8 @@ export default function App() {
           onEditProduct={handleEditProductFromCatalog}
           onDeleteProduct={handleDeleteProduct}
           onNavigate={navigateTo}
+          comparisonList={comparisonList}
+          onToggleComparison={handleToggleComparison}
         />
       );
     }
@@ -379,6 +417,8 @@ export default function App() {
           onEditProduct={handleEditProductFromCatalog}
           onDeleteProduct={handleDeleteProduct}
           onNavigate={navigateTo}
+          comparisonList={comparisonList}
+          onToggleComparison={handleToggleComparison}
         />
       );
     }
@@ -569,6 +609,8 @@ export default function App() {
             setEditingProduct(null);
             navigateTo('admin');
           }}
+          comparisonList={comparisonList}
+          onToggleComparison={handleToggleComparison}
         />
       </>
     );
@@ -609,6 +651,26 @@ export default function App() {
           (61) 98348-5671
         </span>
       </a>
+
+      {/* Comparison Floating Action Bar */}
+      <ComparisonFloatingBar
+        comparisonList={comparisonList}
+        onOpenModal={() => setIsComparisonModalOpen(true)}
+        onRemoveItem={handleRemoveComparisonItem}
+        onClearComparison={handleClearComparison}
+      />
+
+      {/* Side-by-Side Product Comparison Modal */}
+      <ProductComparisonModal
+        isOpen={isComparisonModalOpen}
+        onClose={() => setIsComparisonModalOpen(false)}
+        comparisonList={comparisonList}
+        categories={categories}
+        brands={brands}
+        onRemoveItem={handleRemoveComparisonItem}
+        onClearComparison={handleClearComparison}
+        onNavigate={navigateTo}
+      />
 
       {/* App-style Bottom Navigation Bar for Mobile */}
       <BottomNavBar activeTab={currentRoute} onNavigate={navigateTo} />

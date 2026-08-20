@@ -2,7 +2,19 @@ import React from 'react';
 import ProductCard from '../components/ProductCard';
 import { Layers, ArrowLeft, Package } from 'lucide-react';
 
-export default function CategoryPage({ categoryId, categories, products, brands, onSelectProduct, isAdmin, onEditProduct, onDeleteProduct, onNavigate }) {
+export default function CategoryPage({ 
+  categoryId, 
+  categories, 
+  products, 
+  brands, 
+  onSelectProduct, 
+  isAdmin, 
+  onEditProduct, 
+  onDeleteProduct, 
+  onNavigate,
+  comparisonList,
+  onToggleComparison
+}) {
   const category = categories.find((c) => c.id === categoryId) || categories[0];
   const categoryProducts = products.filter((p) => p.categoryId === category?.id);
 
@@ -68,6 +80,8 @@ export default function CategoryPage({ categoryId, categories, products, brands,
                   isAdmin={isAdmin}
                   onEditProduct={onEditProduct}
                   onDeleteProduct={onDeleteProduct}
+                  isInComparison={comparisonList?.some((p) => p.id === product.id)}
+                  onToggleComparison={onToggleComparison}
                 />
               );
             })}

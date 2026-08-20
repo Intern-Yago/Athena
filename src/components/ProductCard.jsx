@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2 } from 'lucide-react';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight } from 'lucide-react';
 
 export default function ProductCard({ 
   product, 
@@ -8,7 +8,9 @@ export default function ProductCard({
   onSelectProduct, 
   isAdmin, 
   onEditProduct, 
-  onDeleteProduct 
+  onDeleteProduct,
+  isInComparison,
+  onToggleComparison
 }) {
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
@@ -74,6 +76,25 @@ export default function ProductCard({
               <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
             </button>
           </div>
+        )}
+
+        {/* Comparison Toggle Button */}
+        {onToggleComparison && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleComparison(product);
+            }}
+            className={`absolute bottom-2 left-2 z-20 px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold flex items-center gap-1 shadow-md transition-all ${
+              isInComparison
+                ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-300'
+                : 'bg-slate-900/80 hover:bg-slate-950 text-white backdrop-blur-xs'
+            }`}
+            title={isInComparison ? 'Remover da comparação' : 'Comparar com outros modelos'}
+          >
+            <ArrowLeftRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <span>{isInComparison ? 'Comparando' : 'Comparar'}</span>
+          </button>
         )}
 
         {/* Quick View Hover Prompt */}

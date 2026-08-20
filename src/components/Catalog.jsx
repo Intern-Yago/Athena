@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
 import FilterSidebar from './FilterSidebar';
+import WorkshopSegments from './WorkshopSegments';
 import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 20;
@@ -21,10 +22,13 @@ export default function Catalog({
   isAdmin,
   onEditProduct,
   onDeleteProduct,
-  onOpenAddProduct
+  onOpenAddProduct,
+  comparisonList,
+  onToggleComparison
 }) {
   const [sortBy, setSortBy] = useState('featured');
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeSegmentId, setActiveSegmentId] = useState('todos');
 
   // Reset to page 1 whenever any filter or search changes
   useEffect(() => {
@@ -87,11 +91,22 @@ export default function Catalog({
     setMaxPriceFilter(null);
     setSearchTerm('');
     setSortBy('featured');
+    setActiveSegmentId('todos');
     setCurrentPage(1);
+  };
+
+  const handleSelectSegment = (segment) => {
+    setActiveSegmentId(segment.id);
+    if (segment.id === 'todos') {
+      setSelectedCategories([]);
+    } else {
+      setSelectedCategories(segment.categoryIds);
+    }
   };
 
   const removeCategoryFilter = (catId) => {
     setSelectedCategories(selectedCategories.filter(id => id !== catId));
+    setActiveSegmentId(null);
   };
 
   const removeBrandFilter = (brandId) => {
@@ -106,6 +121,15 @@ export default function Catalog({
   return (
     <section className="py-6 sm:py-8 w-full">
       <div className="w-full px-3 sm:px-6 lg:px-8 space-y-6">
+
+        {/* Solutions by Workshop Specialty / Segment */}
+        <div className="bg-gradient-to-r from-slate-50 via-white to-amber-50/60 p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-xs">
+          <WorkshopSegments
+            activeSegmentId={activeSegmentId}
+            onSelectSegment={handleSelectSegment}
+            selectedCategories={selectedCategories}
+          />
+        </div>
         
         {/* Full-Width E-commerce Layout: Sidebar Glued to Far Left + Cards Fill Entire Monitor */}
         <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-start relative w-full">
@@ -272,6 +296,8 @@ export default function Catalog({
                         isAdmin={isAdmin}
                         onEditProduct={onEditProduct}
                         onDeleteProduct={onDeleteProduct}
+                        isInComparison={comparisonList?.some((p) => p.id === product.id)}
+                        onToggleComparison={onToggleComparison}
                       />
                     );
                   })}

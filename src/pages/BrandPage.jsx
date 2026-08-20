@@ -11,7 +11,9 @@ export default function BrandPage({
   isAdmin,
   onEditProduct,
   onDeleteProduct,
-  onNavigate
+  onNavigate,
+  comparisonList,
+  onToggleComparison
 }) {
   const brand = brands.find((b) => b.id === brandId || b.slug === brandId) || brands[0];
 
@@ -128,6 +130,8 @@ export default function BrandPage({
                     isAdmin={isAdmin}
                     onEditProduct={onEditProduct}
                     onDeleteProduct={onDeleteProduct}
+                    isInComparison={comparisonList?.some((p) => p.id === product.id)}
+                    onToggleComparison={onToggleComparison}
                   />
                 );
               })}

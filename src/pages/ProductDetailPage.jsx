@@ -1,7 +1,7 @@
 import React from 'react';
 import ProductCard from '../components/ProductCard';
 import ProductImageGallery from '../components/ProductImageGallery';
-import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, PhoneCall, Sparkles, Truck, Package, FileText, Download } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, PhoneCall, Sparkles, Truck, Package, FileText, Download, ArrowLeftRight } from 'lucide-react';
 
 export const formatAttachmentLabel = (fileName) => {
   if (!fileName) return 'Baixe Documento';
@@ -10,7 +10,17 @@ export const formatAttachmentLabel = (fileName) => {
   return `Baixe ${cleanName}`;
 };
 
-export default function ProductDetailPage({ productSlugOrId, products, categories, brands, onNavigate, isPreview, previousRoute }) {
+export default function ProductDetailPage({ 
+  productSlugOrId, 
+  products, 
+  categories, 
+  brands, 
+  onNavigate, 
+  isPreview, 
+  previousRoute,
+  comparisonList,
+  onToggleComparison
+}) {
   const product = products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId) || products[0];
 
   if (!product) {
@@ -189,15 +199,31 @@ export default function ProductDetailPage({ productSlugOrId, products, categorie
                 </span>
               </div>
 
-              <a
-                href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-gold text-xs sm:text-sm py-3 px-5 shadow-md font-extrabold"
-              >
-                <MessageCircle className="w-4 h-4 fill-current" />
-                <span>Cotação Instantânea no WhatsApp</span>
-              </a>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                {onToggleComparison && (
+                  <button
+                    onClick={() => onToggleComparison(product)}
+                    className={`text-xs py-3 px-4 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      comparisonList?.some(p => p.id === product.id)
+                        ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 font-extrabold'
+                        : 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-xs'
+                    }`}
+                  >
+                    <ArrowLeftRight className="w-4 h-4" />
+                    <span>{comparisonList?.some(p => p.id === product.id) ? 'Em Comparação' : 'Comparar Modelo'}</span>
+                  </button>
+                )}
+
+                <a
+                  href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-gold text-xs sm:text-sm py-3 px-5 shadow-md font-extrabold"
+                >
+                  <MessageCircle className="w-4 h-4 fill-current" />
+                  <span>Cotação Instantânea no WhatsApp</span>
+                </a>
+              </div>
             </div>
 
             {/* Description */}
