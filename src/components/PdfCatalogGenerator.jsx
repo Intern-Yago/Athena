@@ -272,7 +272,7 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
           <div class="contact-info">
             <p><strong>Atendimento Comercial:</strong> (61) 98348-5671</p>
             <p><strong>Instagram:</strong> @athena.solucoes.automotivas</p>
-            <p><strong>Site Oficial:</strong> athenaautomotivas.com.br</p>
+            <p><strong>Email:</strong> contato@athenaconsultoria.com.br</p>
           </div>
         </header>
 

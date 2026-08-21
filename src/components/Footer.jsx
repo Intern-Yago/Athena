@@ -91,20 +91,50 @@ export default function Footer({ setActiveTab }) {
           {/* Col 4: Contact & Support */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">Atendimento</h4>
-            <div className="space-y-2 text-xs text-slate-300">
+            <div className="space-y-2.5 text-xs text-slate-300">
+              
+              {/* WhatsApp Clicável */}
               <div className="flex items-center gap-2">
                 <PhoneCall className="w-4 h-4 text-emerald-400 shrink-0" />
-                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-emerald-400 font-semibold">
-                  WhatsApp: {formattedPhone}
+                <a 
+                  href={whatsappUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="hover:underline text-emerald-400 hover:text-emerald-300 font-bold inline-flex items-center gap-1"
+                >
+                  <span>WhatsApp: {formattedPhone}</span>
+                  <ExternalLink className="w-3 h-3 opacity-70" />
                 </a>
               </div>
+
+              {/* Instagram abaixo do WhatsApp */}
+              <div className="flex items-center gap-2">
+                <Instagram className="w-4 h-4 text-pink-400 shrink-0" />
+                <a 
+                  href={instagramUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="hover:underline text-slate-300 hover:text-pink-400 font-medium inline-flex items-center gap-1"
+                >
+                  <span>Instagram: @athena.solucoes.automotivas</span>
+                  <ExternalLink className="w-3 h-3 opacity-70" />
+                </a>
+              </div>
+
+              {/* E-mail Oficial */}
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>contato@athenaautomotivas.com.br</span>
+                <a 
+                  href="mailto:contato@athenaconsultoria.com.br" 
+                  className="hover:underline text-slate-300 hover:text-amber-400 font-medium"
+                >
+                  contato@athenaconsultoria.com.br
+                </a>
               </div>
-              <div className="flex items-start gap-2">
+
+              <div className="flex items-start gap-2 pt-1">
                 <MapPin className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-                <span>Atendimento comercial para todo o Brasil</span>
+                <span className="text-slate-400">Atendimento comercial para todo o Brasil</span>
               </div>
             </div>
           </div>
