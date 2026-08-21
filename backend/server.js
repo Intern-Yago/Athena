@@ -583,6 +583,59 @@ app.post('/api/categories', async (req, res) => {
   res.status(201).json(newCat);
 });
 
+app.put('/api/categories/reorder', async (req, res) => {
+  const { categories: orderedCats } = req.body;
+  if (!Array.isArray(orderedCats)) {
+    return res.status(400).json({ error: 'Array de categorias obrigatório.' });
+  }
+  if (pool) {
+    try {
+      for (let i = 0; i < orderedCats.length; i++) {
+        const c = orderedCats[i];
+        await pool.query('UPDATE categories SET "order" = $1 WHERE id = $2', [i + 1, c.id]);
+      }
+    } catch (e) {
+      console.error('Erro ao reordenar categorias no PostgreSQL:', e.message);
+    }
+  }
+  const db = readDbJson();
+  const catMap = new Map((db.categories || []).map(c => [c.id, c]));
+  const reordered = [];
+  orderedCats.forEach((c, idx) => {
+    const existing = catMap.get(c.id) || c;
+    existing.order = idx + 1;
+    reordered.push(existing);
+    catMap.delete(c.id);
+  });
+  catMap.forEach(c => reordered.push(c));
+  db.categories = reordered;
+  writeDbJson(db);
+  res.json({ success: true, count: orderedCats.length });
+});
+
+app.put('/api/categories/:id', async (req, res) => {
+  const updatedCat = { id: req.params.id, ...req.body };
+  if (pool) {
+    try {
+      await pool.query(
+        'UPDATE categories SET name=$1, slug=$2, description=$3, icon=$4, "order"=$5 WHERE id=$6',
+        [updatedCat.name, updatedCat.slug || '', updatedCat.description || '', updatedCat.icon || 'Layers', updatedCat.order || 0, req.params.id]
+      );
+      return res.json(updatedCat);
+    } catch (e) {
+      console.error('Erro ao atualizar categoria no PostgreSQL:', e.message);
+    }
+  }
+  const db = readDbJson();
+  const index = (db.categories || []).findIndex((c) => c.id === req.params.id);
+  if (index !== -1) {
+    db.categories[index] = { ...db.categories[index], ...req.body };
+    writeDbJson(db);
+    return res.json(db.categories[index]);
+  }
+  res.status(404).json({ error: 'Categoria não encontrada' });
+});
+
 app.delete('/api/categories/:id', async (req, res) => {
   if (pool) {
     try {
@@ -593,7 +646,7 @@ app.delete('/api/categories/:id', async (req, res) => {
     }
   }
   const db = readDbJson();
-  db.categories = db.categories.filter((c) => c.id !== req.params.id);
+  db.categories = (db.categories || []).filter((c) => c.id !== req.params.id);
   writeDbJson(db);
   res.json({ success: true, id: req.params.id });
 });
@@ -629,6 +682,36 @@ app.post('/api/brands', async (req, res) => {
   db.brands.push(newBrand);
   writeDbJson(db);
   res.status(201).json(newBrand);
+});
+
+app.put('/api/brands/reorder', async (req, res) => {
+  const { brands: orderedBrands } = req.body;
+  if (!Array.isArray(orderedBrands)) {
+    return res.status(400).json({ error: 'Array de marcas obrigatório.' });
+  }
+  if (pool) {
+    try {
+      for (let i = 0; i < orderedBrands.length; i++) {
+        const b = orderedBrands[i];
+        await pool.query('UPDATE brands SET "order" = $1 WHERE id = $2', [i + 1, b.id]);
+      }
+    } catch (e) {
+      console.error('Erro ao reordenar marcas no PostgreSQL:', e.message);
+    }
+  }
+  const db = readDbJson();
+  const brandMap = new Map((db.brands || []).map(b => [b.id, b]));
+  const reordered = [];
+  orderedBrands.forEach((b, idx) => {
+    const existing = brandMap.get(b.id) || b;
+    existing.order = idx + 1;
+    reordered.push(existing);
+    brandMap.delete(b.id);
+  });
+  brandMap.forEach(b => reordered.push(b));
+  db.brands = reordered;
+  writeDbJson(db);
+  res.json({ success: true, count: orderedBrands.length });
 });
 
 app.put('/api/brands/:id', async (req, res) => {
@@ -724,6 +807,25 @@ app.post('/api/products', async (req, res) => {
   db.products.unshift(newProduct);
   writeDbJson(db);
   res.status(201).json(newProduct);
+});
+
+app.put('/api/products/reorder', async (req, res) => {
+  const { products: orderedProducts } = req.body;
+  if (!Array.isArray(orderedProducts)) {
+    return res.status(400).json({ error: 'Array de produtos obrigatório.' });
+  }
+  const db = readDbJson();
+  const prodMap = new Map((db.products || []).map(p => [p.id, p]));
+  const reordered = [];
+  orderedProducts.forEach((p) => {
+    const existing = prodMap.get(p.id) || p;
+    reordered.push(existing);
+    prodMap.delete(p.id);
+  });
+  prodMap.forEach(p => reordered.push(p));
+  db.products = reordered;
+  writeDbJson(db);
+  res.json({ success: true, count: orderedProducts.length });
 });
 
 app.put('/api/products/:id', async (req, res) => {

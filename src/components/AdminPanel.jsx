@@ -45,11 +45,14 @@ export default function AdminPanel({
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
+  onReorderProducts,
   onAddCategory,
   onDeleteCategory,
+  onReorderCategories,
   onAddBrand,
   onUpdateBrand,
   onDeleteBrand,
+  onReorderBrands,
   showNotification,
   editingProduct,
   setEditingProduct,
@@ -60,6 +63,7 @@ export default function AdminPanel({
 }) {
   const [activeAdminTab, setActiveAdminTab] = useState('products');
   const [imageSourceMode, setImageSourceMode] = useState('upload');
+  const [productImageUrlInput, setProductImageUrlInput] = useState('');
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   // User Role checks
@@ -216,41 +220,61 @@ export default function AdminPanel({
     setIsProductModalOpen(true);
   };
 
-  const handleImageFileUpload = async (file) => {
-    if (!file || !file.type.startsWith('image/')) {
-      showNotification('Por favor, selecione um arquivo de imagem válido (JPG/PNG).', 'error');
+  const handleMultipleImageUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files).filter(f => f && f.type && f.type.startsWith('image/'));
+    if (fileList.length === 0) {
+      showNotification('Selecione arquivos de imagem válidos (JPG/PNG/WEBP).', 'error');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64Data = e.target.result;
-      setProductForm((prev) => ({ ...prev, image: base64Data }));
-      showNotification('Enviando imagem para a nuvem Cloudinary...', 'info');
+    showNotification(`Processando ${fileList.length} imagem(ns)...`, 'info');
 
-      try {
-        const res = await fetch(`${API_BASE_URL}/upload`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file: base64Data, folder: 'athena_produtos' })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setProductForm((prev) => ({ ...prev, image: data.url }));
-          showNotification('Foto enviada para o Cloudinary com sucesso! ☁️', 'success');
+    for (const file of fileList) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        try {
+          const res = await fetch(`${API_BASE_URL}/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file: base64Data, folder: 'athena_produtos' })
+          });
+          const uploadedUrl = res.ok ? (await res.json()).url : base64Data;
+          setProductForm((prev) => {
+            const currentImages = Array.isArray(prev.images) ? [...prev.images] : [];
+            const newImages = currentImages.includes(uploadedUrl) ? currentImages : [...currentImages, uploadedUrl];
+            return {
+              ...prev,
+              image: prev.image || uploadedUrl,
+              images: newImages
+            };
+          });
+          showNotification('Foto adicionada com sucesso!', 'success');
+        } catch (err) {
+          setProductForm((prev) => {
+            const currentImages = Array.isArray(prev.images) ? [...prev.images] : [];
+            return {
+              ...prev,
+              image: prev.image || base64Data,
+              images: [...currentImages, base64Data]
+            };
+          });
         }
-      } catch (err) {
-        showNotification('Imagem salva localmente.', 'info');
-      }
-    };
-    reader.readAsDataURL(file);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageFileUpload = (file) => {
+    if (file) handleMultipleImageUpload([file]);
   };
 
   const handleDropImage = (e) => {
     e.preventDefault();
     setIsDraggingImage(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleImageFileUpload(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleMultipleImageUpload(e.dataTransfer.files);
     }
   };
 
@@ -433,16 +457,18 @@ export default function AdminPanel({
 
   const moveCategoryOrder = (index, direction) => {
     if (!canEditContent) return;
-    const newCategories = [...categories];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= newCategories.length) return;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
 
+    const newCategories = [...categories];
     const temp = newCategories[index];
     newCategories[index] = newCategories[targetIndex];
     newCategories[targetIndex] = temp;
 
     newCategories.forEach((c, idx) => { c.order = idx + 1; });
-    localStorage.setItem('athena_categories', JSON.stringify(newCategories));
+    if (onReorderCategories) {
+      onReorderCategories(newCategories);
+    }
     showNotification(`Ordem das categorias atualizada!`, 'success');
   };
 
@@ -456,22 +482,26 @@ export default function AdminPanel({
     });
 
     newCategories.forEach((c, idx) => { c.order = idx + 1; });
-    localStorage.setItem('athena_categories', JSON.stringify(newCategories));
+    if (onReorderCategories) {
+      onReorderCategories(newCategories);
+    }
     showNotification('Categorias reordenadas por quantidade de produtos com sucesso!', 'success');
   };
 
   const moveBrandOrder = (index, direction) => {
     if (!canEditContent) return;
-    const newBrands = [...brands];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= newBrands.length) return;
+    if (targetIndex < 0 || targetIndex >= brands.length) return;
 
+    const newBrands = [...brands];
     const temp = newBrands[index];
     newBrands[index] = newBrands[targetIndex];
     newBrands[targetIndex] = temp;
 
     newBrands.forEach((b, idx) => { b.order = idx + 1; });
-    localStorage.setItem('athena_brands', JSON.stringify(newBrands));
+    if (onReorderBrands) {
+      onReorderBrands(newBrands);
+    }
     showNotification(`Ordem das marcas atualizada!`, 'success');
   };
 
@@ -485,8 +515,28 @@ export default function AdminPanel({
     });
 
     newBrands.forEach((b, idx) => { b.order = idx + 1; });
-    localStorage.setItem('athena_brands', JSON.stringify(newBrands));
+    if (onReorderBrands) {
+      onReorderBrands(newBrands);
+    }
     showNotification('Marcas reordenadas por quantidade de produtos com sucesso!', 'success');
+  };
+
+  const moveProductOrder = (productId, direction) => {
+    if (!canEditContent) return;
+    const index = products.findIndex(p => p.id === productId);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= products.length) return;
+
+    const newProducts = [...products];
+    const temp = newProducts[index];
+    newProducts[index] = newProducts[targetIndex];
+    newProducts[targetIndex] = temp;
+
+    if (onReorderProducts) {
+      onReorderProducts(newProducts);
+    }
+    showNotification('Ordem dos produtos atualizada!', 'success');
   };
 
   const openNewBrandModal = () => {
@@ -1053,6 +1103,24 @@ export default function AdminPanel({
 
                                   {canEditContent && (
                                     <>
+                                      <button
+                                        onClick={() => moveProductOrder(prod.id, 'up')}
+                                        disabled={products.findIndex(p => p.id === prod.id) === 0}
+                                        className="p-2 rounded-lg bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 disabled:opacity-30"
+                                        title="Subir posição no catálogo"
+                                      >
+                                        <ArrowUp className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      <button
+                                        onClick={() => moveProductOrder(prod.id, 'down')}
+                                        disabled={products.findIndex(p => p.id === prod.id) === products.length - 1}
+                                        className="p-2 rounded-lg bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 disabled:opacity-30"
+                                        title="Descer posição no catálogo"
+                                      >
+                                        <ArrowDown className="w-3.5 h-3.5" />
+                                      </button>
+
                                       <button
                                         onClick={() => openEditProductModal(prod)}
                                         className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200"
@@ -1852,10 +1920,13 @@ export default function AdminPanel({
                   </div>
                 </div>
 
-                {/* Foto do Produto */}
-                <div className="space-y-2">
+                {/* Fotos & Galeria de Imagens do Produto */}
+                <div className="space-y-3 pt-2 border-t border-slate-200">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700">Foto do Produto</label>
+                    <div>
+                      <label className="text-xs font-bold text-slate-900 block">Fotos do Produto (Galeria & Capa)</label>
+                      <p className="text-[11px] text-slate-500">Você pode adicionar múltiplas fotos para o carrossel e zoom.</p>
+                    </div>
                     <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
                       <button
                         type="button"
@@ -1864,7 +1935,7 @@ export default function AdminPanel({
                           imageSourceMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
                         }`}
                       >
-                        Upload Local
+                        Upload de Fotos
                       </button>
                       <button
                         type="button"
@@ -1873,7 +1944,7 @@ export default function AdminPanel({
                           imageSourceMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
                         }`}
                       >
-                        URL da Imagem
+                        Adicionar por URL
                       </button>
                     </div>
                   </div>
@@ -1890,7 +1961,8 @@ export default function AdminPanel({
                       <input 
                         type="file" 
                         accept="image/*"
-                        onChange={(e) => e.target.files && handleImageFileUpload(e.target.files[0])}
+                        multiple
+                        onChange={(e) => e.target.files && handleMultipleImageUpload(e.target.files)}
                         className="hidden" 
                         id="fileDropInputModal"
                       />
@@ -1898,31 +1970,118 @@ export default function AdminPanel({
                       <label htmlFor="fileDropInputModal" className="cursor-pointer space-y-1 block">
                         <Upload className="w-6 h-6 mx-auto text-amber-600" />
                         <span className="text-xs font-bold text-slate-800 block">
-                          Arraste e solte uma imagem aqui ou clique para selecionar do computador
+                          Arraste e solte fotos aqui ou clique para selecionar (aceita várias)
                         </span>
-                        <span className="text-[10px] text-slate-400">Arquivos JPG ou PNG</span>
+                        <span className="text-[10px] text-slate-400">Arquivos JPG, PNG ou WEBP</span>
                       </label>
                     </div>
                   ) : (
-                    <div className="relative">
-                      <input
-                        type="url"
-                        placeholder="https://suaimagem.com/foto.jpg"
-                        value={productForm.image}
-                        onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
-                        className="form-input text-xs !pl-10"
-                      />
-                      <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="url"
+                          placeholder="https://suaimagem.com/foto.jpg"
+                          value={productImageUrlInput}
+                          onChange={(e) => setProductImageUrlInput(e.target.value)}
+                          className="form-input text-xs !pl-10"
+                        />
+                        <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!productImageUrlInput.trim()) return;
+                          const url = productImageUrlInput.trim();
+                          setProductForm((prev) => {
+                            const current = Array.isArray(prev.images) ? [...prev.images] : [];
+                            const updated = current.includes(url) ? current : [...current, url];
+                            return {
+                              ...prev,
+                              image: prev.image || url,
+                              images: updated
+                            };
+                          });
+                          setProductImageUrlInput('');
+                          showNotification('Foto adicionada à galeria!', 'success');
+                        }}
+                        className="btn-secondary text-xs font-bold py-2 px-3 shrink-0"
+                      >
+                        + Adicionar Foto
+                      </button>
                     </div>
                   )}
 
-                  {productForm.image && (
-                    <div className="flex items-center gap-3 p-2 bg-slate-100 rounded-xl border border-slate-200">
-                      <img src={productForm.image} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
-                      <span className="text-xs text-slate-600 truncate flex-1">Imagem definida</span>
-                      <button type="button" onClick={() => setProductForm({ ...productForm, image: '' })} className="text-xs text-red-600 font-bold">Remover</button>
-                    </div>
-                  )}
+                  {/* Visual Gallery Grid Preview */}
+                  {(() => {
+                    const allImages = Array.from(
+                      new Set([
+                        ...(productForm.image ? [productForm.image] : []),
+                        ...(Array.isArray(productForm.images) ? productForm.images : [])
+                      ].filter(Boolean))
+                    );
+
+                    if (allImages.length === 0) return null;
+
+                    return (
+                      <div className="space-y-2 pt-2">
+                        <span className="text-[11px] font-bold text-slate-600 block">
+                          Galeria ({allImages.length} foto{allImages.length > 1 ? 's' : ''}):
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          {allImages.map((imgUrl, i) => {
+                            const isCover = productForm.image === imgUrl;
+                            return (
+                              <div 
+                                key={i} 
+                                className={`relative rounded-xl border p-1 bg-white flex flex-col justify-between overflow-hidden group shadow-xs ${
+                                  isCover ? 'border-amber-500 ring-2 ring-amber-400/40' : 'border-slate-200'
+                                }`}
+                              >
+                                <div className="aspect-square rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center p-1 relative">
+                                  <img src={imgUrl} alt={`Foto ${i + 1}`} className="max-h-full max-w-full object-contain" />
+                                  {isCover && (
+                                    <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-amber-500 text-white font-extrabold text-[9px] shadow-xs flex items-center gap-0.5">
+                                      ⭐ Capa
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="pt-1.5 flex items-center justify-between text-[10px]">
+                                  {!isCover ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setProductForm({ ...productForm, image: imgUrl })}
+                                      className="text-amber-700 hover:text-amber-900 font-bold hover:underline"
+                                    >
+                                      Tornar Capa
+                                    </button>
+                                  ) : (
+                                    <span className="text-slate-400 font-bold">Principal</span>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const remainingImages = allImages.filter(img => img !== imgUrl);
+                                      setProductForm({
+                                        ...productForm,
+                                        image: isCover ? (remainingImages[0] || '') : productForm.image,
+                                        images: remainingImages
+                                      });
+                                    }}
+                                    className="text-red-600 hover:text-red-800 font-bold ml-auto"
+                                    title="Remover esta foto"
+                                  >
+                                    Excluir
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* OPTIONAL ATTACHMENTS MANAGER SECTION */}

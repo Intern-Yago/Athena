@@ -329,6 +329,54 @@ export default function App() {
     }
   };
 
+  const handleReorderCategories = async (newCategories) => {
+    setCategories(newCategories);
+    localStorage.setItem('athena_categories', JSON.stringify(newCategories));
+    if (isBackendConnected) {
+      try {
+        await fetch(`${API_BASE_URL}/categories/reorder`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categories: newCategories })
+        });
+      } catch (e) {
+        console.error('Erro backend ao reordenar categorias:', e);
+      }
+    }
+  };
+
+  const handleReorderBrands = async (newBrands) => {
+    setBrands(newBrands);
+    localStorage.setItem('athena_brands', JSON.stringify(newBrands));
+    if (isBackendConnected) {
+      try {
+        await fetch(`${API_BASE_URL}/brands/reorder`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brands: newBrands })
+        });
+      } catch (e) {
+        console.error('Erro backend ao reordenar marcas:', e);
+      }
+    }
+  };
+
+  const handleReorderProducts = async (newProducts) => {
+    setProducts(newProducts);
+    localStorage.setItem('athena_products', JSON.stringify(newProducts));
+    if (isBackendConnected) {
+      try {
+        await fetch(`${API_BASE_URL}/products/reorder`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ products: newProducts })
+        });
+      } catch (e) {
+        console.error('Erro backend ao reordenar produtos:', e);
+      }
+    }
+  };
+
   const handleDeleteBrand = async (brandId) => {
     setBrands((prev) => prev.filter((b) => b.id !== brandId));
     if (selectedBrands.includes(brandId)) {
@@ -559,11 +607,14 @@ export default function App() {
           onAddProduct={handleAddProduct}
           onUpdateProduct={handleUpdateProduct}
           onDeleteProduct={handleDeleteProduct}
+          onReorderProducts={handleReorderProducts}
           onAddCategory={handleAddCategory}
           onDeleteCategory={handleDeleteCategory}
+          onReorderCategories={handleReorderCategories}
           onAddBrand={handleAddBrand}
           onUpdateBrand={handleUpdateBrand}
           onDeleteBrand={handleDeleteBrand}
+          onReorderBrands={handleReorderBrands}
           showNotification={showNotification}
           editingProduct={editingProduct}
           setEditingProduct={setEditingProduct}
