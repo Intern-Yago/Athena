@@ -240,7 +240,7 @@ export default function ProductDetailPage({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <Layers className="w-3.5 h-3.5 text-amber-600" />
                     Especificações Técnicas
                   </h3>
                   <span className="text-[10px] text-slate-400 font-bold">{product.specs.length} especificações</span>

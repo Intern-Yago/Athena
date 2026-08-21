@@ -366,7 +366,7 @@ export default function AdminPanel({
         ...prev,
         specs: [...(prev.specs || []), ...newItems]
       }));
-      showNotification(`✨ ${newItems.length} especificação(ões) extraída(s) com sucesso da sua descrição!`, 'success');
+      showNotification(`${newItems.length} especificação(ões) extraída(s) com sucesso da descrição.`, 'success');
     } else {
       showNotification('Todas as especificações identificadas na descrição já estão na lista.', 'info');
     }
@@ -2387,7 +2387,7 @@ export default function AdminPanel({
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4 text-amber-600" />
+                        <Layers className="w-4 h-4 text-amber-600" />
                         Especificações Técnicas
                       </label>
                       <p className="text-[11px] text-slate-500">Adicione itens no formato "Rótulo: Valor" para destacar na página do produto.</p>
@@ -2397,20 +2397,20 @@ export default function AdminPanel({
                       <button
                         type="button"
                         onClick={handleExtractSpecsFromDescription}
-                        className="btn-secondary text-xs font-bold py-1.5 px-2.5 gap-1 text-amber-800 border-amber-300 bg-amber-50 hover:bg-amber-100 inline-flex items-center"
+                        className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100 inline-flex items-center"
                         title="Extrair dados técnicos da descrição automaticamente"
                       >
-                        <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                        <span>🪄 Extrair da Descrição</span>
+                        <FileText className="w-3.5 h-3.5 text-amber-700" />
+                        <span>Extrair da Descrição</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleAddSpec('')}
-                        className="btn-secondary text-xs font-bold py-1.5 px-2.5 gap-1 inline-flex items-center"
+                        className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 inline-flex items-center"
                       >
-                        <Plus className="w-3.5 h-3.5 text-amber-600" />
-                        <span>+ Nova Linha</span>
+                        <Plus className="w-3.5 h-3.5 text-slate-600" />
+                        <span>Nova Linha</span>
                       </button>
                     </div>
                   </div>
@@ -2425,7 +2425,7 @@ export default function AdminPanel({
                       <div className="space-y-1.5 bg-amber-50/70 p-3 rounded-xl border border-amber-200">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-extrabold text-amber-900 flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                            <FileText className="w-3.5 h-3.5 text-amber-700" />
                             {unaddedDetected.length > 0 ? (
                               <span>Sugestões Encontradas na sua Descrição ({unaddedDetected.length}):</span>
                             ) : (
@@ -2441,7 +2441,7 @@ export default function AdminPanel({
                                   ...prev,
                                   specs: [...(prev.specs || []), ...unaddedDetected]
                                 }));
-                                showNotification(`✨ ${unaddedDetected.length} especificações da descrição adicionadas!`, 'success');
+                                showNotification(`${unaddedDetected.length} especificações da descrição adicionadas.`, 'success');
                               }}
                               className="text-[10px] font-extrabold text-amber-800 hover:text-amber-950 underline"
                             >
