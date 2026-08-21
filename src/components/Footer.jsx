@@ -10,6 +10,8 @@ export default function Footer({ setActiveTab }) {
   const whatsappUrl = "https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+informa%C3%A7%C3%B5es.";
   const instagramUrl = "https://www.instagram.com/athena.solucoes.automotivas/";
 
+  const mapsUrl = "https://www.google.com/maps/search/?api=1&query=ST+SHA+CONJUNTO+6+CHACARA+517+Loja+05+Setor+Habitacional+Arniqueira+Brasilia+DF+71996-413";
+
   return (
     <footer className="bg-slate-900 text-slate-300 pt-12 pb-8 border-t border-slate-800 mt-auto">
       <div className="container-custom space-y-10">
@@ -73,6 +75,11 @@ export default function Footer({ setActiveTab }) {
                   Marcas Parceiras
                 </button>
               </li>
+              <li>
+                <button onClick={() => { setActiveTab('about'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
+                  Sobre a Empresa
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -90,7 +97,7 @@ export default function Footer({ setActiveTab }) {
 
           {/* Col 4: Contact & Support */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Atendimento</h4>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Atendimento & Sede</h4>
             <div className="space-y-2.5 text-xs text-slate-300">
               
               {/* WhatsApp Clicável */}
@@ -132,10 +139,26 @@ export default function Footer({ setActiveTab }) {
                 </a>
               </div>
 
-              <div className="flex items-start gap-2 pt-1">
+              {/* Endereço com Link do Google Maps */}
+              <div className="flex items-start gap-2 pt-2 border-t border-slate-800">
                 <MapPin className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-                <span className="text-slate-400">Atendimento comercial para todo o Brasil</span>
+                <div className="space-y-0.5">
+                  <a 
+                    href={mapsUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="hover:underline text-slate-300 hover:text-sky-300 block leading-tight font-medium"
+                    title="Abrir no Google Maps"
+                  >
+                    <span>ST SHA Conjunto 6 Chácara, nº 517, Loja 05</span>
+                    <span className="block text-[11px] text-slate-400">Arniqueira, Brasília – DF, CEP 71996-413</span>
+                  </a>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 pt-0.5">
+                    🚚 Atendimento & Logística para todo o Brasil
+                  </span>
+                </div>
               </div>
+
             </div>
           </div>
 

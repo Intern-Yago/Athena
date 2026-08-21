@@ -6,6 +6,8 @@ export default function AboutPage() {
   const whatsappUrl = "https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+conhecer+mais+sobre+a+empresa.";
   const instagramUrl = "https://www.instagram.com/athena.solucoes.automotivas/";
 
+  const mapsUrl = "https://www.google.com/maps/search/?api=1&query=ST+SHA+CONJUNTO+6+CHACARA+517+Loja+05+Setor+Habitacional+Arniqueira+Brasilia+DF+71996-413";
+
   return (
     <div className="py-12 space-y-20">
       
@@ -148,7 +150,75 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* 4. Final CTA Section */}
+      {/* 4. Sede Comercial & Localização Google Maps */}
+      <section className="container-custom">
+        <div className="bg-white p-8 sm:p-10 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold">
+                <MapPin className="w-4 h-4 text-sky-600" /> SEDE COMERCIAL & LOGÍSTICA
+              </div>
+              <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                Onde Estamos Localizados
+              </h3>
+            </div>
+
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary py-3 px-5 text-xs font-bold inline-flex items-center gap-2 hover:border-amber-500 hover:text-amber-700 transition-all self-start md:self-auto shadow-xs"
+            >
+              <MapPin className="w-4 h-4 text-amber-600" />
+              <span>Abrir no Google Maps 📍</span>
+            </a>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Endereço */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider">Endereço Completo</span>
+              <p className="text-sm font-bold text-slate-900 leading-snug">
+                ST SHA CONJUNTO 6 CHÁCARA, nº 517, Loja 05
+              </p>
+              <p className="text-xs text-slate-600">
+                Setor Habitacional Arniqueira<br />
+                Brasília – DF<br />
+                CEP: 71996-413
+              </p>
+            </div>
+
+            {/* Atendimento & Contatos */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider">Canais Diretos</span>
+              <div className="space-y-1.5 text-xs">
+                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-700 font-bold hover:underline block">
+                  WhatsApp: (61) 98348-5671
+                </a>
+                <a href="mailto:contato@athenaconsultoria.com.br" className="text-amber-800 font-semibold hover:underline block">
+                  contato@athenaconsultoria.com.br
+                </a>
+                <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="text-pink-700 font-semibold hover:underline block">
+                  @athena.solucoes.automotivas
+                </a>
+              </div>
+            </div>
+
+            {/* Abrangência */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+              <span className="text-xs font-bold text-slate-500 block uppercase tracking-wider">Cobertura de Atendimento</span>
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                Atendimento comercial, consultoria de projetos e remessa de equipamentos pesados para todo o território brasileiro.
+              </p>
+              <span className="inline-block px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                🚚 Entregas Técnicas em Todo o Brasil
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Final CTA Section */}
       <section className="container-custom">
         <div className="bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-xl">
           <div className="max-w-2xl mx-auto space-y-3">
