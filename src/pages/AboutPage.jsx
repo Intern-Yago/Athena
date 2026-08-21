@@ -215,6 +215,21 @@ export default function AboutPage() {
               </span>
             </div>
           </div>
+
+          {/* Interactive Google Maps / Street View Embed */}
+          <div className="w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100 relative h-72 sm:h-96">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!4v1787340432522!6m8!1m7!1swmS1GQ1cdq3EDM_hKCVtig!2m2!1d-15.84851640472197!2d-48.02642230419185!3f151.40137663200355!4f-6.896114817194771!5f0.7820865974627469"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen=""
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              title="Localização da Sede Athena no Google Maps"
+              className="w-full h-full"
+            />
+          </div>
         </div>
       </section>
 
