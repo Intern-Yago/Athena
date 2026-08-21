@@ -86,6 +86,15 @@
       "description": "Sistemas de alinhamento 3D e diagnóstico premium.",
       "logo": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80",
       "websiteUrl": "https://www.sun.com.br"
+    },
+    {
+      "id": "brand_starkx",
+      "name": "Stärkx",
+      "slug": "starkx",
+      "order": 6,
+      "description": "Especialista em equipamentos eletrônicos, testadores de bateria, videoscópios, diagnóstico avançado e TPMS.",
+      "logo": "/brands/starkx_logo.jpg",
+      "websiteUrl": "https://www.starkx.com.br"
     }
   ],
   "products": [
@@ -117,8 +126,18 @@
         "Dispositivos de Segurança: Porca de segurança automática e sensores fim de curso"
       ],
       "attachments": [
-        { "id": "att_eco4000_manual", "fileName": "Manual_Tecnico_Elevador_ECO4000_Engecass.pdf", "fileSize": "3.2 MB", "url": "#" },
-        { "id": "att_eco4000_laudo", "fileName": "Laudo_Homologacao_NR12_Engecass.pdf", "fileSize": "1.1 MB", "url": "#" }
+        {
+          "id": "att_eco4000_manual",
+          "fileName": "Manual_Tecnico_Elevador_ECO4000_Engecass.pdf",
+          "fileSize": "3.2 MB",
+          "url": "#"
+        },
+        {
+          "id": "att_eco4000_laudo",
+          "fileName": "Laudo_Homologacao_NR12_Engecass.pdf",
+          "fileSize": "1.1 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -149,7 +168,12 @@
         "Painel de Controle: Torre móvel com botões de emergência e aviso sonoro"
       ],
       "attachments": [
-        { "id": "att_sl3500_manual", "fileName": "Manual_Elevador_Tesoura_SL3500.pdf", "fileSize": "2.8 MB", "url": "#" }
+        {
+          "id": "att_sl3500_manual",
+          "fileName": "Manual_Elevador_Tesoura_SL3500.pdf",
+          "fileSize": "2.8 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -179,7 +203,12 @@
         "Travamento de Segurança: Trava pneumática individual nas 4 colunas"
       ],
       "attachments": [
-        { "id": "att_ec5000_especs", "fileName": "Ficha_Tecnica_Elevador_4Colunas_EC5000.pdf", "fileSize": "2.1 MB", "url": "#" }
+        {
+          "id": "att_ec5000_especs",
+          "fileName": "Ficha_Tecnica_Elevador_4Colunas_EC5000.pdf",
+          "fileSize": "2.1 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -236,8 +265,18 @@
         "Câmeras: Traseira de 13 MP e frontal de 8 MP com flash"
       ],
       "attachments": [
-        { "id": "att_pad7_datasheet", "fileName": "Catalogo_Tecnico_Launch_PAD_VII.pdf", "fileSize": "4.5 MB", "url": "#" },
-        { "id": "att_pad7_coverage", "fileName": "Tabela_Cobertura_Montadoras_Launch.pdf", "fileSize": "1.9 MB", "url": "#" }
+        {
+          "id": "att_pad7_datasheet",
+          "fileName": "Catalogo_Tecnico_Launch_PAD_VII.pdf",
+          "fileSize": "4.5 MB",
+          "url": "#"
+        },
+        {
+          "id": "att_pad7_coverage",
+          "fileName": "Tabela_Cobertura_Montadoras_Launch.pdf",
+          "fileSize": "1.9 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -267,7 +306,12 @@
         "Diagnóstico Guiado: Dicas de testes de componentes integrados"
       ],
       "attachments": [
-        { "id": "att_pro3_manual", "fileName": "Manual_Usuario_Launch_PRO3_V5.pdf", "fileSize": "3.7 MB", "url": "#" }
+        {
+          "id": "att_pro3_manual",
+          "fileName": "Manual_Usuario_Launch_PRO3_V5.pdf",
+          "fileSize": "3.7 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -297,7 +341,12 @@
         "Suporte Técnico: Direto dos engenheiros da Napro no Brasil"
       ],
       "attachments": [
-        { "id": "att_napro7000_specs", "fileName": "Especificacoes_Napro_PC_Scan_7000.pdf", "fileSize": "2.4 MB", "url": "#" }
+        {
+          "id": "att_napro7000_specs",
+          "fileName": "Especificacoes_Napro_PC_Scan_7000.pdf",
+          "fileSize": "2.4 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -325,7 +374,12 @@
         "Atualizações Contínuas: Baixadas diretamente pelo app Raven Scanner 3"
       ],
       "attachments": [
-        { "id": "att_raven3_manual", "fileName": "Manual_Raven_Scanner_3.pdf", "fileSize": "3.1 MB", "url": "#" }
+        {
+          "id": "att_raven3_manual",
+          "fileName": "Manual_Raven_Scanner_3.pdf",
+          "fileSize": "3.1 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -380,8 +434,18 @@
         "Gabinete de Trabalho: Torre com PC de alta performance, monitor LED 32\", teclado e impressora colorida"
       ],
       "attachments": [
-        { "id": "att_sun_xd_folheto", "fileName": "Catalogo_Alinhador_3D_Sun_XD.pdf", "fileSize": "5.1 MB", "url": "#" },
-        { "id": "att_sun_xd_guia", "fileName": "Guia_Instalacao_Calibracao_Sun_3D.pdf", "fileSize": "2.3 MB", "url": "#" }
+        {
+          "id": "att_sun_xd_folheto",
+          "fileName": "Catalogo_Alinhador_3D_Sun_XD.pdf",
+          "fileSize": "5.1 MB",
+          "url": "#"
+        },
+        {
+          "id": "att_sun_xd_guia",
+          "fileName": "Guia_Instalacao_Calibracao_Sun_3D.pdf",
+          "fileSize": "2.3 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -409,7 +473,12 @@
         "Software: Sun Alignment System em português com gráficos didáticos em 3D e animações explicativas"
       ],
       "attachments": [
-        { "id": "att_sun_movel_spec", "fileName": "Ficha_Sun_Mobile_3D.pdf", "fileSize": "1.8 MB", "url": "#" }
+        {
+          "id": "att_sun_movel_spec",
+          "fileName": "Ficha_Sun_Mobile_3D.pdf",
+          "fileSize": "1.8 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -461,7 +530,12 @@
         "Economia Comprovada: Reduz o desgaste irregular de pneus em até 35% e diminui consumo de diesel"
       ],
       "attachments": [
-        { "id": "att_sun_truck_folheto", "fileName": "Apresentacao_Sun_Truck_3D.pdf", "fileSize": "3.9 MB", "url": "#" }
+        {
+          "id": "att_sun_truck_folheto",
+          "fileName": "Apresentacao_Sun_Truck_3D.pdf",
+          "fileSize": "3.9 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -491,7 +565,12 @@
         "Acessórios: Kit de proteções plásticas para garras, bico de pato e espátula reforçada"
       ],
       "attachments": [
-        { "id": "att_sun_turbo24_manual", "fileName": "Manual_Desmontadora_Sun_Turbo24.pdf", "fileSize": "2.6 MB", "url": "#" }
+        {
+          "id": "att_sun_turbo24_manual",
+          "fileName": "Manual_Desmontadora_Sun_Turbo24.pdf",
+          "fileSize": "2.6 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -521,7 +600,12 @@
         "Acessórios: Kit completo com 4 cones de centragem, alicate aplicador e porca de engate rápido"
       ],
       "attachments": [
-        { "id": "att_sun_b500_specs", "fileName": "Ficha_Balanceadora_Sun_B500.pdf", "fileSize": "1.9 MB", "url": "#" }
+        {
+          "id": "att_sun_b500_specs",
+          "fileName": "Ficha_Balanceadora_Sun_B500.pdf",
+          "fileSize": "1.9 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -599,7 +683,12 @@
         "Organização: Maleta plástica moldada com identificação indelével a laser"
       ],
       "attachments": [
-        { "id": "att_raven_kit_tabela", "fileName": "Tabela_Aplicacao_Motores_Kit_Raven.pdf", "fileSize": "1.4 MB", "url": "#" }
+        {
+          "id": "att_raven_kit_tabela",
+          "fileName": "Tabela_Aplicacao_Motores_Kit_Raven.pdf",
+          "fileSize": "1.4 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -654,7 +743,12 @@
         "Impressora Térmica: Emissão de relatório de serviço para comprovação ao cliente"
       ],
       "attachments": [
-        { "id": "att_napro_klima_manual", "fileName": "Manual_Recicladora_Napro_Klima.pdf", "fileSize": "3.4 MB", "url": "#" }
+        {
+          "id": "att_napro_klima_manual",
+          "fileName": "Manual_Recicladora_Napro_Klima.pdf",
+          "fileSize": "3.4 MB",
+          "url": "#"
+        }
       ],
       "inStock": true
     },
@@ -781,6 +875,297 @@
         "Faixa Angular: 1° a 360° com precisão de ± 1°",
         "Avisos ao Operador: Indicador sonoro (Buzzer contínuo) e barra de LEDs progressivos com vibração no punho",
         "Certificado de Calibração: Acompanha laudo e estojo protetor"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_skx018",
+      "name": "Auxiliar de Partida Portátil 10.000mAh 12V/6V com Lanterna - Stärkx SKX-018",
+      "slug": "auxiliar-de-partida-portatil-starkx-skx018",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_starkx",
+      "price": 690,
+      "priceNegotiable": false,
+      "badge": "Portátil & Potente",
+      "status": "published",
+      "image": "/products/starkx/starkx_skx018_main.jpg",
+      "images": [
+        "/products/starkx/starkx_skx018_main.jpg",
+        "/products/starkx/page_3.jpg"
+      ],
+      "altText": "Auxiliar de Partida Portátil Stärkx SKX-018",
+      "description": "Equipamento leve e portátil aplicável como auxiliar de partidas em baterias de 6V e 12V. Possui alimentação rápida via entrada USB e lanterna embutida para utilização em ambientes com pouca iluminação.",
+      "specs": [
+        "Aplicação: Baterias 6V e 12V",
+        "Capacidade da Bateria: 10.000 mAh",
+        "Corrente Inicial: 400A | Corrente de Pico: 800A",
+        "Entrada de Alimentação: 5V-2A / 9V-2A / 14V-1A",
+        "Saída Porta USB: 5V-3A (2A + 1A)",
+        "Temperatura de Trabalho: -30°C a 65°C (-22°F a 149°F)",
+        "Dimensões: 168 x 78 x 38 mm",
+        "Recursos: Lanterna LED de emergência integrada"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_skx028",
+      "name": "Testador e Analisador de Baterias 12V/24V com Impressora Térmica - Stärkx SKX-028",
+      "slug": "testador-bateria-impressora-termica-starkx-skx028",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_starkx",
+      "price": 1850,
+      "priceNegotiable": false,
+      "badge": "Laudo Térmico",
+      "status": "published",
+      "image": "/products/starkx/starkx_skx028_main.jpg",
+      "images": [
+        "/products/starkx/starkx_skx028_main.jpg",
+        "/products/starkx/page_5.jpg"
+      ],
+      "altText": "Testador de Bateria com Impressora Stärkx SKX-028",
+      "description": "Avalia a condição de carga e vida útil de baterias de 12V e 24V com emissão de relatório impresso na hora. Executa teste rápido de amperagem, teste preciso de corrente de partida (CCA), teste de motor de partida e teste de alternador/sistema de carga.",
+      "specs": [
+        "Tensão de Bateria: 12V e 24V",
+        "Tecnologias Suportadas: VRLA, GEL, AGM, STANDARD LSI",
+        "Testes Realizados: Teste Rápido, Teste Preciso (CCA), Motor de Partida e Alternador",
+        "Impressão: Impressora térmica integrada para emissão de laudo imediato",
+        "Display: LCD gráfico de 128 x 64 pixels",
+        "Idioma: Software em Português-Brasil",
+        "Cabo e Garras: 70 cm reforçado",
+        "Peso do Equipamento: 500g"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_skx038",
+      "name": "Carregador de Baterias Inteligente Bivolt 12V/24V com Sistema PWM - Stärkx SKX-038",
+      "slug": "carregador-baterias-inteligente-pwm-starkx-skx038",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_starkx",
+      "price": 1290,
+      "priceNegotiable": false,
+      "badge": "Carga Inteligente",
+      "status": "published",
+      "image": "/products/starkx/starkx_skx038_main.jpg",
+      "images": [
+        "/products/starkx/starkx_skx038_main.jpg",
+        "/products/starkx/page_7.jpg"
+      ],
+      "altText": "Carregador de Baterias Inteligente Stärkx SKX-038",
+      "description": "Carregador de baterias de alta eficiência com gerenciamento de pulso PWM, que evita o estufamento e melhora substancialmente a vida útil da bateria. Possui proteções completas contra curto-circuito, superaquecimento e baixa tensão.",
+      "specs": [
+        "Tensão de Entrada: Bivolt Automático (110V / 220V ± 20V | 50/60Hz)",
+        "Tensão de Saída: 12V (5A-10A-25A) e 24V (5A-10A opcional)",
+        "Tipos de Bateria: STD, GEL, AGM, EFB (15Ah a 250Ah)",
+        "Potência de Pico: AC-300W com 85% de eficiência energética",
+        "Sistema de Carga: Modulação por Largura de Pulso (PWM)",
+        "Proteções: Curto-circuito, polaridade invertida, sobreaquecimento e subtensão",
+        "Dimensões e Peso: 205 x 200 x 115 mm | 1.8 kg"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_skx088",
+      "name": "Detector de Continuidade e Rastreador de Chicotes Elétricos 6V-42V - Stärkx SKX-088",
+      "slug": "detector-continuidade-rastreador-chicotes-starkx-skx088",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_starkx",
+      "price": 780,
+      "priceNegotiable": false,
+      "badge": "Localizador de Fios",
+      "status": "published",
+      "image": "/products/starkx/starkx_skx088_main.jpg",
+      "images": [
+        "/products/starkx/starkx_skx088_main.jpg",
+        "/products/starkx/page_9.jpg"
+      ],
+      "altText": "Detector de Continuidade e Rastreador Stärkx SKX-088",
+      "description": "Rastreia e localiza condutores simples e em pares com extrema facilidade, além de identificar pontos de curto-circuito e testar continuidade sem danificar o isolamento do chicote elétrico.",
+      "specs": [
+        "Faixa de Operação: Circuitos de 6V a 42V DC",
+        "Componentes: Módulo Transmissor + Módulo Receptor com sonda flexível",
+        "Comprimento da Sonda: 24,8 cm articulada para locais de difícil acesso",
+        "Cabo com Garra Jacaré: 63,5 cm",
+        "Controle de Sensibilidade: Interruptor rotativo ajustável no receptor",
+        "Saída de Áudio: Entrada para fone de ouvido para operação em ambientes ruidosos",
+        "Alimentação: Bateria 9V 6F22"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_skx108",
+      "name": "Videoscópio e Câmera de Inspeção Dupla Lente Full HD com Tela 4.3\" - Stärkx SKX-108",
+      "slug": "videoscopio-camera-inspecao-dupla-lente-starkx-skx108",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_starkx",
+      "price": 1490,
+      "priceNegotiable": false,
+      "badge": "Dupla Câmera 1080P",
+      "status": "published",
+      "image": "/products/starkx/starkx_skx108_main.jpg",
+      "images": [
+        "/products/starkx/starkx_skx108_main.jpg",
+        "/products/starkx/page_11.jpg"
+      ],
+      "altText": "Câmera de Inspeção Automotiva Stärkx SKX-108",
+      "description": "Câmera endoscópica profissional com display colorido de 4,3 polegadas e sistema de dupla lente (frontal e lateral) com iluminação LED ajustável. Ideal para inspeção de câmaras de combustão, válvulas, turbinas e dutos sem necessidade de desmontagem.",
+      "specs": [
+        "Tela: LCD colorido de 4,3 polegadas",
+        "Resolução de Imagem e Vídeo: Full HD 1920x1080P",
+        "Câmeras: Lente Frontal + Lente Lateral com alternância e visão simultânea",
+        "Diâmetro da Sonda: 5,5 mm ultrafina",
+        "Comprimento do Cabo da Sonda: 2 metros semirrígido",
+        "Proteção contra Água e Óleo: IP68 (lentes e sonda)",
+        "Bateria Recarregável: 2600 mAh de longa duração",
+        "Armazenamento: Suporta cartão MicroSD até 32GB"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_skx208",
+      "name": "Analisador Digital de Fluído de Freio DOT 3 / DOT 4 / DOT 5.1 - Stärkx SKX-208",
+      "slug": "analisador-digital-fluido-freio-starkx-skx208",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_starkx",
+      "price": 890,
+      "priceNegotiable": false,
+      "badge": "Segurança em Freios",
+      "status": "published",
+      "image": "/products/starkx/starkx_skx208_main.jpg",
+      "images": [
+        "/products/starkx/starkx_skx208_main.jpg",
+        "/products/starkx/page_13.jpg"
+      ],
+      "altText": "Analisador Digital de Fluído de Freio Stärkx SKX-208",
+      "description": "Instrumento de alta precisão para diagnóstico imediato do estado do fluido de freio. Mede a porcentagem de água presente no fluido para comprovar visualmente ao cliente a necessidade de substituição para evitar falhas de frenagem.",
+      "specs": [
+        "Compatibilidade: Fluídos tipo DOT 3, DOT 4 e DOT 5.1",
+        "Sonda de Medição: Sensor de alta precisão com haste de 26,5 cm",
+        "Display: Visor digital iluminado com diagnóstico em texto",
+        "Tensão de Alimentação: 12V DC (conexão direta na bateria do veículo)",
+        "Temperatura de Operação: 0°C a 50°C",
+        "Indicação Clara: Informa percentual de umidade e status de aprovação/reprovação"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_thinkcar_venu90",
+      "name": "Programador e Scanner de Sensores TPMS com OBD-II - Thinkcar VENU 90 by Stärkx",
+      "slug": "programador-scanner-tpms-thinkcar-venu90-starkx",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_starkx",
+      "price": 3490,
+      "priceNegotiable": false,
+      "badge": "Especialista TPMS",
+      "status": "published",
+      "image": "/products/starkx/starkx_venu90_main.jpg",
+      "images": [
+        "/products/starkx/starkx_venu90_main.jpg",
+        "/products/starkx/page_15.jpg"
+      ],
+      "altText": "Programador TPMS Thinkcar VENU 90 Stärkx",
+      "description": "Ferramenta completa para diagnóstico, ativação, clonagem e reaprendizado de sensores de pressão de pneus (TPMS). Comunica via antena de radiofrequência e porta OBD-II para programação rápida de toda a linha de sensores universais Thinkcar.",
+      "specs": [
+        "Funções TPMS: Ativação, Leitura de Pressão/Temperatura/ID, Reaprendizado e Diagnóstico",
+        "Programação: Programação ilimitada de sensores Thinkcar Venu 5",
+        "Conexão Veicular: Cabo integrado OBD-II padrão de 1,2 metros",
+        "Tela: Display colorido de 2,8 polegadas (320 x 240)",
+        "Bateria Interna: 3000 mAh / 3.8V de alta autonomia",
+        "Cobertura: Veículos nacionais e importados com sistema TPMS de fábrica"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_thinkcar_venu5",
+      "name": "Sensor Universal de Pressão de Pneus TPMS Dual Frequency (315MHz/433MHz) - Thinkcar VENU 5",
+      "slug": "sensor-universal-tpms-dual-frequency-thinkcar-venu5",
+      "categoryId": "cat_desmontadoras",
+      "brandId": "brand_starkx",
+      "price": 240,
+      "priceNegotiable": false,
+      "badge": "Dual Frequency",
+      "status": "published",
+      "image": "/products/starkx/starkx_venu5_main.jpg",
+      "images": [
+        "/products/starkx/starkx_venu5_main.jpg",
+        "/products/starkx/page_17.jpg"
+      ],
+      "altText": "Sensor Universal TPMS Thinkcar VENU 5",
+      "description": "Sensor universal programável para substituição direta de sensores originais danificados. Opera nas duas frequências do mercado (315MHz e 433MHz), cobrindo mais de 98% dos veículos equipados com TPMS.",
+      "specs": [
+        "Frequência Operacional: Dual 315 MHz e 433 MHz no mesmo sensor",
+        "Válvulas Disponíveis: Hastes intercambiáveis em Alumínio e Borracha",
+        "Vida Útil da Bateria: 4 a 6 anos",
+        "Reprogramável: Pode ser regravado inúmeras vezes antes da montagem",
+        "Precisão do Sensor: Leitura exata de pressão, temperatura e nível de bateria"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_thinktool_lite",
+      "name": "Scanner Automotivo Multimarca ThinkTool Lite com VCI Sem Fio Thinkdiag Mini 3",
+      "slug": "scanner-automotivo-thinktool-lite-vci-bluetooth",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_starkx",
+      "price": 6890,
+      "priceNegotiable": false,
+      "badge": "VCI Sem Fio",
+      "status": "published",
+      "image": "/products/starkx/starkx_thinktool_lite_main.jpg",
+      "images": [
+        "/products/starkx/starkx_thinktool_lite_main.jpg",
+        "/products/starkx/page_19.jpg"
+      ],
+      "altText": "Scanner ThinkTool Lite Thinkcar Stärkx",
+      "description": "Scanner diagnóstico completo com tablet resistente de 6 polegadas e conector Bluetooth Thinkdiag Mini 3. Diagnóstica todos os sistemas de injeção, freios ABS, airbags, transmissão e carroceria com leitura gráfica e suporte remoto TeamViewer.",
+      "specs": [
+        "Cobertura: Ciclo Otto (Gasolina/Etanol), Híbridos, Elétricos, Diesel Leve e Utilitários",
+        "Sistema Operacional: Android 10.0 com interface fluida",
+        "Processador e Memória: Dual-Core 1.8GHz | 32GB ROM + 2GB RAM",
+        "Tela e Câmera: Display TFT de 5,99 polegadas | Câmera traseira de 8 MP",
+        "Conector de Comunicação: Dispositivo Bluetooth Thinkdiag Mini 3 sem fios",
+        "Bateria: 3100 mAh / 7.6V",
+        "Funções Especiais: Leitura/Eliminação de DTCs, Parâmetros ao vivo, Teste de atuadores, Ajustes e Codificações",
+        "Suporte Remoto: TeamViewer integrado para auxílio técnico à distância"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_starkx_platinum_s10_pro",
+      "name": "Scanner Diagnóstico Profissional Thinkcar Platinum S10 Pro com Interface J2534 Thinklink",
+      "slug": "scanner-thinkcar-platinum-s10-pro-j2534-starkx",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_starkx",
+      "price": 19800,
+      "priceNegotiable": false,
+      "badge": "Topo de Linha",
+      "status": "published",
+      "image": "/products/starkx/starkx_platinum_s10_pro_main.jpg",
+      "images": [
+        "/products/starkx/starkx_platinum_s10_pro_main.jpg",
+        "/products/starkx/page_21.jpg"
+      ],
+      "altText": "Scanner Thinkcar Platinum S10 Pro J2534",
+      "description": "Scanner de nível avançado com tela de 10 polegadas, interface Pass-Thru J2534 Thinklink e visualização de Topologia de Rede de módulos em tempo real. Suporta programações online de módulos, diagnóstico em veículos leves, híbridos/elétricos, pesados (opcional) e calibração de câmeras/radares ADAS.",
+      "specs": [
+        "Hardware: Tablet robusto de 10\" TFT | Octa-Core 2.0GHz | 128GB ROM + 4GB RAM",
+        "Interface VCI: Thinklink J2534 compatível com protocolos DoIP, CAN-FD e Pass-Thru",
+        "Bateria de Alta Duração: 12.000 mAh / 3.8V para o dia todo de trabalho",
+        "Topologia de Rede: Mapeamento gráfico e colorido de todas as ECUs do veículo",
+        "Programação Online: Codificação e programação de módulos de fábrica",
+        "Módulos Opcionais: Suporte para calibração de sistemas ADAS e linha Diesel Pesada",
+        "Câmera e Conectividade: Câmera 8 MP, Wi-Fi Dual Band e Bluetooth de longo alcance",
+        "Suporte Remoto Especializado: Acesso remoto via TeamViewer"
       ],
       "attachments": [],
       "inStock": true
