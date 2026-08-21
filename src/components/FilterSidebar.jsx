@@ -162,12 +162,12 @@ export default function FilterSidebar({
       </div>
 
       {/* Main Filter Sidebar Card */}
-      <div className={`bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-5 ${
+      <div className={`bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-5 lg:max-h-[calc(100vh-7.5rem)] lg:overflow-y-auto lg:overscroll-contain overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent] ${
         isMobileOpen ? 'block' : 'hidden lg:block'
       }`}>
         
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-2">
             <Sliders className="w-4 h-4 text-amber-600" />
             <h3 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider">
@@ -225,7 +225,7 @@ export default function FilterSidebar({
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className={`space-y-1.5 ${showAllCategories ? 'max-h-60 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]' : ''}`}>
             {visibleCategories.map((cat) => (
               <label
                 key={cat.id}
@@ -292,7 +292,7 @@ export default function FilterSidebar({
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className={`space-y-1.5 ${showAllBrands ? 'max-h-64 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:#cbd5e1_transparent]' : ''}`}>
             {visibleBrands.map((b) => (
               <label
                 key={b.id}
