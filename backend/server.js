@@ -163,7 +163,9 @@ async function initDb() {
           price_negotiable BOOLEAN DEFAULT TRUE,
           badge VARCHAR(100),
           status VARCHAR(50) DEFAULT 'published',
+          is_featured BOOLEAN DEFAULT FALSE,
           image TEXT,
+          images JSONB,
           alt_text TEXT,
           description TEXT,
           specs JSONB,
@@ -171,6 +173,19 @@ async function initDb() {
           in_stock BOOLEAN DEFAULT TRUE,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+      `);
+
+      // Ensure is_featured and images exist on products
+      await pool.query(`
+        DO $$ 
+        BEGIN 
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='is_featured') THEN 
+            ALTER TABLE products ADD COLUMN is_featured BOOLEAN DEFAULT FALSE; 
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='images') THEN 
+            ALTER TABLE products ADD COLUMN images JSONB; 
+          END IF;
+        END $$;
       `);
 
       const catCheck = await pool.query('SELECT COUNT(*) FROM categories');
@@ -181,7 +196,7 @@ async function initDb() {
           ('cat_scanners', 'Scanners', 'scanners', 'Scanners e leitores de diagnóstico automotivo multimarca de última geração com IA.', 'Cpu', 2),
           ('cat_alinhadores', 'Alinhadores', 'alinhadores', 'Sistemas de alinhamento de direção 3D computadorizados com câmeras de alta precisão.', 'Target', 3),
           ('cat_desmontadoras', 'Desmontadoras & Balanceadoras', 'desmontadoras', 'Equipamentos para serviços de borracharia, desmontadoras pneumáticas e balanceadoras de rodas.', 'Disc', 4),
-          ('cat_ferramentas', 'Ferramentas Especiais', 'ferramentas', 'Kits de sincronismo, saca-filtros, prensas hidráulicas e ferramentas para centro automotivo.', 'Wrench', 5);
+          ('cat_ferramentas', 'Ferramentas & Armários', 'ferramentas-armarios', 'Kits de soquetes, ferramentas pneumáticas, chaves de impacto e armários modulares para oficina.', 'Wrench', 5);
         `);
       }
 
@@ -189,11 +204,11 @@ async function initDb() {
       if (parseInt(brandCheck.rows[0].count, 10) === 0) {
         await pool.query(`
           INSERT INTO brands (id, name, slug, description, logo, website_url, "order") VALUES
-          ('brand_engecass', 'Engecass', 'engecass', 'Líder nacional em elevadores automotivos de alta resistência.', 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80', 'https://engecass.com.br', 1),
-          ('brand_launch', 'Launch', 'launch', 'Tecnologia global em scanners de diagnóstico e codificação de módulos.', 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80', 'https://www.launchtech.com.br', 2),
-          ('brand_raven', 'Raven', 'raven', 'Referência em ferramentas especiais e diagnóstico para oficinas.', 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80', 'https://www.ravenferramentas.com.br', 3),
-          ('brand_napro', 'Napro', 'napro', 'Pioneira em sistemas informatizados de diagnóstico automotivo.', 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80', 'https://www.napro.com.br', 4),
-          ('brand_sun', 'Sun Equipment', 'sun-equipment', 'Sistemas de alinhamento 3D e diagnóstico premium.', 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80', 'https://www.sun.com.br', 5);
+          ('brand_mahovi', 'Mahovi', 'mahovi', 'Líder nacional em elevadores automotivos, alinhadores 3D e desmontadoras.', 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80', 'https://mahovi.com.br', 1),
+          ('brand_delta', 'Delta Ferramentas', 'delta-ferramentas', 'Referência em equipamentos de teste, canetas de polaridade e teste de baterias.', 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80', 'https://deltaferramentas.com.br', 2),
+          ('brand_starkx', 'Stärkx', 'starkx', 'Scanners de diagnóstico profissional multimarca e testadores com IA Thinkcar.', 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80', 'https://starkx.com.br', 3),
+          ('brand_wolfcar', 'Wolfcar', 'wolfcar', 'Móveis modulares premium, bancadas em inox e armários para centro automotivo.', 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200&auto=format&fit=crop&q=80', 'https://wolfcar.com.br', 4),
+          ('brand_sigmatools', 'Sigma Tools', 'sigma-tools', 'Chaves de impacto pneumáticas, soquetes especiais em Cr-Mo e carrinhos ergonômicos.', 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=200&auto=format&fit=crop&q=80', 'https://sigmatools.com.br', 5);
         `);
       }
 
@@ -642,7 +657,7 @@ app.get('/api/products', async (req, res) => {
   if (pool) {
     try {
       const result = await pool.query(`
-        SELECT id, name, slug, category_id as "categoryId", brand_id as "brandId", price::float, price_negotiable as "priceNegotiable", badge, status, image, alt_text as "altText", description, specs, attachments, in_stock as "inStock", created_at
+        SELECT id, name, slug, category_id as "categoryId", brand_id as "brandId", price::float, price_negotiable as "priceNegotiable", badge, status, is_featured as "isFeatured", image, images, alt_text as "altText", description, specs, attachments, in_stock as "inStock", created_at
         FROM products 
         ORDER BY created_at DESC
       `);
@@ -660,10 +675,10 @@ app.post('/api/products', async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, image, alt_text, description, specs, attachments, in_stock)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         ON CONFLICT (id) DO UPDATE SET 
-          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, image=$10, alt_text=$11, description=$12, specs=$13, attachments=$14, in_stock=$15
+          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, is_featured=$10, image=$11, images=$12, alt_text=$13, description=$14, specs=$15, attachments=$16, in_stock=$17
       `, [
         newProduct.id,
         newProduct.name,
@@ -674,7 +689,9 @@ app.post('/api/products', async (req, res) => {
         newProduct.priceNegotiable !== undefined ? newProduct.priceNegotiable : true,
         newProduct.badge || 'Disponível',
         newProduct.status || 'published',
+        !!newProduct.isFeatured,
         newProduct.image || '',
+        JSON.stringify(newProduct.images || []),
         newProduct.altText || '',
         newProduct.description || '',
         JSON.stringify(newProduct.specs || []),
@@ -698,8 +715,8 @@ app.put('/api/products/:id', async (req, res) => {
     try {
       await pool.query(`
         UPDATE products SET 
-          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, image=$9, alt_text=$10, description=$11, specs=$12, attachments=$13, in_stock=$14
-        WHERE id=$15
+          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, is_featured=$9, image=$10, images=$11, alt_text=$12, description=$13, specs=$14, attachments=$15, in_stock=$16
+        WHERE id=$17
       `, [
         updatedProduct.name,
         updatedProduct.slug || '',
@@ -709,7 +726,9 @@ app.put('/api/products/:id', async (req, res) => {
         updatedProduct.priceNegotiable !== undefined ? updatedProduct.priceNegotiable : true,
         updatedProduct.badge || 'Disponível',
         updatedProduct.status || 'published',
+        !!updatedProduct.isFeatured,
         updatedProduct.image || '',
+        JSON.stringify(updatedProduct.images || []),
         updatedProduct.altText || '',
         updatedProduct.description || '',
         JSON.stringify(updatedProduct.specs || []),
