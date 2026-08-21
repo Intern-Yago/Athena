@@ -265,41 +265,110 @@ export default function AdminPanel({
     });
   };
 
-  // Smart Parser & Extractor from Description
-  const handleExtractSpecsFromDescription = () => {
-    const text = (productForm.description || '') + '\n' + (productForm.name || '');
-    if (!text.trim()) {
-      showNotification('Digite ou cole uma descrição técnica antes de extrair.', 'error');
-      return;
-    }
+  // Dynamic parser that analyzes ONLY the user's description and name
+  const parseSpecsFromText = (descriptionText, nameText = '') => {
+    const fullText = (descriptionText || '') + '\n' + (nameText || '');
+    if (!fullText.trim()) return [];
 
-    const lines = text.split(/\r?\n|[;•·\t]/).map(l => l.trim()).filter(Boolean);
-    const extracted = [];
-    const seen = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
+    const results = [];
+    const seen = new Set();
 
-    for (const rawLine of lines) {
-      let line = rawLine.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim();
-      if (line.length < 3 || line.length > 150) continue;
+    const addSpec = (spec) => {
+      let clean = spec.trim().replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim();
+      if (clean.length >= 3 && clean.length <= 140 && !seen.has(clean.toLowerCase())) {
+        seen.add(clean.toLowerCase());
+        results.push(clean);
+      }
+    };
 
-      if (
-        line.includes(':') ||
-        /\b(capacidade|altura|largura|tensão|voltagem|potência|motor|peso|pressão|torque|display|bateria|garantia|consumo|curso|velocidade|protocolo|dimensões|aro|diâmetro|bloqueio|frequência)\b/i.test(line)
-      ) {
-        if (!seen.has(line.toLowerCase())) {
-          seen.add(line.toLowerCase());
-          extracted.push(line);
+    // 1. Line-by-line check (for bullet points or Key: Value pairs in user's text)
+    const lines = fullText.split(/\r?\n|[;•·\t]/).map(l => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      if (line.includes(':')) {
+        const parts = line.split(':');
+        if (parts[0].trim().length > 1 && parts[1].trim().length > 0) {
+          addSpec(line);
+          continue;
+        }
+      }
+      // If line contains specific measurements or technical keywords from user's text
+      if (/\b(\d+(\.\d+)?\s*(kg|t|toneladas?|mm|cm|m|bar|psi|nm|kgfm|rpm|pcm|hp|cv|kw|v|volts?|mah|ah|pol|"|pcs|peças|litros|l))\b/i.test(line)) {
+        if (line.length < 90) {
+          addSpec(line);
         }
       }
     }
 
-    if (extracted.length > 0) {
+    // 2. Natural language sentence extraction from the user's description
+    const text = fullText;
+
+    // Match Capacidade
+    const capMatch = text.match(/(capacidade\s*(de\s*carga)?\s*(de|:)?\s*[\d\.,]+\s*(kg|t|ton|toneladas|litros|l|mah))/i);
+    if (capMatch) addSpec(`Capacidade: ${capMatch[0].replace(/^capacidade\s*(de\s*carga)?\s*(de|:)?\s*/i, '').trim()}`);
+
+    // Match Altura / Elevação
+    const altMatch = text.match(/(altura\s*(máxima|de\s*elevação)?\s*(de|:)?\s*[\d\.,]+\s*(mm|cm|m))/i);
+    if (altMatch) addSpec(`Altura de Elevação: ${altMatch[0].replace(/^altura\s*(máxima|de\s*elevação)?\s*(de|:)?\s*/i, '').trim()}`);
+
+    // Match Motor / Tensão
+    const motorMatch = text.match(/(motor\s*(trifásico|monofásico|elétrico|hidráulico)?\s*(de\s*[\d\.,]+\s*(hp|cv|kw))?\s*(220v|380v|110v|12v|24v)?(\/380v|\/220v)?)/i) ||
+                       text.match(/(tensão|voltagem|alimentação)\s*(de|:)?\s*(220v|380v|110v|12v|24v|bivolt)(\/380v|\/220v)?/i);
+    if (motorMatch) addSpec(`Motor / Alimentação: ${motorMatch[0].replace(/^(motor|tensão|voltagem|alimentação)\s*(de|:)?\s*/i, '').trim()}`);
+
+    // Match Pressão
+    const pressMatch = text.match(/(pressão\s*(de\s*trabalho)?\s*(de|:)?\s*[\d\.,\-\s]+(bar|psi))/i);
+    if (pressMatch) addSpec(`Pressão de Trabalho: ${pressMatch[0].replace(/^pressão\s*(de\s*trabalho)?\s*(de|:)?\s*/i, '').trim()}`);
+
+    // Match Torque
+    const torqMatch = text.match(/(torque\s*(máximo)?\s*(de|:)?\s*[\d\.,]+\s*(nm|kgfm))/i);
+    if (torqMatch) addSpec(`Torque Máximo: ${torqMatch[0].replace(/^torque\s*(máximo)?\s*(de|:)?\s*/i, '').trim()}`);
+
+    // Match Display / Tela
+    const displayMatch = text.match(/(tela|display|monitor)\s*(touchscreen|lcd|led|colorido)?\s*(de\s*[\d\.,]+(\s*polegadas|\s*pol|"))?/i);
+    if (displayMatch && displayMatch[0].length > 6) addSpec(`Display: ${displayMatch[0].replace(/^(tela|display|monitor)\s*(de|:)?\s*/i, '').trim()}`);
+
+    // Match Protocolos
+    const protoMatch = text.match(/(protocolos?\s*(suportados?)?:?\s*(can-fd|doip|j2534|obd2|iso[\d\-]+)[\w\s\-,/]+)/i);
+    if (protoMatch) addSpec(`Protocolos: ${protoMatch[0].replace(/^protocolos?\s*(suportados?)?:?\s*/i, '').trim()}`);
+
+    // Match Bateria / Autonomia
+    const batMatch = text.match(/(bateria\s*(interna|recarregável)?\s*(de|:)?\s*[\d\.,]+\s*(mah|ah))/i);
+    if (batMatch) addSpec(`Bateria: ${batMatch[0].replace(/^bateria\s*(interna|recarregável)?\s*(de|:)?\s*/i, '').trim()}`);
+
+    // Match Encaixe / Dimensões
+    const encaixeMatch = text.match(/(encaixe\s*(quadrado)?\s*(de|:)?\s*[\d\.,/]+(\s*pol|"))/i);
+    if (encaixeMatch) addSpec(`Encaixe: ${encaixeMatch[0].replace(/^encaixe\s*(quadrado)?\s*(de|:)?\s*/i, '').trim()}`);
+
+    // Match Aro / Diâmetro
+    const aroMatch = text.match(/(aro\s*(de|:)?\s*[\d\.,\s\-"a]+(pol|"))/i) || text.match(/(diâmetro\s*(do\s*aro)?\s*(de|:)?\s*[\d\.,\s\-"a]+(pol|"))/i);
+    if (aroMatch) addSpec(`Diâmetro do Aro: ${aroMatch[0].replace(/^(aro|diâmetro\s*(do\s*aro)?)\s*(de|:)?\s*/i, '').trim()}`);
+
+    // Match Garantia
+    const garMatch = text.match(/(garantia\s*(de\s*fábrica)?\s*(de|:)?\s*[\d\.,]+\s*(meses|anos?))/i);
+    if (garMatch) addSpec(`Garantia: ${garMatch[0].replace(/^garantia\s*(de\s*fábrica)?\s*(de|:)?\s*/i, '').trim()}`);
+
+    return results;
+  };
+
+  // Smart Parser & Extractor from Description
+  const handleExtractSpecsFromDescription = () => {
+    const extracted = parseSpecsFromText(productForm.description, productForm.name);
+    if (extracted.length === 0) {
+      showNotification('Nenhum dado técnico identificado na descrição atual. Digite mais detalhes técnicos acima.', 'error');
+      return;
+    }
+
+    const currentSpecsLower = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
+    const newItems = extracted.filter(s => !currentSpecsLower.has(s.toLowerCase().trim()));
+
+    if (newItems.length > 0) {
       setProductForm(prev => ({
         ...prev,
-        specs: [...(prev.specs || []), ...extracted]
+        specs: [...(prev.specs || []), ...newItems]
       }));
-      showNotification(`✨ ${extracted.length} especificação(ões) identificada(s) e adicionada(s)!`, 'success');
+      showNotification(`✨ ${newItems.length} especificação(ões) extraída(s) com sucesso da sua descrição!`, 'success');
     } else {
-      showNotification('Nenhum padrão técnico identificado na descrição. Utilize as sugestões rápidas abaixo.', 'info');
+      showNotification('Todas as especificações identificadas na descrição já estão na lista.', 'info');
     }
   };
 
@@ -2346,36 +2415,67 @@ export default function AdminPanel({
                     </div>
                   </div>
 
-                  {/* Quick Suggestion Chips */}
-                  <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                      💡 Sugestões Rápidas (Clique para adicionar):
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[
-                        'Capacidade de Carga: 4.000 kg',
-                        'Altura Máx. Elevação: 1.900 mm',
-                        'Tempo de Elevação: 50 seg',
-                        'Motor: 220V/380V Trifásico 4.0 HP',
-                        'Trava de Segurança: Automática bilateral',
-                        'Torque Máximo: 1.200 Nm',
-                        'Display: Touchscreen 10.1" HD',
-                        'Protocolos: CAN-FD, DoIP, J2534',
-                        'Pressão de Trabalho: 6 a 8 Bar',
-                        'Diâmetro do Aro: 10" a 24"',
-                        'Garantia: 12 meses oficial'
-                      ].map((sug, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => handleAddSpec(sug)}
-                          className="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-amber-900 text-[10px] font-semibold transition-all hover:bg-amber-50 shadow-2xs"
-                        >
-                          + {sug}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Live Dynamic Specs Detected in User Description */}
+                  {(() => {
+                    const detected = parseSpecsFromText(productForm.description, productForm.name);
+                    const currentSpecsLower = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
+                    const unaddedDetected = detected.filter(s => !currentSpecsLower.has(s.toLowerCase().trim()));
+
+                    return (
+                      <div className="space-y-1.5 bg-amber-50/70 p-3 rounded-xl border border-amber-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-extrabold text-amber-900 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                            {unaddedDetected.length > 0 ? (
+                              <span>Sugestões Encontradas na sua Descrição ({unaddedDetected.length}):</span>
+                            ) : (
+                              <span>Análise da Descrição em Tempo Real:</span>
+                            )}
+                          </span>
+
+                          {unaddedDetected.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProductForm(prev => ({
+                                  ...prev,
+                                  specs: [...(prev.specs || []), ...unaddedDetected]
+                                }));
+                                showNotification(`✨ ${unaddedDetected.length} especificações da descrição adicionadas!`, 'success');
+                              }}
+                              className="text-[10px] font-extrabold text-amber-800 hover:text-amber-950 underline"
+                            >
+                              + Adicionar Todas ({unaddedDetected.length})
+                            </button>
+                          )}
+                        </div>
+
+                        {unaddedDetected.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {unaddedDetected.map((item, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleAddSpec(item)}
+                                className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:border-amber-500 text-amber-950 hover:bg-amber-100/60 text-[11px] font-bold transition-all shadow-2xs text-left"
+                                title="Clique para adicionar à lista"
+                              >
+                                + {item}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-amber-800/80 leading-tight">
+                            {productForm.description && productForm.description.trim().length > 5 ? (
+                              <span>Todas as especificações encontradas na descrição já foram adicionadas à lista abaixo.</span>
+                            ) : (
+                              <span>Cole ou digite a descrição técnica acima para extrair automaticamente as especificações reais deste produto.</span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Active Specs List */}
                   {productForm.specs && productForm.specs.length > 0 ? (
