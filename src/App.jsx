@@ -10,6 +10,9 @@ import CategoryPage from './pages/CategoryPage';
 import BrandPage from './pages/BrandPage';
 import AboutPage from './pages/AboutPage';
 import LoginPage from './pages/LoginPage';
+import NotFoundPage from './pages/NotFoundPage';
+import ServerErrorPage from './pages/ServerErrorPage';
+import ErrorBoundary from './components/ErrorBoundary';
 import BottomNavBar from './components/BottomNavBar';
 import ComparisonFloatingBar from './components/ComparisonFloatingBar';
 import ProductComparisonModal from './components/ProductComparisonModal';
@@ -643,68 +646,82 @@ export default function App() {
       );
     }
 
-    // Default Catalog Page
-    return (
-      <>
-        <HeroSlim
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          categories={categories}
-          selectedCategory={selectedCategories[0] || 'all'}
-          setSelectedCategory={(catId) => {
-            if (catId === 'all') setSelectedCategories([]);
-            else setSelectedCategories([catId]);
-          }}
-        />
+    if (currentRoute === '404') {
+      return <NotFoundPage onNavigate={navigateTo} />;
+    }
 
-        <Catalog
-          products={publicProducts}
-          categories={categories}
-          brands={brands}
-          selectedCategories={selectedCategories}
-          setSelectedCategories={setSelectedCategories}
-          selectedBrands={selectedBrands}
-          setSelectedBrands={setSelectedBrands}
-          maxPriceFilter={maxPriceFilter}
-          setMaxPriceFilter={setMaxPriceFilter}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          onSelectProduct={(product) => navigateTo(`produto/${product.slug || product.id}`)}
-          isAdmin={isAdminView}
-          onEditProduct={handleEditProductFromCatalog}
-          onDeleteProduct={handleDeleteProduct}
-          onOpenAddProduct={() => {
-            setEditingProduct(null);
-            navigateTo('admin');
-          }}
-          comparisonList={comparisonList}
-          onToggleComparison={handleToggleComparison}
-        />
-      </>
-    );
+    if (currentRoute === '500') {
+      return <ServerErrorPage onNavigate={navigateTo} onRetry={() => window.location.reload()} />;
+    }
+
+    // Default Catalog Page
+    if (!currentRoute || currentRoute === 'catalog' || currentRoute === 'catalogo' || currentRoute === 'inicio' || currentRoute === 'home') {
+      return (
+        <>
+          <HeroSlim
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            categories={categories}
+            selectedCategory={selectedCategories[0] || 'all'}
+            setSelectedCategory={(catId) => {
+              if (catId === 'all') setSelectedCategories([]);
+              else setSelectedCategories([catId]);
+            }}
+          />
+
+          <Catalog
+            products={publicProducts}
+            categories={categories}
+            brands={brands}
+            selectedCategories={selectedCategories}
+            setSelectedCategories={setSelectedCategories}
+            selectedBrands={selectedBrands}
+            setSelectedBrands={setSelectedBrands}
+            maxPriceFilter={maxPriceFilter}
+            setMaxPriceFilter={setMaxPriceFilter}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            onSelectProduct={(product) => navigateTo(`produto/${product.slug || product.id}`)}
+            isAdmin={isAdminView}
+            onEditProduct={handleEditProductFromCatalog}
+            onDeleteProduct={handleDeleteProduct}
+            onOpenAddProduct={() => {
+              setEditingProduct(null);
+              navigateTo('admin');
+            }}
+            comparisonList={comparisonList}
+            onToggleComparison={handleToggleComparison}
+          />
+        </>
+      );
+    }
+
+    // Unrecognized route -> 404 Not Found Page
+    return <NotFoundPage onNavigate={navigateTo} />;
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-amber-500 selection:text-white">
-      
-      {/* Header */}
-      <Header
-        activeTab={currentRoute}
-        onNavigate={navigateTo}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        productsCount={publicProducts.length}
-        categoriesCount={categories.length}
-        brandsCount={brands.length}
-        categories={categories}
-        brands={brands}
-        products={publicProducts}
-      />
+    <ErrorBoundary>
+      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-amber-500 selection:text-white">
+        
+        {/* Header */}
+        <Header
+          activeTab={currentRoute}
+          onNavigate={navigateTo}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          productsCount={publicProducts.length}
+          categoriesCount={categories.length}
+          brandsCount={brands.length}
+          categories={categories}
+          brands={brands}
+          products={publicProducts}
+        />
 
-      {/* Main Page Content */}
-      <main className="flex-1 pt-16 sm:pt-20">
-        {renderCurrentPage()}
-      </main>
+        {/* Main Page Content */}
+        <main className="flex-1 pt-16 sm:pt-20">
+          {renderCurrentPage()}
+        </main>
 
       {/* Floating WhatsApp Action Button (Desktop Only) */}
       <a
@@ -752,5 +769,6 @@ export default function App() {
       </div>
 
     </div>
+    </ErrorBoundary>
   );
 }

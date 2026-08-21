@@ -1,6 +1,7 @@
 import React from 'react';
 import ProductCard from '../components/ProductCard';
 import ProductImageGallery from '../components/ProductImageGallery';
+import NotFoundPage from './NotFoundPage';
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, PhoneCall, Sparkles, Truck, Package, FileText, Download, ArrowLeftRight } from 'lucide-react';
 
 export const formatAttachmentLabel = (fileName) => {
@@ -21,16 +22,14 @@ export default function ProductDetailPage({
   comparisonList,
   onToggleComparison
 }) {
-  const product = products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId) || products[0];
+  const product = products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId) || (isPreview ? products[0] : null);
 
   if (!product) {
     return (
-      <div className="py-16 text-center container-custom space-y-4">
-        <h2 className="text-xl font-bold text-slate-900">Produto não encontrado</h2>
-        <button onClick={() => onNavigate('catalog')} className="btn-gold text-xs">
-          Voltar ao Catálogo
-        </button>
-      </div>
+      <NotFoundPage
+        onNavigate={onNavigate}
+        message={`O equipamento "${productSlugOrId}" não foi encontrado em nosso catálogo ou foi descontinuado.`}
+      />
     );
   }
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import ProductCard from '../components/ProductCard';
+import NotFoundPage from './NotFoundPage';
 import { Tag, ArrowLeft, Layers, ShieldCheck, ExternalLink, Globe } from 'lucide-react';
 
 export default function BrandPage({
@@ -15,16 +16,14 @@ export default function BrandPage({
   comparisonList,
   onToggleComparison
 }) {
-  const brand = brands.find((b) => b.id === brandId || b.slug === brandId) || brands[0];
+  const brand = brands.find((b) => b.id === brandId || b.slug === brandId);
 
   if (!brand) {
     return (
-      <div className="py-16 text-center container-custom space-y-4">
-        <h2 className="text-xl font-bold text-slate-900">Marca não encontrada</h2>
-        <button onClick={() => onNavigate('brands')} className="btn-gold text-xs">
-          Ver todas as marcas
-        </button>
-      </div>
+      <NotFoundPage
+        onNavigate={onNavigate}
+        message="A marca de fabricante solicitada não foi encontrada em nossa rede de parceiros."
+      />
     );
   }
 

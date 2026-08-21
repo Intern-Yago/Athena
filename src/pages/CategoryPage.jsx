@@ -1,5 +1,6 @@
 import React from 'react';
 import ProductCard from '../components/ProductCard';
+import NotFoundPage from './NotFoundPage';
 import { Layers, ArrowLeft, Package } from 'lucide-react';
 
 export default function CategoryPage({ 
@@ -15,17 +16,15 @@ export default function CategoryPage({
   comparisonList,
   onToggleComparison
 }) {
-  const category = categories.find((c) => c.id === categoryId) || categories[0];
+  const category = categories.find((c) => c.id === categoryId);
   const categoryProducts = products.filter((p) => p.categoryId === category?.id);
 
   if (!category) {
     return (
-      <div className="py-16 text-center container-custom space-y-4">
-        <h2 className="text-xl font-bold text-slate-900">Categoria não encontrada</h2>
-        <button onClick={() => onNavigate('categories')} className="btn-gold text-xs">
-          Ver Todas as Categorias
-        </button>
-      </div>
+      <NotFoundPage
+        onNavigate={onNavigate}
+        message="A linha de categoria solicitada não foi encontrada ou não possui equipamentos vinculados."
+      />
     );
   }
 
