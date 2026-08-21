@@ -238,14 +238,36 @@ export default function ProductDetailPage({
             {/* Technical Specs List */}
             {product.specs && product.specs.length > 0 && (
               <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Especificações Técnicas</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    Especificações Técnicas
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-bold">{product.specs.length} especificações</span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {product.specs.map((spec, idx) => (
-                    <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-800">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <span className="font-semibold">{spec}</span>
-                    </div>
-                  ))}
+                  {product.specs.map((spec, idx) => {
+                    const colonIndex = spec.indexOf(':');
+                    const hasColon = colonIndex !== -1;
+                    const label = hasColon ? spec.slice(0, colonIndex).trim() : null;
+                    const value = hasColon ? spec.slice(colonIndex + 1).trim() : spec;
+
+                    return (
+                      <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 text-xs text-slate-800 transition-colors shadow-2xs">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          {label && (
+                            <span className="font-extrabold text-[10px] uppercase tracking-wider text-slate-500 block">
+                              {label}
+                            </span>
+                          )}
+                          <span className={label ? "font-bold text-slate-900 block leading-snug break-words" : "font-semibold text-slate-800"}>
+                            {value}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

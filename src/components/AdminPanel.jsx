@@ -213,7 +213,7 @@ export default function AdminPanel({
       images: [],
       altText: '',
       description: '',
-      specs: ['Elevada resistência e durabilidade', 'Manual e certificado inclusos', 'Garantia de fábrica'],
+      specs: [],
       attachments: []
     });
     setIsProductModalOpen(true);
@@ -225,10 +225,82 @@ export default function AdminPanel({
       ...product,
       isFeatured: !!product.isFeatured,
       images: Array.isArray(product.images) ? [...product.images] : [],
-      specs: product.specs && product.specs.length ? [...product.specs] : ['', ''],
+      specs: Array.isArray(product.specs) ? [...product.specs] : [],
       attachments: product.attachments ? [...product.attachments] : []
     });
     setIsProductModalOpen(true);
+  };
+
+  const handleAddSpec = (specText = '') => {
+    setProductForm(prev => ({
+      ...prev,
+      specs: [...(prev.specs || []), specText]
+    }));
+  };
+
+  const handleUpdateSpec = (index, value) => {
+    setProductForm(prev => {
+      const next = [...(prev.specs || [])];
+      next[index] = value;
+      return { ...prev, specs: next };
+    });
+  };
+
+  const handleRemoveSpec = (index) => {
+    setProductForm(prev => {
+      const next = (prev.specs || []).filter((_, i) => i !== index);
+      return { ...prev, specs: next };
+    });
+  };
+
+  const handleMoveSpec = (index, direction) => {
+    setProductForm(prev => {
+      const specs = [...(prev.specs || [])];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= specs.length) return prev;
+      const temp = specs[index];
+      specs[index] = specs[targetIndex];
+      specs[targetIndex] = temp;
+      return { ...prev, specs };
+    });
+  };
+
+  // Smart Parser & Extractor from Description
+  const handleExtractSpecsFromDescription = () => {
+    const text = (productForm.description || '') + '\n' + (productForm.name || '');
+    if (!text.trim()) {
+      showNotification('Digite ou cole uma descrição técnica antes de extrair.', 'error');
+      return;
+    }
+
+    const lines = text.split(/\r?\n|[;•·\t]/).map(l => l.trim()).filter(Boolean);
+    const extracted = [];
+    const seen = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
+
+    for (const rawLine of lines) {
+      let line = rawLine.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim();
+      if (line.length < 3 || line.length > 150) continue;
+
+      if (
+        line.includes(':') ||
+        /\b(capacidade|altura|largura|tensão|voltagem|potência|motor|peso|pressão|torque|display|bateria|garantia|consumo|curso|velocidade|protocolo|dimensões|aro|diâmetro|bloqueio|frequência)\b/i.test(line)
+      ) {
+        if (!seen.has(line.toLowerCase())) {
+          seen.add(line.toLowerCase());
+          extracted.push(line);
+        }
+      }
+    }
+
+    if (extracted.length > 0) {
+      setProductForm(prev => ({
+        ...prev,
+        specs: [...(prev.specs || []), ...extracted]
+      }));
+      showNotification(`✨ ${extracted.length} especificação(ões) identificada(s) e adicionada(s)!`, 'success');
+    } else {
+      showNotification('Nenhum padrão técnico identificado na descrição. Utilize as sugestões rápidas abaixo.', 'info');
+    }
   };
 
   const handleMultipleImageUpload = async (files) => {
@@ -2239,6 +2311,136 @@ export default function AdminPanel({
                     onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                     className="form-textarea text-xs h-20"
                   />
+                </div>
+
+                {/* SMART TECHNICAL SPECIFICATIONS MANAGER */}
+                <div className="space-y-3 pt-3 border-t border-slate-200">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-amber-600" />
+                        Especificações Técnicas
+                      </label>
+                      <p className="text-[11px] text-slate-500">Adicione itens no formato "Rótulo: Valor" para destacar na página do produto.</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleExtractSpecsFromDescription}
+                        className="btn-secondary text-xs font-bold py-1.5 px-2.5 gap-1 text-amber-800 border-amber-300 bg-amber-50 hover:bg-amber-100 inline-flex items-center"
+                        title="Extrair dados técnicos da descrição automaticamente"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                        <span>🪄 Extrair da Descrição</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAddSpec('')}
+                        className="btn-secondary text-xs font-bold py-1.5 px-2.5 gap-1 inline-flex items-center"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-amber-600" />
+                        <span>+ Nova Linha</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick Suggestion Chips */}
+                  <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      💡 Sugestões Rápidas (Clique para adicionar):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        'Capacidade de Carga: 4.000 kg',
+                        'Altura Máx. Elevação: 1.900 mm',
+                        'Tempo de Elevação: 50 seg',
+                        'Motor: 220V/380V Trifásico 4.0 HP',
+                        'Trava de Segurança: Automática bilateral',
+                        'Torque Máximo: 1.200 Nm',
+                        'Display: Touchscreen 10.1" HD',
+                        'Protocolos: CAN-FD, DoIP, J2534',
+                        'Pressão de Trabalho: 6 a 8 Bar',
+                        'Diâmetro do Aro: 10" a 24"',
+                        'Garantia: 12 meses oficial'
+                      ].map((sug, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => handleAddSpec(sug)}
+                          className="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-amber-900 text-[10px] font-semibold transition-all hover:bg-amber-50 shadow-2xs"
+                        >
+                          + {sug}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Active Specs List */}
+                  {productForm.specs && productForm.specs.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
+                        <span>Itens Cadastrados ({productForm.specs.length}):</span>
+                        <button
+                          type="button"
+                          onClick={() => setProductForm(prev => ({ ...prev, specs: [] }))}
+                          className="text-red-600 hover:underline text-[10px]"
+                        >
+                          Limpar Todos
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                        {productForm.specs.map((specItem, idx) => (
+                          <div key={idx} className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+                            <span className="w-5 text-center text-[10px] font-bold text-slate-400 shrink-0">
+                              {idx + 1}
+                            </span>
+                            <input
+                              type="text"
+                              placeholder="Ex: Capacidade de Carga: 4.000 kg"
+                              value={specItem}
+                              onChange={(e) => handleUpdateSpec(idx, e.target.value)}
+                              className="form-input text-xs flex-1 !py-1.5 !px-2.5 border-none focus:ring-1 focus:ring-amber-500 bg-slate-50 rounded-lg font-medium text-slate-800"
+                            />
+                            
+                            <button
+                              type="button"
+                              onClick={() => handleMoveSpec(idx, 'up')}
+                              disabled={idx === 0}
+                              className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                              title="Mover para cima"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveSpec(idx, 'down')}
+                              disabled={idx === productForm.specs.length - 1}
+                              className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                              title="Mover para baixo"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSpec(idx)}
+                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"
+                              title="Remover especificação"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400">
+                      Nenhuma especificação adicionada ainda. Digite a descrição e clique em <strong>🪄 Extrair da Descrição</strong> ou use as sugestões acima.
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
