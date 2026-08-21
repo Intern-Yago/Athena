@@ -145,11 +145,11 @@ export default function ProductCard({
 
         {/* Price & Action Buttons */}
         <div className="pt-2 sm:pt-3 border-t border-slate-200/80 space-y-2 sm:space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-0.5 sm:gap-0">
+          <div className="flex items-center justify-between gap-1">
             <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-              {product.priceNegotiable ? 'Preço Estimado' : 'Valor'}
+              {product.price > 0 ? (product.priceNegotiable ? 'Preço Estimado' : 'Valor') : 'Cotação Comercial'}
             </span>
-            <span className="text-sm sm:text-lg font-extrabold text-amber-700 font-display">
+            <span className="text-[11px] sm:text-xs font-extrabold text-amber-800 font-display bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-300">
               {formattedPrice}
             </span>
           </div>

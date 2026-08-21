@@ -344,49 +344,6 @@ export default function FilterSidebar({
           )}
         </div>
 
-        <div className="border-t border-slate-100" />
-
-        {/* 3. VALORES */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-900">
-            <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-              <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Preço Máximo
-            </span>
-            {maxPriceFilter !== null && (
-              <button
-                onClick={() => setMaxPriceFilter(null)}
-                className="text-[10px] text-emerald-700 font-bold hover:underline"
-              >
-                Resetar
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <div className="flex justify-between text-xs font-extrabold text-slate-900">
-              <span>Até:</span>
-              <span className="text-emerald-700 font-display">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(currentMaxPrice)}
-              </span>
-            </div>
-
-            <input
-              type="range"
-              min={priceBounds.min}
-              max={priceBounds.max}
-              step={500}
-              value={currentMaxPrice}
-              onChange={(e) => setMaxPriceFilter(parseFloat(e.target.value))}
-              className="w-full accent-emerald-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
-            />
-
-            <div className="flex justify-between text-[10px] text-slate-400 font-semibold">
-              <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(priceBounds.min)}</span>
-              <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(priceBounds.max)}</span>
-            </div>
-          </div>
-        </div>
-
       </div>
     </aside>
   );

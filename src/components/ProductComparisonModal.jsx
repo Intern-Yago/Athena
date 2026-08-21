@@ -119,9 +119,9 @@ export default function ProductComparisonModal({
                   {/* Price Block */}
                   <div className="bg-white p-3 rounded-xl border border-slate-200">
                     <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                      {prod.priceNegotiable ? 'Preço Estimado' : 'Valor Comercial'}
+                      {prod.price > 0 ? (prod.priceNegotiable ? 'Preço Estimado' : 'Valor Comercial') : 'Condição Comercial'}
                     </span>
-                    <span className="text-base sm:text-lg font-black text-amber-700 font-display">
+                    <span className="text-sm sm:text-base font-extrabold text-amber-800 font-display">
                       {formattedPrice}
                     </span>
                   </div>

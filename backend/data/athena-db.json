@@ -1,27 +1,36 @@
 {
+  "users": [
+    {
+      "id": "user_admin_default",
+      "name": "Administrador Geral",
+      "email": "admin@athena.com.br",
+      "passwordHash": "admin123",
+      "role": "admin"
+    }
+  ],
   "categories": [
     {
       "id": "cat_elevadores",
       "name": "Elevadores",
       "slug": "elevadores",
       "order": 1,
-      "description": "Elevadores hidráulicos de 2 colunas, 4 colunas e tesoura para automóveis e utilitários.",
+      "description": "Elevadores hidráulicos de 2 colunas, 4 colunas, pantográficos tesoura e mesas para baterias EV.",
       "icon": "Layers"
     },
     {
       "id": "cat_scanners",
-      "name": "Scanners",
+      "name": "Scanners & Diagnóstico",
       "slug": "scanners",
       "order": 2,
-      "description": "Scanners e leitores de diagnóstico automotivo multimarca de última geração com IA.",
+      "description": "Scanners multimarca, testadores de bateria com laudo, videoscópios e programadores TPMS.",
       "icon": "Cpu"
     },
     {
       "id": "cat_alinhadores",
-      "name": "Alinhadores",
+      "name": "Alinhadores 3D",
       "slug": "alinhadores",
       "order": 3,
-      "description": "Sistemas de alinhamento de direção 3D computadorizados com câmeras de alta precisão.",
+      "description": "Sistemas de alinhamento de direção 3D computadorizados com câmeras de alta precisão e torres móveis.",
       "icon": "Target"
     },
     {
@@ -29,864 +38,74 @@
       "name": "Desmontadoras & Balanceadoras",
       "slug": "desmontadoras",
       "order": 4,
-      "description": "Equipamentos para serviços de borracharia, desmontadoras pneumáticas e balanceadoras de rodas.",
+      "description": "Desmontadoras automáticas com braço auxiliar Run-Flat, balanceadoras 3D e linha pesada Truck.",
       "icon": "Disc"
     },
     {
       "id": "cat_ferramentas",
-      "name": "Ferramentas Especiais",
+      "name": "Ferramentas & Armários de Oficina",
       "slug": "ferramentas",
       "order": 5,
-      "description": "Kits de sincronismo, saca-filtros, prensas hidráulicas e ferramentas para centro automotivo.",
+      "description": "Armários modulares, bancadas de trabalho, chaves de impacto, trocadoras de fluido e ferramentas especiais.",
       "icon": "Wrench"
     }
   ],
   "brands": [
     {
-      "id": "brand_engecass",
-      "name": "Engecass",
-      "slug": "engecass",
-      "order": 1,
-      "description": "Líder nacional em elevadores automotivos de alta resistência.",
-      "logo": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80",
-      "websiteUrl": "https://engecass.com.br"
-    },
-    {
-      "id": "brand_launch",
-      "name": "Launch",
-      "slug": "launch",
-      "order": 2,
-      "description": "Tecnologia global em scanners de diagnóstico e codificação de módulos.",
-      "logo": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80",
-      "websiteUrl": "https://www.launchtech.com.br"
-    },
-    {
-      "id": "brand_raven",
-      "name": "Raven",
-      "slug": "raven",
-      "order": 3,
-      "description": "Referência em ferramentas especiais e diagnóstico para oficinas.",
-      "logo": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80",
-      "websiteUrl": "https://www.ravenferramentas.com.br"
-    },
-    {
-      "id": "brand_napro",
-      "name": "Napro",
-      "slug": "napro",
-      "order": 4,
-      "description": "Pioneira em sistemas informatizados de diagnóstico automotivo.",
-      "logo": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=200&auto=format&fit=crop&q=80",
-      "websiteUrl": "https://www.napro.com.br"
-    },
-    {
-      "id": "brand_sun",
-      "name": "Sun Equipment",
-      "slug": "sun-equipment",
-      "order": 5,
-      "description": "Sistemas de alinhamento 3D e diagnóstico premium.",
-      "logo": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=200&auto=format&fit=crop&q=80",
-      "websiteUrl": "https://www.sun.com.br"
-    },
-    {
       "id": "brand_starkx",
       "name": "Stärkx",
       "slug": "starkx",
-      "order": 6,
+      "order": 1,
       "description": "Especialista em equipamentos eletrônicos, testadores de bateria, videoscópios, diagnóstico avançado e TPMS.",
       "logo": "/brands/starkx_logo.jpg",
       "websiteUrl": "https://www.starkx.com.br"
+    },
+    {
+      "id": "brand_mahovi",
+      "name": "Mahovi",
+      "slug": "mahovi",
+      "order": 2,
+      "description": "Líder em elevadores automotivos, alinhadores 3D, desmontadoras de pneus e equipamentos pesados de centro automotivo.",
+      "logo": "/brands/mahovi_logo.jpg",
+      "websiteUrl": "https://www.mahovi.com.br"
+    },
+    {
+      "id": "brand_delta",
+      "name": "Delta Ferramentas",
+      "slug": "delta",
+      "order": 3,
+      "description": "Referência nacional em ferramentas especiais de injeção, elétrica, motor, arrefecimento e suspensão.",
+      "logo": "/brands/delta_logo.jpg",
+      "websiteUrl": "https://www.deltaferramentasautomotivas.com.br"
+    },
+    {
+      "id": "brand_wolfcar",
+      "name": "Wolfcar",
+      "slug": "wolfcar",
+      "order": 4,
+      "description": "Soluções modulares para organização de oficinas, armários reforçados, bancadas industriais e painéis de ferramentas.",
+      "logo": "/brands/wolfcar_logo.jpg",
+      "websiteUrl": "https://wolfcardiagnosticos.com.br"
+    },
+    {
+      "id": "brand_sigmatools",
+      "name": "Sigma Tools",
+      "slug": "sigma-tools",
+      "order": 5,
+      "description": "Máquinas e ferramentas pneumáticas, chaves de impacto a bateria e equipamentos para estética e reparação.",
+      "logo": "/brands/sigmatools_logo.jpg",
+      "websiteUrl": "https://www.sigmatools.com.br"
     }
   ],
   "products": [
-    {
-      "id": "prod_elevador_2col_4000kg",
-      "name": "Elevador Automotivo 2 Colunas 4.000kg Trifásico - Engecass ECO-4000",
-      "slug": "elevador-automotivo-2-colunas-4000kg-engecass",
-      "categoryId": "cat_elevadores",
-      "brandId": "brand_engecass",
-      "price": 18900,
-      "priceNegotiable": false,
-      "badge": "Mais Vendido",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Elevador Automotivo 2 Colunas 4.000kg Trifásico Engecass",
-      "description": "Elevador eletromecânico de 2 colunas com capacidade nominal de 4.000 kg, desenvolvido para oficinas mecânicas e concessionárias de alto fluxo. Atende com facilidade veículos leves, utilitários, SUVs grandes e picapes cabine dupla. Possui sistema de segurança com porcas duplas de nylon e acionamento por fuso usinado em aço trefilado.",
-      "specs": [
-        "Capacidade de Carga: 4.000 kg",
-        "Altura Máxima de Elevação: 1.900 mm",
-        "Tempo Médio de Elevação: ~45 segundos",
-        "Motorização: 3.0 HP Trifásico (220V / 380V)",
-        "Sistema de Transmissão: Corrente ASA 60 de alta resistência",
-        "Braços Telescópicos: 4 braços articulados com sapatas de borracha ajustáveis",
-        "Dispositivos de Segurança: Porca de segurança automática e sensores fim de curso"
-      ],
-      "attachments": [
-        {
-          "id": "att_eco4000_manual",
-          "fileName": "Manual_Tecnico_Elevador_ECO4000_Engecass.pdf",
-          "fileSize": "3.2 MB",
-          "url": "#"
-        },
-        {
-          "id": "att_eco4000_laudo",
-          "fileName": "Laudo_Homologacao_NR12_Engecass.pdf",
-          "fileSize": "1.1 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_elevador_tesoura_3500kg",
-      "name": "Elevador Pantográfico Tesoura 3.500kg de Sobrepor - Engecass SL-3500",
-      "slug": "elevador-pantografico-tesoura-3500kg-sobrepor-engecass",
-      "categoryId": "cat_elevadores",
-      "brandId": "brand_engecass",
-      "price": 29500,
-      "priceNegotiable": true,
-      "badge": "Alta Performance",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Elevador Pantográfico Tesoura 3.500kg de Sobrepor Engecass",
-      "description": "Elevador pantográfico de alta elevação (1.850 mm) modelo de sobrepor no piso, eliminando a necessidade de obras de fosso de alvenaria. Excelente para boxes de troca rápida de óleo, freios, suspensão e alinhamento com otimização total de espaço físico na oficina.",
-      "specs": [
-        "Capacidade de Carga: 3.500 kg",
-        "Altura Máxima de Elevação: 1.850 mm",
-        "Perfil Rebaixado: Apenas 110 mm quando totalmente recolhido",
-        "Comprimento da Plataforma: 1.450 mm a 2.050 mm (extensível)",
-        "Acionamento: Central eletro-hidráulica 24V com duplo cilindro sincronizado",
-        "Travamento de Segurança: Travas pneumáticas automáticas em múltiplos níveis",
-        "Painel de Controle: Torre móvel com botões de emergência e aviso sonoro"
-      ],
-      "attachments": [
-        {
-          "id": "att_sl3500_manual",
-          "fileName": "Manual_Elevador_Tesoura_SL3500.pdf",
-          "fileSize": "2.8 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_elevador_4col_5000kg",
-      "name": "Elevador 4 Colunas 5.000kg para Alinhamento 3D - Engecass EC-5000 3D",
-      "slug": "elevador-4-colunas-5000kg-alinhamento-engecass",
-      "categoryId": "cat_elevadores",
-      "brandId": "brand_engecass",
-      "price": 42000,
-      "priceNegotiable": true,
-      "badge": "Linha Pesada",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Elevador 4 Colunas 5.000kg para Alinhamento 3D Engecass",
-      "description": "Elevador de quatro colunas especialmente projetado para geometria e alinhamento de direção automotivo. Plataformas longas e perfeitamente niveladas com rebaixos para pratos dianteiros e bandejas traseiras oscilantes de alta precisão.",
-      "specs": [
-        "Capacidade: 5.000 kg (suporta caminhonetes longas e blindadas)",
-        "Comprimento da Plataforma: 5.100 mm",
-        "Largura entre Colunas: 3.050 mm",
-        "Sistema de Elevação: Eletro-hidráulico com cabos de aço balanceados de alta tensão",
-        "Macaco Hidropneumático Central (Rolling Jack): Incluso para liberação de suspensão",
-        "Travamento de Segurança: Trava pneumática individual nas 4 colunas"
-      ],
-      "attachments": [
-        {
-          "id": "att_ec5000_especs",
-          "fileName": "Ficha_Tecnica_Elevador_4Colunas_EC5000.pdf",
-          "fileSize": "2.1 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_elevador_2col_2500kg",
-      "name": "Elevador Automotivo 2 Colunas 2.500kg Eletromecânico - Engecass Standard",
-      "slug": "elevador-automotivo-2-colunas-2500kg-engecass",
-      "categoryId": "cat_elevadores",
-      "brandId": "brand_engecass",
-      "price": 14800,
-      "priceNegotiable": false,
-      "badge": "Excelente Custo-Benefício",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Elevador Automotivo 2 Colunas 2.500kg Engecass Standard",
-      "description": "O modelo mais consagrado e econômico do Brasil para veículos de passeio e utilitários leves. Simplicidade operacional, baixo consumo de energia e peças de reposição de fácil acesso.",
-      "specs": [
-        "Capacidade de Carga: 2.500 kg",
-        "Altura de Elevação: 1.850 mm",
-        "Motores: 2 motores elétricos de 1.5 HP sincronizados (Monofásico ou Trifásico)",
-        "Braços Telescópicos: 2 curtos e 2 longos com almofadas de borracha de alta densidade",
-        "Garantia de Fábrica: 12 meses"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_scanner_launch_pad7",
-      "name": "Scanner Automotivo Multimarca Launch X-431 PAD VII com SmartLink",
-      "slug": "scanner-automotivo-multimarca-launch-x431-pad-vii",
-      "categoryId": "cat_scanners",
-      "brandId": "brand_launch",
-      "price": 24900,
-      "priceNegotiable": false,
-      "badge": "Topo de Linha",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Scanner Automotivo Multimarca Launch X-431 PAD VII com SmartLink",
-      "description": "O scanner automotivo topo de linha internacional da Launch. Desenvolvido para oficinas de alta tecnologia e especialistas que necessitam de diagnóstico fabril, suporte a protocolos CAN-FD, DoIP e reprogramação de centrais via J2534 Passthru com conector inteligente SmartLink C.",
-      "specs": [
-        "Tela: 13.3 polegadas IPS Full HD (1920x1080) Gorilla Glass resistente a impactos",
-        "Processador: Octa-Core 2.0 GHz com 8 GB RAM e 256 GB ROM",
-        "Conector SmartLink VCI: Diagnóstico remoto e protocolos CAN-FD, DoIP e J2534 Passthru",
-        "Cobertura Global: Mais de 110 montadoras (Leves, Utilitários, Híbridos e Elétricos)",
-        "Funções Especiais: Topologia de Redes CAN em tempo real, Calibração ADAS e Codificação Online",
-        "Bateria: 19.000 mAh de longa duração (até 12 horas contínuas)",
-        "Câmeras: Traseira de 13 MP e frontal de 8 MP com flash"
-      ],
-      "attachments": [
-        {
-          "id": "att_pad7_datasheet",
-          "fileName": "Catalogo_Tecnico_Launch_PAD_VII.pdf",
-          "fileSize": "4.5 MB",
-          "url": "#"
-        },
-        {
-          "id": "att_pad7_coverage",
-          "fileName": "Tabela_Cobertura_Montadoras_Launch.pdf",
-          "fileSize": "1.9 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_scanner_launch_pro3",
-      "name": "Scanner Automotivo Launch X-431 PRO3 V5.0 com Diagnóstico Guiado",
-      "slug": "scanner-automotivo-launch-x431-pro3-v5",
-      "categoryId": "cat_scanners",
-      "brandId": "brand_launch",
-      "price": 15400,
-      "priceNegotiable": false,
-      "badge": "Mais Popular",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Scanner Automotivo Launch X-431 PRO3 V5.0",
-      "description": "A 5ª geração do scanner mais vendido no mundo. Equipado com conector sem fio DBScar VII, suporta os protocolos mais recentes CAN-FD e DoIP, além de mais de 37 funções de redefinição de serviço com diagnóstico inteligente com 1 clique.",
-      "specs": [
-        "Tela: 10.1 polegadas HD IPS Touchscreen (1280x800)",
-        "Sistema: Android 10.0 super otimizado com 4 GB RAM + 64 GB ROM",
-        "Conector VCI: DBScar VII com conexão Bluetooth rápida e estável",
-        "Resets de Serviço: 37+ funções de redefinição (Sangria ABS, DPF, SAS, EPB, BMS, Injetores)",
-        "Atualizações: 2 anos de atualizações de software gratuitas via Wi-Fi",
-        "Diagnóstico Guiado: Dicas de testes de componentes integrados"
-      ],
-      "attachments": [
-        {
-          "id": "att_pro3_manual",
-          "fileName": "Manual_Usuario_Launch_PRO3_V5.pdf",
-          "fileSize": "3.7 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_scanner_napro_pcscan7000",
-      "name": "Scanner Automotivo Napro PC-Scan 7000 Evolution com VCI Sem Fio",
-      "slug": "scanner-automotivo-napro-pc-scan-7000-evolution",
-      "categoryId": "cat_scanners",
-      "brandId": "brand_napro",
-      "price": 12900,
-      "priceNegotiable": true,
-      "badge": "Líder Nacional",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Scanner Automotivo Napro PC-Scan 7000 Evolution",
-      "description": "Referência absoluta em diagnóstico automotivo no Brasil. O PC-Scan 7000 Evolution da Napro conta com a maior profundidade de sistemas na frota nacional (Flex, Diesel Leve, GNV), interface sem fio Bluetooth e banco de esquemas elétricos completo.",
-      "specs": [
-        "Interface: Módulo VCI sem fio Bluetooth de longo alcance e cabo USB blindado",
-        "Software: PC-Scan Evolution para Windows (Notebook / PC da Oficina)",
-        "Banco de Esquemas Elétricos: Localização de pinagens e conectores integrada",
-        "Cobertura Nacional: Fiat, VW, GM, Ford, Renault, Peugeot, Citroën, Toyota, Honda, Hyundai e Diesel Leve",
-        "Leitura Gráfica: Modo osciloscópio de múltiplos sensores em tempo real",
-        "Suporte Técnico: Direto dos engenheiros da Napro no Brasil"
-      ],
-      "attachments": [
-        {
-          "id": "att_napro7000_specs",
-          "fileName": "Especificacoes_Napro_PC_Scan_7000.pdf",
-          "fileSize": "2.4 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_scanner_raven_scanner3",
-      "name": "Scanner Automotivo Raven Scanner 3 com Tablet Dedicado e Osciloscópio",
-      "slug": "scanner-automotivo-raven-scanner-3-tablet",
-      "categoryId": "cat_scanners",
-      "brandId": "brand_raven",
-      "price": 13800,
-      "priceNegotiable": false,
-      "badge": "Completo com Suporte",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Scanner Automotivo Raven Scanner 3 com Tablet Dedicado",
-      "description": "Equipamento robusto com tablet industrial emborrachado feito sob medida para a rotina pesada de oficina. Permite diagnóstico rápido, programação de corpos de borboleta, redefinição de intervalos de troca de óleo e testes de atuadores com extrema agilidade.",
-      "specs": [
-        "Hardware: Tablet industrial de 8 polegadas com capa protetora de borracha reforçada",
-        "Módulo de Comunicação: VCI sem fio Bluetooth integrado",
-        "Funções: Leitura de falhas DTC, ajustes de combustível A/F, aprendizado de corpo de borboleta",
-        "Diesel Leve: Hilux, Ranger, Amarok, S10, Toro, Master, Sprinter e Ducato",
-        "Atualizações Contínuas: Baixadas diretamente pelo app Raven Scanner 3"
-      ],
-      "attachments": [
-        {
-          "id": "att_raven3_manual",
-          "fileName": "Manual_Raven_Scanner_3.pdf",
-          "fileSize": "3.1 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_osciloscopio_raven_scope",
-      "name": "Osciloscópio Automotivo 4 Canais Raven Scope com Software Integrado",
-      "slug": "osciloscopio-automotivo-4-canais-raven-scope",
-      "categoryId": "cat_scanners",
-      "brandId": "brand_raven",
-      "price": 6850,
-      "priceNegotiable": false,
-      "badge": "Diagnóstico Avançado",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Osciloscópio Automotivo 4 Canais Raven Scope",
-      "description": "Instrumento indispensável para eletricistas e mecânicos avançados. Permite analisar formas de onda de sensores CKP/CMP, primário e secundário de ignição, tempo de injeção e transientes na rede CAN.",
-      "specs": [
-        "Canais: 4 canais analógicos isolados com taxa de amostragem de 100 MS/s",
-        "Testes Guiados: Biblioteca com mais de 100 formas de onda de referência",
-        "Acessórios Inclusos: Atenuadores 20:1, pinça capacitiva para cabos de vela e pontas de prova",
-        "Software: Raven Scope com interface intuitiva e captura de sinais automotivos"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_alinhador_sun_xd3d",
-      "name": "Alinhador de Direção 3D Computadorizado Sun XD High-Definition",
-      "slug": "alinhador-direcao-3d-computadorizado-sun-xd-hd",
-      "categoryId": "cat_alinhadores",
-      "brandId": "brand_sun",
-      "price": 48900,
-      "priceNegotiable": true,
-      "badge": "Tecnologia de Ponta",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Alinhador de Direção 3D Computadorizado Sun XD High-Definition",
-      "description": "O sistema de alinhamento 3D mais preciso do mercado automotivo. Equipado com câmeras digitais industriais de alta velocidade e alvos (targets) reflexivos sem pilhas ou baterias, realiza a leitura completa da geometria veicular em menos de 90 segundos com compensação de rolagem ultrarrápida.",
-      "specs": [
-        "Câmeras: 2x Câmeras digitais HD industriais com autofoco contínuo e iluminação estroboscópica IR",
-        "Alvos Passivos: Construídos em polímero de alta resistência, à prova de impactos e graxa",
-        "Garras de Fixação: Fixação direta na borracha do pneu de 12\" a 24\" (não arranha rodas de liga leve)",
-        "Banco de Dados: Mais de 65.000 veículos nacionais e importados com atualizações periódicas",
-        "Diagnósticos: Convergência total e individual, Camber, Caster, KPI/SAI, Ângulo de impulso e Divergência",
-        "Gabinete de Trabalho: Torre com PC de alta performance, monitor LED 32\", teclado e impressora colorida"
-      ],
-      "attachments": [
-        {
-          "id": "att_sun_xd_folheto",
-          "fileName": "Catalogo_Alinhador_3D_Sun_XD.pdf",
-          "fileSize": "5.1 MB",
-          "url": "#"
-        },
-        {
-          "id": "att_sun_xd_guia",
-          "fileName": "Guia_Instalacao_Calibracao_Sun_3D.pdf",
-          "fileSize": "2.3 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_alinhador_sun_movel",
-      "name": "Alinhador 3D de Direção com Torre Móvel e Câmeras de Alta Frequência - Sun Mobile 3D",
-      "slug": "alinhador-3d-direcao-torre-movel-sun-mobile",
-      "categoryId": "cat_alinhadores",
-      "brandId": "brand_sun",
-      "price": 43500,
-      "priceNegotiable": true,
-      "badge": "Versatilidade Total",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Alinhador 3D de Direção com Torre Móvel Sun Mobile 3D",
-      "description": "Versão compacta com coluna e torre montadas sobre rodízios industriais reforçados. Permite que o equipamento seja compartilhado entre elevador automotivo e vala de geometria com calibração automática instantânea.",
-      "specs": [
-        "Estrutura: Coluna móvel com freio de trava e ajuste suave de altura das câmeras",
-        "Compensação de Rolagem: Deslocamento do veículo de apenas 20 cm para frente e para trás",
-        "Garras Rápidas: Fixação em 4 pontos com centragem automática",
-        "Software: Sun Alignment System em português com gráficos didáticos em 3D e animações explicativas"
-      ],
-      "attachments": [
-        {
-          "id": "att_sun_movel_spec",
-          "fileName": "Ficha_Sun_Mobile_3D.pdf",
-          "fileSize": "1.8 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_alinhador_sun_laser",
-      "name": "Alinhador de Direção a Laser 4 Cabeças para Linha Leve - Sun Laser Classic",
-      "slug": "alinhador-direcao-laser-4-cabecas-sun-classic",
-      "categoryId": "cat_alinhadores",
-      "brandId": "brand_sun",
-      "price": 14500,
-      "priceNegotiable": false,
-      "badge": "Econômico e Preciso",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Alinhador de Direção a Laser 4 Cabeças Sun Laser Classic",
-      "description": "Solução consagrada e acessível para centros automotivos e oficinas mecânicas. Fácil operação com feixes de laser de alta visibilidade e painéis milimétricos de leitura rápida.",
-      "specs": [
-        "Projetores: 4 cabeças laser de alta nitidez com baterias recarregáveis",
-        "Acessórios Inclusos: 2 pratos dianteiros giratórios, trava de volante e depressor de pedal de freio",
-        "Garras: Fixação no aro de 12\" a 20\"",
-        "Aferição: Medição de convergência, camber e caster de forma direta"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_alinhador_sun_truck3d",
-      "name": "Alinhador 3D para Linha Pesada (Caminhões, Ônibus e Carretas) - Sun Truck 3D",
-      "slug": "alinhador-3d-linha-pesada-caminhoes-sun-truck",
-      "categoryId": "cat_alinhadores",
-      "brandId": "brand_sun",
-      "price": 76000,
-      "priceNegotiable": true,
-      "badge": "Linha Pesada & Frotas",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Alinhador 3D para Linha Pesada Caminhões Sun Truck 3D",
-      "description": "Equipamento topo de linha para frotistas, concessionárias de caminhões e oficinas de alinhamento pesado. Alinha simultaneamente eixos direcionais, de tração, eixos intermediários e carretas com precisão a laser/3D de longo alcance.",
-      "specs": [
-        "Capacidade: Caminhões 4x2, 6x2, 6x4, 8x2, cavalos mecânicos, ônibus urbanos e carretas bitrem",
-        "Alcance Óptico: Até 18 metros de distância de medição com alta estabilidade",
-        "Garras Especiais: Garras de fixação para rodas de caminhão de 17.5\" a 24.5\"",
-        "Economia Comprovada: Reduz o desgaste irregular de pneus em até 35% e diminui consumo de diesel"
-      ],
-      "attachments": [
-        {
-          "id": "att_sun_truck_folheto",
-          "fileName": "Apresentacao_Sun_Truck_3D.pdf",
-          "fileSize": "3.9 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_desmontadora_sun_turbo24",
-      "name": "Desmontadora de Pneus Automática com Braço Auxiliar Run Flat - Sun Turbo 24",
-      "slug": "desmontadora-pneus-automatica-braco-run-flat-sun",
-      "categoryId": "cat_desmontadoras",
-      "brandId": "brand_sun",
-      "price": 19800,
-      "priceNegotiable": false,
-      "badge": "Run-Flat & Perfil Baixo",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Desmontadora de Pneus Automática com Braço Run Flat Sun Turbo 24",
-      "description": "Desmontadora profissional automática com coluna basculante pneumática e braço auxiliar robotizado (Helper Arm). Desenvolvida para montar e desmontar com extrema facilidade pneus esportivos de perfil muito baixo, blindados e pneus com tecnologia Run Flat sem risco de riscar a roda.",
-      "specs": [
-        "Fixação de Aro: 10\" a 24\" (interna) e 12\" a 22\" (externa)",
-        "Braço Auxiliar: 3 roletes de pressão pneumáticos com controle independente",
-        "Descolador Lateral: Cilindro pneumático de dupla ação com força de descolamento de 2.800 kg",
-        "Coluna Basculante: Inclinável para trás via acionamento de pedal",
-        "Pressão de Trabalho: 8 a 10 Bar (115 a 145 PSI)",
-        "Acessórios: Kit de proteções plásticas para garras, bico de pato e espátula reforçada"
-      ],
-      "attachments": [
-        {
-          "id": "att_sun_turbo24_manual",
-          "fileName": "Manual_Desmontadora_Sun_Turbo24.pdf",
-          "fileSize": "2.6 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_balanceadora_sun_b500",
-      "name": "Balanceadora de Rodas Computadorizada com Medição Automática 3D - Sun B-500",
-      "slug": "balanceadora-rodas-computadorizada-sun-b500",
-      "categoryId": "cat_desmontadoras",
-      "brandId": "brand_sun",
-      "price": 13900,
-      "priceNegotiable": false,
-      "badge": "Alta Precisão",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Balanceadora de Rodas Computadorizada Sun B-500",
-      "description": "Balanceadora computadorizada com réguas automáticas 3D que realizam a leitura imediata de distância, diâmetro e largura da roda. Possui freio elétrico automático e programa de divisão e ocultação de contrapesos adesivos atrás dos raios.",
-      "specs": [
-        "Diâmetro de Aro Suportado: 10\" a 28\"",
-        "Tempo de Ciclo de Balanceamento: 7 segundos",
-        "Precisão de Balanceamento: ± 1g",
-        "Programas: Estático, Dinâmico, 5 modos ALU para rodas de alumínio e modo Peso Oculto (Split)",
-        "Freio: Parada e travamento automático na posição exata de aplicação do contrapeso",
-        "Acessórios: Kit completo com 4 cones de centragem, alicate aplicador e porca de engate rápido"
-      ],
-      "attachments": [
-        {
-          "id": "att_sun_b500_specs",
-          "fileName": "Ficha_Balanceadora_Sun_B500.pdf",
-          "fileSize": "1.9 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_desmontadora_engecass_truck",
-      "name": "Desmontadora de Pneus para Caminhões e Linha Pesada - Engecass Truck HD",
-      "slug": "desmontadora-pneus-linha-pesada-caminhao-engecass",
-      "categoryId": "cat_desmontadoras",
-      "brandId": "brand_engecass",
-      "price": 38500,
-      "priceNegotiable": true,
-      "badge": "Industrial & Pesada",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Desmontadora de Pneus para Caminhões Engecass Truck HD",
-      "description": "Máquina eletro-hidráulica para montagem e desmontagem de pneus com câmara e sem câmara de caminhões, carretas, ônibus e tratores leves com mesa giratória universal de 4 garras auto-centrantes.",
-      "specs": [
-        "Capacidade de Aro: 14\" a 26\"",
-        "Diâmetro Máximo do Pneu: 1.600 mm",
-        "Largura Máxima do Pneu: 780 mm",
-        "Controle Remoto: Unidade móvel de comando com joystick ergonômico",
-        "Motor da Bomba Hidráulica: 2.0 HP Trifásico de alta vazão"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_balanceadora_sun_hdtruck",
-      "name": "Balanceadora de Rodas Motorizada para Linha Pesada e Caminhões - Sun HD Truck",
-      "slug": "balanceadora-rodas-motorizada-caminhao-sun-hd",
-      "categoryId": "cat_desmontadoras",
-      "brandId": "brand_sun",
-      "price": 26900,
-      "priceNegotiable": true,
-      "badge": "Linha Pesada",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Balanceadora de Rodas Motorizada para Caminhões Sun HD Truck",
-      "description": "Balanceadora com elevador pneumático integrado de pneus, permitindo posicionar conjuntos pesados de rodas de caminhão sem qualquer esforço físico do operador.",
-      "specs": [
-        "Capacidade de Peso Máximo: 150 kg",
-        "Diâmetro de Aro: 13\" a 24\"",
-        "Elevador Pneumático: Integrado na base com acionamento por pedal",
-        "Precisão: ± 1g para autos e ± 10g para caminhões"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_ferramenta_raven_kit_sincronismo",
-      "name": "Kit Master de Sincronismo para Motores 3 Cilindros e Turbo - Raven Linha Completa",
-      "slug": "kit-master-sincronismo-motores-3-cilindros-turbo-raven",
-      "categoryId": "cat_ferramentas",
-      "brandId": "brand_raven",
-      "price": 3490,
-      "priceNegotiable": false,
-      "badge": "Essencial para Oficina",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Kit Master de Sincronismo Motores 3 Cilindros Raven",
-      "description": "O conjunto de ferramentas especiais mais completo do mercado brasileiro para sincronismo e troca de correias dentadas e correntes de comando. Acomodado em maleta plástica de alta resistência com berço usinado em EVA.",
-      "specs": [
-        "Motores Atendidos: Fiat Firefly 1.0/1.3 6V/8V, GSE Turbo T270/T200, VW EA211 TSI 1.0/1.4/1.6 16V, GM Ecotec 1.0/1.2 Turbo (Onix/Tracker), Ford Fox 1.0 3 cil",
-        "Material: Aço especial usinado com acabamento zincado e tratamento térmico anticorrosão",
-        "Itens Inclusos: Ferramentas de travamento do comando de válvulas, pinos de PMS da árvore de manivelas e chaves de contra-apoio",
-        "Organização: Maleta plástica moldada com identificação indelével a laser"
-      ],
-      "attachments": [
-        {
-          "id": "att_raven_kit_tabela",
-          "fileName": "Tabela_Aplicacao_Motores_Kit_Raven.pdf",
-          "fileSize": "1.4 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_prensa_engecass_p30",
-      "name": "Prensa Hidráulica de Oficina 30 Toneladas com Manômetro - Engecass P-30",
-      "slug": "prensa-hidraulica-oficina-30-toneladas-engecass",
-      "categoryId": "cat_ferramentas",
-      "brandId": "brand_engecass",
-      "price": 4200,
-      "priceNegotiable": false,
-      "badge": "Robusta e Resistente",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Prensa Hidráulica de Oficina 30 Toneladas Engecass P-30",
-      "description": "Prensa de coluna reforçada em perfil de aço de alta resistência mecânica. Projetada para montagem e desmontagem de rolamentos de cubo de roda, buchas de bandeja, cruzetas de cardan e desempeno de peças.",
-      "specs": [
-        "Capacidade: 30 Toneladas reais de prensagem",
-        "Mesa de Trabalho: Altura regulável em 8 posições com guincho manual de cabo de aço",
-        "Manômetro de Pressão: Com escala calibrada em toneladas e PSI",
-        "Curso do Pistão Hidráulico: 160 mm com retorno por molas helicoidais duplas",
-        "Pintura: Eletrostática a pó com alta resistência a óleos e solventes"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_recicladora_napro_klima",
-      "name": "Recicladora e Recarregadora Automática de Ar Condicionado Automotivo - Napro Klima Auto",
-      "slug": "recicladora-recarregadora-ar-condicionado-automotivo-napro",
-      "categoryId": "cat_ferramentas",
-      "brandId": "brand_napro",
-      "price": 21900,
-      "priceNegotiable": true,
-      "badge": "Automatizada",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Recicladora Automática de Ar Condicionado Napro Klima Auto",
-      "description": "Estação de serviço para ar condicionado veicular 100% automatizada. Realiza em sequência programada o recolhimento de gás refrigerante, reciclagem, teste de vácuo com detecção de micro-vazamentos, injeção de óleo PAG novo com contraste UV e recarga precisa de gás por balança eletrônica.",
-      "specs": [
-        "Fluido Suportado: Gás ecológico R134a (compatível com conversão para R1234yf)",
-        "Balança Eletrônica: Célula de carga com precisão de ± 5g",
-        "Bomba de Vácuo: Duplo estágio de 100 L/min",
-        "Banco de Dados Integrado: Especificações de carga e óleo para mais de 3.500 modelos de veículos",
-        "Impressora Térmica: Emissão de relatório de serviço para comprovação ao cliente"
-      ],
-      "attachments": [
-        {
-          "id": "att_napro_klima_manual",
-          "fileName": "Manual_Recicladora_Napro_Klima.pdf",
-          "fileSize": "3.4 MB",
-          "url": "#"
-        }
-      ],
-      "inStock": true
-    },
-    {
-      "id": "prod_limpadora_bicos_napro",
-      "name": "Máquina Testadora e Limpadora de Bicos Injetores GDI e Convencionais - Napro Jet Clean",
-      "slug": "maquina-teste-limpeza-bicos-injetores-gdi-ultrassom-napro",
-      "categoryId": "cat_ferramentas",
-      "brandId": "brand_napro",
-      "price": 7200,
-      "priceNegotiable": false,
-      "badge": "GDI Direta & Convencional",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Máquina de Limpeza e Teste de Bicos Injetores GDI Napro",
-      "description": "Equipamento eletrônico microprocessado para diagnóstico e limpeza simultânea por ultrassom de bicos injetores de injeção direta (GDI / FSI / TSI / THP) e injeção indireta convencional monoponto e multiponto.",
-      "specs": [
-        "Testes Automáticos: Estanqueidade sob pressão, padrão de leque e spray, vazão e equalização volumétrica",
-        "Cuba Ultrassônica: Capacidade de 3 litros com aquecimento automático e transdutor piezoelétrico industrial",
-        "Provetas: 4 tubos de vidro borosilicato graduados com iluminação LED de fundo e dreno automático elétrico",
-        "Simulação de RPM: Variação contínua de 500 a 8.000 RPM e tempos de abertura de 0.5 a 20 ms"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_guincho_girafa_engecass",
-      "name": "Guincho Hidráulico Tipo Girafa Dobrável 2 Toneladas com Prolongador - Engecass G-2000",
-      "slug": "guincho-hidraulico-girafa-dobravel-2-toneladas-engecass",
-      "categoryId": "cat_ferramentas",
-      "brandId": "brand_engecass",
-      "price": 2650,
-      "priceNegotiable": false,
-      "badge": "Dobrável e Compacto",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Guincho Hidráulico Tipo Girafa 2 Toneladas Engecass G-2000",
-      "description": "Guincho hidráulico desenvolvido para remoção e instalação segura de conjuntos mecânicos pesados, como motores, câmbios automáticos e diferenciais. As pernas dobráveis permitem guardar o equipamento ocupando mínimo espaço.",
-      "specs": [
-        "Capacidade: 2.000 kg (1º estágio do braço) até 500 kg (braço estendido no 4º estágio)",
-        "Braço Telescópico: 4 posições de regulagem de comprimento com pino de trava de segurança",
-        "Rodas: 6 rodízios giratórios em poliuretano para manobras suaves mesmo sob carga",
-        "Gancho Forjado: Gancho com trava de segurança e rotação livre de 360°"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_sangrador_freio_raven",
-      "name": "Sangrador de Freio Eletrônico Pneumático com Reservatório Pressurizado - Raven SangraFácil",
-      "slug": "sangrador-freio-eletronico-pneumatico-raven",
-      "categoryId": "cat_ferramentas",
-      "brandId": "brand_raven",
-      "price": 1890,
-      "priceNegotiable": false,
-      "badge": "1 Pessoa Opera",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Sangrador de Freio Eletrônico Raven SangraFácil",
-      "description": "Permite a troca rápida e sangria de fluido de freio e atuadores de embreagem por um único mecânico em minutos. Elimina 100% o risco de entrada de bolhas de ar nos blocos de válvulas do ABS.",
-      "specs": [
-        "Reservatório: Capacidade para 5 litros de fluido de freio",
-        "Compatibilidade de Fluido: DOT 3, DOT 4, DOT 5.1 e fluidos de baixa viscosidade para ESP",
-        "Controle de Pressão: Válvula reguladora com manômetro integrado de 0 a 3 Bar",
-        "Acessórios: Jogo universal de tampas rosqueadas e adaptadores de engate rápido"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_carrinho_ferramentas_raven",
-      "name": "Carrinho Organizador de Ferramentas com 7 Gavetas e Trava Central - Raven Box Pro",
-      "slug": "carrinho-organizador-ferramentas-7-gavetas-raven",
-      "categoryId": "cat_ferramentas",
-      "brandId": "brand_raven",
-      "price": 3100,
-      "priceNegotiable": false,
-      "badge": "Organização Premium",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Carrinho de Ferramentas 7 Gavetas Raven Box Pro",
-      "description": "Carrinho organizador em chapa de aço carbono com gavetas sobre trilhos telescópicos de rolamentos. Agiliza a rotina da oficina mecânica e mantém as ferramentas protegidas e acessíveis no box de trabalho.",
-      "specs": [
-        "Gavetas: 7 gavetas (5 médias e 2 profundas para ferramentas pesadas)",
-        "Capacidade de Carga Total: Até 350 kg distribuídos",
-        "Fechamento: Chave com trava simultânea de todas as gavetas",
-        "Rodas: 4 rodas de 5\" (2 giratórias com freio e 2 fixas) e puxador ergonômico lateral",
-        "Tampo de Trabalho: Revestimento de borracha sintética canelada antiderrapante"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
-    {
-      "id": "prod_torquimetro_digital_raven",
-      "name": "Torquímetro Digital de Precisão com Medição de Ângulo e Graus - Raven DigiTorque",
-      "slug": "torquimetro-digital-precisao-angulo-graus-raven",
-      "categoryId": "cat_ferramentas",
-      "brandId": "brand_raven",
-      "price": 1450,
-      "priceNegotiable": false,
-      "badge": "Precisão Digital",
-      "status": "published",
-      "image": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80"
-      ],
-      "altText": "Torquímetro Digital com Ângulo Raven DigiTorque",
-      "description": "Torquímetro eletrônico com display digital e medição simultânea de torque e ângulo. Elimina a necessidade de goniômetros mecânicos avulsos no aperto de parafusos de cabeçote, mancais e bielas.",
-      "specs": [
-        "Encaixe Quadrado: 1/2 polegada com catraca reversível de 72 dentes",
-        "Faixa de Torque: 10 a 200 N.m (conversão instantânea para kgf.m, lbf.ft, lbf.in)",
-        "Faixa Angular: 1° a 360° com precisão de ± 1°",
-        "Avisos ao Operador: Indicador sonoro (Buzzer contínuo) e barra de LEDs progressivos com vibração no punho",
-        "Certificado de Calibração: Acompanha laudo e estojo protetor"
-      ],
-      "attachments": [],
-      "inStock": true
-    },
     {
       "id": "prod_starkx_skx018",
       "name": "Auxiliar de Partida Portátil 10.000mAh 12V/6V com Lanterna - Stärkx SKX-018",
       "slug": "auxiliar-de-partida-portatil-starkx-skx018",
       "categoryId": "cat_ferramentas",
       "brandId": "brand_starkx",
-      "price": 690,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "Portátil & Potente",
       "status": "published",
       "image": "/products/starkx/starkx_skx018_main.jpg",
@@ -915,8 +134,8 @@
       "slug": "testador-bateria-impressora-termica-starkx-skx028",
       "categoryId": "cat_scanners",
       "brandId": "brand_starkx",
-      "price": 1850,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "Laudo Térmico",
       "status": "published",
       "image": "/products/starkx/starkx_skx028_main.jpg",
@@ -945,8 +164,8 @@
       "slug": "carregador-baterias-inteligente-pwm-starkx-skx038",
       "categoryId": "cat_ferramentas",
       "brandId": "brand_starkx",
-      "price": 1290,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "Carga Inteligente",
       "status": "published",
       "image": "/products/starkx/starkx_skx038_main.jpg",
@@ -974,8 +193,8 @@
       "slug": "detector-continuidade-rastreador-chicotes-starkx-skx088",
       "categoryId": "cat_ferramentas",
       "brandId": "brand_starkx",
-      "price": 780,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "Localizador de Fios",
       "status": "published",
       "image": "/products/starkx/starkx_skx088_main.jpg",
@@ -1003,8 +222,8 @@
       "slug": "videoscopio-camera-inspecao-dupla-lente-starkx-skx108",
       "categoryId": "cat_scanners",
       "brandId": "brand_starkx",
-      "price": 1490,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "Dupla Câmera 1080P",
       "status": "published",
       "image": "/products/starkx/starkx_skx108_main.jpg",
@@ -1033,8 +252,8 @@
       "slug": "analisador-digital-fluido-freio-starkx-skx208",
       "categoryId": "cat_ferramentas",
       "brandId": "brand_starkx",
-      "price": 890,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "Segurança em Freios",
       "status": "published",
       "image": "/products/starkx/starkx_skx208_main.jpg",
@@ -1061,8 +280,8 @@
       "slug": "programador-scanner-tpms-thinkcar-venu90-starkx",
       "categoryId": "cat_scanners",
       "brandId": "brand_starkx",
-      "price": 3490,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "Especialista TPMS",
       "status": "published",
       "image": "/products/starkx/starkx_venu90_main.jpg",
@@ -1089,8 +308,8 @@
       "slug": "sensor-universal-tpms-dual-frequency-thinkcar-venu5",
       "categoryId": "cat_desmontadoras",
       "brandId": "brand_starkx",
-      "price": 240,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "Dual Frequency",
       "status": "published",
       "image": "/products/starkx/starkx_venu5_main.jpg",
@@ -1116,8 +335,8 @@
       "slug": "scanner-automotivo-thinktool-lite-vci-bluetooth",
       "categoryId": "cat_scanners",
       "brandId": "brand_starkx",
-      "price": 6890,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "VCI Sem Fio",
       "status": "published",
       "image": "/products/starkx/starkx_thinktool_lite_main.jpg",
@@ -1146,8 +365,8 @@
       "slug": "scanner-thinkcar-platinum-s10-pro-j2534-starkx",
       "categoryId": "cat_scanners",
       "brandId": "brand_starkx",
-      "price": 19800,
-      "priceNegotiable": false,
+      "price": 0,
+      "priceNegotiable": true,
       "badge": "Topo de Linha",
       "status": "published",
       "image": "/products/starkx/starkx_platinum_s10_pro_main.jpg",
@@ -1166,6 +385,980 @@
         "Módulos Opcionais: Suporte para calibração de sistemas ADAS e linha Diesel Pesada",
         "Câmera e Conectividade: Câmera 8 MP, Wi-Fi Dual Band e Bluetooth de longo alcance",
         "Suporte Remoto Especializado: Acesso remoto via TeamViewer"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah1006_portico",
+      "name": "Elevador Automotivo Pórtico 4.000kg Trifásico com Travamento Elétrico - Mahovi MAH-1006",
+      "slug": "elevador-automotivo-portico-4000kg-mahovi-mah1006",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Linha Pórtico",
+      "status": "published",
+      "image": "/products/mahovi/mah_1006_portico_main.jpg",
+      "images": [
+        "/products/mahovi/mah_1006_portico_main.jpg",
+        "/products/mahovi/mah_1006_portico_page.jpg"
+      ],
+      "altText": "Elevador Pórtico 4000kg Mahovi MAH-1006",
+      "description": "Elevador pórtico eletro-hidráulico de 4 toneladas com travamento elétrico e passagem livre no piso (sem obstáculos). Ideal para centros automotivos com alto fluxo de veículos de passeio, SUVs e utilitários.",
+      "specs": [
+        "Capacidade de Carga: 4.000 kg (4 Toneladas)",
+        "Altura Máxima de Elevação: 1.900 mm",
+        "Estrutura: Pórtico superior com passagem livre de piso",
+        "Sistema de Elevação: Eletro-hidráulico com cabos de equalização de aço",
+        "Travas de Segurança: Elétricas automáticas bilaterais",
+        "Motor: Trifásico 220V/380V de alta performance"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah1014_portico",
+      "name": "Elevador Pórtico Eletro-Hidráulico 4.200kg para Utilitários - Mahovi MAH-1014",
+      "slug": "elevador-portico-4200kg-utilitarios-mahovi-mah1014",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Alta Capacidade",
+      "status": "published",
+      "image": "/products/mahovi/mah_1014_portico_main.jpg",
+      "images": [
+        "/products/mahovi/mah_1014_portico_main.jpg",
+        "/products/mahovi/mah_1014_portico_page.jpg"
+      ],
+      "altText": "Elevador Pórtico 4200kg Mahovi MAH-1014",
+      "description": "Projetado para veículos médios e utilitários pesados, conta com sistema pórtico reforçado, braços telescópicos assimétricos e liberação elétrica de segurança nos dois postes.",
+      "specs": [
+        "Capacidade de Carga: 4.200 kg",
+        "Braços de Elevação: Telescópicos de 3 estágios",
+        "Acionamento: Eletro-hidráulico com bomba de alta vazão",
+        "Segurança: Sensor de limite de altura superior no pórtico",
+        "Tempo de Elevação: ~50 segundos"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah1016_portico",
+      "name": "Elevador Pórtico Super Pesado 6.000kg com Braços Articulados - Mahovi MAH-1016",
+      "slug": "elevador-portico-super-pesado-6000kg-mahovi-mah1016",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "6 Toneladas",
+      "status": "published",
+      "image": "/products/mahovi/mah_1016_portico_main.jpg",
+      "images": [
+        "/products/mahovi/mah_1016_portico_main.jpg",
+        "/products/mahovi/mah_1016_portico_page.jpg"
+      ],
+      "altText": "Elevador Pórtico 6 Toneladas Mahovi MAH-1016",
+      "description": "Equipado com travas elétricas e braços reforçados para caminhonetes blindadas, vans longas e micro-ônibus. Proporciona elevação segura e estabilidade excepcional.",
+      "specs": [
+        "Capacidade de Carga: 6.000 kg (6 Toneladas)",
+        "Aplicação: Vans, Sprinters, Blindados e Camionetes Pesadas",
+        "Coluna: Chapa estrutural reforçada de alta densidade",
+        "Sincronismo: Sistema hidráulico duplo com equalização de precisão"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah1002_base",
+      "name": "Elevador Automotivo 2 Colunas com Base Inferior 3.200kg - Mahovi MAH-1002",
+      "slug": "elevador-automotivo-2-colunas-base-3200kg-mahovi-mah1002",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Oficina Rápida",
+      "status": "published",
+      "image": "/products/mahovi/mah_1002_base_main.jpg",
+      "images": [
+        "/products/mahovi/mah_1002_base_main.jpg",
+        "/products/mahovi/mah_1002_base_page.jpg"
+      ],
+      "altText": "Elevador 2 Colunas Base 3200kg Mahovi MAH-1002",
+      "description": "Elevador eletro-hidráulico com base inferior compacto, ideal para oficinas com pé-direito baixo. Excelente para trocas de óleo, suspensão e freios.",
+      "specs": [
+        "Capacidade: 3.200 kg",
+        "Altura das Colunas: 2.824 mm (Ideal para tetos baixos)",
+        "Elevação: 1.850 mm",
+        "Braços: Ajustáveis com sapatas de borracha reforçada"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah2004_4colunas",
+      "name": "Elevador 4 Colunas 4.000kg com Pratos Traseiros para Alinhamento 3D - Mahovi MAH-2004",
+      "slug": "elevador-4-colunas-alinhamento-3d-4000kg-mahovi-mah2004",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Alinhamento 3D",
+      "status": "published",
+      "image": "/products/mahovi/mah_2004_4colunas_main.jpg",
+      "images": [
+        "/products/mahovi/mah_2004_4colunas_main.jpg",
+        "/products/mahovi/mah_2004_4colunas_page.jpg"
+      ],
+      "altText": "Elevador 4 Colunas para Alinhamento Mahovi MAH-2004",
+      "description": "Rampa de alinhamento e elevador 4 colunas equipado com pratos deslizantes traseiros e rebaixos para pratos dianteiros. Nivelamento perfeito para geometria 3D.",
+      "specs": [
+        "Capacidade de Elevação: 4.000 kg",
+        "Comprimento das Plataformas: 4.500 mm",
+        "Recursos: Pratos traseiros móveis e macaco central de roda (jack)",
+        "Segurança: Sistema pneumático de travamento em múltiplos níveis"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah3001_midrise",
+      "name": "Elevador Pantográfico Tesoura Mid-Rise Móvel 3.000kg - Mahovi MAH-3001",
+      "slug": "elevador-pantografico-tesoura-midrise-movel-mahovi-mah3001",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Móvel & Versátil",
+      "status": "published",
+      "image": "/products/mahovi/mah_3001_midrise_main.jpg",
+      "images": [
+        "/products/mahovi/mah_3001_midrise_main.jpg",
+        "/products/mahovi/mah_3001_midrise_page.jpg"
+      ],
+      "altText": "Elevador Pantográfico Tesoura 3T Mahovi MAH-3001",
+      "description": "Elevador tipo tesoura compacto e móvel com kit de rodas para movimentação no box de trabalho. Ideal para serviços rápidos de pneus, freios e estética automotiva.",
+      "specs": [
+        "Capacidade: 3.000 kg",
+        "Altura de Elevação: 1.000 mm",
+        "Mobilidade: Acompanha kit de rodas e timão para deslocamento",
+        "Trava de Segurança: Mecânica pneumática de múltiplos dentes"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah3002_tesoura",
+      "name": "Elevador Pantográfico Tesoura de Sobrepor 3.500kg - Mahovi MAH-3002",
+      "slug": "elevador-pantografico-sobrepor-3500kg-mahovi-mah3002",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Perfil Baixo",
+      "status": "published",
+      "image": "/products/mahovi/mah_3002_tesoura_main.jpg",
+      "images": [
+        "/products/mahovi/mah_3002_tesoura_main.jpg",
+        "/products/mahovi/mah_3002_tesoura_page.jpg"
+      ],
+      "altText": "Elevador Tesoura Sobrepor 3.5T Mahovi MAH-3002",
+      "description": "Elevador pantográfico de piso (sobrepor) com altura recolhida de apenas 110 mm. Plataformas extensíveis para atender veículos com entre-eixos variados.",
+      "specs": [
+        "Capacidade de Carga: 3.500 kg",
+        "Altura Máxima de Elevação: 1.900 mm",
+        "Plataforma: Extensível de 1.450 mm a 2.050 mm",
+        "Painel de Comando: Torre de controle digital de 24V"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah3005_bateria_ev",
+      "name": "Mesa Elevatória Hidráulica para Baterias de Carro Elétrico e Híbrido 1.500kg - Mahovi MAH-3005",
+      "slug": "mesa-elevatoria-baterias-carro-eletrico-mahovi-mah3005",
+      "categoryId": "cat_elevadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Linha EV / Elétricos",
+      "status": "published",
+      "image": "/products/mahovi/mah_3005_bateria_ev_main.jpg",
+      "images": [
+        "/products/mahovi/mah_3005_bateria_ev_main.jpg",
+        "/products/mahovi/mah_3005_bateria_ev_page.jpg"
+      ],
+      "altText": "Mesa Elevatória para Baterias EV Mahovi MAH-3005",
+      "description": "Equipamento essencial para manutenção segura e remoção de módulos de baterias e motores de tração de veículos 100% elétricos e híbridos com tampo isolado e regulagem milimétrica.",
+      "specs": [
+        "Capacidade de Elevação: 1.500 kg",
+        "Tampo de Trabalho: Plataforma com ajuste angular multidirecional (X/Y)",
+        "Isolamento: Revestimento de proteção eletrostática não condutiva",
+        "Acionamento: Eletro-hidráulico a bateria com controle remoto"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah3d1_alinhador",
+      "name": "Alinhador 3D de Direção Computadorizado com Coluna Fixa - Mahovi MAH-3D1",
+      "slug": "alinhador-3d-direcao-computadorizado-mahovi-mah3d1",
+      "categoryId": "cat_alinhadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Câmeras HD 3D",
+      "status": "published",
+      "image": "/products/mahovi/mah_3d1_alinhador_main.jpg",
+      "images": [
+        "/products/mahovi/mah_3d1_alinhador_main.jpg",
+        "/products/mahovi/mah_3d1_alinhador_page.jpg"
+      ],
+      "altText": "Alinhador 3D Mahovi MAH-3D1",
+      "description": "Sistema de alinhamento computadorizado 3D de alta definição com 2 câmeras industriais de alta velocidade e alvos passivos que não requerem cabos nem calibração periódica.",
+      "specs": [
+        "Câmeras: 2x Câmeras HD de 5.0 Megapixels de leitura contínua",
+        "Garras de Roda: Fixação rápida 11\" a 25\" (não risca as rodas)",
+        "Software: Banco de dados com mais de 50.000 veículos atualizáveis",
+        "Medições: Camber, Caster, Convergência, KPI e Divergência instantâneas"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah3d2_alinhador",
+      "name": "Alinhador 3D de Direção com Gabinete Móvel e Torre Automática - Mahovi MAH-3D2",
+      "slug": "alinhador-3d-gabinete-movel-mahovi-mah3d2",
+      "categoryId": "cat_alinhadores",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Torre Móvel",
+      "status": "published",
+      "image": "/products/mahovi/mah_3d2_alinhador_main.jpg",
+      "images": [
+        "/products/mahovi/mah_3d2_alinhador_main.jpg",
+        "/products/mahovi/mah_3d2_alinhador_page.jpg"
+      ],
+      "altText": "Alinhador 3D Móvel Mahovi MAH-3D2",
+      "description": "Versão com gabinete móvel com rodas e barra de câmeras com ajuste de altura elétrico, permitindo atender múltiplas rampas ou valetas na mesma oficina.",
+      "specs": [
+        "Mobilidade: Torre e gabinete 100% móveis com travas",
+        "Ajuste de Altura da Barra: Elétrico motorizado sincronizado com a rampa",
+        "Alvos: Material ultraleve e resistente a quedas (sem componentes eletrônicos)"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah5001_desmontadora",
+      "name": "Desmontadora de Pneus Automática para Aros 10\" a 24\" - Mahovi MAH-5001",
+      "slug": "desmontadora-pneus-automatica-mahovi-mah5001",
+      "categoryId": "cat_desmontadoras",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Automática",
+      "status": "published",
+      "image": "/products/mahovi/mah_5001_desmontadora_main.jpg",
+      "images": [
+        "/products/mahovi/mah_5001_desmontadora_main.jpg",
+        "/products/mahovi/mah_5001_desmontadora_page.jpg"
+      ],
+      "altText": "Desmontadora de Pneus Automática Mahovi MAH-5001",
+      "description": "Máquina pneumática de desmontar pneus com coluna inclinável para trás por pedal e mesa giratória com garras de alta aderência para aros de aço e liga leve.",
+      "specs": [
+        "Fixação Externa do Aro: 10\" a 21\"",
+        "Fixação Interna do Aro: 12\" a 24\"",
+        "Força do Destalonador: 2.500 kgf com protetor plástico de rodas",
+        "Pressão de Trabalho: 8 a 10 bar"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah5002_desmontadora",
+      "name": "Desmontadora de Pneus Automática com Braço Auxiliar Run-Flat - Mahovi MAH-5002",
+      "slug": "desmontadora-pneus-braco-auxiliar-runflat-mahovi-mah5002",
+      "categoryId": "cat_desmontadoras",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Braço Run-Flat",
+      "status": "published",
+      "image": "/products/mahovi/mah_5002_desmontadora_main.jpg",
+      "images": [
+        "/products/mahovi/mah_5002_desmontadora_main.jpg",
+        "/products/mahovi/mah_5002_desmontadora_page.jpg"
+      ],
+      "altText": "Desmontadora Run Flat Mahovi MAH-5002",
+      "description": "Equipada com braço auxiliar pneumático multifuncional (Helper Arm) para montagem e desmontagem sem esforço de pneus de perfil baixo, blindados e Run-Flat.",
+      "specs": [
+        "Braço Auxiliar: 3 pontos de pressão pneumática sincronizados",
+        "Capacidade do Aro: Até 26 polegadas",
+        "Proteções: Insertos plásticos anti-risco no bico de pato e garras"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah5005_truck",
+      "name": "Desmontadora de Pneus Eletro-Hidráulica para Linha Pesada e Caminhões - Mahovi MAH-5005",
+      "slug": "desmontadora-pneus-linha-pesada-caminhoes-mahovi-mah5005",
+      "categoryId": "cat_desmontadoras",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Linha Pesada Truck",
+      "status": "published",
+      "image": "/products/mahovi/mah_5005_truck_main.jpg",
+      "images": [
+        "/products/mahovi/mah_5005_truck_main.jpg",
+        "/products/mahovi/mah_5005_truck_page.jpg"
+      ],
+      "altText": "Desmontadora Truck Linha Pesada Mahovi MAH-5005",
+      "description": "Desmontadora pesada para pneus com câmara e sem câmara de caminhões, carretas, ônibus, tratores e máquinas agrícolas para aros de 14\" a 26\".",
+      "specs": [
+        "Diâmetro do Aro: 14\" a 26\"",
+        "Peso Máximo da Roda: 1.000 kg",
+        "Diâmetro Máximo do Pneu: 1.600 mm",
+        "Controle: Console de comando móvel de baixa tensão"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah6001_balanceadora",
+      "name": "Balanceadora de Rodas Computadorizada com Display Digital LED - Mahovi MAH-6001",
+      "slug": "balanceadora-rodas-computadorizada-mahovi-mah6001",
+      "categoryId": "cat_desmontadoras",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Precisão Digital",
+      "status": "published",
+      "image": "/products/mahovi/mah_6001_balanceadora_main.jpg",
+      "images": [
+        "/products/mahovi/mah_6001_balanceadora_main.jpg",
+        "/products/mahovi/mah_6001_balanceadora_page.jpg"
+      ],
+      "altText": "Balanceadora Computadorizada Mahovi MAH-6001",
+      "description": "Balanceadora de rodas com medição automática de distância e diâmetro. Programas dedicados para rodas de ferro, liga leve (ALU) e balanceamento estático/dinâmico.",
+      "specs": [
+        "Diâmetro do Aro: 10\" a 24\"",
+        "Largura do Aro: 1.5\" a 20\"",
+        "Precisão de Balanceamento: ± 1 grama",
+        "Tempo de Ciclo: ~7 segundos"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah4001_cambio",
+      "name": "Máquina Trocadora de Fluido de Câmbio Automático 100% Automática - Mahovi MAH-4001",
+      "slug": "maquina-troca-fluido-cambio-automatico-mahovi-mah4001",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Câmbio Automático",
+      "status": "published",
+      "image": "/products/mahovi/mah_4001_cambio_main.jpg",
+      "images": [
+        "/products/mahovi/mah_4001_cambio_main.jpg",
+        "/products/mahovi/mah_4001_cambio_page.jpg"
+      ],
+      "altText": "Trocadora de Fluido de Câmbio Mahovi MAH-4001",
+      "description": "Executa a troca completa do óleo da transmissão automática por diálise, evitando contaminação do fluido novo. Acompanha maleta universal com conectores para montadoras nacionais e importadas.",
+      "specs": [
+        "Operação: Troca simultânea automática de óleo novo e usado",
+        "Sensores: Balanças eletrônicas de alta precisão com controle de volume",
+        "Visores de Fluxo: Duplo visor iluminado para visualização da cor do óleo",
+        "Acessórios: Kit completo com adaptadores para transmissões automáticas, CVT e DSG"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah4030_bicos",
+      "name": "Máquina Testadora e Limpadora Ultrassônica de Bicos Injetores GDI - Mahovi MAH-4030",
+      "slug": "limpadora-testadora-bicos-injetores-gdi-mahovi-mah4030",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Injeção Direta GDI",
+      "status": "published",
+      "image": "/products/mahovi/mah_4030_bicos_main.jpg",
+      "images": [
+        "/products/mahovi/mah_4030_bicos_main.jpg",
+        "/products/mahovi/mah_4030_bicos_page.jpg"
+      ],
+      "altText": "Testador de Bicos Injetores GDI Mahovi MAH-4030",
+      "description": "Bancada de teste e limpeza ultrassônica desenvolvida para injetores convencionais e injeção direta de alta pressão (GDI / FSI / TSI). Executa testes de estanqueidade, leque e vazão.",
+      "specs": [
+        "Compatibilidade: Bicos Injetores Convencionais, GDI, FSI, HPI e Moto",
+        "Cuba Ultrassônica: Integrada com aquecimento e temporizador digital",
+        "Testes: Leque, vazão, estanqueidade, resistência e aceleração simulada",
+        "Iluminação: Tubos de ensaio de vidro com iluminação LED de contraste"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah4050_ar_cond",
+      "name": "Recicladora e Recarregadora Automática de Ar Condicionado R134a - Mahovi MAH-4050",
+      "slug": "recicladora-ar-condicionado-r134a-mahovi-mah4050",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Climatização Auto",
+      "status": "published",
+      "image": "/products/mahovi/mah_4050_ar_cond_main.jpg",
+      "images": [
+        "/products/mahovi/mah_4050_ar_cond_main.jpg",
+        "/products/mahovi/mah_4050_ar_cond_page.jpg"
+      ],
+      "altText": "Recicladora de Ar Condicionado Mahovi MAH-4050",
+      "description": "Estação de serviço para ar-condicionado automotivo. Executa recuperação, vácuo, teste de vazamentos, injeção de óleo e recarga precisa de gás refrigerante de forma 100% automatizada.",
+      "specs": [
+        "Gás Refrigerante: R134a (compatível com veículos leves e pesados)",
+        "Balança Eletrônica: Precisão de ± 5g",
+        "Capacidade do Tanque: 12 Litros",
+        "Bomba de Vácuo: Alta vazão para desumidificação do sistema"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_mahovi_mah4040_fumaca",
+      "name": "Gerador de Fumaça Profissional para Diagnóstico de Vazamentos - Mahovi MAH-4040",
+      "slug": "gerador-fumaca-diagnostico-vazamentos-mahovi-mah4040",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_mahovi",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Detector de Fugas",
+      "status": "published",
+      "image": "/products/mahovi/mah_4040_fumaca_main.jpg",
+      "images": [
+        "/products/mahovi/mah_4040_fumaca_main.jpg",
+        "/products/mahovi/mah_4040_fumaca_page.jpg"
+      ],
+      "altText": "Gerador de Fumaça Mahovi MAH-4040",
+      "description": "Localiza vazamentos invisíveis no coletor de admissão, sistema EVAP, turbocompressores, escapamento e tubulações de arrefecimento em segundos através de fumaça densa segura.",
+      "specs": [
+        "Pressão de Saída: 15 a 18 PSI com compressor de ar embutido",
+        "Modos de Operação: Modo Ar e Modo Fumaça com controle independente",
+        "Fluidos Compatíveis: Óleo mineral padrão automotivo",
+        "Alimentação: 12V DC (alimentado pela bateria do carro)"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_can03",
+      "name": "Caneta de Diagnóstico do Sistema Elétrico e Polaridade - Delta DT-CAN03",
+      "slug": "caneta-diagnostico-sistema-eletrico-delta-dt-can03",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Elétrica Automotiva",
+      "status": "published",
+      "image": "/products/delta/delta_dt_can03_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_can03_main.jpg",
+        "/products/delta/delta_dt_can03_page.jpg"
+      ],
+      "altText": "Caneta Diagnóstico Elétrico Delta DT-CAN03",
+      "description": "Ideal para diagnóstico rápido de circuitos automotivos de 6V a 24V. Identifica polaridade positiva (+), negativa (-), presença de pulso de bicos/sensores e tensão com visor digital e alerta sonoro.",
+      "specs": [
+        "Tensão de Trabalho: 6V a 24V DC",
+        "Indicações: Display digital de voltagem, LEDs verde/vermelho e sinal sonoro buzzer",
+        "Testes: Continuidade, polaridade, pulsos de injeção e aterramento",
+        "Cabo: Comprimento extra para alcançar o compartimento do motor e traseira"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_atb01",
+      "name": "Cabo Salvador de Memória OBD para Troca de Bateria - Delta DT-ATB01",
+      "slug": "cabo-salvador-memoria-obd-troca-bateria-delta-dt-atb01",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Segurança Eletrônica",
+      "status": "published",
+      "image": "/products/delta/delta_dt_atb01_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_atb01_main.jpg",
+        "/products/delta/delta_dt_atb01_page.jpg"
+      ],
+      "altText": "Cabo Salvador de Memória OBD Delta DT-ATB01",
+      "description": "Conecta uma bateria auxiliar à porta OBD do veículo durante a substituição da bateria principal, impedindo a perda de configurações de módulos, rádios e posições de vidros elétricos.",
+      "specs": [
+        "Conector: Padrão OBD-II 16 pinos de alta resistência",
+        "Garras de Entrada: Garras jacaré isoladas para conexão em bateria 12V auxiliar",
+        "Proteção: Fusível interno contra sobrecarga"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_tbd01",
+      "name": "Teste de Bateria Digital e Analisador de Sistema de Carga - Delta DT-TBD01",
+      "slug": "teste-bateria-digital-delta-dt-tbd01",
+      "categoryId": "cat_scanners",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Teste Rápido",
+      "status": "published",
+      "image": "/products/delta/delta_dt_tbd01_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_tbd01_main.jpg",
+        "/products/delta/delta_dt_tbd01_page.jpg"
+      ],
+      "altText": "Teste de Bateria Digital Delta DT-TBD01",
+      "description": "Testador digital portátil para baterias de 12V. Verifica a voltagem em repouso, queda de tensão na partida e funcionamento do alternador em poucos segundos.",
+      "specs": [
+        "Tensão de Teste: 12V",
+        "Display: Display digital com gráfico de barras luminosas",
+        "Diagnóstico: Bateria Fraca, Média, Boa e Carga do Alternador"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_mpb01",
+      "name": "Medidor de Pressão da Bomba de Combustível com 17 Mangueiras - Delta DT-MPB01",
+      "slug": "medidor-pressao-bomba-combustivel-delta-dt-mpb01",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Injeção Eletrônica",
+      "status": "published",
+      "image": "/products/delta/delta_dt_mpb01_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_mpb01_main.jpg",
+        "/products/delta/delta_dt_mpb01_page.jpg"
+      ],
+      "altText": "Medidor de Pressão de Bomba de Combustível Delta DT-MPB01",
+      "description": "Manômetro de alta precisão com sistema anti-vibração com glicerina e estojo com 17 adaptadores e mangueiras para teste de pressão e vazão da linha de combustível.",
+      "specs": [
+        "Escala do Manômetro: 0 a 10 bar (0 a 140 PSI)",
+        "Mangueiras: 17 adaptadores com engate rápido para todas as montadoras",
+        "Válvula de Alívio: Botão para despressurização segura sem respingos de combustível"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_ali06",
+      "name": "Alicate para Crimpagem de Terminais em Conectores Automotivos - Delta DT-ALI06",
+      "slug": "alicate-crimpagem-terminais-automotivos-delta-dt-ali06",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Elétrica Pro",
+      "status": "published",
+      "image": "/products/delta/delta_dt_ali06_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_ali06_main.jpg",
+        "/products/delta/delta_dt_ali06_page.jpg"
+      ],
+      "altText": "Alicate de Crimpagem Delta DT-ALI06",
+      "description": "Alicate com catraca de pressão progressiva desenvolvido para crimpagem perfeita de terminais abertos e conectores de chicotes elétricos automotivos.",
+      "specs": [
+        "Capacidade: Bitolas de 0,5 mm² a 6,0 mm²",
+        "Mecanismo: Catraca de liberação com pressão constante de prensagem",
+        "Material: Aço carbono tratado com empunhadura ergonômica antideslizante"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_sso02",
+      "name": "Jogo de Soquetes Especiais para Sensor de Oxigênio (Sonda Lambda) 7 Peças - Delta DT-SSO02",
+      "slug": "jogo-soquetes-sonda-lambda-7-pecas-delta-dt-sso02",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Ferramental Especial",
+      "status": "published",
+      "image": "/products/delta/delta_dt_sso02_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_sso02_main.jpg",
+        "/products/delta/delta_dt_sso02_page.jpg"
+      ],
+      "altText": "Jogo de Soquetes para Sonda Lambda Delta DT-SSO02",
+      "description": "Kit de soquetes fendados e chaves com recorte lateral para remoção e instalação de sondas lambda, interruptores de pressão de óleo e sensores térmicos sem cortar fiação.",
+      "specs": [
+        "Conteúdo: 7 soquetes especiais em Cromo-Vanádio com recortes para cabos",
+        "Encaixes: 3/8\" e 1/2\" com perfil sextavado reforçado",
+        "Estojo: Maleta plástica rígida organizadora"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_ali08",
+      "name": "Alicate para Abraçadeira Lisa de Coifa de Homocinética - Delta DT-ALI08",
+      "slug": "alicate-abracadeira-coifa-homocinetica-delta-dt-ali08",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Suspensão & Câmbio",
+      "status": "published",
+      "image": "/products/delta/delta_dt_ali08_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_ali08_main.jpg",
+        "/products/delta/delta_dt_ali08_page.jpg"
+      ],
+      "altText": "Alicate Abraçadeira Homocinética Delta DT-ALI08",
+      "description": "Usado para esticar, travar e cortar com perfeição abraçadeiras tipo fita de coifas homocinéticas sem folgas.",
+      "specs": [
+        "Função: Aperto de fita com cortador integrado na alavanca",
+        "Encaixe: Suporte para catraca 1/2\" para aperto de torque elevado"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_ali02",
+      "name": "Alicate para Abraçadeira Elástica com Cabo Flexível de Longo Alcance - Delta DT-ALI02",
+      "slug": "alicate-abracadeira-elastica-longo-alcance-delta-dt-ali02",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Acesso Difícil",
+      "status": "published",
+      "image": "/products/delta/delta_dt_ali02_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_ali02_main.jpg",
+        "/products/delta/delta_dt_ali02_page.jpg"
+      ],
+      "altText": "Alicate com Cabo de Longo Alcance Delta DT-ALI02",
+      "description": "Alicate com cabo de aço flexível de 65 cm com trava catraca para remoção e montagem de abraçadeiras elásticas em mangueiras de radiador e combustível em locais de difícil acesso.",
+      "specs": [
+        "Comprimento do Cabo: 650 mm flexível revestido",
+        "Mecanismo de Trava: Catraca de retenção que mantém a abraçadeira aberta"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_bfm01",
+      "name": "Bomba Manual e Pneumática para Extração de Fluídos do Motor 10 Litros - Delta DT-BFM01",
+      "slug": "bomba-extratora-fluidos-manual-pneumatica-10l-delta-dt-bfm01",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Extração 10L",
+      "status": "published",
+      "image": "/products/delta/delta_dt_bfm01_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_bfm01_main.jpg",
+        "/products/delta/delta_dt_bfm01_page.jpg"
+      ],
+      "altText": "Bomba Extratora de Fluídos 10L Delta DT-BFM01",
+      "description": "Extrator de óleo e fluidos operável manualmente pela alavanca de vácuo ou conectado à rede de ar comprimido. Acompanha sondas de vários diâmetros para sucção pela vareta de óleo.",
+      "specs": [
+        "Capacidade do Reservatório: 10 Litros com escala graduada",
+        "Acionamento: Duplo (Manual por bomba manual ou Pneumático por ar comprimido)",
+        "Mangueiras: 4 tubos semirrígidos com conectores de engate rápido"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_delta_dt_tva01",
+      "name": "Testador de Pressão e Vazamento do Sistema de Arrefecimento com 18 Adaptadores - Delta DT-TVA01",
+      "slug": "testador-pressao-vazamento-arrefecimento-delta-dt-tva01",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_delta",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Arrefecimento",
+      "status": "published",
+      "image": "/products/delta/delta_dt_tva01_main.jpg",
+      "images": [
+        "/products/delta/delta_dt_tva01_main.jpg",
+        "/products/delta/delta_dt_tva01_page.jpg"
+      ],
+      "altText": "Testador de Arrefecimento Delta DT-TVA01",
+      "description": "Bomba manual com manômetro e adaptadores de bocal de reservatório para teste de estanqueidade de radiadores e tampas pressurizadas.",
+      "specs": [
+        "Manômetro: 0 a 2.5 bar (0 a 35 PSI) com código de cores",
+        "Adaptadores: 18 tampas e bocais de teste em nylon e alumínio para montadoras nacionais e importadas"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_wolfcar_w1001_combo",
+      "name": "Conjunto Modular Completo de Oficina com Bancada em Inox e Armários - Wolfcar W1001",
+      "slug": "conjunto-modular-oficina-armarios-bancada-wolfcar-w1001",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_wolfcar",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Oficina Premium",
+      "status": "published",
+      "image": "/products/wolfcar/wolfcar_w1001_combo_main.jpg",
+      "images": [
+        "/products/wolfcar/wolfcar_w1001_combo_main.jpg",
+        "/products/wolfcar/wolfcar_w1001_combo_page.jpg"
+      ],
+      "altText": "Conjunto Modular de Oficina Wolfcar W1001",
+      "description": "Solução completa para organização de alta performance de oficinas mecânicas e concessionárias. Composta por armários aéreos com pistão a gás, painéis perfurados para ferramentas, gaveteiros com corrediças telescópicas e tampo de aço inox escovado.",
+      "specs": [
+        "Estrutura: Chapa de aço carbono com pintura eletrostática a pó anti-risco",
+        "Tampo de Trabalho: Aço inoxidável escovado de 38 mm de alta resistência",
+        "Gavetas: 7 gavetas com rolamentos telescópicos e travas com chave",
+        "Painéis: Painel perfurado padrão europeu para ganchos e suportes de ferramentas",
+        "Módulos Aéreos: Portas basculantes com amortecedores a gás"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_wolfcar_w1002_combo",
+      "name": "Estação de Trabalho Modular com Armário Alto e Lixeira Embutida - Wolfcar W1002",
+      "slug": "estacao-trabalho-modular-armario-lixeira-wolfcar-w1002",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_wolfcar",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Organização Pro",
+      "status": "published",
+      "image": "/products/wolfcar/wolfcar_w1002_combo_main.jpg",
+      "images": [
+        "/products/wolfcar/wolfcar_w1002_combo_main.jpg",
+        "/products/wolfcar/wolfcar_w1002_combo_page.jpg"
+      ],
+      "altText": "Estação de Trabalho Modular Wolfcar W1002",
+      "description": "Configuração com armário vertical lateral duplo, módulo com lixeira basculante e suporte para bobina de papel toalha integrado, mantendo o box do mecânico limpo e funcional.",
+      "specs": [
+        "Armário Lateral: 2 portas altas com 4 prateleiras reforçadas reguláveis",
+        "Módulo de Limpeza: Lixeira basculante interna e dispenser de papel toalha",
+        "Capacidade de Carga: Até 1.200 kg distribuídos na estrutura"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_wolfcar_w1068_bancada",
+      "name": "Bancada de Trabalho Industrial com Gaveteiros e Painel Traseiro - Wolfcar W1068",
+      "slug": "bancada-trabalho-industrial-gaveteiros-wolfcar-w1068",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_wolfcar",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Bancada Pesada",
+      "status": "published",
+      "image": "/products/wolfcar/wolfcar_w1068_bancada_main.jpg",
+      "images": [
+        "/products/wolfcar/wolfcar_w1068_bancada_main.jpg",
+        "/products/wolfcar/wolfcar_w1068_bancada_page.jpg"
+      ],
+      "altText": "Bancada Industrial Wolfcar W1068",
+      "description": "Bancada de montagem com 810 mm de profundidade e 2.000 mm de altura total com painel organizador, pés niveladores reforçados e fechadura centralizada.",
+      "specs": [
+        "Dimensões: 810 x 810 x 2000 mm",
+        "Material: Aço carbono com tratamento anticorrosivo",
+        "Gavetas: Trilhos com rolamentos blindados para 45 kg por gaveta"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_wolfcar_w1071_armario",
+      "name": "Armário Vertical Duplo 2 Portas com Prateleiras Reguláveis - Wolfcar W1071",
+      "slug": "armario-vertical-duplo-2-portas-wolfcar-w1071",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_wolfcar",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Armazenamento",
+      "status": "published",
+      "image": "/products/wolfcar/wolfcar_w1071_armario_main.jpg",
+      "images": [
+        "/products/wolfcar/wolfcar_w1071_armario_main.jpg",
+        "/products/wolfcar/wolfcar_w1071_armario_page.jpg"
+      ],
+      "altText": "Armário Vertical 2 Portas Wolfcar W1071",
+      "description": "Armário vertical de 2.000 mm de altura para guarda segura de ferramentas especiais, scanners, equipamentos caros e materiais de alto valor com fechadura de chave mestre.",
+      "specs": [
+        "Dimensões: 915 x 460 x 2000 mm",
+        "Peso Bruto: 85 kg em aço estrutural espesso",
+        "Prateleiras: 4 prateleiras com capacidade para 80 kg cada"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_sigma_sgt_0528_impacto",
+      "name": "Chave de Impacto Pneumática 1/2\" Twin Hammer 68 kgf.m - Sigma Tools SGT-0528",
+      "slug": "chave-impacto-pneumatica-1-2-twin-hammer-sigma-sgt-0528",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_sigmatools",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Twin Hammer",
+      "status": "published",
+      "image": "/products/sigmatools/sigma_sgt_0528_impacto_main.jpg",
+      "images": [
+        "/products/sigmatools/sigma_sgt_0528_impacto_main.jpg",
+        "/products/sigmatools/sigma_sgt_0528_impacto_page.jpg"
+      ],
+      "altText": "Chave de Impacto Pneumática 1/2 Sigma SGT-0528",
+      "description": "Chave de impacto de 1/2 polegada com mecanismo de duplo martelo (Twin Hammer) que proporciona alto torque instantâneo e equilíbrio de vibração para aperto de rodas e mecânica geral.",
+      "specs": [
+        "Encaixe Quadrado: 1/2 polegada",
+        "Torque Máximo: 68 kgf.m (667 N.m)",
+        "Velocidade Livre: 7.500 RPM",
+        "Consumo Máximo de Ar: 5 PCM (142 L/min)",
+        "Peso: 2,6 kg com carcaça em compósito de alta durabilidade"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_sigma_sgt_0545_impacto1",
+      "name": "Chave de Impacto Pneumática 1\" Longa Linha Pesada 250 kgf.m - Sigma Tools SGT-0545",
+      "slug": "chave-impacto-pneumatica-1-longa-caminhao-sigma-sgt-0545",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_sigmatools",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Força Bruta 250kgf.m",
+      "status": "published",
+      "image": "/products/sigmatools/sigma_sgt_0545_impacto1_main.jpg",
+      "images": [
+        "/products/sigmatools/sigma_sgt_0545_impacto1_main.jpg",
+        "/products/sigmatools/sigma_sgt_0545_impacto1_page.jpg"
+      ],
+      "altText": "Chave de Impacto 1 Pol Pesada Sigma SGT-0545",
+      "description": "Projetada para serviço pesado em truck centers, troca de rodas de caminhões, ônibus, tratores e implementos agrícolas com bigorna longa de 8 polegadas.",
+      "specs": [
+        "Encaixe Quadrado: 1 polegada com eixo estendido longo",
+        "Torque Máximo: 250 kgf.m (2.450 N.m)",
+        "Sistema de Impacto: Pinless Hammer sem pino de alta resistência ao desgaste",
+        "Acessórios: Acompanha soquetes de impacto Cr-Mo 27mm, 30mm, 32mm e 33mm"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_sigma_sgt_7502_bateria",
+      "name": "Chave de Impacto a Bateria Brushless 1/2\" 20V 750Nm com 2 Baterias - Sigma Tools SGT-7502",
+      "slug": "chave-impacto-bateria-brushless-1-2-20v-sigma-sgt-7502",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_sigmatools",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Motor Brushless",
+      "status": "published",
+      "image": "/products/sigmatools/sigma_sgt_7502_bateria_main.jpg",
+      "images": [
+        "/products/sigmatools/sigma_sgt_7502_bateria_main.jpg",
+        "/products/sigmatools/sigma_sgt_7502_bateria_page.jpg"
+      ],
+      "altText": "Chave de Impacto a Bateria Brushless Sigma SGT-7502",
+      "description": "Chave de impacto sem fio com motor sem escovas de carvão (Brushless) de 750 N.m. Acompanha maleta rígida, 2 baterias de Lítio 20V 4.0Ah e carregador rápido bivolt.",
+      "specs": [
+        "Torque Máximo: 750 N.m (76,5 kgf.m)",
+        "Motor: Brushless (Sem escovas com maior autonomia e potência)",
+        "Baterias Inclusas: 2x Baterias 20V Li-Ion 4.0Ah com indicador de carga",
+        "Iluminação: Luz LED frontal auxiliar para visualização de parafusos"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_sigma_sgt_0501_catraca",
+      "name": "Chave Catraca Pneumática Compacta 1/4\" e 1/2\" Super Leve - Sigma Tools SGT-0501",
+      "slug": "chave-catraca-pneumatica-compacta-sigma-sgt-0501",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_sigmatools",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Compacta & Leve",
+      "status": "published",
+      "image": "/products/sigmatools/sigma_sgt_0501_catraca_main.jpg",
+      "images": [
+        "/products/sigmatools/sigma_sgt_0501_catraca_main.jpg",
+        "/products/sigmatools/sigma_sgt_0501_catraca_page.jpg"
+      ],
+      "altText": "Chave Catraca Pneumática Sigma SGT-0501",
+      "description": "Catraca pneumática ultraleve (550g) e estreita para aperto e desaperto ágil em cofres de motor compactos, painéis e sistemas de admissão.",
+      "specs": [
+        "Encaixe: 1/4\" (opção 1/2\")",
+        "Torque Máximo: 3,5 kgf.m (35 N.m)",
+        "Velocidade: 250 RPM",
+        "Consumo de Ar: 2,7 PCM"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_sigma_car20_carrinho",
+      "name": "Carrinho Ergonômico de Apoio para Chave de Impacto 1\" Linha Pesada - Sigma CAR-20",
+      "slug": "carrinho-ergonomico-apoio-chave-impacto-1-pol-sigma-car20",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_sigmatools",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Ergonomia Truck",
+      "status": "published",
+      "image": "/products/sigmatools/sigma_car20_carrinho_main.jpg",
+      "images": [
+        "/products/sigmatools/sigma_car20_carrinho_main.jpg",
+        "/products/sigmatools/sigma_car20_carrinho_page.jpg"
+      ],
+      "altText": "Carrinho Ergonômico para Chave 1 Pol Sigma CAR-20",
+      "description": "Suporte com mola e braço balanceador com rodas para sustentação de chaves de impacto pesadas de 1 polegada, eliminando o esforço lombar do borracheiro.",
+      "specs": [
+        "Capacidade de Sustentação: Chaves de 1\" até 30 kg",
+        "Ajuste de Altura: Articulação com mola a gás balanceada",
+        "Mobilidade: 4 rodas com freio para alinhamento rápido nos parafusos de roda"
+      ],
+      "attachments": [],
+      "inStock": true
+    },
+    {
+      "id": "prod_sigma_sgt_soquetes",
+      "name": "Jogo de Soquetes de Impacto Profissional Cromo-Molibdênio (Cr-Mo) - Sigma SGT",
+      "slug": "jogo-soquetes-impacto-cromo-molibdenio-sigma-sgt",
+      "categoryId": "cat_ferramentas",
+      "brandId": "brand_sigmatools",
+      "price": 0,
+      "priceNegotiable": true,
+      "badge": "Aço Cr-Mo",
+      "status": "published",
+      "image": "/products/sigmatools/sigma_sgt_soquetes_main.jpg",
+      "images": [
+        "/products/sigmatools/sigma_sgt_soquetes_main.jpg",
+        "/products/sigmatools/sigma_sgt_soquetes_page.jpg"
+      ],
+      "altText": "Soquetes de Impacto Cr-Mo Sigma Tools",
+      "description": "Conjunto de soquetes de impacto em liga especial de Cromo-Molibdênio com acabamento fosfatizado e protetores externos para não danificar rodas de liga leve.",
+      "specs": [
+        "Material: Aço Cromo-Molibdênio (Cr-Mo) forjado de alto impacto",
+        "Encaixe: 1/2 polegada sextavado profundo",
+        "Medidas Inclusas: 17mm, 19mm, 21mm, 22mm e 24mm"
       ],
       "attachments": [],
       "inStock": true

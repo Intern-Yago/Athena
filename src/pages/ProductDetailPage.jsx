@@ -191,10 +191,12 @@ export default function ProductDetailPage({
             </div>
 
             {/* Price Box */}
-            <div className="bg-amber-50/70 p-5 rounded-2xl border border-amber-200 flex flex-wrap items-center justify-between gap-4">
+            <div className="bg-gradient-to-r from-amber-50/80 to-amber-100/50 p-5 rounded-2xl border border-amber-200 flex flex-wrap items-center justify-between gap-4">
               <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Investimento Estimado</span>
-                <span className="text-3xl font-extrabold text-amber-700 font-display">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                  {product.price > 0 ? (product.priceNegotiable ? 'Preço Estimado' : 'Valor Comercial') : 'Condição Comercial'}
+                </span>
+                <span className="text-2xl sm:text-3xl font-extrabold text-amber-800 font-display">
                   {formattedPrice}
                 </span>
               </div>
