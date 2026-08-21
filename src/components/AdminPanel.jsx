@@ -47,6 +47,7 @@ export default function AdminPanel({
   onDeleteProduct,
   onReorderProducts,
   onAddCategory,
+  onUpdateCategory,
   onDeleteCategory,
   onReorderCategories,
   onAddBrand,
@@ -65,6 +66,16 @@ export default function AdminPanel({
   const [imageSourceMode, setImageSourceMode] = useState('upload');
   const [productImageUrlInput, setProductImageUrlInput] = useState('');
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+
+  // Category Modal State (Creating / Editing)
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    description: '',
+    slug: '',
+    icon: 'Layers'
+  });
 
   // User Role checks
   const userRole = currentUser?.role || 'admin';
@@ -591,13 +602,68 @@ export default function AdminPanel({
       showNotification(`Marca "${newBrandObj.name}" atualizada!`, 'success');
     } else {
       onAddBrand(newBrandObj);
-      setProductForm((prev) => ({ ...prev, brandId: newBrandObj.id }));
       showNotification(`Marca "${newBrandObj.name}" criada com sucesso!`, 'success');
     }
 
     setIsBrandModalOpen(false);
     setEditingBrand(null);
   };
+
+      const openNewCategoryModal = () => {
+        setEditingCategory(null);
+        setCategoryForm({
+          name: '',
+          description: '',
+          slug: '',
+          icon: 'Layers'
+        });
+        setIsCategoryModalOpen(true);
+      };
+
+      const openEditCategoryModal = (cat) => {
+        setEditingCategory(cat);
+        setCategoryForm({
+          name: cat.name || '',
+          description: cat.description || '',
+          slug: cat.slug || '',
+          icon: cat.icon || 'Layers'
+        });
+        setIsCategoryModalOpen(true);
+      };
+
+      const handleCategorySubmit = (e) => {
+        e.preventDefault();
+        if (!categoryForm.name.trim()) {
+          showNotification('Informe o nome da categoria.', 'error');
+          return;
+        }
+
+        const catSlug = categoryForm.slug.trim() || generateSlug(categoryForm.name);
+        const categoryObj = {
+          id: editingCategory ? editingCategory.id : `cat_${Date.now()}`,
+          name: categoryForm.name.trim(),
+          slug: catSlug,
+          description: categoryForm.description.trim() || 'Equipamentos e soluções para oficina automotiva.',
+          icon: categoryForm.icon || 'Layers',
+          order: editingCategory ? editingCategory.order : categories.length + 1
+        };
+
+        if (editingCategory) {
+          if (onUpdateCategory) {
+            onUpdateCategory(categoryObj);
+          } else {
+            const updated = categories.map(c => c.id === editingCategory.id ? categoryObj : c);
+            localStorage.setItem('athena_categories', JSON.stringify(updated));
+          }
+          showNotification(`Categoria "${categoryObj.name}" atualizada com sucesso!`, 'success');
+        } else {
+          onAddCategory(categoryObj);
+          showNotification(`Categoria "${categoryObj.name}" criada com sucesso!`, 'success');
+        }
+
+        setIsCategoryModalOpen(false);
+        setEditingCategory(null);
+      };
 
   const handleQuickCategoryCreate = (e) => {
     e.preventDefault();
@@ -614,7 +680,6 @@ export default function AdminPanel({
     };
 
     onAddCategory(newCat);
-    setProductForm((prev) => ({ ...prev, categoryId: newCat.id }));
     setQuickCatName('');
     setIsQuickCatModalOpen(false);
     showNotification(`Categoria "${newCat.name}" criada!`, 'success');
@@ -1252,7 +1317,7 @@ export default function AdminPanel({
                     <span>Ordenar Automaticamente</span>
                   </button>
 
-                  <button onClick={() => setIsQuickCatModalOpen(true)} className="btn-gold text-xs font-bold py-2 px-3">
+                  <button onClick={openNewCategoryModal} className="btn-gold text-xs font-bold py-2 px-3">
                     <Plus className="w-3.5 h-3.5" /> Nova Categoria
                   </button>
                 </div>
@@ -1281,41 +1346,51 @@ export default function AdminPanel({
 
                   <div className="flex items-center gap-2">
                     {canEditContent && (
-                      <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
-                        <button
-                          onClick={() => toggleCategoryStatus(cat)}
-                          className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 ${
-                            cat.status === 'draft'
-                              ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
-                          }`}
-                          title={cat.status === 'draft' ? 'Publicar Categoria' : 'Colocar Categoria em Rascunho'}
-                        >
-                          {cat.status === 'draft' ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          <span className="hidden sm:inline">{cat.status === 'draft' ? 'Rascunho' : 'Publicada'}</span>
-                        </button>
+                      <>
+                        <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                          <button
+                            onClick={() => toggleCategoryStatus(cat)}
+                            className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 ${
+                              cat.status === 'draft'
+                                ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                            }`}
+                            title={cat.status === 'draft' ? 'Publicar Categoria' : 'Colocar Categoria em Rascunho'}
+                          >
+                            {cat.status === 'draft' ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{cat.status === 'draft' ? 'Rascunho' : 'Publicada'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => moveCategoryOrder(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                            title="Subir posição no filtro"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => moveCategoryOrder(idx, 'down')}
+                            disabled={idx === categories.length - 1}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                            title="Descer posição no filtro"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
 
                         <button
-                          onClick={() => moveCategoryOrder(idx, 'up')}
-                          disabled={idx === 0}
-                          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
-                          title="Subir posição no filtro"
+                          onClick={() => openEditCategoryModal(cat)}
+                          className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200"
+                          title="Editar Categoria"
                         >
-                          <ArrowUp className="w-3.5 h-3.5" />
+                          <Edit3 className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          onClick={() => moveCategoryOrder(idx, 'down')}
-                          disabled={idx === categories.length - 1}
-                          className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
-                          title="Descer posição no filtro"
-                        >
-                          <ArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      </>
                     )}
 
                     {isAdminRole && (
-                      <button onClick={() => onDeleteCategory(cat.id)} className="btn-danger text-xs p-2">
+                      <button onClick={() => onDeleteCategory(cat.id)} className="btn-danger text-xs p-2" title="Apagar Categoria">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
@@ -2331,23 +2406,76 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* QUICK CATEGORY MODAL */}
-        {isQuickCatModalOpen && canEditContent && (
-          <div className="modal-backdrop" onClick={() => setIsQuickCatModalOpen(false)}>
-            <div className="modal-content max-w-sm p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
-              <h4 className="text-base font-bold text-slate-900 mb-3">Criar Nova Categoria</h4>
-              <form onSubmit={handleQuickCategoryCreate} className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Nome da categoria (ex: Elevadores Tesoura)"
-                  value={quickCatName}
-                  onChange={(e) => setQuickCatName(e.target.value)}
-                  className="form-input text-xs"
-                  required
-                />
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setIsQuickCatModalOpen(false)} className="btn-secondary text-xs">Cancelar</button>
-                  <button type="submit" className="btn-gold text-xs font-bold py-2 px-4">Salvar</button>
+        {/* CATEGORY MODAL (CREATE / EDIT) */}
+        {isCategoryModalOpen && canEditContent && (
+          <div className="modal-backdrop" onClick={() => setIsCategoryModalOpen(false)}>
+            <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-amber-600" />
+                  {editingCategory ? `Editar Categoria "${editingCategory.name}"` : 'Criar Nova Categoria'}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryModalOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCategorySubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Nome da Categoria *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Elevadores Automotivos"
+                    value={categoryForm.name}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Slug / URL Amigável
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-slate-400">/categoria/</span>
+                    <input
+                      type="text"
+                      placeholder="elevadores-automotivos"
+                      value={categoryForm.slug}
+                      onChange={(e) => setCategoryForm({ ...categoryForm, slug: e.target.value })}
+                      className="form-input text-xs !pl-24 font-mono"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-1 block">Deixe vazio para gerar automaticamente a partir do nome.</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Descrição da Categoria
+                  </label>
+                  <textarea
+                    placeholder="Breve descrição da linha de produtos desta categoria..."
+                    value={categoryForm.description}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                    className="form-textarea text-xs h-20"
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                  <button type="button" onClick={() => setIsCategoryModalOpen(false)} className="btn-secondary text-xs">
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn-gold text-xs font-bold py-2.5 px-4 flex items-center gap-1.5">
+                    <Check className="w-4 h-4" />
+                    <span>{editingCategory ? 'Salvar Alterações' : 'Criar Categoria'}</span>
+                  </button>
                 </div>
               </form>
             </div>

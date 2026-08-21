@@ -280,6 +280,22 @@ export default function App() {
     }
   };
 
+  const handleUpdateCategory = async (updatedCat) => {
+    setCategories((prev) => prev.map((c) => (c.id === updatedCat.id ? updatedCat : c)));
+
+    if (isBackendConnected) {
+      try {
+        await fetch(`${API_BASE_URL}/categories/${updatedCat.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedCat)
+        });
+      } catch (e) {
+        console.error('Erro backend ao atualizar categoria:', e);
+      }
+    }
+  };
+
   const handleDeleteCategory = async (catId) => {
     setCategories((prev) => prev.filter((c) => c.id !== catId));
     if (selectedCategories.includes(catId)) {
@@ -609,6 +625,7 @@ export default function App() {
           onDeleteProduct={handleDeleteProduct}
           onReorderProducts={handleReorderProducts}
           onAddCategory={handleAddCategory}
+          onUpdateCategory={handleUpdateCategory}
           onDeleteCategory={handleDeleteCategory}
           onReorderCategories={handleReorderCategories}
           onAddBrand={handleAddBrand}
