@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
 import FilterSidebar from './FilterSidebar';
 import WorkshopSegments from './WorkshopSegments';
-import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -29,6 +29,7 @@ export default function Catalog({
   const [sortBy, setSortBy] = useState('featured');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeSegmentId, setActiveSegmentId] = useState('todos');
+  const [viewMode, setViewMode] = useState('grid');
 
   // Reset to page 1 whenever any filter or search changes
   useEffect(() => {
@@ -192,6 +193,34 @@ export default function Catalog({
                       <option value="name-az">Nome (A - Z)</option>
                     </select>
                   </div>
+
+                  {/* View Mode Switcher (Grid / List) */}
+                  <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                        viewMode === 'grid'
+                          ? 'bg-white text-amber-700 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                      title="Visualização em Grade Ampla"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                      <span className="hidden md:inline">Grade</span>
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                        viewMode === 'list'
+                          ? 'bg-white text-amber-700 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                      title="Visualização em Lista / Ficha Técnica"
+                    >
+                      <List className="w-4 h-4" />
+                      <span className="hidden md:inline">Lista</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -279,10 +308,14 @@ export default function Catalog({
               )}
             </div>
 
-            {/* Dynamic Product Grid (Fills 100% width up to 5-6 columns) */}
+            {/* Dynamic Product Grid / List */}
             {paginatedProducts.length > 0 ? (
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-5">
+                <div className={
+                  viewMode === 'grid'
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6"
+                    : "flex flex-col space-y-4"
+                }>
                   {paginatedProducts.map((product) => {
                     const category = categories.find((c) => c.id === product.categoryId);
                     const brand = brands.find((b) => b.id === product.brandId);
@@ -298,6 +331,7 @@ export default function Catalog({
                         onDeleteProduct={onDeleteProduct}
                         isInComparison={comparisonList?.some((p) => p.id === product.id)}
                         onToggleComparison={onToggleComparison}
+                        viewMode={viewMode}
                       />
                     );
                   })}

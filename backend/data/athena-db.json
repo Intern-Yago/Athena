@@ -43,7 +43,7 @@
     },
     {
       "id": "cat_ferramentas",
-      "name": "Ferramentas & Armários de Oficina",
+      "name": "Ferramentas & Armários",
       "slug": "ferramentas",
       "order": 5,
       "description": "Armários modulares, bancadas de trabalho, chaves de impacto, trocadoras de fluido e ferramentas especiais.",
