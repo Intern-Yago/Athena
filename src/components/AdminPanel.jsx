@@ -29,7 +29,11 @@ import {
   Star,
   Key,
   Settings,
-  Search
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { formatAttachmentLabel } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
@@ -92,10 +96,17 @@ export default function AdminPanel({
     }
   }, [isAdminRole]);
 
-  // Search & Filter State for Products Table
+  // Search, Filter & Pagination State for Products Table
   const [adminProductSearch, setAdminProductSearch] = useState('');
   const [adminBrandFilter, setAdminBrandFilter] = useState('');
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('');
+  const [adminPage, setAdminPage] = useState(1);
+  const [adminItemsPerPage, setAdminItemsPerPage] = useState(10);
+
+  // Reset to page 1 on filter or per-page change
+  useEffect(() => {
+    setAdminPage(1);
+  }, [adminProductSearch, adminBrandFilter, adminCategoryFilter, adminItemsPerPage]);
 
   // Password & Profile Settings Form State
   const [passwordForm, setPasswordForm] = useState({
@@ -808,7 +819,7 @@ export default function AdminPanel({
           </button>
         </div>
 
-        {/* PRODUCTS MANAGEMENT TAB (NO PAGINATION - CONTINUOUS LIST) */}
+        {/* PRODUCTS MANAGEMENT TAB WITH PAGINATION */}
         {activeAdminTab === 'products' && (() => {
           const filteredAdminProducts = products.filter((prod) => {
             const matchSearch = !adminProductSearch || 
@@ -819,6 +830,16 @@ export default function AdminPanel({
             return matchSearch && matchBrand && matchCategory;
           });
 
+          const totalItems = filteredAdminProducts.length;
+          const isAll = adminItemsPerPage === 'all';
+          const perPageNum = isAll ? (totalItems || 1) : Number(adminItemsPerPage);
+          const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalItems / perPageNum));
+          const currentPageSafe = Math.min(Math.max(1, adminPage), totalPages);
+          const startIndex = isAll ? 0 : (currentPageSafe - 1) * perPageNum;
+          const paginatedAdminProducts = isAll 
+            ? filteredAdminProducts 
+            : filteredAdminProducts.slice(startIndex, startIndex + perPageNum);
+
           return (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -827,7 +848,7 @@ export default function AdminPanel({
                     <Package className="w-5 h-5 text-amber-600" /> Lista Geral de Equipamentos
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Mostrando todos os <span className="font-bold text-amber-700">{filteredAdminProducts.length}</span> equipamentos cadastrados (sem paginação).
+                    Exibindo <span className="font-bold text-amber-700">{totalItems > 0 ? startIndex + 1 : 0}–{Math.min(startIndex + perPageNum, totalItems)}</span> de {totalItems} equipamentos cadastrados.
                   </p>
                 </div>
 
@@ -908,8 +929,8 @@ export default function AdminPanel({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredAdminProducts.length > 0 ? (
-                        filteredAdminProducts.map((prod) => {
+                      {paginatedAdminProducts.length > 0 ? (
+                        paginatedAdminProducts.map((prod) => {
                           const isPublished = prod.status === 'published';
                           const brandObj = brands.find(b => b.id === prod.brandId);
                           const catObj = categories.find(c => c.id === prod.categoryId);
@@ -1038,6 +1059,73 @@ export default function AdminPanel({
                     </tbody>
                   </table>
                 </div>
+
+                {/* PAGINATION FOOTER */}
+                {totalItems > 0 && (
+                  <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                    {/* Items Per Page Selector */}
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <span>Exibir:</span>
+                      <select
+                        value={adminItemsPerPage}
+                        onChange={(e) => setAdminItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 outline-none focus:border-amber-500"
+                      >
+                        <option value={10}>10 por página</option>
+                        <option value={20}>20 por página</option>
+                        <option value={50}>50 por página</option>
+                        <option value="all">Exibir Todos ({totalItems})</option>
+                      </select>
+                    </div>
+
+                    {/* Page Navigation Controls */}
+                    {!isAll && totalPages > 1 && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setAdminPage(1)}
+                          disabled={currentPageSafe === 1}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Primeira Página"
+                        >
+                          <ChevronsLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setAdminPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPageSafe === 1}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Página Anterior"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+
+                        <div className="flex items-center gap-1 px-2 font-bold text-slate-700 text-xs">
+                          <span>Página</span>
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black">
+                            {currentPageSafe}
+                          </span>
+                          <span>de {totalPages}</span>
+                        </div>
+
+                        <button
+                          onClick={() => setAdminPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPageSafe === totalPages}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Próxima Página"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setAdminPage(totalPages)}
+                          disabled={currentPageSafe === totalPages}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Última Página"
+                        >
+                          <ChevronsRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
