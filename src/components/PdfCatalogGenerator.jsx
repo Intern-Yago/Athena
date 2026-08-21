@@ -32,7 +32,11 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
   });
 
   const handleGeneratePdf = () => {
-    const printWindow = window.open('', '_blank');
+    // Remove previous print iframe if exists
+    const existingIframe = document.getElementById('athena-print-iframe');
+    if (existingIframe) {
+      existingIframe.remove();
+    }
 
     // Grouping by Brand -> Category -> Products
     const brandIdsWithProds = [...new Set(filteredProducts.map(p => p.brandId))];
@@ -67,11 +71,14 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
                 <img src="${p.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=400'}" alt="${p.name}" />
               </div>
               <div class="info-box">
-                <h4 class="prod-title">${p.name}</h4>
+                <div class="title-wrap">
+                  <h4 class="prod-title">${p.name}</h4>
+                  ${p.isFeatured ? '<span class="feat-tag">⭐ Destaque</span>' : ''}
+                </div>
                 <p class="desc">${p.description || ''}</p>
                 ${specsList ? `<ul class="specs">${specsList}</ul>` : ''}
                 <div class="price-box">
-                  <span>Valor Estimado:</span>
+                  <span>Condição Comercial:</span>
                   <strong class="price-val">${priceText}</strong>
                 </div>
               </div>
@@ -99,7 +106,7 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
             ${brand.logo ? `<img src="${brand.logo}" alt="${brand.name}" class="brand-logo" />` : ''}
             <div>
               <h2 class="brand-name">${brand.name}</h2>
-              <p class="brand-desc">${brand.description || 'Fabricante parceiro oficial.'}</p>
+              <p class="brand-desc">${brand.description || 'Fabricante parceiro oficial homologado.'}</p>
             </div>
           </div>
           <div class="brand-categories">
@@ -118,62 +125,142 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
           * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-          body { background: #fff; color: #0f172a; padding: 30px; font-size: 12px; }
           
-          header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #f59e0b; padding-bottom: 20px; margin-bottom: 25px; }
-          .logo-area { display: flex; align-items: center; gap: 15px; }
-          .logo-area img { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; }
-          .brand-title { font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
-          .brand-sub { font-size: 11px; font-weight: 700; color: #d97706; text-transform: uppercase; }
-          .contact-info { text-align: right; font-size: 11px; color: #475569; line-height: 1.5; }
+          @page {
+            size: A4 portrait;
+            margin: 10mm 8mm 12mm 8mm;
+          }
+
+          body { 
+            background: #fff; 
+            color: #0f172a; 
+            font-size: 11.5px; 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact;
+            padding: 10px;
+          }
+          
+          header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2.5px solid #d97706; 
+            padding-bottom: 12px; 
+            margin-bottom: 12px; 
+          }
+          .logo-area { display: flex; align-items: center; gap: 12px; }
+          .logo-area img { width: 50px; height: 50px; border-radius: 10px; object-fit: cover; }
+          .brand-title { font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; line-height: 1.1; }
+          .brand-sub { font-size: 10px; font-weight: 700; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; }
+          .contact-info { text-align: right; font-size: 10px; color: #475569; line-height: 1.4; }
           .contact-info strong { color: #0f172a; }
 
-          .catalog-summary { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 18px; border-radius: 12px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
-          .summary-text { font-size: 11px; color: #64748b; font-weight: 600; }
+          .catalog-summary { 
+            background: #f8fafc; 
+            border: 1px solid #e2e8f0; 
+            padding: 8px 14px; 
+            border-radius: 10px; 
+            margin-bottom: 16px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+          }
+          .summary-text { font-size: 10.5px; color: #64748b; font-weight: 700; text-transform: uppercase; }
 
-          /* BRAND SECTION STYLING */
-          .brand-section { margin-bottom: 35px; page-break-inside: avoid; }
-          .brand-header { display: flex; align-items: center; gap: 15px; background: #0f172a; color: white; padding: 14px 20px; border-radius: 14px; margin-bottom: 20px; border-left: 6px solid #f59e0b; }
-          .brand-logo { width: 45px; height: 45px; object-fit: contain; background: white; padding: 4px; border-radius: 8px; shrink: 0; }
-          .brand-name { font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px; }
-          .brand-desc { font-size: 10.5px; color: #94a3b8; font-weight: 500; }
+          /* BRAND SECTION (FLUID FLOW WITHOUT PAGE 1 CUT) */
+          .brand-section { 
+            margin-bottom: 22px; 
+          }
+          .brand-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            background: #0f172a; 
+            color: white; 
+            padding: 10px 16px; 
+            border-radius: 10px; 
+            margin-bottom: 14px; 
+            border-left: 5px solid #d97706;
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+          .brand-logo { width: 38px; height: 38px; object-fit: contain; background: white; padding: 3px; border-radius: 6px; flex-shrink: 0; }
+          .brand-name { font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px; line-height: 1.2; }
+          .brand-desc { font-size: 9.5px; color: #94a3b8; font-weight: 500; }
 
-          /* CATEGORY BLOCK STYLING */
-          .category-block { margin-bottom: 25px; padding-left: 10px; }
-          .category-header { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
-          .cat-bullet { width: 10px; height: 10px; border-radius: 50%; background: #d97706; display: inline-block; }
-          .category-title { font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; }
-          .cat-count { font-size: 11px; font-weight: 600; color: #64748b; }
+          /* CATEGORY BLOCK */
+          .category-block { 
+            margin-bottom: 18px; 
+          }
+          .category-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            margin-bottom: 10px; 
+            border-bottom: 1.5px solid #e2e8f0; 
+            padding-bottom: 6px; 
+            break-after: avoid;
+            page-break-after: avoid;
+          }
+          .cat-bullet { width: 8px; height: 8px; border-radius: 50%; background: #d97706; display: inline-block; }
+          .category-title { font-size: 12.5px; font-weight: 800; color: #1e293b; text-transform: uppercase; letter-spacing: 0.3px; }
+          .cat-count { font-size: 10px; font-weight: 600; color: #64748b; }
 
           /* PRODUCTS GRID */
-          .products-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-          .product-card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; background: #ffffff; display: flex; gap: 12px; page-break-inside: avoid; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-          .img-box { width: 110px; height: 110px; border-radius: 10px; overflow: hidden; background: #f8fafc; shrink: 0; border: 1px solid #f1f5f9; }
-          .img-box img { width: 100%; height: 100%; object-fit: cover; }
+          .products-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 12px; 
+          }
+          .product-card { 
+            border: 1px solid #e2e8f0; 
+            border-radius: 10px; 
+            padding: 10px; 
+            background: #ffffff; 
+            display: flex; 
+            gap: 10px; 
+            break-inside: avoid; 
+            page-break-inside: avoid;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03); 
+          }
+          .img-box { 
+            width: 95px; 
+            height: 95px; 
+            border-radius: 8px; 
+            overflow: hidden; 
+            background: #f8fafc; 
+            flex-shrink: 0; 
+            border: 1px solid #f1f5f9; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+          }
+          .img-box img { width: 100%; height: 100%; object-fit: contain; }
           .info-box { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
-          .prod-title { font-size: 12px; font-weight: 800; color: #0f172a; margin-bottom: 4px; line-height: 1.3; }
-          .desc { font-size: 9.5px; color: #64748b; margin-bottom: 6px; line-clamp: 2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-          .specs { font-size: 9px; color: #334155; padding-left: 12px; margin-bottom: 8px; }
-          .specs li { margin-bottom: 1.5px; }
-          .price-box { background: #fffbeb; border: 1px solid #fde68a; padding: 5px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-          .price-box span { font-size: 9.5px; font-weight: 700; color: #78350f; }
-          .price-val { font-size: 13px; font-weight: 800; color: #b45309; }
+          .title-wrap { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; margin-bottom: 3px; }
+          .prod-title { font-size: 11px; font-weight: 800; color: #0f172a; line-height: 1.25; }
+          .feat-tag { font-size: 8.5px; font-weight: 800; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+          .desc { font-size: 9px; color: #64748b; margin-bottom: 4px; line-clamp: 2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+          .specs { font-size: 8.5px; color: #334155; padding-left: 10px; margin-bottom: 6px; }
+          .specs li { margin-bottom: 1px; }
+          .price-box { background: #fffbeb; border: 1px solid #fde68a; padding: 4px 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+          .price-box span { font-size: 8.5px; font-weight: 700; color: #78350f; }
+          .price-val { font-size: 11px; font-weight: 800; color: #b45309; }
 
-          footer { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center; font-size: 10px; color: #94a3b8; }
-
-          @media print {
-            body { padding: 0; }
-            .no-print { display: none; }
+          footer { 
+            margin-top: 30px; 
+            border-top: 1px solid #e2e8f0; 
+            padding-top: 12px; 
+            text-align: center; 
+            font-size: 9.5px; 
+            color: #94a3b8; 
+            break-inside: avoid;
+            page-break-inside: avoid;
           }
         </style>
       </head>
       <body>
-        <div class="no-print" style="margin-bottom: 20px; text-align: right;">
-          <button onclick="window.print()" style="background: #d97706; color: white; border: none; padding: 10px 22px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 13px;">
-            🖨️ Imprimir / Salvar PDF
-          </button>
-        </div>
-
         <header>
           <div class="logo-area">
             <img src="${window.location.origin}/logo.jpg" onError="this.style.display='none'" />
@@ -185,13 +272,13 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
           <div class="contact-info">
             <p><strong>Atendimento Comercial:</strong> (61) 98348-5671</p>
             <p><strong>Instagram:</strong> @athena.solucoes.automotivas</p>
-            <p><strong>Site:</strong> athenaautomotivas.com.br</p>
+            <p><strong>Site Oficial:</strong> athenaautomotivas.com.br</p>
           </div>
         </header>
 
         <div class="catalog-summary">
-          <span class="summary-text">CATÁLOGO DE EQUIPAMENTOS ORGANIZADO POR MARCA E CATEGORIA</span>
-          <span class="summary-text"><strong>${filteredProducts.length}</strong> equipamento(s) em <strong>${activeBrands.length}</strong> marca(s)</span>
+          <span class="summary-text">Catálogo Oficial de Equipamentos & Ferramentas</span>
+          <span class="summary-text"><strong>${filteredProducts.length}</strong> produtos em <strong>${activeBrands.length}</strong> fabricante(s)</span>
         </div>
 
         <div class="catalog-body">
@@ -199,20 +286,37 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
         </div>
 
         <footer>
-          <p>© Athena Soluções Automotivas — Todos os direitos reservados. Valores e disponibilidade sujeitos a alteração sem aviso prévio.</p>
+          <p>© Athena Soluções Automotivas — Todos os direitos reservados. Equipamentos com garantia e suporte de fábrica.</p>
         </footer>
-
-        <script>
-          window.onload = function() {
-            setTimeout(function() { window.print(); }, 800);
-          }
-        </script>
       </body>
       </html>
     `;
 
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    // Create hidden printing iframe
+    const iframe = document.createElement('iframe');
+    iframe.id = 'athena-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    // Print after document and images have rendered
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (err) {
+        console.error('Print iframe error:', err);
+      }
+    }, 600);
   };
 
   return (

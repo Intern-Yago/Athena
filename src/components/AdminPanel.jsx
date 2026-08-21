@@ -1564,6 +1564,49 @@ export default function AdminPanel({
 
               <form onSubmit={handleProductSubmit} className="space-y-4">
                 
+                {/* PROMINENT DESTAQUE ATHENA BANNER AT TOP OF MODAL */}
+                <div 
+                  onClick={() => setProductForm(p => ({ ...p, isFeatured: !p.isFeatured }))}
+                  className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                    productForm.isFeatured 
+                      ? 'bg-amber-100/90 border-amber-500 shadow-xs' 
+                      : 'bg-slate-50 border-slate-200 hover:border-amber-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${
+                      productForm.isFeatured ? 'bg-amber-500 text-slate-950 shadow-xs' : 'bg-slate-200 text-slate-400'
+                    }`}>
+                      <Star className={`w-5 h-5 ${productForm.isFeatured ? 'fill-slate-950 text-slate-950' : 'text-slate-400'}`} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                        ⭐ PRODUTO EM DESTAQUE ATHENA
+                        {productForm.isFeatured && (
+                          <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            ATIVO NO TOPO
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[11px] text-slate-600 block mt-0.5">
+                        {productForm.isFeatured 
+                          ? 'Selo dourado ativo. O equipamento aparecerá nas primeiras posições do catálogo.' 
+                          : 'Clique para ativar e fixar este produto no topo do catálogo com selo dourado.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="relative inline-flex items-center shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={!!productForm.isFeatured}
+                      onChange={(e) => setProductForm(p => ({ ...p, isFeatured: e.target.checked }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-12 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold text-slate-700 block mb-1">
@@ -1686,28 +1729,6 @@ export default function AdminPanel({
                       Preço Sob Consulta (Default)
                     </label>
                   </div>
-                </div>
-
-                {/* Destaque Athena Switch */}
-                <div className="flex items-center justify-between p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl">
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <Star className={`w-4 h-4 ${productForm.isFeatured ? 'fill-amber-500 text-amber-500' : 'text-amber-600'}`} />
-                      Marcar como Destaque Athena ⭐
-                    </span>
-                    <span className="text-[11px] text-slate-500 block mt-0.5">
-                      Exibe o selo dourado e prioriza o equipamento no topo do catálogo.
-                    </span>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!productForm.isFeatured}
-                      onChange={(e) => setProductForm({ ...productForm, isFeatured: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                  </label>
                 </div>
 
                 {/* Foto do Produto */}
