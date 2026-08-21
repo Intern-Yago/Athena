@@ -119,25 +119,19 @@ async function initDb() {
         );
       `);
 
-      // Always Sync Super Admin User from environment variables (ADMIN_EMAIL & ADMIN_PASSWORD)
+      // Initialize Super Admin User if no users exist
       const adminEmail = (process.env.ADMIN_EMAIL || 'admin@athena.com.br').trim().toLowerCase();
-      const adminPassword = process.env.ADMIN_PASSWORD || 'AthenaAdmin2026!';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
       const adminName = process.env.ADMIN_NAME || 'Administrador Geral';
 
-      console.log(`👤 Sincronizando usuário Administrador (${adminEmail})...`);
-      // Update default admin user or insert/update on email conflict
-      await pool.query(`
-        INSERT INTO users (id, name, email, password_hash, role) 
-        VALUES ($1, $2, $3, $4, $5) 
-        ON CONFLICT (email) 
-        DO UPDATE SET password_hash = $4, name = $2, role = 'admin'
-      `, ['user_admin_default', adminName, adminEmail, adminPassword, 'admin']);
-
-      // Also ensure user_admin_default ID matches the configured adminEmail
-      await pool.query(
-        'UPDATE users SET email = $1, password_hash = $2, name = $3 WHERE id = $4',
-        [adminEmail, adminPassword, adminName, 'user_admin_default']
-      );
+      const userCheck = await pool.query('SELECT id FROM users LIMIT 1');
+      if (userCheck.rows.length === 0) {
+        console.log(`👤 Criando usuário Administrador inicial (${adminEmail})...`);
+        await pool.query(`
+          INSERT INTO users (id, name, email, password_hash, role) 
+          VALUES ($1, $2, $3, $4, $5)
+        `, ['user_admin_default', adminName, adminEmail, adminPassword, 'admin']);
+      }
 
       await pool.query(`
         CREATE TABLE IF NOT EXISTS categories (
@@ -436,6 +430,72 @@ app.post('/api/users', async (req, res) => {
   db.users.push(newUser);
   writeDbJson(db);
   res.status(201).json({ id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role });
+});
+
+// Update User Profile & Password
+app.put('/api/users/:id', async (req, res) => {
+  const { name, email, currentPassword, newPassword, role } = req.body;
+  const userId = req.params.id;
+
+  if (pool) {
+    try {
+      const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      if (userRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Usuário não encontrado.' });
+      }
+      const existingUser = userRes.rows[0];
+
+      if (currentPassword && existingUser.password_hash !== currentPassword) {
+        return res.status(400).json({ error: 'Senha atual incorreta.' });
+      }
+
+      const updatedName = name ? name.trim() : existingUser.name;
+      const updatedEmail = email ? email.trim().toLowerCase() : existingUser.email;
+      const updatedPassword = newPassword ? newPassword : existingUser.password_hash;
+      const updatedRole = role ? role : existingUser.role;
+
+      await pool.query(
+        'UPDATE users SET name = $1, email = $2, password_hash = $3, role = $4 WHERE id = $5',
+        [updatedName, updatedEmail, updatedPassword, updatedRole, userId]
+      );
+
+      return res.json({
+        id: userId,
+        name: updatedName,
+        email: updatedEmail,
+        role: updatedRole,
+        message: 'Credenciais atualizadas com sucesso!'
+      });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ error: 'Erro ao atualizar dados do usuário.' });
+    }
+  }
+
+  const db = readDbJson();
+  const userIdx = (db.users || []).findIndex(u => u.id === userId);
+  if (userIdx === -1) {
+    return res.status(404).json({ error: 'Usuário não encontrado.' });
+  }
+
+  const existingUser = db.users[userIdx];
+  if (currentPassword && existingUser.passwordHash !== currentPassword) {
+    return res.status(400).json({ error: 'Senha atual incorreta.' });
+  }
+
+  if (name) existingUser.name = name.trim();
+  if (email) existingUser.email = email.trim().toLowerCase();
+  if (newPassword) existingUser.passwordHash = newPassword;
+  if (role) existingUser.role = role;
+
+  writeDbJson(db);
+  res.json({
+    id: existingUser.id,
+    name: existingUser.name,
+    email: existingUser.email,
+    role: existingUser.role,
+    message: 'Credenciais atualizadas com sucesso!'
+  });
 });
 
 // Delete / Revoke Employee Access

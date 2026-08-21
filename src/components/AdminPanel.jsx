@@ -25,7 +25,11 @@ import {
   LogOut,
   UserCheck,
   UserX,
-  Lock
+  Lock,
+  Star,
+  Key,
+  Settings,
+  Search
 } from 'lucide-react';
 import { formatAttachmentLabel } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
@@ -88,6 +92,23 @@ export default function AdminPanel({
     }
   }, [isAdminRole]);
 
+  // Search & Filter State for Products Table
+  const [adminProductSearch, setAdminProductSearch] = useState('');
+  const [adminBrandFilter, setAdminBrandFilter] = useState('');
+  const [adminCategoryFilter, setAdminCategoryFilter] = useState('');
+
+  // Password & Profile Settings Form State
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [profileForm, setProfileForm] = useState({
+    name: currentUser?.name || 'Administrador Geral',
+    email: currentUser?.email || 'admin@athena.com.br'
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   // Product Form State
   const [productForm, setProductForm] = useState(
     editingProduct || {
@@ -99,7 +120,9 @@ export default function AdminPanel({
       priceNegotiable: true,
       badge: 'Disponível',
       status: 'published',
+      isFeatured: false,
       image: '',
+      images: [],
       altText: '',
       description: '',
       specs: ['Elevada resistência e durabilidade', 'Manual e certificado inclusos', 'Garantia de fábrica'],
@@ -148,6 +171,7 @@ export default function AdminPanel({
       priceNegotiable: true,
       badge: 'Disponível',
       status: 'published',
+      isFeatured: false,
       image: '',
       images: [],
       altText: '',
@@ -162,6 +186,7 @@ export default function AdminPanel({
     setEditingProduct(product);
     setProductForm({
       ...product,
+      isFeatured: !!product.isFeatured,
       images: Array.isArray(product.images) ? [...product.images] : [],
       specs: product.specs && product.specs.length ? [...product.specs] : ['', ''],
       attachments: product.attachments ? [...product.attachments] : []
@@ -588,18 +613,68 @@ export default function AdminPanel({
     }
   };
 
-  // Revoke Employee Access / Delete User (Admin Only)
-  const handleDeleteUser = async (userId, userName) => {
-    if (confirm(`Tem certeza que deseja revogar o acesso de "${userName}"? Ele será removido permanentemente.`)) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/users/${userId}`, { method: 'DELETE' });
-        if (res.ok) {
-          showNotification(`Acesso de "${userName}" revogado com sucesso.`, 'info');
-          fetchUsers();
-        }
-      } catch (err) {
-        showNotification('Erro ao revogar acesso.', 'error');
+  // Change Admin / User Password
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (!passwordForm.currentPassword) {
+      showNotification('Informe sua senha atual.', 'error');
+      return;
+    }
+    if (!passwordForm.newPassword || passwordForm.newPassword.length < 4) {
+      showNotification('A nova senha deve ter no mínimo 4 caracteres.', 'error');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showNotification('A confirmação da nova senha não confere.', 'error');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/${currentUser?.id || 'user_admin_default'}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('Senha alterada com sucesso! Utilize a nova senha no próximo login.', 'success');
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        showNotification(data.error || 'Erro ao alterar senha. Verifique a senha atual.', 'error');
       }
+    } catch (err) {
+      showNotification('Erro ao conectar ao servidor para alterar a senha.', 'error');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  // Update Admin Profile Info (Name / Email)
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/${currentUser?.id || 'user_admin_default'}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profileForm.name,
+          email: profileForm.email
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('Dados de perfil atualizados com sucesso!', 'success');
+      } else {
+        showNotification(data.error || 'Erro ao atualizar dados do perfil.', 'error');
+      }
+    } catch (err) {
+      showNotification('Erro ao conectar ao servidor para atualizar perfil.', 'error');
     }
   };
 
@@ -715,139 +790,258 @@ export default function AdminPanel({
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>Funcionários & Permissões ({usersList.length})</span>
+              <span>Funcionários ({usersList.length})</span>
             </button>
           )}
+
+          {/* Settings & Password Tab */}
+          <button
+            onClick={() => setActiveAdminTab('settings')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
+              activeAdminTab === 'settings'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Lock className="w-4 h-4" />
+            <span>Configurações & Senha</span>
+          </button>
         </div>
 
-        {/* PRODUCTS MANAGEMENT TAB */}
-        {activeAdminTab === 'products' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Package className="w-5 h-5 text-amber-600" /> Lista de Produtos
-              </h3>
-              {canEditContent && (
-                <button onClick={openNewProductModal} className="btn-blue text-xs py-2 px-3">
-                  <Plus className="w-3.5 h-3.5" /> Adicionar Produto
-                </button>
-              )}
-            </div>
+        {/* PRODUCTS MANAGEMENT TAB (NO PAGINATION - CONTINUOUS LIST) */}
+        {activeAdminTab === 'products' && (() => {
+          const filteredAdminProducts = products.filter((prod) => {
+            const matchSearch = !adminProductSearch || 
+              prod.name.toLowerCase().includes(adminProductSearch.toLowerCase()) ||
+              (prod.slug && prod.slug.toLowerCase().includes(adminProductSearch.toLowerCase()));
+            const matchBrand = !adminBrandFilter || prod.brandId === adminBrandFilter;
+            const matchCategory = !adminCategoryFilter || prod.categoryId === adminCategoryFilter;
+            return matchSearch && matchBrand && matchCategory;
+          });
 
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-700">
-                  <thead className="bg-slate-100 uppercase text-[11px] text-slate-600 border-b border-slate-200 font-bold">
-                    <tr>
-                      <th className="py-3 px-4">Equipamento</th>
-                      <th className="py-3 px-4">URL / Slug</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Anexos</th>
-                      <th className="py-3 px-4 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {products.map((prod) => {
-                      const isPublished = prod.status === 'published';
-                      const attCount = prod.attachments ? prod.attachments.length : 0;
+          return (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Package className="w-5 h-5 text-amber-600" /> Lista Geral de Equipamentos
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Mostrando todos os <span className="font-bold text-amber-700">{filteredAdminProducts.length}</span> equipamentos cadastrados (sem paginação).
+                  </p>
+                </div>
 
-                      return (
-                        <tr key={prod.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
-                              <img 
-                                src={prod.image} 
-                                alt={prod.altText || prod.name}
-                                loading="lazy"
-                                className="w-10 h-10 rounded-lg object-cover bg-slate-100 border border-slate-200 shrink-0" 
-                              />
-                              <div>
-                                <span className="font-bold text-slate-900 text-xs block leading-snug line-clamp-1">
-                                  {prod.name}
-                                </span>
-                                <span className="text-[10px] text-amber-700 font-semibold">
-                                  {prod.badge || 'Disponível'}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="text-[11px] font-mono text-slate-500 block truncate max-w-xs">
-                              /produto/{prod.slug || prod.id}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <button
-                              disabled={!canEditContent}
-                              onClick={() => toggleProductStatus(prod)}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${
-                                canEditContent ? 'cursor-pointer' : 'cursor-default'
-                              } ${
-                                isPublished 
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
-                                  : 'bg-amber-50 text-amber-800 border-amber-300'
-                              }`}
-                            >
-                              {isPublished ? <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-amber-600" />}
-                              <span>{isPublished ? 'Publicado' : 'Rascunho'}</span>
-                            </button>
-                          </td>
-                          <td className="py-3 px-4">
-                            {attCount > 0 ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200 font-bold text-[10px]">
-                                <Paperclip className="w-3 h-3 text-sky-600" /> {attCount} arquivo(s)
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-slate-400 font-medium">Nenhum</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => onNavigate(`produto/${prod.slug || prod.id}`)}
-                                className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                                title="Abrir Página do Produto"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
+                {canEditContent && (
+                  <button onClick={openNewProductModal} className="btn-gold text-xs py-2.5 px-4 flex items-center gap-2 shrink-0">
+                    <Plus className="w-4 h-4" /> Adicionar Equipamento
+                  </button>
+                )}
+              </div>
 
-                              {canEditContent && (
-                                <>
+              {/* Quick Search & Filters Bar */}
+              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center gap-3">
+                <div className="relative flex-1 w-full">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por nome ou código do equipamento..."
+                    value={adminProductSearch}
+                    onChange={(e) => setAdminProductSearch(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white text-xs rounded-xl pl-9 pr-8 py-2.5 outline-none"
+                  />
+                  {adminProductSearch && (
+                    <button onClick={() => setAdminProductSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                  <select
+                    value={adminBrandFilter}
+                    onChange={(e) => setAdminBrandFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 md:w-44 font-semibold text-slate-700"
+                  >
+                    <option value="">Todas as Marcas</option>
+                    {brands.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={adminCategoryFilter}
+                    onChange={(e) => setAdminCategoryFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 md:w-48 font-semibold text-slate-700"
+                  >
+                    <option value="">Todas as Categorias</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+
+                  {(adminProductSearch || adminBrandFilter || adminCategoryFilter) && (
+                    <button
+                      onClick={() => {
+                        setAdminProductSearch('');
+                        setAdminBrandFilter('');
+                        setAdminCategoryFilter('');
+                      }}
+                      className="text-xs text-amber-700 font-bold hover:underline px-2 shrink-0"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Products Table */}
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-700">
+                    <thead className="bg-slate-100 uppercase text-[11px] text-slate-600 border-b border-slate-200 font-bold">
+                      <tr>
+                        <th className="py-3 px-4">Equipamento</th>
+                        <th className="py-3 px-4">Marca & Categoria</th>
+                        <th className="py-3 px-4 text-center">Destaque</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredAdminProducts.length > 0 ? (
+                        filteredAdminProducts.map((prod) => {
+                          const isPublished = prod.status === 'published';
+                          const brandObj = brands.find(b => b.id === prod.brandId);
+                          const catObj = categories.find(c => c.id === prod.categoryId);
+                          const isFeatured = !!prod.isFeatured;
+
+                          return (
+                            <tr key={prod.id} className={`hover:bg-slate-50 transition-colors ${isFeatured ? 'bg-amber-50/30' : ''}`}>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-3">
+                                  <img 
+                                    src={prod.image} 
+                                    alt={prod.altText || prod.name}
+                                    loading="lazy"
+                                    className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-200 shrink-0 p-1" 
+                                  />
+                                  <div>
+                                    <span className="font-bold text-slate-900 text-xs block leading-snug">
+                                      {prod.name}
+                                    </span>
+                                    <span className="text-[11px] font-mono text-slate-400 block truncate max-w-xs">
+                                      /produto/{prod.slug || prod.id}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <div className="space-y-0.5">
+                                  <span className="inline-block px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 font-bold text-[10px]">
+                                    {brandObj?.name || 'Sem Marca'}
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 block">
+                                    {catObj?.name || 'Sem Categoria'}
+                                  </span>
+                                </div>
+                              </td>
+
+                              {/* 1-Click Toggle Featured Star */}
+                              <td className="py-3 px-4 text-center">
+                                {canEditContent ? (
                                   <button
-                                    onClick={() => openEditProductModal(prod)}
-                                    className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200"
-                                    title="Editar"
+                                    onClick={() => {
+                                      const updated = { ...prod, isFeatured: !isFeatured };
+                                      onUpdateProduct(updated);
+                                      showNotification(`Produto "${prod.name}" ${!isFeatured ? 'marcado como Destaque ⭐' : 'removido dos destaques'}.`, 'success');
+                                    }}
+                                    className={`p-2 rounded-xl border transition-all ${
+                                      isFeatured 
+                                        ? 'bg-amber-400 text-amber-950 border-amber-500 shadow-xs' 
+                                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:text-amber-500 hover:bg-amber-50'
+                                    }`}
+                                    title={isFeatured ? 'Remover dos Destaques Athena' : 'Marcar como Destaque Athena (Exibir no topo)'}
                                   >
-                                    <Edit3 className="w-3.5 h-3.5" />
+                                    <Star className={`w-4 h-4 ${isFeatured ? 'fill-amber-950 text-amber-950' : ''}`} />
+                                  </button>
+                                ) : (
+                                  <Star className={`w-4 h-4 mx-auto ${isFeatured ? 'fill-amber-500 text-amber-500' : 'text-slate-300'}`} />
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <button
+                                  disabled={!canEditContent}
+                                  onClick={() => toggleProductStatus(prod)}
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${
+                                    canEditContent ? 'cursor-pointer' : 'cursor-default'
+                                  } ${
+                                    isPublished 
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                                      : 'bg-amber-50 text-amber-800 border-amber-300'
+                                  }`}
+                                >
+                                  {isPublished ? <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-amber-600" />}
+                                  <span>{isPublished ? 'Publicado' : 'Rascunho'}</span>
+                                </button>
+                              </td>
+
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => onNavigate(`produto/${prod.slug || prod.id}`)}
+                                    className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                                    title="Visualizar no Site"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
                                   </button>
 
-                                  {isAdminRole && (
-                                    <button
-                                      onClick={() => {
-                                        if (confirm(`Tem certeza que deseja apagar "${prod.name}"?`)) {
-                                          onDeleteProduct(prod.id);
-                                          showNotification('Produto apagado.', 'info');
-                                        }
-                                      }}
-                                      className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                                      title="Apagar"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
+                                  {canEditContent && (
+                                    <>
+                                      <button
+                                        onClick={() => openEditProductModal(prod)}
+                                        className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200"
+                                        title="Editar"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      {isAdminRole && (
+                                        <button
+                                          onClick={() => {
+                                            if (confirm(`Tem certeza que deseja apagar "${prod.name}"?`)) {
+                                              onDeleteProduct(prod.id);
+                                              showNotification('Produto apagado.', 'info');
+                                            }
+                                          }}
+                                          className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                                          title="Apagar"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </>
                                   )}
-                                </>
-                              )}
-                            </div>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-slate-500">
+                            Nenhum equipamento encontrado com os filtros selecionados.
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* CATEGORIES MANAGEMENT TAB */}
         {activeAdminTab === 'categories' && (
@@ -1129,6 +1323,152 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* SETTINGS & PASSWORD MANAGEMENT TAB */}
+        {activeAdminTab === 'settings' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Password Change Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Alterar Senha de Acesso
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Defina uma nova senha segura para o seu login.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Senha Atual *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      placeholder="Digite sua senha atual"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      required
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-4 py-3 outline-none"
+                    />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Nova Senha *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      placeholder="Digite a nova senha (mínimo 4 caracteres)"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      required
+                      minLength={4}
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-4 py-3 outline-none"
+                    />
+                    <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Confirmar Nova Senha *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      placeholder="Repita a nova senha"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      required
+                      minLength={4}
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-4 py-3 outline-none"
+                    />
+                    <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isChangingPassword}
+                  className="w-full btn-gold text-xs font-bold py-3.5 shadow-md flex items-center justify-center gap-2 mt-2"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{isChangingPassword ? 'Salvando...' : 'Atualizar Minha Senha'}</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Profile Info Card */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-700">
+                  <Settings className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Dados do Administrador
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Informações da conta de gerenciamento.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleUpdateProfile} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Nome de Exibição
+                  </label>
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                    required
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:bg-white text-slate-900 text-xs rounded-xl px-4 py-3 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    E-mail de Login
+                  </label>
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                    required
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:bg-white text-slate-900 text-xs rounded-xl px-4 py-3 outline-none"
+                  />
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1 text-xs text-slate-600">
+                  <span className="font-bold text-slate-900 block">Nível de Permissão:</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px]">
+                    <Shield className="w-3.5 h-3.5" /> Administrador Geral (Acesso Total)
+                  </span>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full btn-secondary text-xs font-bold py-3.5 border-slate-300 hover:bg-slate-50 flex items-center justify-center gap-2"
+                >
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  <span>Salvar Dados de Perfil</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* NEW EMPLOYEE MODAL (ADMIN ONLY) */}
         {isUserModalOpen && (
           <div className="modal-backdrop" onClick={() => setIsUserModalOpen(false)}>
@@ -1346,6 +1686,28 @@ export default function AdminPanel({
                       Preço Sob Consulta (Default)
                     </label>
                   </div>
+                </div>
+
+                {/* Destaque Athena Switch */}
+                <div className="flex items-center justify-between p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl">
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <Star className={`w-4 h-4 ${productForm.isFeatured ? 'fill-amber-500 text-amber-500' : 'text-amber-600'}`} />
+                      Marcar como Destaque Athena ⭐
+                    </span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Exibe o selo dourado e prioriza o equipamento no topo do catálogo.
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!productForm.isFeatured}
+                      onChange={(e) => setProductForm({ ...productForm, isFeatured: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
                 </div>
 
                 {/* Foto do Produto */}

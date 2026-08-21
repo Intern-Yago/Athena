@@ -65,8 +65,13 @@ export default function Catalog({
     return matchesSearch && matchesCategory && matchesBrand && matchesPrice;
   });
 
-  // Sort products
+  // Sort products (Featured priority when sortBy === 'featured')
   const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (sortBy === 'featured') {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return 0;
+    }
     if (sortBy === 'price-low') return (a.price || 0) - (b.price || 0);
     if (sortBy === 'price-high') return (b.price || 0) - (a.price || 0);
     if (sortBy === 'name-az') return a.name.localeCompare(b.name);

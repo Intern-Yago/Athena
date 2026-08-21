@@ -48,6 +48,11 @@ export default function ProductCard({
 
           {/* Badges Overlay */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 pointer-events-none">
+            {product.isFeatured && (
+              <span className="badge bg-amber-400 text-amber-950 font-extrabold text-[10px] px-2.5 py-0.5 shadow-xs border border-amber-500">
+                ⭐ Destaque Athena
+              </span>
+            )}
             {product.badge && (
               <span className="badge bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2.5 py-0.5 shadow-xs">
                 {product.badge}
@@ -203,6 +208,11 @@ export default function ProductCard({
         {/* Top Badges (Category & Custom Badges) */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none z-10">
           <div className="flex flex-col gap-1.5">
+            {product.isFeatured && (
+              <span className="bg-amber-400 text-amber-950 font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-amber-500">
+                ⭐ Destaque Athena
+              </span>
+            )}
             {product.badge && (
               <span className="bg-amber-500 text-slate-950 font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-amber-400">
                 {product.badge}
