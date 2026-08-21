@@ -117,8 +117,18 @@ export default function AdminPanel({
   });
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || 'Administrador Geral',
-    email: currentUser?.email || 'admin@athena.com.br'
+    email: currentUser?.email || 'administracao@athenaconsultoria.com.br'
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfileForm({
+        name: currentUser.name || 'Administrador Geral',
+        email: currentUser.email || 'administracao@athenaconsultoria.com.br'
+      });
+    }
+  }, [currentUser]);
+
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Product Form State
@@ -682,6 +692,14 @@ export default function AdminPanel({
       const data = await res.json();
       if (res.ok) {
         showNotification('Dados de perfil atualizados com sucesso!', 'success');
+        const updatedUser = {
+          ...(currentUser || {}),
+          id: currentUser?.id || 'user_admin_default',
+          name: profileForm.name,
+          email: profileForm.email,
+          role: currentUser?.role || 'admin'
+        };
+        localStorage.setItem('athena_user', JSON.stringify(updatedUser));
       } else {
         showNotification(data.error || 'Erro ao atualizar dados do perfil.', 'error');
       }

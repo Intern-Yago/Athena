@@ -134,8 +134,8 @@ async function initDb() {
       `);
 
       // Initialize Super Admin User if no users exist
-      const adminEmail = (process.env.ADMIN_EMAIL || 'admin@athena.com.br').trim().toLowerCase();
-      const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+      const adminEmail = (process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br').trim().toLowerCase();
+      const adminPassword = process.env.ADMIN_PASSWORD || 'Athena16/10*';
       const adminName = process.env.ADMIN_NAME || 'Administrador Geral';
 
       const userCheck = await pool.query('SELECT id FROM users LIMIT 1');
@@ -340,13 +340,21 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     }
 
     const inputEmail = email.trim().toLowerCase();
-    const envAdminEmail = (process.env.ADMIN_EMAIL || 'admin@athena.com.br').trim().toLowerCase();
-    const envAdminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const envAdminEmail = (process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br').trim().toLowerCase();
+    const envAdminPassword = process.env.ADMIN_PASSWORD || 'Athena16/10*';
     const envAdminName = process.env.ADMIN_NAME || 'Administrador Geral';
 
-    // 1. Direct Master Admin check (Supports admin123, AthenaAdmin2026!, or custom ADMIN_PASSWORD)
-    const isMasterAdmin = (inputEmail === envAdminEmail || inputEmail === 'admin@athena.com.br') &&
-      (checkPassword(password, envAdminPassword) || checkPassword(password, 'admin123') || checkPassword(password, 'AthenaAdmin2026!'));
+    // 1. Direct Master Admin check (Supports requested credentials and fallbacks)
+    const isMasterAdmin = (
+      inputEmail === envAdminEmail ||
+      inputEmail === 'administracao@athenaconsultoria.com.br' ||
+      inputEmail === 'admin@athena.com.br'
+    ) && (
+      checkPassword(password, envAdminPassword) ||
+      checkPassword(password, 'Athena16/10*') ||
+      checkPassword(password, 'admin123') ||
+      checkPassword(password, 'AthenaAdmin2026!')
+    );
 
     if (isMasterAdmin) {
       if (pool) {

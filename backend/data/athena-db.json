@@ -3,8 +3,8 @@
     {
       "id": "user_admin_default",
       "name": "Administrador Geral",
-      "email": "admin@athena.com.br",
-      "passwordHash": "admin123",
+      "email": "administracao@athenaconsultoria.com.br",
+      "passwordHash": "Athena16/10*",
       "role": "admin"
     }
   ],
