@@ -100,13 +100,14 @@ export default function AdminPanel({
   const [adminProductSearch, setAdminProductSearch] = useState('');
   const [adminBrandFilter, setAdminBrandFilter] = useState('');
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('');
+  const [adminStatusFilter, setAdminStatusFilter] = useState('');
   const [adminPage, setAdminPage] = useState(1);
   const [adminItemsPerPage, setAdminItemsPerPage] = useState(10);
 
   // Reset to page 1 on filter or per-page change
   useEffect(() => {
     setAdminPage(1);
-  }, [adminProductSearch, adminBrandFilter, adminCategoryFilter, adminItemsPerPage]);
+  }, [adminProductSearch, adminBrandFilter, adminCategoryFilter, adminStatusFilter, adminItemsPerPage]);
 
   // Password & Profile Settings Form State
   const [passwordForm, setPasswordForm] = useState({
@@ -827,7 +828,9 @@ export default function AdminPanel({
               (prod.slug && prod.slug.toLowerCase().includes(adminProductSearch.toLowerCase()));
             const matchBrand = !adminBrandFilter || prod.brandId === adminBrandFilter;
             const matchCategory = !adminCategoryFilter || prod.categoryId === adminCategoryFilter;
-            return matchSearch && matchBrand && matchCategory;
+            const matchStatus = !adminStatusFilter || 
+              (adminStatusFilter === 'featured' ? prod.isFeatured : prod.status === adminStatusFilter);
+            return matchSearch && matchBrand && matchCategory && matchStatus;
           });
 
           const totalItems = filteredAdminProducts.length;
@@ -860,7 +863,7 @@ export default function AdminPanel({
               </div>
 
               {/* Quick Search & Filters Bar */}
-              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center gap-3">
+              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-center gap-3">
                 <div className="relative flex-1 w-full">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -877,11 +880,11 @@ export default function AdminPanel({
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 w-full md:w-auto">
+                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                   <select
                     value={adminBrandFilter}
                     onChange={(e) => setAdminBrandFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 md:w-44 font-semibold text-slate-700"
+                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 sm:w-36 font-semibold text-slate-700"
                   >
                     <option value="">Todas as Marcas</option>
                     {brands.map(b => (
@@ -892,7 +895,7 @@ export default function AdminPanel({
                   <select
                     value={adminCategoryFilter}
                     onChange={(e) => setAdminCategoryFilter(e.target.value)}
-                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 md:w-48 font-semibold text-slate-700"
+                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 sm:w-40 font-semibold text-slate-700"
                   >
                     <option value="">Todas as Categorias</option>
                     {categories.map(c => (
@@ -900,12 +903,24 @@ export default function AdminPanel({
                     ))}
                   </select>
 
-                  {(adminProductSearch || adminBrandFilter || adminCategoryFilter) && (
+                  <select
+                    value={adminStatusFilter}
+                    onChange={(e) => setAdminStatusFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 sm:w-36 font-semibold text-slate-700"
+                  >
+                    <option value="">Todos os Status</option>
+                    <option value="published">🟢 Publicados</option>
+                    <option value="draft">🟡 Rascunhos</option>
+                    <option value="featured">⭐ Destaques</option>
+                  </select>
+
+                  {(adminProductSearch || adminBrandFilter || adminCategoryFilter || adminStatusFilter) && (
                     <button
                       onClick={() => {
                         setAdminProductSearch('');
                         setAdminBrandFilter('');
                         setAdminCategoryFilter('');
+                        setAdminStatusFilter('');
                       }}
                       className="text-xs text-amber-700 font-bold hover:underline px-2 shrink-0"
                     >
