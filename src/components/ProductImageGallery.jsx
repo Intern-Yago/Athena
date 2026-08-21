@@ -15,22 +15,10 @@ export default function ProductImageGallery({ product }) {
   const displayImages = imageList.length > 0 ? imageList : [fallbackImage];
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
   const [zoomState, setZoomState] = useState({ show: false, x: 50, y: 50 });
   const [zoomLevel, setZoomLevel] = useState(2.5); // Default 2.5x magnification
 
   const containerRef = useRef(null);
-
-  // Autoplay timer effect (4 seconds infinite loop)
-  useEffect(() => {
-    if (displayImages.length <= 1 || isPaused) return;
-
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % displayImages.length);
-    }, 4000);
-
-    return () => clearInterval(timer);
-  }, [displayImages.length, isPaused]);
 
   // Reset index if product changes
   useEffect(() => {
@@ -79,11 +67,10 @@ export default function ProductImageGallery({ product }) {
 
   const handleMouseLeave = () => {
     setZoomState((prev) => ({ ...prev, show: false }));
-    setIsPaused(false);
   };
 
   const handleMouseEnter = () => {
-    setIsPaused(true);
+    // hover zoom active
   };
 
   const currentImageUrl = displayImages[currentIndex] || fallbackImage;
