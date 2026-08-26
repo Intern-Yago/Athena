@@ -3,7 +3,24 @@ import ProductCard from '../components/ProductCard';
 import ProductImageGallery from '../components/ProductImageGallery';
 import FormattedDescription from '../components/FormattedDescription';
 import NotFoundPage from './NotFoundPage';
-import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, PhoneCall, Sparkles, Truck, Package, FileText, Download, ArrowLeftRight } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  CheckCircle2, 
+  ShieldCheck, 
+  Tag, 
+  Layers, 
+  MessageCircle, 
+  PhoneCall, 
+  Sparkles, 
+  Truck, 
+  Package, 
+  FileText, 
+  Download, 
+  ArrowLeftRight,
+  Eye,
+  Edit3
+} from 'lucide-react';
 
 export const formatAttachmentLabel = (fileName) => {
   if (!fileName) return 'Baixe Documento';
@@ -20,10 +37,26 @@ export default function ProductDetailPage({
   onNavigate, 
   isPreview, 
   previousRoute,
+  currentUser,
+  onEditProduct,
   comparisonList,
   onToggleComparison
 }) {
-  const product = products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId) || (isPreview ? products[0] : null);
+  // Check if there is an active draft preview in sessionStorage
+  const draftProduct = (() => {
+    try {
+      const saved = sessionStorage.getItem('athena_preview_draft_product');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && (productSlugOrId === 'preview' || parsed.slug === productSlugOrId || parsed.id === productSlugOrId)) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return null;
+  })();
+
+  const product = draftProduct || products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId) || (isPreview ? products[0] : null);
 
   if (!product) {
     return (
@@ -37,19 +70,24 @@ export default function ProductDetailPage({
   const category = categories.find((c) => c.id === product.categoryId);
   const brand = brands.find((b) => b.id === product.brandId);
 
+  const isPreviewMode = isPreview || productSlugOrId === 'preview' || Boolean(draftProduct?.isDraftPreview) || previousRoute === 'admin' || Boolean(currentUser);
+
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
 
   const whatsappMessage = encodeURIComponent(
-    `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação oficial para o equipamento:\n📌 *${product.name}*\n🏷️ Marca: ${brand?.name || 'N/A'}\n📁 Categoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
+    `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação oficial para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'N/A'}\nCategoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
   );
 
   // SMART BACK BUTTON LOGIC
   let backTargetRoute = 'catalog';
   let backButtonLabel = 'Voltar ao Catálogo';
 
-  if (previousRoute) {
+  if (previousRoute === 'admin' || isPreviewMode) {
+    backTargetRoute = 'admin';
+    backButtonLabel = 'Voltar para o Painel Admin';
+  } else if (previousRoute) {
     if (previousRoute.startsWith('categoria/') || previousRoute.startsWith('category:')) {
       const catSlugOrId = previousRoute.includes('/') ? previousRoute.split('/')[1] : previousRoute.split(':')[1];
       const prevCat = categories.find(c => c.slug === catSlugOrId || c.id === catSlugOrId);
@@ -62,6 +100,15 @@ export default function ProductDetailPage({
       backButtonLabel = prevBrand ? `Voltar para ${prevBrand.name}` : 'Voltar para Marca';
     }
   }
+
+  const handleReturnToEdit = () => {
+    sessionStorage.setItem('athena_reopen_editor', 'true');
+    if (onEditProduct && product) {
+      onEditProduct(product);
+    } else {
+      onNavigate('admin');
+    }
+  };
 
   // Smart Related Products Algorithm
   const sameCatDiffBrand = products.find(
@@ -79,29 +126,58 @@ export default function ProductDetailPage({
   const relatedProducts = [sameCatDiffBrand, sameBrandDiffCat, diffCatDiffBrand].filter(Boolean);
 
   return (
-    <div className="py-10">
-      <div className="container-custom space-y-10">
-        
-        {/* Preview Alert Banner */}
-        {isPreview && (
-          <div className="bg-sky-500 text-white p-4 rounded-2xl border border-sky-600 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-bold">
-              <Sparkles className="w-5 h-5 text-amber-300" />
-              <span>MODO DE PRÉ-VISUALIZAÇÃO DE RASCUNHO — Este produto ainda não está visível para clientes.</span>
+    <div className="pb-12">
+      {/* SHOPIFY-STYLE STICKY PREVIEW BAR */}
+      {isPreviewMode && (
+        <div className="bg-slate-900 text-white border-b border-amber-500/40 py-2.5 px-4 sm:px-8 shadow-xl sticky top-16 sm:top-20 z-30 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 bg-amber-500 text-slate-950 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider shadow-2xs">
+              <Eye className="w-3.5 h-3.5" />
+              <span>Modo de Pré-visualização</span>
             </div>
-            <button 
-              onClick={() => onNavigate('admin')}
-              className="bg-white text-slate-900 px-3 py-1.5 rounded-xl text-xs font-extrabold hover:bg-slate-100"
+            <div className="text-xs">
+              <span className="font-bold text-slate-200">{product.name}</span>
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded ml-2 ${
+                product.status === 'published' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}>
+                {product.status === 'published' ? 'Publicado' : 'Rascunho / Prévia'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleReturnToEdit}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black py-1.5 px-3 rounded-lg shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              Voltar ao Admin
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Voltar para Edição</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('catalog')}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-1.5 px-3 rounded-lg border border-slate-700 transition-colors"
+            >
+              Ver Catálogo
             </button>
           </div>
-        )}
+        </div>
+      )}
+
+      <div className="container-custom space-y-8 pt-6">
 
         {/* Smart Breadcrumbs & Back Button */}
         <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 pb-4 text-xs">
           <button 
-            onClick={() => onNavigate(backTargetRoute)}
+            onClick={() => {
+              if (backTargetRoute === 'admin' && isPreviewMode) {
+                handleReturnToEdit();
+              } else {
+                onNavigate(backTargetRoute);
+              }
+            }}
             className="btn-secondary text-xs py-2 px-3.5 gap-1.5 font-bold"
           >
             <ArrowLeft className="w-4 h-4 text-amber-600 shrink-0" />

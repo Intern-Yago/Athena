@@ -16,122 +16,14 @@ export function stripFormattingTags(text = '') {
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
     .replace(/__(.*?)__/g, '$1')
-    .replace(/^[•\-\*]\s+/gm, '')
-    .replace(/^\d+\.\s+/gm, '')
+    .replace(/^\s*[•\-\*]\s+/gm, '')
+    .replace(/^\s*\d+[\.\)]\s+/gm, '')
     .trim();
 }
 
 /**
- * Parses inline formatting (bold, italic, underline, colors, highlight) into React nodes.
- */
-function parseInlineFormatting(text) {
-  if (!text) return null;
-
-  // Tokenize the line into formatting markers
-  // Supports: **bold**, *italic*, <u>underline</u>, [color=...], [cor=...], [destaque], <color:...>, <mark>
-  const tokens = [];
-  let remaining = text;
-
-  const patterns = [
-    { type: 'bold', regex: /^(\*\*(.+?)\*\*|<b>(.+?)<\/b>|<strong>(.+?)<\/strong>)/ },
-    { type: 'italic', regex: /^(\*(.+?)\*|<i>(.+?)<\/i>|<em>(.+?)<\/em>)/ },
-    { type: 'underline', regex: /^(<u>(.+?)<\/u>|__(.+?)__)/ },
-    { type: 'color', regex: /^(\[(?:color|cor)=([a-zA-Z0-9_\-]+)\](.*?)\[\/(?:color|cor)\]|<color:([a-zA-Z0-9_\-]+)>(.*?)<\/color>)/ },
-    { type: 'highlight', regex: /^(\[(?:destaque|highlight)\](.*?)\[\/(?:destaque|highlight)\]|<mark>(.*?)<\/mark>)/ }
-  ];
-
-  let keyCounter = 0;
-
-  while (remaining.length > 0) {
-    let matched = false;
-
-    for (const { type, regex } of patterns) {
-      const match = remaining.match(regex);
-      if (match) {
-        matched = true;
-        const fullMatch = match[0];
-        keyCounter++;
-
-        if (type === 'bold') {
-          const content = match[2] || match[3] || match[4];
-          tokens.push(
-            <strong key={keyCounter} className="font-bold text-slate-900">
-              {parseInlineFormatting(content)}
-            </strong>
-          );
-        } else if (type === 'italic') {
-          const content = match[2] || match[3] || match[4];
-          tokens.push(
-            <em key={keyCounter} className="italic text-slate-800">
-              {parseInlineFormatting(content)}
-            </em>
-          );
-        } else if (type === 'underline') {
-          const content = match[2] || match[3];
-          tokens.push(
-            <u key={keyCounter} className="underline decoration-amber-500/70 underline-offset-2">
-              {parseInlineFormatting(content)}
-            </u>
-          );
-        } else if (type === 'color') {
-          const colorName = (match[2] || match[4] || '').toLowerCase();
-          const content = match[3] || match[5] || '';
-          
-          let colorClass = 'text-amber-700 font-bold';
-          if (colorName === 'azul' || colorName === 'blue' || colorName === 'sky') {
-            colorClass = 'text-sky-700 font-bold';
-          } else if (colorName === 'verde' || colorName === 'green' || colorName === 'emerald') {
-            colorClass = 'text-emerald-700 font-bold';
-          } else if (colorName === 'vermelho' || colorName === 'red') {
-            colorClass = 'text-red-700 font-bold';
-          } else if (colorName === 'cinza' || colorName === 'gray' || colorName === 'slate') {
-            colorClass = 'text-slate-600 font-bold';
-          } else if (colorName === 'preto' || colorName === 'black') {
-            colorClass = 'text-slate-950 font-extrabold';
-          }
-
-          tokens.push(
-            <span key={keyCounter} className={colorClass}>
-              {parseInlineFormatting(content)}
-            </span>
-          );
-        } else if (type === 'highlight') {
-          const content = match[2] || match[3] || '';
-          tokens.push(
-            <mark key={keyCounter} className="bg-amber-100 text-amber-950 px-1.5 py-0.5 rounded font-bold border border-amber-300/60 not-italic inline-block my-0.5">
-              {parseInlineFormatting(content)}
-            </mark>
-          );
-        }
-
-        remaining = remaining.slice(fullMatch.length);
-        break;
-      }
-    }
-
-    if (!matched) {
-      // Find the next index of any formatting trigger character
-      const nextSpecial = remaining.search(/[\*<\[_]/);
-      if (nextSpecial === -1) {
-        tokens.push(remaining);
-        remaining = '';
-      } else if (nextSpecial === 0) {
-        // First char triggered no regex match, consume 1 char as plain text
-        tokens.push(remaining[0]);
-        remaining = remaining.slice(1);
-      } else {
-        tokens.push(remaining.slice(0, nextSpecial));
-        remaining = remaining.slice(nextSpecial);
-      }
-    }
-  }
-
-  return tokens;
-}
-
-/**
  * FormattedDescription Component
- * Renders rich text description supporting bold, italic, underline, colors, highlight, bullet lists, and numbered lists.
+ * Renders rich text description supporting bold, italic, underline, colors, highlight, nested bullet lists, and nested numbered lists.
  */
 export default function FormattedDescription({ text = '', className = '' }) {
   if (!text || !text.trim()) {
@@ -143,30 +35,79 @@ export default function FormattedDescription({ text = '', className = '' }) {
   let currentList = null; // { type: 'bullet' | 'ordered', items: [] }
 
   const flushList = () => {
-    if (!currentList) return;
+    if (!currentList || currentList.items.length === 0) return;
     const listIndex = elements.length;
+
     if (currentList.type === 'bullet') {
       elements.push(
-        <ul key={`list-${listIndex}`} className="space-y-1.5 my-2.5 pl-1">
-          {currentList.items.map((item, idx) => (
-            <li key={idx} className="flex items-start gap-2 text-slate-700 leading-relaxed">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-2 shrink-0" />
-              <span className="flex-1">{parseInlineFormatting(item)}</span>
-            </li>
-          ))}
+        <ul key={`list-${listIndex}`} className="space-y-1.5 my-2.5">
+          {currentList.items.map((item, idx) => {
+            const level = item.level || 0;
+            // Indent padding styles according to nesting level
+            const paddingClass = level === 0 ? 'pl-1' : level === 1 ? 'pl-5 sm:pl-6' : 'pl-9 sm:pl-11';
+            
+            return (
+              <li key={idx} className={`flex items-start gap-2.5 text-slate-700 leading-relaxed ${paddingClass}`}>
+                {level === 0 ? (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-600 mt-2 shrink-0 shadow-2xs" />
+                ) : level === 1 ? (
+                  <span className="w-1.5 h-1.5 rounded-full border-2 border-amber-600 bg-white mt-2 shrink-0" />
+                ) : (
+                  <span className="w-1.5 h-1.5 rounded-2xs bg-slate-500 mt-2 shrink-0" />
+                )}
+                <span className="flex-1">{parseInlineFormatting(item.content)}</span>
+              </li>
+            );
+          })}
         </ul>
       );
     } else if (currentList.type === 'ordered') {
+      // Counter tracking for sub-levels
+      let level0Counter = 0;
+      let level1Counter = 0;
+      let level2Counter = 0;
+
       elements.push(
-        <ol key={`list-${listIndex}`} className="space-y-1.5 my-2.5 pl-1">
-          {currentList.items.map((item, idx) => (
-            <li key={idx} className="flex items-start gap-2.5 text-slate-700 leading-relaxed">
-              <span className="w-4.5 h-4.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300/70 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
-                {idx + 1}
-              </span>
-              <span className="flex-1">{parseInlineFormatting(item)}</span>
-            </li>
-          ))}
+        <ol key={`list-${listIndex}`} className="space-y-1.5 my-2.5">
+          {currentList.items.map((item, idx) => {
+            const level = item.level || 0;
+            const paddingClass = level === 0 ? 'pl-1' : level === 1 ? 'pl-5 sm:pl-6' : 'pl-9 sm:pl-11';
+            
+            let label = '';
+            if (level === 0) {
+              level0Counter++;
+              level1Counter = 0;
+              level2Counter = 0;
+              label = `${level0Counter}`;
+            } else if (level === 1) {
+              level1Counter++;
+              level2Counter = 0;
+              const letter = String.fromCharCode(96 + ((level1Counter - 1) % 26 + 1));
+              label = `${letter}`;
+            } else {
+              level2Counter++;
+              label = `${level2Counter}`;
+            }
+
+            return (
+              <li key={idx} className={`flex items-start gap-2.5 text-slate-700 leading-relaxed ${paddingClass}`}>
+                {level === 0 ? (
+                  <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-900 border border-amber-300/70 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                    {label}
+                  </span>
+                ) : level === 1 ? (
+                  <span className="w-4.5 h-4.5 rounded-md bg-slate-100 text-slate-800 border border-slate-300 text-[10px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">
+                    {label}
+                  </span>
+                ) : (
+                  <span className="w-4 h-4 rounded bg-slate-50 text-slate-600 border border-slate-200 text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    {label}
+                  </span>
+                )}
+                <span className="flex-1">{parseInlineFormatting(item.content)}</span>
+              </li>
+            );
+          })}
         </ol>
       );
     }
@@ -174,36 +115,45 @@ export default function FormattedDescription({ text = '', className = '' }) {
   };
 
   for (let i = 0; i < rawLines.length; i++) {
-    const line = rawLines[i].trim();
+    const rawLine = rawLines[i];
+    const trimmed = rawLine.trim();
 
-    if (!line) {
+    if (!trimmed) {
       flushList();
       continue;
     }
 
-    // Check if line is a bullet point: starts with • or - or * (when followed by space)
-    const bulletMatch = line.match(/^[•\-\*]\s+(.*)$/);
+    // Check if line is a bullet point with possible indentation: e.g. "  • item" or "• item" or "- item"
+    const bulletMatch = rawLine.match(/^(\s*)(?:[•\-\*])\s+(.*)$/);
     if (bulletMatch) {
+      const indentSpaces = bulletMatch[1].length;
+      const level = Math.min(Math.floor(indentSpaces / 2), 3);
+      const content = bulletMatch[2];
+
       if (currentList && currentList.type !== 'bullet') {
         flushList();
       }
       if (!currentList) {
         currentList = { type: 'bullet', items: [] };
       }
-      currentList.items.push(bulletMatch[1]);
+      currentList.items.push({ level, content });
       continue;
     }
 
-    // Check if line is a numbered list: starts with 1. or 2) etc.
-    const orderedMatch = line.match(/^(\d+)[\.\)]\s+(.*)$/);
+    // Check if line is a numbered list with possible indentation: e.g. "  1. item" or "1. item"
+    const orderedMatch = rawLine.match(/^(\s*)(\d+)[\.\)]\s+(.*)$/);
     if (orderedMatch) {
+      const indentSpaces = orderedMatch[1].length;
+      const level = Math.min(Math.floor(indentSpaces / 2), 3);
+      const content = orderedMatch[3];
+
       if (currentList && currentList.type !== 'ordered') {
         flushList();
       }
       if (!currentList) {
         currentList = { type: 'ordered', items: [] };
       }
-      currentList.items.push(orderedMatch[2]);
+      currentList.items.push({ level, content, rawNum: orderedMatch[2] });
       continue;
     }
 
@@ -211,7 +161,7 @@ export default function FormattedDescription({ text = '', className = '' }) {
     flushList();
     elements.push(
       <p key={`p-${elements.length}`} className="leading-relaxed my-1.5 text-slate-700">
-        {parseInlineFormatting(line)}
+        {parseInlineFormatting(trimmed)}
       </p>
     );
   }

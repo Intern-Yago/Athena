@@ -39,6 +39,7 @@ import { formatAttachmentLabel } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
 import RichTextEditor from './RichTextEditor';
 import FormattedDescription from './FormattedDescription';
+import { safeStorageSet } from '../utils/storage';
 
 export default function AdminPanel({
   products,
@@ -187,6 +188,21 @@ export default function AdminPanel({
   const [isProductModalOpen, setIsProductModalOpen] = useState(!!editingProduct);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isDraggingBrandLogo, setIsDraggingBrandLogo] = useState(false);
+
+  useEffect(() => {
+    const shouldReopen = sessionStorage.getItem('athena_reopen_editor');
+    if (shouldReopen === 'true') {
+      sessionStorage.removeItem('athena_reopen_editor');
+      try {
+        const savedDraft = sessionStorage.getItem('athena_preview_draft_product');
+        if (savedDraft) {
+          const draft = JSON.parse(savedDraft);
+          setProductForm(draft);
+          setIsProductModalOpen(true);
+        }
+      } catch (e) {}
+    }
+  }, []);
 
   const generateSlug = (nameStr) => {
     return nameStr
@@ -859,7 +875,7 @@ export default function AdminPanel({
         onUpdateBrand(newBrandObj);
       } else {
         const updatedBrands = brands.map(b => b.id === editingBrand.id ? newBrandObj : b);
-        localStorage.setItem('athena_brands', JSON.stringify(updatedBrands));
+        safeStorageSet('athena_brands', updatedBrands);
       }
       showNotification(`Marca "${newBrandObj.name}" atualizada!`, 'success');
     } else {
@@ -915,7 +931,7 @@ export default function AdminPanel({
             onUpdateCategory(categoryObj);
           } else {
             const updated = categories.map(c => c.id === editingCategory.id ? categoryObj : c);
-            localStorage.setItem('athena_categories', JSON.stringify(updated));
+            safeStorageSet('athena_categories', updated);
           }
           showNotification(`Categoria "${categoryObj.name}" atualizada com sucesso!`, 'success');
         } else {
@@ -1076,7 +1092,7 @@ export default function AdminPanel({
           email: profileForm.email,
           role: currentUser?.role || 'admin'
         };
-        localStorage.setItem('athena_user', JSON.stringify(updatedUser));
+        safeStorageSet('athena_user', updatedUser);
       } else {
         showNotification(data.error || 'Erro ao atualizar dados do perfil.', 'error');
       }
@@ -2735,6 +2751,11 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => {
+                    sessionStorage.setItem('athena_preview_draft_product', JSON.stringify({
+                      ...productForm,
+                      id: productForm.id || editingProduct?.id || 'preview',
+                      isDraftPreview: true
+                    }));
                     setIsProductModalOpen(false);
                     onNavigate(`produto/${productForm.slug || 'preview'}`);
                   }}

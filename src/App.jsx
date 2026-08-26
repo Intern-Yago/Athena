@@ -19,55 +19,41 @@ import ProductComparisonModal from './components/ProductComparisonModal';
 
 import { INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
+import { safeStorageGet, safeStorageSet, safeStorageRemove, idbGet } from './utils/storage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
 
 export default function App() {
   const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem('athena_products');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
+    const saved = safeStorageGet('athena_products', null);
+    if (Array.isArray(saved)) return saved;
     return [];
   });
 
   const [categories, setCategories] = useState(() => {
-    const saved = localStorage.getItem('athena_categories');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const merged = [...parsed];
-          INITIAL_CATEGORIES.forEach((ic) => {
-            if (!merged.some((c) => c.id === ic.id || (c.slug && c.slug === ic.slug))) {
-              merged.push(ic);
-            }
-          });
-          return merged;
+    const saved = safeStorageGet('athena_categories', null);
+    if (Array.isArray(saved) && saved.length > 0) {
+      const merged = [...saved];
+      INITIAL_CATEGORIES.forEach((ic) => {
+        if (!merged.some((c) => c.id === ic.id || (c.slug && c.slug === ic.slug))) {
+          merged.push(ic);
         }
-      } catch (e) {}
+      });
+      return merged;
     }
     return INITIAL_CATEGORIES;
   });
 
   const [brands, setBrands] = useState(() => {
-    const saved = localStorage.getItem('athena_brands');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const merged = [...parsed];
-          INITIAL_BRANDS.forEach((ib) => {
-            if (!merged.some((b) => b.id === ib.id || (b.slug && b.slug === ib.slug))) {
-              merged.push(ib);
-            }
-          });
-          return merged;
+    const saved = safeStorageGet('athena_brands', null);
+    if (Array.isArray(saved) && saved.length > 0) {
+      const merged = [...saved];
+      INITIAL_BRANDS.forEach((ib) => {
+        if (!merged.some((b) => b.id === ib.id || (b.slug && b.slug === ib.slug))) {
+          merged.push(ib);
         }
-      } catch (e) {}
+      });
+      return merged;
     }
     return INITIAL_BRANDS;
   });
@@ -76,8 +62,7 @@ export default function App() {
 
   // Authenticated User State (Employee Login & Roles)
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('athena_user');
-    return saved ? JSON.parse(saved) : null;
+    return safeStorageGet('athena_user', null);
   });
 
   // Clean HTML5 Router (Zero "#" symbols, beautiful URLs like /admin, /produto/elevador)
@@ -137,14 +122,14 @@ export default function App() {
   // Auth Handlers
   const handleLoginSuccess = (userObj) => {
     setCurrentUser(userObj);
-    localStorage.setItem('athena_user', JSON.stringify(userObj));
+    safeStorageSet('athena_user', userObj);
     showNotification(`Bem-vindo, ${userObj.name}!`, 'success');
     navigateTo('admin');
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('athena_user');
+    safeStorageRemove('athena_user');
     showNotification('Sessão encerrada.', 'info');
     navigateTo('catalog');
   };
@@ -176,6 +161,31 @@ export default function App() {
     };
   }, []);
 
+  // Load heavy data from IndexedDB on startup
+  useEffect(() => {
+    const loadFromIndexedDB = async () => {
+      try {
+        const [idbProds, idbCats, idbBrands] = await Promise.all([
+          idbGet('athena_products'),
+          idbGet('athena_categories'),
+          idbGet('athena_brands')
+        ]);
+        if (Array.isArray(idbProds) && idbProds.length > 0) {
+          setProducts((prev) => (prev.length === 0 || idbProds.length >= prev.length ? idbProds : prev));
+        }
+        if (Array.isArray(idbCats) && idbCats.length > 0) {
+          setCategories((prev) => (prev.length <= INITIAL_CATEGORIES.length ? idbCats : prev));
+        }
+        if (Array.isArray(idbBrands) && idbBrands.length > 0) {
+          setBrands((prev) => (prev.length <= INITIAL_BRANDS.length ? idbBrands : prev));
+        }
+      } catch (e) {
+        console.warn('[Athena Storage] Erro ao sincronizar IndexedDB:', e);
+      }
+    };
+    loadFromIndexedDB();
+  }, []);
+
   // Fetch from NestJS / Node backend if available
   useEffect(() => {
     const fetchBackendData = async () => {
@@ -204,17 +214,23 @@ export default function App() {
     fetchBackendData();
   }, []);
 
-  // Sync fallback to LocalStorage
+  // Sync fallback to safe storage (IndexedDB + safe LocalStorage)
   useEffect(() => {
-    localStorage.setItem('athena_products', JSON.stringify(products));
+    if (products && products.length > 0) {
+      safeStorageSet('athena_products', products);
+    }
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('athena_categories', JSON.stringify(categories));
+    if (categories && categories.length > 0) {
+      safeStorageSet('athena_categories', categories);
+    }
   }, [categories]);
 
   useEffect(() => {
-    localStorage.setItem('athena_brands', JSON.stringify(brands));
+    if (brands && brands.length > 0) {
+      safeStorageSet('athena_brands', brands);
+    }
   }, [brands]);
 
   const showNotification = (message, type = 'success') => {
@@ -350,7 +366,7 @@ export default function App() {
 
   const handleReorderCategories = async (newCategories) => {
     setCategories(newCategories);
-    localStorage.setItem('athena_categories', JSON.stringify(newCategories));
+    safeStorageSet('athena_categories', newCategories);
     if (isBackendConnected) {
       try {
         await fetch(`${API_BASE_URL}/categories/reorder`, {
@@ -366,7 +382,7 @@ export default function App() {
 
   const handleReorderBrands = async (newBrands) => {
     setBrands(newBrands);
-    localStorage.setItem('athena_brands', JSON.stringify(newBrands));
+    safeStorageSet('athena_brands', newBrands);
     if (isBackendConnected) {
       try {
         await fetch(`${API_BASE_URL}/brands/reorder`, {
@@ -382,7 +398,7 @@ export default function App() {
 
   const handleReorderProducts = async (newProducts) => {
     setProducts(newProducts);
-    localStorage.setItem('athena_products', JSON.stringify(newProducts));
+    safeStorageSet('athena_products', newProducts);
     if (isBackendConnected) {
       try {
         await fetch(`${API_BASE_URL}/products/reorder`, {
@@ -444,6 +460,8 @@ export default function App() {
           onNavigate={navigateTo}
           isPreview={slugOrId === 'preview'}
           previousRoute={previousRoute}
+          currentUser={currentUser}
+          onEditProduct={handleEditProductFromCatalog}
           comparisonList={comparisonList}
           onToggleComparison={handleToggleComparison}
         />
