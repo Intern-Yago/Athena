@@ -38,7 +38,7 @@ import {
   HelpCircle,
   ArrowUpDown
 } from 'lucide-react';
-import { formatAttachmentLabel } from '../pages/ProductDetailPage';
+import { formatAttachmentLabel, encodeDraftToShareableUrl } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
 import RichTextEditor from './RichTextEditor';
 import FormattedDescription from './FormattedDescription';
@@ -2969,18 +2969,20 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => {
-                    sessionStorage.setItem('athena_preview_draft_product', JSON.stringify({
+                    const draftPayload = {
                       ...productForm,
                       id: productForm.id || editingProduct?.id || 'preview',
                       isDraftPreview: true
-                    }));
+                    };
+                    sessionStorage.setItem('athena_preview_draft_product', JSON.stringify(draftPayload));
+                    const token = encodeDraftToShareableUrl ? encodeDraftToShareableUrl(draftPayload) : '';
                     setIsProductModalOpen(false);
-                    onNavigate(`produto/${productForm.slug || 'preview'}`);
+                    onNavigate(`produto/preview${token ? `?d=${token}` : ''}`);
                   }}
                   className="btn-secondary text-xs py-2.5 px-4 font-bold flex items-center gap-1.5"
                 >
                   <Eye className="w-4 h-4 text-emerald-600" />
-                  <span>Pré-visualizar Página</span>
+                  <span>Pré-visualizar Página (Link de Prévia)</span>
                 </button>
 
                 <div className="flex items-center gap-3">

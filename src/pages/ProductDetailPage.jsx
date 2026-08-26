@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProductCard from '../components/ProductCard';
 import ProductImageGallery from '../components/ProductImageGallery';
 import FormattedDescription, { stripFormattingTags } from '../components/FormattedDescription';
@@ -19,7 +19,10 @@ import {
   Download, 
   ArrowLeftRight,
   Eye,
-  Edit3
+  Edit3,
+  Share2,
+  Copy,
+  Check
 } from 'lucide-react';
 
 export const formatAttachmentLabel = (fileName) => {
@@ -29,11 +32,39 @@ export const formatAttachmentLabel = (fileName) => {
   return `Baixe ${cleanName}`;
 };
 
+export function decodeDraftFromToken(token) {
+  try {
+    const jsonStr = decodeURIComponent(Array.prototype.map.call(atob(token), (c) => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    return null;
+  }
+}
+
+export function encodeDraftToShareableUrl(draftProduct) {
+  try {
+    const compactDraft = {
+      ...draftProduct,
+      isDraftPreview: true,
+      previewGeneratedAt: Date.now()
+    };
+    const jsonStr = JSON.stringify(compactDraft);
+    const base64 = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+      return String.fromCharCode('0x' + p1);
+    }));
+    return base64;
+  } catch (e) {
+    return null;
+  }
+}
+
 export default function ProductDetailPage({ 
   productSlugOrId, 
-  products, 
-  categories, 
-  brands, 
+  products = [], 
+  categories = [], 
+  brands = [], 
   onNavigate, 
   isPreview, 
   previousRoute,
@@ -42,21 +73,37 @@ export default function ProductDetailPage({
   comparisonList,
   onToggleComparison
 }) {
-  // Check if there is an active draft preview in sessionStorage
-  const draftProduct = (() => {
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // 1. Check for shareable encoded draft in URL search params (?d=... or ?token=...)
+  const urlDraft = (() => {
     try {
-      const saved = sessionStorage.getItem('athena_preview_draft_product');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && (productSlugOrId === 'preview' || parsed.slug === productSlugOrId || parsed.id === productSlugOrId)) {
-          return parsed;
-        }
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('d') || params.get('token') || params.get('draft');
+      if (token) {
+        return decodeDraftFromToken(token);
       }
     } catch (e) {}
     return null;
   })();
 
-  const product = draftProduct || products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId) || (isPreview ? products[0] : null);
+  // 2. Check for active draft preview in sessionStorage ONLY if route is explicitly 'preview'
+  const sessionDraft = (() => {
+    if (productSlugOrId === 'preview' || isPreview) {
+      try {
+        const saved = sessionStorage.getItem('athena_preview_draft_product');
+        if (saved) {
+          return JSON.parse(saved);
+        }
+      } catch (e) {}
+    }
+    return null;
+  })();
+
+  const draftProduct = urlDraft || sessionDraft;
+  const isPreviewMode = Boolean(draftProduct) || productSlugOrId === 'preview' || Boolean(isPreview);
+
+  const product = draftProduct || products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId);
 
   if (!product) {
     return (
@@ -70,11 +117,19 @@ export default function ProductDetailPage({
   const category = categories.find((c) => c.id === product.categoryId);
   const brand = brands.find((b) => b.id === product.brandId);
 
-  const isPreviewMode = isPreview || productSlugOrId === 'preview' || Boolean(draftProduct?.isDraftPreview) || previousRoute === 'admin' || Boolean(currentUser);
-
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
+
+  const handleCopyPreviewLink = () => {
+    try {
+      const token = encodeDraftToShareableUrl(product);
+      const shareUrl = `${window.location.origin}/produto/preview?d=${token}`;
+      navigator.clipboard.writeText(shareUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch (e) {}
+  };
 
   const whatsappMessage = encodeURIComponent(
     `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação oficial para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'N/A'}\nCategoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
@@ -229,7 +284,21 @@ export default function ProductDetailPage({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleCopyPreviewLink}
+              className={`text-xs font-bold py-1.5 px-3 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
+                copiedLink 
+                  ? 'bg-emerald-600 text-white border-emerald-500 font-black' 
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              }`}
+              title="Copie o link temporário com hash para enviar para clientes ou outros computadores"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5 text-amber-400" />}
+              <span>{copiedLink ? 'Link Copiado!' : 'Copiar Link de Prévia'}</span>
+            </button>
+
             <button
               type="button"
               onClick={handleReturnToEdit}
@@ -558,6 +627,24 @@ export default function ProductDetailPage({
         )}
 
       </div>
+
+      {/* DISCREET FLOATING ADMIN QUICK-EDIT BUTTON FOR LOGGED-IN USERS */}
+      {!isPreviewMode && currentUser && onEditProduct && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            type="button"
+            onClick={() => {
+              onEditProduct(product);
+            }}
+            className="px-4 py-2.5 rounded-2xl bg-slate-900 text-amber-400 hover:bg-slate-800 shadow-2xl border border-amber-500/40 text-xs font-black flex items-center gap-2 transition transform hover:scale-105"
+            title="Editar este equipamento no Painel Admin"
+          >
+            <Edit3 className="w-4 h-4 text-amber-400" />
+            <span>Editar Equipamento</span>
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }
