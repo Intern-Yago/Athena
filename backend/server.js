@@ -348,6 +348,10 @@ app.post('/api/upload', async (req, res) => {
     });
   } catch (error) {
     console.error('Erro no upload de imagem:', error);
+    return res.status(500).json({ error: 'Erro ao fazer upload da imagem/arquivo para a nuvem.' });
+  }
+});
+
 // Endpoint para disparar a migração em lote de imagens do Cloudinary para o Cloudflare R2
 app.post('/api/admin/migrate-r2', async (req, res) => {
   try {
