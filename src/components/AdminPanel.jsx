@@ -33,7 +33,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  AlertTriangle,
+  HelpCircle,
+  ArrowUpDown
 } from 'lucide-react';
 import { formatAttachmentLabel } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
@@ -121,6 +124,18 @@ export default function AdminPanel({
   const [adminStatusFilter, setAdminStatusFilter] = useState('');
   const [adminPage, setAdminPage] = useState(1);
   const [adminItemsPerPage, setAdminItemsPerPage] = useState(10);
+  const [adminSortField, setAdminSortField] = useState('name');
+  const [adminSortDirection, setAdminSortDirection] = useState('asc');
+
+  const handleAdminSort = (field) => {
+    if (adminSortField === field) {
+      setAdminSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setAdminSortField(field);
+      setAdminSortDirection('asc');
+    }
+    setAdminPage(1);
+  };
 
   // Reset to page 1 on filter or per-page change
   useEffect(() => {
@@ -203,6 +218,63 @@ export default function AdminPanel({
       } catch (e) {}
     }
   }, []);
+
+  // Custom Confirmation Modal Popup State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Sim, Confirmar',
+    cancelText: 'Cancelar',
+    type: 'danger',
+    onConfirm: null
+  });
+
+  const askConfirmation = ({
+    title,
+    message,
+    confirmText = 'Sim, Confirmar',
+    cancelText = 'Cancelar',
+    type = 'danger',
+    onConfirm
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      type,
+      onConfirm
+    });
+  };
+
+  const closeConfirmation = () => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false, onConfirm: null }));
+  };
+
+  // Revogar Acesso de Usuário / Funcionário
+  const handleDeleteUser = (userId, userName) => {
+    askConfirmation({
+      title: 'Revogar Acesso do Usuário?',
+      message: `Tem certeza que deseja revogar o acesso de "${userName}"? Ele não poderá mais fazer login no painel administrativo.`,
+      confirmText: 'Sim, Revogar Acesso',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/users/${userId}`, { method: 'DELETE' });
+          if (res.ok) {
+            showNotification(`Acesso de ${userName} revogado com sucesso.`, 'success');
+            setUsersList(prev => prev.filter(u => u.id !== userId));
+          } else {
+            showNotification('Erro ao remover usuário.', 'error');
+          }
+        } catch (err) {
+          showNotification('Erro de conexão ao remover usuário.', 'error');
+        }
+      }
+    });
+  };
 
   const generateSlug = (nameStr) => {
     return nameStr
@@ -1244,15 +1316,53 @@ export default function AdminPanel({
             return matchSearch && matchBrand && matchCategory && matchStatus;
           });
 
-          const totalItems = filteredAdminProducts.length;
+          // Sort products according to adminSortField and adminSortDirection
+          const sortedAdminProducts = [...filteredAdminProducts].sort((a, b) => {
+            if (!adminSortField) return 0;
+            let comparison = 0;
+
+            if (adminSortField === 'name') {
+              comparison = (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+            } else if (adminSortField === 'brand_category') {
+              const brandA = brands.find(br => br.id === a.brandId)?.name || '';
+              const brandB = brands.find(br => br.id === b.brandId)?.name || '';
+              const catA = categories.find(ca => ca.id === a.categoryId)?.name || '';
+              const catB = categories.find(ca => ca.id === b.categoryId)?.name || '';
+              const compA = `${brandA} ${catA}`.trim();
+              const compB = `${brandB} ${catB}`.trim();
+              comparison = compA.localeCompare(compB, 'pt-BR', { sensitivity: 'base' });
+            } else if (adminSortField === 'featured') {
+              const featA = a.isFeatured ? 1 : 0;
+              const featB = b.isFeatured ? 1 : 0;
+              comparison = featB - featA; // Default asc: featured first
+            } else if (adminSortField === 'status') {
+              const statusA = a.status === 'published' ? 1 : 0;
+              const statusB = b.status === 'published' ? 1 : 0;
+              comparison = statusB - statusA; // Default asc: published first
+            }
+
+            return adminSortDirection === 'asc' ? comparison : -comparison;
+          });
+
+          const totalItems = sortedAdminProducts.length;
           const isAll = adminItemsPerPage === 'all';
           const perPageNum = isAll ? (totalItems || 1) : Number(adminItemsPerPage);
           const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalItems / perPageNum));
           const currentPageSafe = Math.min(Math.max(1, adminPage), totalPages);
           const startIndex = isAll ? 0 : (currentPageSafe - 1) * perPageNum;
           const paginatedAdminProducts = isAll 
-            ? filteredAdminProducts 
-            : filteredAdminProducts.slice(startIndex, startIndex + perPageNum);
+            ? sortedAdminProducts 
+            : sortedAdminProducts.slice(startIndex, startIndex + perPageNum);
+
+          const renderSortIcon = (field) => {
+            if (adminSortField !== field) {
+              return <ArrowUpDown className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 shrink-0 ml-1 transition" />;
+            }
+            if (adminSortDirection === 'asc') {
+              return <ArrowUp className="w-3.5 h-3.5 text-amber-700 shrink-0 ml-1 font-black" />;
+            }
+            return <ArrowDown className="w-3.5 h-3.5 text-amber-700 shrink-0 ml-1 font-black" />;
+          };
 
           return (
             <div className="space-y-4">
@@ -1345,12 +1455,48 @@ export default function AdminPanel({
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs text-slate-700">
-                    <thead className="bg-slate-100 uppercase text-[11px] text-slate-600 border-b border-slate-200 font-bold">
+                    <thead className="bg-slate-100 uppercase text-[11px] text-slate-600 border-b border-slate-200 font-bold select-none">
                       <tr>
-                        <th className="py-3 px-4">Equipamento</th>
-                        <th className="py-3 px-4">Marca & Categoria</th>
-                        <th className="py-3 px-4 text-center">Destaque</th>
-                        <th className="py-3 px-4">Status</th>
+                        <th 
+                          onClick={() => handleAdminSort('name')}
+                          className="py-3 px-4 cursor-pointer hover:bg-slate-200/80 transition-colors group"
+                          title="Clique para ordenar por Equipamento (A-Z ou Z-A)"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Equipamento</span>
+                            {renderSortIcon('name')}
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => handleAdminSort('brand_category')}
+                          className="py-3 px-4 cursor-pointer hover:bg-slate-200/80 transition-colors group"
+                          title="Clique para ordenar por Marca e Categoria"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Marca & Categoria</span>
+                            {renderSortIcon('brand_category')}
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => handleAdminSort('featured')}
+                          className="py-3 px-4 text-center cursor-pointer hover:bg-slate-200/80 transition-colors group"
+                          title="Clique para ordenar por Destaques"
+                        >
+                          <div className="flex items-center justify-center gap-1">
+                            <span>Destaque</span>
+                            {renderSortIcon('featured')}
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => handleAdminSort('status')}
+                          className="py-3 px-4 cursor-pointer hover:bg-slate-200/80 transition-colors group"
+                          title="Clique para ordenar por Status (Publicado / Rascunho)"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Status</span>
+                            {renderSortIcon('status')}
+                          </div>
+                        </th>
                         <th className="py-3 px-4 text-right">Ações</th>
                       </tr>
                     </thead>
@@ -1475,13 +1621,19 @@ export default function AdminPanel({
                                       {isAdminRole && (
                                         <button
                                           onClick={() => {
-                                            if (confirm(`Tem certeza que deseja apagar "${prod.name}"?`)) {
-                                              onDeleteProduct(prod.id);
-                                              showNotification('Produto apagado.', 'info');
-                                            }
+                                            askConfirmation({
+                                              title: 'Excluir Equipamento?',
+                                              message: `Tem certeza que deseja apagar permanentemente "${prod.name}"? Esta ação removerá o produto do catálogo e do banco de dados.`,
+                                              confirmText: 'Sim, Excluir Produto',
+                                              type: 'danger',
+                                              onConfirm: () => {
+                                                onDeleteProduct(prod.id);
+                                                showNotification('Produto excluído com sucesso.', 'info');
+                                              }
+                                            });
                                           }}
                                           className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                                          title="Apagar"
+                                          title="Apagar Produto"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </button>
@@ -1668,7 +1820,22 @@ export default function AdminPanel({
                     )}
 
                     {isAdminRole && (
-                      <button onClick={() => onDeleteCategory(cat.id)} className="btn-danger text-xs p-2" title="Apagar Categoria">
+                      <button 
+                        onClick={() => {
+                          askConfirmation({
+                            title: 'Excluir Categoria?',
+                            message: `Tem certeza que deseja apagar a categoria "${cat.name}"?`,
+                            confirmText: 'Sim, Excluir Categoria',
+                            type: 'danger',
+                            onConfirm: () => {
+                              onDeleteCategory(cat.id);
+                              showNotification('Categoria excluída com sucesso.', 'info');
+                            }
+                          });
+                        }} 
+                        className="btn-danger text-xs p-2" 
+                        title="Apagar Categoria"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
@@ -1782,7 +1949,22 @@ export default function AdminPanel({
                     )}
 
                     {isAdminRole && (
-                      <button onClick={() => onDeleteBrand(b.id)} className="btn-danger text-xs p-2" title="Apagar Marca">
+                      <button 
+                        onClick={() => {
+                          askConfirmation({
+                            title: 'Excluir Marca?',
+                            message: `Tem certeza que deseja apagar a marca parceira "${b.name}"?`,
+                            confirmText: 'Sim, Excluir Marca',
+                            type: 'danger',
+                            onConfirm: () => {
+                              onDeleteBrand(b.id);
+                              showNotification('Marca excluída com sucesso.', 'info');
+                            }
+                          });
+                        }} 
+                        className="btn-danger text-xs p-2" 
+                        title="Apagar Marca"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
@@ -2322,27 +2504,36 @@ export default function AdminPanel({
 
                                       <button
                                         type="button"
-                                        onClick={async () => {
-                                          const remainingImages = allImages.filter(img => img !== imgUrl);
-                                          setProductForm({
-                                            ...productForm,
-                                            image: isCover ? (remainingImages[0] || '') : productForm.image,
-                                            images: remainingImages
-                                          });
+                                        onClick={() => {
+                                          askConfirmation({
+                                            title: 'Remover Imagem?',
+                                            message: 'Deseja remover esta foto da galeria do equipamento e apagá-la do armazenamento?',
+                                            confirmText: 'Sim, Remover Foto',
+                                            type: 'danger',
+                                            onConfirm: async () => {
+                                              const remainingImages = allImages.filter(img => img !== imgUrl);
+                                              setProductForm({
+                                                ...productForm,
+                                                image: isCover ? (remainingImages[0] || '') : productForm.image,
+                                                images: remainingImages
+                                              });
 
-                                          // Exclui automaticamente a imagem do Cloudflare R2 / Storage em segundo plano
-                                          if (imgUrl && (imgUrl.includes('.r2.dev') || imgUrl.includes('.r2.cloudflarestorage.com') || imgUrl.includes('cloudinary.com'))) {
-                                            try {
-                                              const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-                                              fetch(`${apiUrl}/upload/delete`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ url: imgUrl })
-                                              }).catch(() => {});
-                                            } catch (err) {
-                                              // Ignora falha de rede sem travar a interface
+                                              // Exclui automaticamente a imagem do Cloudflare R2 / Storage em segundo plano
+                                              if (imgUrl && (imgUrl.includes('.r2.dev') || imgUrl.includes('.r2.cloudflarestorage.com') || imgUrl.includes('cloudinary.com'))) {
+                                                try {
+                                                  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+                                                  fetch(`${apiUrl}/upload/delete`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ url: imgUrl })
+                                                  }).catch(() => {});
+                                                } catch (err) {
+                                                  // Ignora falha de rede sem travar a interface
+                                                }
+                                              }
+                                              showNotification('Foto removida da galeria.', 'info');
                                             }
-                                          }
+                                          });
                                         }}
                                         className="text-red-600 hover:text-red-800 font-bold ml-auto"
                                         title="Remover esta foto e apagar do storage"
@@ -3024,6 +3215,76 @@ export default function AdminPanel({
           isOpen={isPdfModalOpen}
           onClose={() => setIsPdfModalOpen(false)}
         />
+
+        {/* CUSTOM CONFIRMATION POPUP MODAL */}
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div 
+              className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 relative overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Top soft accent line */}
+              <div className={`absolute top-0 left-0 right-0 h-1.5 ${
+                confirmModal.type === 'danger' ? 'bg-red-500' : confirmModal.type === 'warning' ? 'bg-amber-500' : 'bg-sky-500'
+              }`} />
+
+              <div className="flex items-start gap-4 mb-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                  confirmModal.type === 'danger' 
+                    ? 'bg-red-100 text-red-600 border border-red-200' 
+                    : confirmModal.type === 'warning'
+                    ? 'bg-amber-100 text-amber-600 border border-amber-200'
+                    : 'bg-sky-100 text-sky-600 border border-sky-200'
+                }`}>
+                  {confirmModal.type === 'danger' ? (
+                    <Trash2 className="w-6 h-6" />
+                  ) : confirmModal.type === 'warning' ? (
+                    <AlertTriangle className="w-6 h-6" />
+                  ) : (
+                    <HelpCircle className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                    {confirmModal.title || 'Confirmação'}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+                    {confirmModal.message}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 mt-2 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={closeConfirmation}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs transition"
+                >
+                  {confirmModal.cancelText || 'Cancelar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof confirmModal.onConfirm === 'function') {
+                      confirmModal.onConfirm();
+                    }
+                    closeConfirmation();
+                  }}
+                  className={`px-5 py-2.5 rounded-xl font-black text-xs text-white shadow-md transition flex items-center gap-1.5 ${
+                    confirmModal.type === 'danger'
+                      ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
+                      : confirmModal.type === 'warning'
+                      ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-500/20'
+                      : 'bg-sky-600 hover:bg-sky-700 shadow-sky-500/20'
+                  }`}
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{confirmModal.confirmText || 'Confirmar'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
