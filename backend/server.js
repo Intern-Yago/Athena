@@ -68,31 +68,424 @@ const swaggerAuth = basicAuth({
 const swaggerDocument = {
   openapi: '3.0.0',
   info: {
-    title: 'Athena Soluções Automotivas — API Documentation',
-    version: '1.0.0',
-    description: 'API RESTful para catálogo automotivo, usuários, permissões e uploads.'
+    title: 'Athena Soluções Automotivas — API RESTful',
+    version: '2.0.0',
+    description: 'Documentação técnica oficial e interativa dos serviços de backend da Athena Soluções Automotivas. Inclui gestão de equipamentos, categorias, marcas, autenticação e armazenamento de mídia em alta performance com Cloudflare R2 e conversão automática para WebP.',
+    contact: {
+      name: 'Suporte Técnico Athena',
+      email: 'athena.consultoria.automotiva@gmail.com',
+      url: 'https://www.athenaconsultoria.com.br'
+    }
   },
   servers: [
     { url: 'https://athena-backend-hu1m.onrender.com', description: 'Servidor de Produção (Render)' },
     { url: 'http://localhost:3001', description: 'Servidor Local (Desenvolvimento)' }
   ],
+  tags: [
+    { name: 'Equipamentos (Produtos)', description: 'Operações CRUD para gerenciamento do catálogo de produtos e máquinas.' },
+    { name: 'Categorias', description: 'Gestão das linhas de produtos (Elevadores, Scanners, Alinhadores, etc).' },
+    { name: 'Marcas Parceiras', description: 'Fabricantes e parceiros comerciais (Mahovi, Stärkx, Delta, etc).' },
+    { name: 'Mídia & Cloudflare R2', description: 'Upload com conversão WebP instantânea via Sharp e exclusão física de objetos no R2.' },
+    { name: 'Autenticação & Usuários', description: 'Controle de acesso, login de funcionários, perfis e redefinição de senhas.' }
+  ],
   paths: {
-    '/api/auth/login': {
-      post: { summary: 'Autenticar funcionário (Login)' }
-    },
-    '/api/users': {
-      get: { summary: 'Listar funcionários e permissões' },
-      post: { summary: 'Cadastrar novo funcionário' }
-    },
-    '/api/users/{id}': {
-      delete: { summary: 'Revogar acesso / Apagar funcionário' }
-    },
     '/api/products': {
-      get: { summary: 'Listar equipamentos' },
-      post: { summary: 'Cadastrar equipamento' }
+      get: {
+        tags: ['Equipamentos (Produtos)'],
+        summary: 'Listar todos os equipamentos do catálogo',
+        description: 'Retorna a lista completa de produtos cadastrados no banco de dados PostgreSQL.',
+        responses: {
+          200: {
+            description: 'Lista de produtos retornada com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/Product' }
+                }
+              }
+            }
+          }
+        }
+      },
+      post: {
+        tags: ['Equipamentos (Produtos)'],
+        summary: 'Cadastrar novo equipamento',
+        description: 'Cria um novo produto no banco de dados. Permite vincular imagens em WebP, especificações e manuais em PDF.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ProductInput' }
+            }
+          }
+        },
+        responses: {
+          201: {
+            description: 'Equipamento cadastrado com sucesso.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Product' }
+              }
+            }
+          },
+          400: { description: 'Dados incompletos ou inválidos.' }
+        }
+      }
+    },
+    '/api/products/{id}': {
+      put: {
+        tags: ['Equipamentos (Produtos)'],
+        summary: 'Atualizar equipamento existente',
+        parameters: [
+          { name: 'id', in: 'path', required: true, description: 'ID do produto (ex: prod_wolfcar_w1058)', schema: { type: 'string' } }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ProductInput' }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Produto atualizado com sucesso.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Product' } } } },
+          404: { description: 'Produto não encontrado.' }
+        }
+      },
+      delete: {
+        tags: ['Equipamentos (Produtos)'],
+        summary: 'Excluir equipamento permanentemente',
+        parameters: [
+          { name: 'id', in: 'path', required: true, description: 'ID do produto', schema: { type: 'string' } }
+        ],
+        responses: {
+          200: { description: 'Produto excluído do banco de dados.', content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, id: { type: 'string' } } } } } },
+          404: { description: 'Produto não encontrado.' }
+        }
+      }
+    },
+    '/api/categories': {
+      get: {
+        tags: ['Categorias'],
+        summary: 'Listar todas as categorias',
+        responses: {
+          200: {
+            description: 'Lista de categorias retornada com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/Category' }
+                }
+              }
+            }
+          }
+        }
+      },
+      post: {
+        tags: ['Categorias'],
+        summary: 'Criar nova categoria',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Category' }
+            }
+          }
+        },
+        responses: {
+          201: { description: 'Categoria criada com sucesso.' }
+        }
+      }
+    },
+    '/api/brands': {
+      get: {
+        tags: ['Marcas Parceiras'],
+        summary: 'Listar marcas de fabricantes',
+        responses: {
+          200: {
+            description: 'Lista de marcas retornada com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/Brand' }
+                }
+              }
+            }
+          }
+        }
+      },
+      post: {
+        tags: ['Marcas Parceiras'],
+        summary: 'Cadastrar nova marca parceira',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/Brand' }
+            }
+          }
+        },
+        responses: {
+          201: { description: 'Marca cadastrada com sucesso.' }
+        }
+      }
     },
     '/api/upload': {
-      post: { summary: 'Upload de mídia para Cloudinary' }
+      post: {
+        tags: ['Mídia & Cloudflare R2'],
+        summary: 'Upload de mídia (Conversão automática para WebP)',
+        description: 'Recebe uma imagem em base64 ou binário, redimensiona via Sharp (máx 1200x1200px), converte para WebP (82% qualidade) e envia diretamente para o Cloudflare R2 com link de CDN global.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['file'],
+                properties: {
+                  file: { type: 'string', description: 'String base64 da imagem ou documento PDF' },
+                  folder: { type: 'string', default: 'produtos', description: 'Subpasta no bucket R2' },
+                  filename: { type: 'string', description: 'Nome original do arquivo para formação da URL' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'Upload realizado com sucesso.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/UploadResponse' }
+              }
+            }
+          },
+          400: { description: 'Nenhum arquivo enviado.' },
+          500: { description: 'Erro interno no upload.' }
+        }
+      }
+    },
+    '/api/upload/delete': {
+      post: {
+        tags: ['Mídia & Cloudflare R2'],
+        summary: 'Excluir arquivo físico do Cloudflare R2',
+        description: 'Remove fisicamente o objeto do bucket no Cloudflare R2 a partir de sua URL pública.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['url'],
+                properties: {
+                  url: { type: 'string', description: 'URL pública completa do arquivo no R2' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'Arquivo excluído do bucket.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    provider: { type: 'string', example: 'cloudflare-r2' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    '/api/auth/login': {
+      post: {
+        tags: ['Autenticação & Usuários'],
+        summary: 'Autenticação de Funcionário (Login)',
+        description: 'Valida as credenciais de e-mail e senha. Protegido por rate limiting estrito contra ataques de força bruta.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password'],
+                properties: {
+                  email: { type: 'string', example: 'administracao@athenaconsultoria.com.br' },
+                  password: { type: 'string', example: 'Athena16/10*' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: {
+            description: 'Autenticado com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    user: { $ref: '#/components/schemas/User' }
+                  }
+                }
+              }
+            }
+          },
+          401: { description: 'Credenciais inválidas.' }
+        }
+      }
+    },
+    '/api/users': {
+      get: {
+        tags: ['Autenticação & Usuários'],
+        summary: 'Listar usuários e colaboradores (Restrito a Administradores)',
+        responses: {
+          200: {
+            description: 'Lista de colaboradores retornada com sucesso.',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/User' }
+                }
+              }
+            }
+          }
+        }
+      },
+      post: {
+        tags: ['Autenticação & Usuários'],
+        summary: 'Cadastrar novo colaborador',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'email', 'password', 'role'],
+                properties: {
+                  name: { type: 'string', example: 'Vendedor João' },
+                  email: { type: 'string', example: 'joao@athenaconsultoria.com.br' },
+                  password: { type: 'string', example: 'SenhaForte2026!' },
+                  role: { type: 'string', enum: ['admin', 'vendedor'], example: 'vendedor' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          201: { description: 'Colaborador cadastrado com sucesso.' }
+        }
+      }
+    },
+    '/api/users/{id}': {
+      delete: {
+        tags: ['Autenticação & Usuários'],
+        summary: 'Revogar acesso / Excluir funcionário',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
+        ],
+        responses: {
+          200: { description: 'Acesso do usuário revogado com sucesso.' }
+        }
+      }
+    }
+  },
+  components: {
+    schemas: {
+      Product: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', example: 'prod_wolfcar_w1058' },
+          name: { type: 'string', example: 'Conjunto Modular de Armários 4915mm Wolfcar' },
+          slug: { type: 'string', example: 'conjunto-modular-de-armarios-4915mm-wolfcar' },
+          categoryId: { type: 'string', example: 'cat_ferramentas' },
+          brandId: { type: 'string', example: 'brand_wolfcar' },
+          price: { type: 'number', example: 0 },
+          priceNegotiable: { type: 'boolean', example: true },
+          badge: { type: 'string', example: 'Linha Pesada' },
+          status: { type: 'string', enum: ['published', 'draft'], example: 'published' },
+          isFeatured: { type: 'boolean', example: true },
+          image: { type: 'string', example: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/w1058-a1b2.webp' },
+          images: { type: 'array', items: { type: 'string' } },
+          altText: { type: 'string', example: 'Conjunto Modular Wolfcar Athena Soluções Automotivas' },
+          description: { type: 'string', example: 'Estrutura reforçada em aço carbono com pintura eletrostática.' },
+          specs: { type: 'array', items: { type: 'string' }, example: ['Comprimento Total: 4.915 mm', 'Garantia: 12 meses'] },
+          attachments: { type: 'array', items: { type: 'object' } },
+          inStock: { type: 'boolean', example: true }
+        }
+      },
+      ProductInput: {
+        type: 'object',
+        required: ['name', 'categoryId', 'brandId'],
+        properties: {
+          name: { type: 'string', example: 'Elevador Hidráulico 4000kg Mahovi' },
+          slug: { type: 'string', example: 'elevador-hidraulico-4000kg-mahovi' },
+          categoryId: { type: 'string', example: 'cat_elevadores' },
+          brandId: { type: 'string', example: 'brand_mahovi' },
+          price: { type: 'number', example: 18500.00 },
+          priceNegotiable: { type: 'boolean', example: false },
+          badge: { type: 'string', example: 'Pronta Entrega' },
+          status: { type: 'string', enum: ['published', 'draft'], example: 'published' },
+          isFeatured: { type: 'boolean', example: true },
+          image: { type: 'string', example: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/elevador-4000kg.webp' },
+          images: { type: 'array', items: { type: 'string' } },
+          description: { type: 'string' },
+          specs: { type: 'array', items: { type: 'string' } },
+          attachments: { type: 'array', items: { type: 'object' } }
+        }
+      },
+      Category: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', example: 'cat_elevadores' },
+          name: { type: 'string', example: 'Elevadores' },
+          slug: { type: 'string', example: 'elevadores' },
+          description: { type: 'string', example: 'Elevadores hidráulicos de 2 colunas e tesoura.' },
+          icon: { type: 'string', example: 'Layers' },
+          order: { type: 'integer', example: 1 }
+        }
+      },
+      Brand: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', example: 'brand_mahovi' },
+          name: { type: 'string', example: 'Mahovi' },
+          slug: { type: 'string', example: 'mahovi' },
+          description: { type: 'string', example: 'Líder em elevadores automotivos e alinhadores 3D.' },
+          logo: { type: 'string', example: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/mahovi-logo.webp' },
+          websiteUrl: { type: 'string', example: 'https://www.mahovi.com.br' },
+          order: { type: 'integer', example: 1 }
+        }
+      },
+      User: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', example: 'user_admin_default' },
+          name: { type: 'string', example: 'Administrador Geral' },
+          email: { type: 'string', example: 'administracao@athenaconsultoria.com.br' },
+          role: { type: 'string', enum: ['admin', 'vendedor'], example: 'admin' },
+          createdAt: { type: 'string', format: 'date-time' }
+        }
+      },
+      UploadResponse: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', example: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/scanner-x10.webp' },
+          publicId: { type: 'string', example: 'produtos/scanner-x10-3f9a.webp' },
+          format: { type: 'string', example: 'webp' },
+          bytes: { type: 'integer', example: 184520 },
+          provider: { type: 'string', example: 'cloudflare-r2' }
+        }
+      }
     }
   }
 };

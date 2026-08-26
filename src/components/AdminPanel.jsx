@@ -203,6 +203,7 @@ export default function AdminPanel({
   const [isProductModalOpen, setIsProductModalOpen] = useState(!!editingProduct);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isDraggingBrandLogo, setIsDraggingBrandLogo] = useState(false);
+  const [previewingImage, setPreviewingImage] = useState(null);
 
   useEffect(() => {
     const shouldReopen = sessionStorage.getItem('athena_reopen_editor');
@@ -2480,10 +2481,22 @@ export default function AdminPanel({
                                       isCover ? 'border-amber-500 ring-2 ring-amber-400/40' : 'border-slate-200'
                                     }`}
                                   >
-                                    <div className="aspect-square rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center p-1 relative">
-                                      <img src={imgUrl} alt={`Foto ${i + 1}`} className="max-h-full max-w-full object-contain" />
+                                    <div 
+                                      className="aspect-square rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center p-1 relative cursor-pointer group/thumb"
+                                      onClick={() => setPreviewingImage(imgUrl)}
+                                      title="Clique para ampliar e ver a imagem em detalhes"
+                                    >
+                                      <img src={imgUrl} alt={`Foto ${i + 1}`} className="max-h-full max-w-full object-contain group-hover/thumb:scale-105 transition-transform" />
+                                      
+                                      {/* Hover Zoom Overlay */}
+                                      <div className="absolute inset-0 bg-slate-950/25 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                        <span className="p-1.5 rounded-full bg-white/95 text-slate-900 shadow-md transform group-hover/thumb:scale-110 transition-transform">
+                                          <Eye className="w-3.5 h-3.5" />
+                                        </span>
+                                      </div>
+
                                       {isCover && (
-                                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-black text-[9px] shadow-xs flex items-center gap-0.5">
+                                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-black text-[9px] shadow-xs flex items-center gap-0.5 z-10">
                                           Capa
                                         </span>
                                       )}
@@ -3281,6 +3294,75 @@ export default function AdminPanel({
                   <Check className="w-4 h-4" />
                   <span>{confirmModal.confirmText || 'Confirmar'}</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PHOTO LIGHTBOX PREVIEW POPUP MODAL */}
+        {previewingImage && (
+          <div 
+            className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-[110] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+            onClick={() => setPreviewingImage(null)}
+          >
+            <div 
+              className="bg-white rounded-3xl p-5 sm:p-6 max-w-3xl w-full shadow-2xl border border-slate-200 relative flex flex-col items-center animate-in zoom-in-95 duration-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-full flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 text-xs font-black">
+                    Visualizador de Imagem
+                  </span>
+                  {productForm.image === previewingImage && (
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-xs font-black">
+                      Foto de Capa Principal
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewingImage(null)}
+                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                  title="Fechar visualizador"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="w-full max-h-[65vh] rounded-2xl bg-slate-900/5 p-2 flex items-center justify-center overflow-hidden border border-slate-200/60">
+                <img 
+                  src={previewingImage} 
+                  alt="Visualização do Equipamento" 
+                  className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-xs"
+                />
+              </div>
+
+              <div className="w-full flex flex-wrap items-center justify-between gap-3 pt-4 mt-3 border-t border-slate-100 text-xs">
+                <div className="text-slate-500 truncate max-w-xs sm:max-w-md font-mono text-[11px]">
+                  {previewingImage}
+                </div>
+                <div className="flex items-center gap-2">
+                  {productForm.image !== previewingImage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductForm({ ...productForm, image: previewingImage });
+                        showNotification('Definida como imagem de capa com sucesso!', 'success');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black shadow-sm transition"
+                    >
+                      Definir como Capa
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPreviewingImage(null)}
+                    className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition"
+                  >
+                    Fechar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
