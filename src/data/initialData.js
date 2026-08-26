@@ -48,7 +48,7 @@ export const INITIAL_BRANDS = [
     "slug": "starkx",
     "order": 1,
     "description": "Especialista em equipamentos eletrônicos, testadores de bateria, videoscópios, diagnóstico avançado e TPMS.",
-    "logo": "/brands/starkx_logo.jpg",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/starkx-5e830ec912b7.webp",
     "websiteUrl": "https://www.starkx.com.br"
   },
   {
@@ -57,7 +57,7 @@ export const INITIAL_BRANDS = [
     "slug": "mahovi",
     "order": 2,
     "description": "Líder em elevadores automotivos, alinhadores 3D, desmontadoras de pneus e equipamentos pesados de centro automotivo.",
-    "logo": "/brands/mahovi_logo.jpg",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/mahovi-d2fca4c6358b.webp",
     "websiteUrl": "https://www.mahovi.com.br"
   },
   {
@@ -66,7 +66,7 @@ export const INITIAL_BRANDS = [
     "slug": "delta",
     "order": 3,
     "description": "Referência nacional em ferramentas especiais de injeção, elétrica, motor, arrefecimento e suspensão.",
-    "logo": "/brands/delta_logo.jpg",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/delta-47d4582fff78.webp",
     "websiteUrl": "https://www.deltaferramentasautomotivas.com.br"
   },
   {
@@ -75,7 +75,7 @@ export const INITIAL_BRANDS = [
     "slug": "wolfcar",
     "order": 4,
     "description": "Soluções modulares para organização de oficinas, armários reforçados, bancadas industriais e painéis de ferramentas.",
-    "logo": "/brands/wolfcar_logo.jpg",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/wolfcar-63a7bd61556f.webp",
     "websiteUrl": "https://wolfcardiagnosticos.com.br"
   },
   {
@@ -84,7 +84,7 @@ export const INITIAL_BRANDS = [
     "slug": "sigma-tools",
     "order": 5,
     "description": "Máquinas e ferramentas pneumáticas, chaves de impacto a bateria e equipamentos para estética e reparação.",
-    "logo": "/brands/sigmatools_logo.jpg",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/sigma-tools-7ceda13e30aa.webp",
     "websiteUrl": "https://www.sigmatools.com.br"
   }
 ];
@@ -101,9 +101,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Linha Pesada",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/wolfcar/w1058.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/conjunto-modular-de-armarios-d-f06d12d6aa71.webp",
     "images": [
-      "/products/wolfcar/w1058.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/conjunto-modular-de-armarios-d-8d18e32c7a91.webp"
     ],
     "altText": "Conjunto Modular de Armários de Oficina 4915mm Wolfcar W1058 Athena Soluções Automotivas",
     "description": "Conjunto modular completo para organização profissional de oficinas e concessionárias. Com 4915mm de comprimento, conta com armários verticais duplos, 5 módulos inferiores, 4 armários aéreos e painéis perfurados em chapa 0.8mm com pintura epóxi.",
@@ -129,9 +129,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mais Vendido",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/wolfcar/w1059.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/conjunto-modular-com-lixeira-e-fe20dc33864e.webp",
     "images": [
-      "/products/wolfcar/w1059.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/conjunto-modular-com-lixeira-e-0f9378d85a0e.webp"
     ],
     "altText": "Conjunto Modular com Lixeira Embutida 4235mm Wolfcar W1059 Athena Soluções Automotivas",
     "description": "Conjunto modular para centros automotivos com 4235mm de extensão. Inclui módulo inferior com lixeira basculante integrada para descarte limpo, gavetas telescópicas e armários aéreos com pistões a gás.",
@@ -157,9 +157,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Alta Produtividade",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/wolfcar/w1081.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/conjunto-modular-com-3-paineis-f1193f7d42cf.webp",
     "images": [
-      "/products/wolfcar/w1081.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/conjunto-modular-com-3-paineis-e0794d7cf32e.webp"
     ],
     "altText": "Conjunto Modular com 3 Painéis de Ferramentas 2955mm Wolfcar W1081 Athena Soluções Automotivas",
     "description": "Conjunto modular versátil de 2955mm de largura, equipado com 3 painéis de ferramentas perfurados, 3 armários aéreos e armário vertical lateral para ferramentas pesadas.",
@@ -184,9 +184,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Praticidade",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/wolfcar/w1082.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/conjunto-modular-com-carrinho--3c43b543160a.webp",
     "images": [
-      "/products/wolfcar/w1082.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/conjunto-modular-com-carrinho--a0cd7729723c.webp"
     ],
     "altText": "Conjunto Modular com Carrinho Móvel de 5 Gavetas 2640mm Wolfcar W1082 Athena Soluções Automotivas",
     "description": "Conjunto modular de 2640mm com carrinho móvel embutido de 5 gavetas com rodízios reforçados e trava, permitindo levar ferramentas diretamente ao elevador no box.",
@@ -211,9 +211,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Aproveitamento",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/wolfcar/w1068.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/armario-modular-de-canto-90-gr-03b070b1b96d.webp",
     "images": [
-      "/products/wolfcar/w1068.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/armario-modular-de-canto-90-gr-629bbb689ead.webp"
     ],
     "altText": "Armário Modular de Canto 90 Graus com Painel Wolfcar W1068 Athena Soluções Automotivas",
     "description": "Módulo de canto para união em 'L' de bancadas modulares Wolfcar. Permite o aproveitamento de 100% das esquinas da oficina com painel de ferramentas e armário aéreo de canto.",
@@ -237,9 +237,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Organização",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/wolfcar/w1083.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/modulo-inferior-com-lixeira-e--d525dadcda7b.webp",
     "images": [
-      "/products/wolfcar/w1083.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/modulo-inferior-com-lixeira-e--30363ce79897.webp"
     ],
     "altText": "Módulo Inferior com Lixeira e Gaveta Wolfcar W1083 Athena Soluções Automotivas",
     "description": "Módulo inferior para integração em bancadas Wolfcar, equipado com gaveta superior para consumíveis e compartimento basculante com lixeira integrada para descarte limpo de panos e peças usadas.",
@@ -263,9 +263,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Higiene",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/wolfcar/w1067.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/modulo-com-cuba-e-pia-integrad-3a95a2846a8f.webp",
     "images": [
-      "/products/wolfcar/w1067.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/modulo-com-cuba-e-pia-integrad-a0adf91612f3.webp"
     ],
     "altText": "Módulo com Cuba e Pia Integrada em Aço Inox Wolfcar W1067 Athena Soluções Automotivas",
     "description": "Módulo com pia em aço inoxidável e gabinete inferior de duas portas. Perfeito para higienização rápida de peças e mãos no ambiente de trabalho sem sair do box da oficina.",
@@ -289,9 +289,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Armazenamento",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/wolfcar/w1071.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/armario-vertical-de-2-portas-9-c90588c52c6f.webp",
     "images": [
-      "/products/wolfcar/w1071.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/armario-vertical-de-2-portas-9-3c32f6a818b1.webp"
     ],
     "altText": "Armário Vertical de 2 Portas 915mm Wolfcar W1071 Athena Soluções Automotivas",
     "description": "Armário vertical alto de 2 portas com 4 prateleiras internas reforçadas e reguláveis, pés ajustáveis para pisos irregulares e fechadura central com chave.",
@@ -316,9 +316,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Compacto",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/wolfcar/w1076.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/armario-vertical-compacto-de-1-906b4b2e5585.webp",
     "images": [
-      "/products/wolfcar/w1076.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/armario-vertical-compacto-de-1-3acc0b8d434d.webp"
     ],
     "altText": "Armário Vertical Compacto de 1 Porta 600mm Wolfcar W1076 Athena Soluções Automotivas",
     "description": "Armário vertical estreito ideal para fechamento lateral de bancadas ou boxes de espaço reduzido. Conta com 4 prateleiras internas reforçadas e porta com trava com chave.",
@@ -343,9 +343,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Emergência",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/starkx/skx-018.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/auxiliar-de-partida-portatil-1-a3ce607f249f.webp",
     "images": [
-      "/products/starkx/skx-018.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/auxiliar-de-partida-portatil-1-710031da7670.webp"
     ],
     "altText": "Auxiliar de Partida Portátil 10.000mAh 12V/6V Stärkx SKX-018 Athena Soluções Automotivas",
     "description": "Auxiliar de partida compacto de alta potência para veículos 12V e 6V. Bateria de lítio de 10.000mAh, lanterna LED integrada de emergência e portas USB para carregamento rápido de dispositivos.",
@@ -371,9 +371,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Diagnóstico",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/starkx/skx-028.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/testador-digital-de-baterias-1-724958b72e45.webp",
     "images": [
-      "/products/starkx/skx-028.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/testador-digital-de-baterias-1-ddba0c18ea5c.webp"
     ],
     "altText": "Testador Digital de Baterias 12V/24V com Impressora Térmica Stärkx SKX-028 Athena Soluções Automotivas",
     "description": "Testador de baterias digital profissional com impressora térmica embutida. Analisa estado de saúde (SOH), estado de carga (SOC), corrente de partida a frio (CCA), sistema de partida e alternador com laudo para o cliente.",
@@ -399,9 +399,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Inteligente",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/starkx/skx-038.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/carregador-inteligente-de-bate-4fb20c389b3f.webp",
     "images": [
-      "/products/starkx/skx-038.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/carregador-inteligente-de-bate-81c19a04e989.webp"
     ],
     "altText": "Carregador Inteligente de Baterias 12V/24V Sistema PWM Stärkx SKX-038 Athena Soluções Automotivas",
     "description": "Carregador de baterias com microprocessador e modulação por largura de pulso (PWM). Aumenta a taxa de absorção da bateria sem estufamento e recupera baterias com leve sulfatação.",
@@ -425,9 +425,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Elétrica",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/starkx/skx-088.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/detector-de-continuidade-e-ras-40137ec15d3e.webp",
     "images": [
-      "/products/starkx/skx-088.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/detector-de-continuidade-e-ras-a25383c08fef.webp"
     ],
     "altText": "Detector de Continuidade e Rastreador de Fios e Chicotes Stärkx SKX-088 Athena Soluções Automotivas",
     "description": "Kit profissional composto por Transmissor e Receptor para rastreamento de condutores simples e pares em chicotes elétricos automotivos complexos sem danificar o isolamento dos cabos.",
@@ -451,9 +451,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Alta Resolução",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/starkx/skx-108.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/camera-de-inspecao-endoscopica-87722466959c.webp",
     "images": [
-      "/products/starkx/skx-108.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/camera-de-inspecao-endoscopica-8ce9b8e76e2e.webp"
     ],
     "altText": "Câmera de Inspeção Endoscópica Dupla Lente Tela 4.3\" Stärkx SKX-108 Athena Soluções Automotivas",
     "description": "Videoscópio automotivo de alta resolução com câmera frontal e lateral simultâneas, iluminação LED ajustável e sonda semi-rígida à prova d'água para inspeção interna de cilindros, válvulas, câmbios e evaporadores.",
@@ -478,9 +478,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Segurança",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/starkx/skx-208.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/analisador-eletronico-de-fluid-55ae8d69f59b.webp",
     "images": [
-      "/products/starkx/skx-208.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/analisador-eletronico-de-fluid-3643cbeddc9e.webp"
     ],
     "altText": "Analisador Eletrônico de Fluido de Freio DOT 3/4/5.1 Stärkx SKX-208 Athena Soluções Automotivas",
     "description": "Instrumento digital de alta precisão para medição do percentual de umidade em fluidos de freio sintéticos, garantindo a segurança do sistema de frenagem do veículo.",
@@ -504,9 +504,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "TPMS Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/starkx/venu-90.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/programador-e-ativador-de-sens-c2beb5e2d406.webp",
     "images": [
-      "/products/starkx/venu-90.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/programador-e-ativador-de-sens-78a142518d7c.webp"
     ],
     "altText": "Programador e Ativador de Sensores TPMS Thinkcar VENU 90 Athena Soluções Automotivas",
     "description": "Ferramenta profissional especializada para diagnóstico, leitura de status, ativação e programação de sensores de pressão de pneus (TPMS) para veículos nacionais e importados.",
@@ -530,9 +530,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Universal",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/starkx/venu-5.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sensor-universal-de-pressao-de-641a2d0540d7.webp",
     "images": [
-      "/products/starkx/venu-5.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sensor-universal-de-pressao-de-fe6806a20bdb.webp"
     ],
     "altText": "Sensor Universal de Pressão de Pneus TPMS Dual 315/433MHz Thinkcar VENU 5 Athena Soluções Automotivas",
     "description": "Sensor TPMS universal programável de dupla frequência compatível com mais de 98% dos veículos equipados com TPMS de fábrica no mundo.",
@@ -556,9 +556,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Lançamento",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/starkx/thinktool-lite.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/scanner-automotivo-multimarcas-a86254530c83.webp",
     "images": [
-      "/products/starkx/thinktool-lite.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/scanner-automotivo-multimarcas-05d8489ab958.webp"
     ],
     "altText": "Scanner Automotivo Multimarcas Thinkcar THINKTOOL LITE Athena Soluções Automotivas",
     "description": "Scanner de diagnóstico completo para linha leve, utilitários, híbridos e elétricos. Realiza diagnóstico completo de todos os sistemas, testes de atuadores, ajustes, programações e mais de 28 funções de reset.",
@@ -584,9 +584,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Topo de Linha",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/starkx/platinum-s10-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/scanner-automotivo-avancado-j2-6b5fc99d4534.webp",
     "images": [
-      "/products/starkx/platinum-s10-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/scanner-automotivo-avancado-j2-268acf2fe36c.webp"
     ],
     "altText": "Scanner Automotivo Avançado J2534 com Topologia Thinkcar PLATINUM S10 PRO Athena Soluções Automotivas",
     "description": "O scanner topo de linha com interface J2534 PassThru, display de 10 polegadas e Topologia de Redes colorida. Suporta protocolos CAN-FD, DoIP e programação online de ECUs.",
@@ -613,9 +613,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1008.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1008-mahovi-e0d88e5aacb2.webp",
     "images": [
-      "/products/mahovi/mah-1008.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1008-mahovi-ga-30652d4c22a4.webp"
     ],
     "altText": "Equipamento MAH-1008 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1008 Mahovi.",
@@ -639,9 +639,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/mahovi/mah-1006s.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1006s-mahovi-ee0a3a3f7d76.webp",
     "images": [
-      "/products/mahovi/mah-1006s.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1006s-mahovi-g-b790d8beaa11.webp"
     ],
     "altText": "Equipamento MAH-1006S Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1006S Mahovi.",
@@ -665,9 +665,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/mahovi/mah-1006.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1006-mahovi-ab868615051d.webp",
     "images": [
-      "/products/mahovi/mah-1006.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1006-mahovi-ga-d18ac1f94768.webp"
     ],
     "altText": "Equipamento MAH-1006 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1006 Mahovi.",
@@ -691,9 +691,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1005.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1005-mahovi-2892b8e82532.webp",
     "images": [
-      "/products/mahovi/mah-1005.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1005-mahovi-ga-edfab9b33afe.webp"
     ],
     "altText": "Equipamento MAH-1005 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1005 Mahovi.",
@@ -717,9 +717,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1010.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1010-mahovi-de8d219434c0.webp",
     "images": [
-      "/products/mahovi/mah-1010.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1010-mahovi-ga-0d0df69aea2b.webp"
     ],
     "altText": "Equipamento MAH-1010 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1010 Mahovi.",
@@ -743,9 +743,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1010s.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1010s-mahovi-76b97fd34718.webp",
     "images": [
-      "/products/mahovi/mah-1010s.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1010s-mahovi-g-415ec286f4dd.webp"
     ],
     "altText": "Equipamento MAH-1010S Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1010S Mahovi.",
@@ -769,9 +769,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1012.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1012-mahovi-97e4170378fc.webp",
     "images": [
-      "/products/mahovi/mah-1012.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1012-mahovi-ga-c410bedaf2b1.webp"
     ],
     "altText": "Equipamento MAH-1012 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1012 Mahovi.",
@@ -795,9 +795,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1014.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1014-mahovi-a9de1f9c3e81.webp",
     "images": [
-      "/products/mahovi/mah-1014.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1014-mahovi-ga-eaaa080c5a03.webp"
     ],
     "altText": "Equipamento MAH-1014 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1014 Mahovi.",
@@ -821,9 +821,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1015.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1015-mahovi-8906c3f8a606.webp",
     "images": [
-      "/products/mahovi/mah-1015.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1015-mahovi-ga-a38488597a33.webp"
     ],
     "altText": "Equipamento MAH-1015 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1015 Mahovi.",
@@ -847,9 +847,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1030.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1030-mahovi-59e710cd6726.webp",
     "images": [
-      "/products/mahovi/mah-1030.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1030-mahovi-ga-68181be90415.webp"
     ],
     "altText": "Equipamento MAH-1030 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1030 Mahovi.",
@@ -873,9 +873,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1004.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1004-mahovi-98bf400a3b75.webp",
     "images": [
-      "/products/mahovi/mah-1004.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1004-mahovi-ga-cec725133eb3.webp"
     ],
     "altText": "Equipamento MAH-1004 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1004 Mahovi.",
@@ -899,9 +899,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/mahovi/mah-1020.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1020-mahovi-e9ae769be7d7.webp",
     "images": [
-      "/products/mahovi/mah-1020.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1020-mahovi-ga-f53a00b3c158.webp"
     ],
     "altText": "Equipamento MAH-1020 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1020 Mahovi.",
@@ -925,9 +925,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1001-mahovi-e3a0b7f72950.webp",
     "images": [
-      "/products/mahovi/mah-1001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1001-mahovi-ga-e017bd86b9a0.webp"
     ],
     "altText": "Equipamento MAH-1001 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1001 Mahovi.",
@@ -951,9 +951,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1002-mahovi-960b8986acc4.webp",
     "images": [
-      "/products/mahovi/mah-1002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1002-mahovi-ga-ca5f1e11275a.webp"
     ],
     "altText": "Equipamento MAH-1002 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1002 Mahovi.",
@@ -977,9 +977,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1011.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1011-mahovi-9a11bd634427.webp",
     "images": [
-      "/products/mahovi/mah-1011.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1011-mahovi-ga-3ecd7c748e85.webp"
     ],
     "altText": "Equipamento MAH-1011 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1011 Mahovi.",
@@ -1003,9 +1003,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-1001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-1001-mahovi-84aff315dd79.webp",
     "images": [
-      "/products/mahovi/wal-1001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-1001-mahovi-ga-370cfb5bafb9.webp"
     ],
     "altText": "Equipamento WAL-1001 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-1001 Mahovi.",
@@ -1029,9 +1029,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-1002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-1002-mahovi-d79827868682.webp",
     "images": [
-      "/products/mahovi/wal-1002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-1002-mahovi-ga-b133a133df3c.webp"
     ],
     "altText": "Equipamento WAL-1002 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-1002 Mahovi.",
@@ -1055,9 +1055,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-3012.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-3012-mahovi-7cba04a4a2fb.webp",
     "images": [
-      "/products/mahovi/wal-3012.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-3012-mahovi-ga-8ceec15e864e.webp"
     ],
     "altText": "Equipamento WAL-3012 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-3012 Mahovi.",
@@ -1081,9 +1081,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-3002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-3002-mahovi-5380297c9206.webp",
     "images": [
-      "/products/mahovi/wal-3002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-3002-mahovi-ga-19485c5a305d.webp"
     ],
     "altText": "Equipamento WAL-3002 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-3002 Mahovi.",
@@ -1107,9 +1107,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1000.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1000-mahovi-e2c54ecc6a86.webp",
     "images": [
-      "/products/mahovi/mah-1000.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1000-mahovi-ga-2a11786bf452.webp"
     ],
     "altText": "Equipamento MAH-1000 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1000 Mahovi.",
@@ -1133,9 +1133,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3041.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/duplicadores-mah-3041-mahovi-a0d9c95d4d45.webp",
     "images": [
-      "/products/mahovi/mah-3041.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/duplicadores-mah-3041-mahovi-g-5dfce602ddc0.webp"
     ],
     "altText": "Duplicadores MAH-3041 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3041 Mahovi.",
@@ -1159,9 +1159,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3045.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/duplicadores-mah-3045-mahovi-02f965ef2b1d.webp",
     "images": [
-      "/products/mahovi/mah-3045.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/duplicadores-mah-3045-mahovi-g-e3159817c229.webp"
     ],
     "altText": "Duplicadores MAH-3045 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3045 Mahovi.",
@@ -1185,9 +1185,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3046.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/duplicadores-mah-3046-mahovi-530f4456d642.webp",
     "images": [
-      "/products/mahovi/mah-3046.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/duplicadores-mah-3046-mahovi-g-96194971021f.webp"
     ],
     "altText": "Duplicadores MAH-3046 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3046 Mahovi.",
@@ -1211,9 +1211,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-3010.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/rampas-wal-3010-mahovi-eb62536bc878.webp",
     "images": [
-      "/products/mahovi/wal-3010.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/rampas-wal-3010-mahovi-galeria-cb8cdc062e9e.webp"
     ],
     "altText": "Rampas WAL-3010 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-3010 Mahovi.",
@@ -1237,9 +1237,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-3013.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/rampas-wal-3013-mahovi-1531c51a4144.webp",
     "images": [
-      "/products/mahovi/wal-3013.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/rampas-wal-3013-mahovi-galeria-284cb2da0bbb.webp"
     ],
     "altText": "Rampas WAL-3013 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-3013 Mahovi.",
@@ -1263,9 +1263,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/rampas-mah-3001-mahovi-66a6a1ae658d.webp",
     "images": [
-      "/products/mahovi/mah-3001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/rampas-mah-3001-mahovi-galeria-ac215320388c.webp"
     ],
     "altText": "Rampas MAH-3001 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3001 Mahovi.",
@@ -1289,9 +1289,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3004.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/rampas-mah-3004-mahovi-dfe2dc717962.webp",
     "images": [
-      "/products/mahovi/mah-3004.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/rampas-mah-3004-mahovi-galeria-f12c120253e5.webp"
     ],
     "altText": "Rampas MAH-3004 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3004 Mahovi.",
@@ -1315,9 +1315,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/mahovi/mah-2001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2001-mahovi-d8e08006866b.webp",
     "images": [
-      "/products/mahovi/mah-2001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2001-mahovi-ga-4558b6224ab0.webp"
     ],
     "altText": "Equipamento MAH-2001 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-2001 Mahovi.",
@@ -1341,9 +1341,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-2002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2002-mahovi-c12273446221.webp",
     "images": [
-      "/products/mahovi/mah-2002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2002-mahovi-ga-10dfa6bd0155.webp"
     ],
     "altText": "Equipamento MAH-2002 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-2002 Mahovi.",
@@ -1367,9 +1367,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-2003.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2003-mahovi-0712e5500972.webp",
     "images": [
-      "/products/mahovi/mah-2003.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2003-mahovi-ga-0fccf46f79a8.webp"
     ],
     "altText": "Equipamento MAH-2003 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-2003 Mahovi.",
@@ -1393,9 +1393,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-2004.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2004-mahovi-d9256a7167d4.webp",
     "images": [
-      "/products/mahovi/mah-2004.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2004-mahovi-ga-03c2f5358f47.webp"
     ],
     "altText": "Equipamento MAH-2004 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-2004 Mahovi.",
@@ -1419,9 +1419,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-2006.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2006-mahovi-56f61e4826a4.webp",
     "images": [
-      "/products/mahovi/mah-2006.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2006-mahovi-ga-6fb7159917b3.webp"
     ],
     "altText": "Equipamento MAH-2006 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-2006 Mahovi.",
@@ -1445,9 +1445,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-2007.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2007-mahovi-b92c065e65a8.webp",
     "images": [
-      "/products/mahovi/mah-2007.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2007-mahovi-ga-d6524a36f6b9.webp"
     ],
     "altText": "Equipamento MAH-2007 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-2007 Mahovi.",
@@ -1471,9 +1471,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-2008.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2008-mahovi-2ce21fab3e0e.webp",
     "images": [
-      "/products/mahovi/mah-2008.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-2008-mahovi-ga-4cbf288f18d5.webp"
     ],
     "altText": "Equipamento MAH-2008 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-2008 Mahovi.",
@@ -1497,9 +1497,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-3002-mahovi-afcdcc08f484.webp",
     "images": [
-      "/products/mahovi/mah-3002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-3002-mahovi-ga-f0334814e1e1.webp"
     ],
     "altText": "Equipamento MAH-3002 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3002 Mahovi.",
@@ -1523,9 +1523,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3003.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-3003-mahovi-2d37e955c41d.webp",
     "images": [
-      "/products/mahovi/mah-3003.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-3003-mahovi-ga-a89f8b6b20a8.webp"
     ],
     "altText": "Equipamento MAH-3003 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3003 Mahovi.",
@@ -1549,9 +1549,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-3003.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-3003-mahovi-7427cf23ca3f.webp",
     "images": [
-      "/products/mahovi/wal-3003.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-3003-mahovi-ga-fb89aa918574.webp"
     ],
     "altText": "Equipamento WAL-3003 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-3003 Mahovi.",
@@ -1575,9 +1575,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3005.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-3005-mahovi-6cd6ade233f4.webp",
     "images": [
-      "/products/mahovi/mah-3005.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-3005-mahovi-ga-e0041f131727.webp"
     ],
     "altText": "Equipamento MAH-3005 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3005 Mahovi.",
@@ -1601,9 +1601,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/mahovi/mah-6001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/balanceadoras-mah-6001-mahovi-e8fd871f49f5.webp",
     "images": [
-      "/products/mahovi/mah-6001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/balanceadoras-mah-6001-mahovi--549f78de444c.webp"
     ],
     "altText": "Balanceadoras MAH-6001 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-6001 Mahovi.",
@@ -1627,9 +1627,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-6003.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/balanceadoras-mah-6003-mahovi-a4f95f4005aa.webp",
     "images": [
-      "/products/mahovi/mah-6003.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/balanceadoras-mah-6003-mahovi--79da18630542.webp"
     ],
     "altText": "Balanceadoras MAH-6003 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-6003 Mahovi.",
@@ -1653,9 +1653,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-6004.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/balanceadoras-mah-6004-mahovi-a65e3798e14c.webp",
     "images": [
-      "/products/mahovi/mah-6004.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/balanceadoras-mah-6004-mahovi--9a8c5b7c84f1.webp"
     ],
     "altText": "Balanceadoras MAH-6004 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-6004 Mahovi.",
@@ -1679,9 +1679,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-600.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/balanceadoras-de-rodas-mah-600-3c2625a6f7e2.webp",
     "images": [
-      "/products/mahovi/mah-600.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/balanceadoras-de-rodas-mah-600-caa25ddb0d14.webp"
     ],
     "altText": "Balanceadoras De Rodas MAH-600 Mahovi Athena Soluções Automotivas",
     "description": "BALANCEADORAS DE RODAS Balanceadora de Rodas para A MAH-6001 é o modelo de entrada da linha de balanceamento MAHOVI, oferecendo excelente",
@@ -1708,9 +1708,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/mahovi/mah-5001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5001-mahovi-01ad08b01788.webp",
     "images": [
-      "/products/mahovi/mah-5001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5001-mahovi--091c5967ec02.webp"
     ],
     "altText": "Desmontadoras MAH-5001 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-5001 Mahovi.",
@@ -1734,9 +1734,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-5002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5002-mahovi-7706cee8f265.webp",
     "images": [
-      "/products/mahovi/mah-5002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5002-mahovi--baa378ce058b.webp"
     ],
     "altText": "Desmontadoras MAH-5002 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-5002 Mahovi.",
@@ -1760,9 +1760,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-5003.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5003-mahovi-21cbfe2913a0.webp",
     "images": [
-      "/products/mahovi/mah-5003.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5003-mahovi--599c819c5556.webp"
     ],
     "altText": "Desmontadoras MAH-5003 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-5003 Mahovi.",
@@ -1786,9 +1786,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-5004.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5004-mahovi-9c0095d5938e.webp",
     "images": [
-      "/products/mahovi/mah-5004.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5004-mahovi--f3cc721e9ada.webp"
     ],
     "altText": "Desmontadoras MAH-5004 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-5004 Mahovi.",
@@ -1812,9 +1812,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-5005.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5005-mahovi-31f6bdcdc628.webp",
     "images": [
-      "/products/mahovi/mah-5005.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5005-mahovi--b87adefa755e.webp"
     ],
     "altText": "Desmontadoras MAH-5005 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-5005 Mahovi.",
@@ -1838,9 +1838,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-5006.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5006-mahovi-59ac86dc1551.webp",
     "images": [
-      "/products/mahovi/mah-5006.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-5006-mahovi--7fd9199d5973.webp"
     ],
     "altText": "Desmontadoras MAH-5006 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-5006 Mahovi.",
@@ -1864,9 +1864,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4009.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-4009-mahovi-252884094936.webp",
     "images": [
-      "/products/mahovi/mah-4009.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desmontadoras-mah-4009-mahovi--54baec3f6c52.webp"
     ],
     "altText": "Desmontadoras MAH-4009 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4009 Mahovi.",
@@ -1890,9 +1890,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/mahovi/mah-3d1.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/alinhadores-mah-3d1-mahovi-4eed62d3b0e9.webp",
     "images": [
-      "/products/mahovi/mah-3d1.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/alinhadores-mah-3d1-mahovi-gal-cf9733853ad0.webp"
     ],
     "altText": "Alinhadores MAH-3D1 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3D1 Mahovi.",
@@ -1916,9 +1916,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3d2.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/alinhadores-mah-3d2-mahovi-cc96a72e7a8a.webp",
     "images": [
-      "/products/mahovi/mah-3d2.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/alinhadores-mah-3d2-mahovi-gal-dc131f1e92fe.webp"
     ],
     "altText": "Alinhadores MAH-3D2 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3D2 Mahovi.",
@@ -1942,9 +1942,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-3d3.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/alinhadores-mah-3d3-mahovi-d3a424072f71.webp",
     "images": [
-      "/products/mahovi/mah-3d3.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/alinhadores-mah-3d3-mahovi-gal-12a35a6186d1.webp"
     ],
     "altText": "Alinhadores MAH-3D3 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-3D3 Mahovi.",
@@ -1968,9 +1968,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4012.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4012-mahovi-0a3d9a1d70bf.webp",
     "images": [
-      "/products/mahovi/mah-4012.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4012-mahovi-ga-48a77347827a.webp"
     ],
     "altText": "Equipamento MAH-4012 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4012 Mahovi.",
@@ -1994,9 +1994,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4010.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4010-mahovi-c252341b6f69.webp",
     "images": [
-      "/products/mahovi/mah-4010.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4010-mahovi-ga-cdf0a5aff64b.webp"
     ],
     "altText": "Equipamento MAH-4010 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4010 Mahovi.",
@@ -2020,9 +2020,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4013.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4013-mahovi-f07f8209e7c5.webp",
     "images": [
-      "/products/mahovi/mah-4013.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4013-mahovi-ga-e211102a6332.webp"
     ],
     "altText": "Equipamento MAH-4013 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4013 Mahovi.",
@@ -2046,9 +2046,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4016.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4016-mahovi-ba98417b46a4.webp",
     "images": [
-      "/products/mahovi/mah-4016.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4016-mahovi-ga-05b85741d254.webp"
     ],
     "altText": "Equipamento MAH-4016 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4016 Mahovi.",
@@ -2072,9 +2072,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4008.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4008-mahovi-74dda1c7cb3c.webp",
     "images": [
-      "/products/mahovi/mah-4008.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4008-mahovi-ga-c22c6740d7e4.webp"
     ],
     "altText": "Equipamento MAH-4008 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4008 Mahovi.",
@@ -2098,9 +2098,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4100.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4100-mahovi-344bdd422f10.webp",
     "images": [
-      "/products/mahovi/mah-4100.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4100-mahovi-ga-420db8cea9ea.webp"
     ],
     "altText": "Equipamento MAH-4100 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4100 Mahovi.",
@@ -2124,9 +2124,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-4000m-kit.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-4000m-kit-maho-dc7df3d5ff18.webp",
     "images": [
-      "/products/mahovi/wal-4000m-kit.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-4000m-kit-maho-38baa5acca01.webp"
     ],
     "altText": "Equipamento WAL-4000M-KIT Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-4000M-KIT Mahovi.",
@@ -2150,9 +2150,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4003.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4003-mahovi-18aa34a5a302.webp",
     "images": [
-      "/products/mahovi/mah-4003.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4003-mahovi-ga-abca829b266b.webp"
     ],
     "altText": "Equipamento MAH-4003 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4003 Mahovi.",
@@ -2176,9 +2176,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4004.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4004-mahovi-91823f04e2f4.webp",
     "images": [
-      "/products/mahovi/mah-4004.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4004-mahovi-ga-a0c38e1ab404.webp"
     ],
     "altText": "Equipamento MAH-4004 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4004 Mahovi.",
@@ -2202,9 +2202,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4005.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4005-mahovi-0ef03aa8b2a4.webp",
     "images": [
-      "/products/mahovi/mah-4005.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4005-mahovi-ga-12fff9101f5a.webp"
     ],
     "altText": "Equipamento MAH-4005 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4005 Mahovi.",
@@ -2228,9 +2228,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4011.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4011-mahovi-2f0605918c14.webp",
     "images": [
-      "/products/mahovi/mah-4011.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4011-mahovi-ga-fad39252e1f2.webp"
     ],
     "altText": "Equipamento MAH-4011 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4011 Mahovi.",
@@ -2254,9 +2254,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4015.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4015-mahovi-10657ea9ff1b.webp",
     "images": [
-      "/products/mahovi/mah-4015.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4015-mahovi-ga-d09451917ecd.webp"
     ],
     "altText": "Equipamento MAH-4015 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4015 Mahovi.",
@@ -2280,9 +2280,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4017.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4017-mahovi-774c08895b9b.webp",
     "images": [
-      "/products/mahovi/mah-4017.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4017-mahovi-ga-831987acbaa1.webp"
     ],
     "altText": "Equipamento MAH-4017 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4017 Mahovi.",
@@ -2306,9 +2306,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4018.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4018-mahovi-6ed145d4ec93.webp",
     "images": [
-      "/products/mahovi/mah-4018.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4018-mahovi-ga-879d4b7ca02d.webp"
     ],
     "altText": "Equipamento MAH-4018 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4018 Mahovi.",
@@ -2332,9 +2332,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-9001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-9001-mahovi-a8eb5a607057.webp",
     "images": [
-      "/products/mahovi/wal-9001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-9001-mahovi-ga-5510f2896b20.webp"
     ],
     "altText": "Equipamento WAL-9001 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-9001 Mahovi.",
@@ -2358,9 +2358,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4002-mahovi-b2d62240b383.webp",
     "images": [
-      "/products/mahovi/mah-4002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4002-mahovi-ga-10e3db68e0bb.webp"
     ],
     "altText": "Equipamento MAH-4002 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4002 Mahovi.",
@@ -2384,9 +2384,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/mahovi/mah-4001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4001-mahovi-544094276e6a.webp",
     "images": [
-      "/products/mahovi/mah-4001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4001-mahovi-ga-389fba633c48.webp"
     ],
     "altText": "Equipamento MAH-4001 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4001 Mahovi.",
@@ -2410,9 +2410,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4040.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4040-mahovi-93c88478f3e9.webp",
     "images": [
-      "/products/mahovi/mah-4040.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4040-mahovi-ga-fbc7c6b8f4c6.webp"
     ],
     "altText": "Equipamento MAH-4040 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4040 Mahovi.",
@@ -2436,9 +2436,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4014.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4014-mahovi-45614019c5ab.webp",
     "images": [
-      "/products/mahovi/mah-4014.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4014-mahovi-ga-816ccbafe6a0.webp"
     ],
     "altText": "Equipamento MAH-4014 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4014 Mahovi.",
@@ -2462,9 +2462,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4030.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4030-mahovi-eec118826123.webp",
     "images": [
-      "/products/mahovi/mah-4030.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4030-mahovi-ga-31f58b76ebd8.webp"
     ],
     "altText": "Equipamento MAH-4030 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4030 Mahovi.",
@@ -2488,9 +2488,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4031.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4031-mahovi-9a48b7b52a93.webp",
     "images": [
-      "/products/mahovi/mah-4031.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4031-mahovi-ga-fade6bf173b1.webp"
     ],
     "altText": "Equipamento MAH-4031 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4031 Mahovi.",
@@ -2514,9 +2514,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-1009-01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1009-01-mahovi-f222d3b83e32.webp",
     "images": [
-      "/products/mahovi/mah-1009-01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-1009-01-mahovi-435d385e1614.webp"
     ],
     "altText": "Equipamento MAH-1009-01 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-1009-01 Mahovi.",
@@ -2540,9 +2540,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-110.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-110-mahovi-7015d9283aa9.webp",
     "images": [
-      "/products/mahovi/mah-110.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-110-mahovi-gal-3d7c6f729eeb.webp"
     ],
     "altText": "Equipamento MAH-110 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-110 Mahovi.",
@@ -2566,9 +2566,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-104.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-104-mahovi-e7bbbfd7f22f.webp",
     "images": [
-      "/products/mahovi/mah-104.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-104-mahovi-gal-abf12bf3629d.webp"
     ],
     "altText": "Equipamento MAH-104 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-104 Mahovi.",
@@ -2592,9 +2592,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-103.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-103-mahovi-e3755c15f5d9.webp",
     "images": [
-      "/products/mahovi/mah-103.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-103-mahovi-gal-3ae3f83252d9.webp"
     ],
     "altText": "Equipamento MAH-103 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-103 Mahovi.",
@@ -2618,9 +2618,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/mahovi/mah-4001-44.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4001-44-mahovi-a5c23d75fcbd.webp",
     "images": [
-      "/products/mahovi/mah-4001-44.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4001-44-mahovi-31f73b02b3d1.webp"
     ],
     "altText": "Equipamento MAH-4001-44 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4001-44 Mahovi.",
@@ -2644,9 +2644,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-4020.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4020-mahovi-1af4964c1e6b.webp",
     "images": [
-      "/products/mahovi/mah-4020.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-4020-mahovi-ga-0944fc044ff8.webp"
     ],
     "altText": "Equipamento MAH-4020 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-4020 Mahovi.",
@@ -2670,9 +2670,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-5010.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-5010-mahovi-0e6d23a8a116.webp",
     "images": [
-      "/products/mahovi/mah-5010.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-5010-mahovi-ga-002362a5df08.webp"
     ],
     "altText": "Equipamento MAH-5010 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-5010 Mahovi.",
@@ -2696,9 +2696,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-cap01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-cap01-mahovi-a6f83d6f69bb.webp",
     "images": [
-      "/products/mahovi/wal-cap01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-cap01-mahovi-g-eecfdb361fb0.webp"
     ],
     "altText": "Equipamento WAL-CAP01 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-CAP01 Mahovi.",
@@ -2722,9 +2722,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-4128.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-4128-mahovi-0771f7df78e7.webp",
     "images": [
-      "/products/mahovi/wal-4128.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-4128-mahovi-ga-a88e791692dc.webp"
     ],
     "altText": "Equipamento WAL-4128 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-4128 Mahovi.",
@@ -2748,9 +2748,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-101.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-101-mahovi-62972b044368.webp",
     "images": [
-      "/products/mahovi/wal-101.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-101-mahovi-gal-6fb24540e800.webp"
     ],
     "altText": "Equipamento WAL-101 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-101 Mahovi.",
@@ -2774,9 +2774,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-8002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-8002-mahovi-509254897988.webp",
     "images": [
-      "/products/mahovi/mah-8002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-8002-mahovi-ga-953492b09528.webp"
     ],
     "altText": "Equipamento MAH-8002 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-8002 Mahovi.",
@@ -2800,9 +2800,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/mah-8001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-8001-mahovi-28cff772e866.webp",
     "images": [
-      "/products/mahovi/mah-8001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-mah-8001-mahovi-ga-2bba3703bf7e.webp"
     ],
     "altText": "Equipamento MAH-8001 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo MAH-8001 Mahovi.",
@@ -2826,9 +2826,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-102.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-102-mahovi-003b2809f311.webp",
     "images": [
-      "/products/mahovi/wal-102.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-102-mahovi-gal-a1ce5c47a4d9.webp"
     ],
     "altText": "Equipamento WAL-102 Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-102 Mahovi.",
@@ -2852,9 +2852,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Mahovi Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/mahovi/wal-fun.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-fun-mahovi-7c092b5f411b.webp",
     "images": [
-      "/products/mahovi/wal-fun.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/equipamento-wal-fun-mahovi-gal-307c4910a510.webp"
     ],
     "altText": "Equipamento WAL-FUN Mahovi Athena Soluções Automotivas",
     "description": "Equipamento de alta performance para oficina mecânica e centro automotivo modelo WAL-FUN Mahovi.",
@@ -2878,9 +2878,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/delta/dt-can03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-can03-d-1d6026daa621.webp",
     "images": [
-      "/products/delta/dt-can03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-can03-d-76ca1dbb522a.webp"
     ],
     "altText": "Ferramenta Especial DT-CAN03 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-CAN03.",
@@ -2903,9 +2903,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac20.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-com-21-peca-b8337efce190.webp",
     "images": [
-      "/products/delta/dt-sac20.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-com-21-peca-a79c0095fac4.webp"
     ],
     "altText": "KIT DE FERRAMENTAS COM 21 PEÇAS PARA SACAR (DT-SAC20) Delta Athena Soluções Automotivas",
     "description": "INJETORES (PNEUMÁTICO) Sacador pneumatico desenvolvido para sacar injetores emperrados ou travados com facilidade principalmente para linha diesel. Acompanha vários adaptadores. Mais completo do mercado. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO",
@@ -2928,9 +2928,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-atb01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/cabo-obd-para-auxiliar-na-troc-084eb6617baf.webp",
     "images": [
-      "/products/delta/dt-atb01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/cabo-obd-para-auxiliar-na-troc-e7b4ce660ff2.webp"
     ],
     "altText": "CABO OBD PARA AUXILIAR NA TROCA DE BATERIA (DT-ATB01) Delta Athena Soluções Automotivas",
     "description": "Equipamento que auxilia o reparador automotivo a efetuar a troca da bateria com segurança sem perder os dados armazenados do veículo. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -2953,9 +2953,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-tbd02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/teste-de-bateria-digital-com-i-2b553e52f6d3.webp",
     "images": [
-      "/products/delta/dt-tbd02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/teste-de-bateria-digital-com-i-2615ca42e4d0.webp"
     ],
     "altText": "TESTE DE BATERIA DIGITAL COM IMPRESSÃO (DT-TBD02) Delta Athena Soluções Automotivas",
     "description": "Ideal para medir com rapidez e precisão a capacidade real da corrente (Amperes), assim como o estado de saúde da bateria. Adota atualmente a tecnologia de teste de condutância mais avançada",
@@ -2979,9 +2979,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/delta/dt-tbd01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/teste-de-bateria-digital-dt-tb-521899033636.webp",
     "images": [
-      "/products/delta/dt-tbd01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/teste-de-bateria-digital-dt-tb-1cd3a1059a68.webp"
     ],
     "altText": "TESTE DE BATERIA DIGITAL (DT-TBD01) Delta Athena Soluções Automotivas",
     "description": "Ideal para medir com rapidez e precisão a capacidade real da corrente (Amperes), assim como o estado de saúde da bateria. Adota atualmente a tecnologia de teste de condutância mais avançada do mundo. Estado de Saúde (%); Estado de Carga (%);",
@@ -3004,9 +3004,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-esc01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/fabricado-com-alta-qualidade-d-f161d1cec14d.webp",
     "images": [
-      "/products/delta/dt-esc01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/fabricado-com-alta-qualidade-d-8dfce6662bac.webp"
     ],
     "altText": "FABRICADO COM ALTA QUALIDADE (DT-ESC01) Delta Athena Soluções Automotivas",
     "description": "14 x 14mm escareador plano 17 x 17mm escareador plano",
@@ -3030,9 +3030,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mpb01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/medidor-de-pressao-da-bomba-de-ca4f606dfdd0.webp",
     "images": [
-      "/products/delta/dt-mpb01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/medidor-de-pressao-da-bomba-de-5e6e82059a0e.webp"
     ],
     "altText": "MEDIDOR DE PRESSÃO DA BOMBA DE COMBUSTÍVEL (DT-MPB01) Delta Athena Soluções Automotivas",
     "description": "COM 17 MANGUEIRAS Manômetro de pressão da bomba de combustível com sistema anti-vibração desenvolvido com a ﬁnalidade de auxiliar o reparador automotivo testar a bomba elétrica do veículo.",
@@ -3056,9 +3056,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-adapatador-para-maquinas-d-7db8ab97682b.webp",
     "images": [
-      "/products/delta/dt-sac01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-adapatador-para-maquinas-d-76416abcfb4c.webp"
     ],
     "altText": "KIT ADAPATADOR PARA MAQUINAS DE LIMPEZA DE (DT-SAC01) Delta Athena Soluções Automotivas",
     "description": "BICOS PARA CARROS IMPORTADOS (4PÇS) GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -3081,9 +3081,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ada01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/as-caracteristicas-dos-produto-87b7fe36fc51.webp",
     "images": [
-      "/products/delta/dt-ada01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/as-caracteristicas-dos-produto-29fe09e126f8.webp"
     ],
     "altText": "As características dos produtos podem sofrer alterações sem prévio aviso (DT-ADA01) Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-ADA01.",
@@ -3106,9 +3106,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/ali06.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-ali06-delt-9c1c4f59f7d1.webp",
     "images": [
-      "/products/delta/ali06.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-ali06-delt-4e2ad0692d3c.webp"
     ],
     "altText": "Ferramenta Especial ALI06 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo ALI06.",
@@ -3131,9 +3131,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/sac14.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-com-cabo-pa-b2204e489890.webp",
     "images": [
-      "/products/delta/sac14.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-com-cabo-pa-b5ce519df372.webp"
     ],
     "altText": "KIT DE FERRAMENTAS COM CABO PARA EXTRAIR (SAC14) Delta Athena Soluções Automotivas",
     "description": "TERMINAIS DE CONECTORES AUTOMOTIVO 23 PÇS GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE Kit proﬁssional de alta qualidade para remover a maior parte dos terminais de conectores automotivos. O cabo de borracha proporciona excelente",
@@ -3156,9 +3156,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/sac15.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-5c72ff4be426.webp",
     "images": [
-      "/products/delta/sac15.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-01394cad33d2.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (SAC15) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE Kit fabricado em aço e plástico resistente. Adequado para a maioria dos terminais de conectores automotivos. KIT DE FERRAMENTAS PARA EXTRAIR TERMINAIS DE CONECTORES AUTOMOTIVOS 18 PÇS",
@@ -3181,9 +3181,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-lpb01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-lpb01-d-9421f561f588.webp",
     "images": [
-      "/products/delta/dt-lpb01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-lpb01-d-528220f15e74.webp"
     ],
     "altText": "Ferramenta Especial DT-LPB01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-LPB01.",
@@ -3206,9 +3206,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/can-01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-can-01-del-3383300ac11f.webp",
     "images": [
-      "/products/delta/can-01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-can-01-del-c4672b52f393.webp"
     ],
     "altText": "Ferramenta Especial CAN-01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo CAN-01.",
@@ -3231,9 +3231,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/jep-01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-jep-01-del-14f746340711.webp",
     "images": [
-      "/products/delta/jep-01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-jep-01-del-53ad37b31f45.webp"
     ],
     "altText": "Ferramenta Especial JEP-01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo JEP-01.",
@@ -3256,9 +3256,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/fra-01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-a4024ee80496.webp",
     "images": [
-      "/products/delta/fra-01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-e7964eb3c7a7.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (FRA-01) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -3281,9 +3281,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sso02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-soquetes-para-sensor-d-47ff8d5b34cf.webp",
     "images": [
-      "/products/delta/dt-sso02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-soquetes-para-sensor-d-dcf7f9ee2034.webp"
     ],
     "altText": "JOGO DE SOQUETES PARA SENSOR DE OXIGÊNIO (DT-SSO02) Delta Athena Soluções Automotivas",
     "description": "COM 7 PEÇAS Kit de ferramentas especiais, tipo soquetes, para sonda lambda. estojo para acomodação dos soquetes. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -3306,9 +3306,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sso03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-soquetes-para-sensor-d-cfe03a1cfef1.webp",
     "images": [
-      "/products/delta/dt-sso03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-soquetes-para-sensor-d-363061422f5c.webp"
     ],
     "altText": "JOGO DE SOQUETES PARA SENSOR DE OXIGÊNIO (DT-SSO03) Delta Athena Soluções Automotivas",
     "description": "COM 10 PEÇAS Kit de ferramentas especiais, tipo soquetes, para sonda lambda. Ideal para remover sensores de oxigênio, injetores e outros sensores automotivos. estojo para acomodação dos soquetes.",
@@ -3331,9 +3331,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sso04.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-e70586c9e456.webp",
     "images": [
-      "/products/delta/dt-sso04.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-82535445ccc2.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-SSO04) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE SOQUETE PARA SENSOR DE OXIGÊNIO (SONDA LAMBDA) Ferramenta especial, tipo soquete, para sonda lambda. Modelo curto.",
@@ -3356,9 +3356,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sso01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/07-dt-sso01-delta-f7f1df083393.webp",
     "images": [
-      "/products/delta/dt-sso01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/07-dt-sso01-delta-galeria-1-52e271138ebe.webp"
     ],
     "altText": "07 (DT-SSO01) Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-SSO01.",
@@ -3381,9 +3381,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac08.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-882ec50b25cc.webp",
     "images": [
-      "/products/delta/dt-sac08.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-5f6b7a68c2c4.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-SAC08) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE KIT EXTRATOR PARA INJETORES DIESEL 40 PÇS O kit vem com vários adaptadores e extratores para injetores diesel. Fabricado em aço carbono de alta qualidade, para uma longa vida útil no uso diário da oﬁcina.",
@@ -3406,9 +3406,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac07.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-7116613d248b.webp",
     "images": [
-      "/products/delta/dt-sac07.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-1f40807d459c.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-SAC07) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -3431,9 +3431,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sfb01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sfb01-d-ad72a55ed8e3.webp",
     "images": [
-      "/products/delta/dt-sfb01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sfb01-d-ff2d2ebe8317.webp"
     ],
     "altText": "Ferramenta Especial DT-SFB01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-SFB01.",
@@ -3456,9 +3456,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/08-dt-sac02-delta-f71187aa0d5b.webp",
     "images": [
-      "/products/delta/dt-sac02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/08-dt-sac02-delta-galeria-1-2ed3c280dcdb.webp"
     ],
     "altText": "08 (DT-SAC02) Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-SAC02.",
@@ -3481,9 +3481,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ali08.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ali08-d-6c953880f781.webp",
     "images": [
-      "/products/delta/dt-ali08.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ali08-d-b35b62a94868.webp"
     ],
     "altText": "Ferramenta Especial DT-ALI08 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-ALI08.",
@@ -3506,9 +3506,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ali09.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ali09-d-6b83053b5d29.webp",
     "images": [
-      "/products/delta/dt-ali09.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ali09-d-bbdbd8b5b54a.webp"
     ],
     "altText": "Ferramenta Especial DT-ALI09 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-ALI09.",
@@ -3531,9 +3531,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fsm05.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/aplicacao-motores-n20-e-n26-dt-d6cb7d3eb48e.webp",
     "images": [
-      "/products/delta/dt-fsm05.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/aplicacao-motores-n20-e-n26-dt-a0b19c62f958.webp"
     ],
     "altText": "Aplicação: Motores N20 e N26 (DT-FSM05) Delta Athena Soluções Automotivas",
     "description": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -3556,9 +3556,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fun01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/funil-universal-para-oleo-do-m-d26b08292ea4.webp",
     "images": [
-      "/products/delta/dt-fun01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/funil-universal-para-oleo-do-m-697322a8a58e.webp"
     ],
     "altText": "FUNIL UNIVERSAL PARA ÓLEO DO MOTOR (DT-FUN01) Delta Athena Soluções Automotivas",
     "description": "da passagem do óleo. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO",
@@ -3584,9 +3584,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fun02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-universal-com-funil-e-aces-2b87938e5989.webp",
     "images": [
-      "/products/delta/dt-fun02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-universal-com-funil-e-aces-d5b58f4ee3a7.webp"
     ],
     "altText": "KIT UNIVERSAL COM FUNIL E ACESSÓRIOS PARA (DT-FUN02) Delta Athena Soluções Automotivas",
     "description": "SISTEMA DE ARREFECIMENTO e a manutenção do sistema de arrefecimento. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -3609,9 +3609,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac18.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sac18-d-25e180f25bdd.webp",
     "images": [
-      "/products/delta/dt-sac18.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sac18-d-f46a671e4c58.webp"
     ],
     "altText": "Ferramenta Especial DT-SAC18 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-SAC18.",
@@ -3634,9 +3634,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac19.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-para-desacoplar-uni-6b1782cb8e7c.webp",
     "images": [
-      "/products/delta/dt-sac19.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-para-desacoplar-uni-81d402a64489.webp"
     ],
     "altText": "FERRAMENTA PARA DESACOPLAR UNIDADE (DT-SAC19) Delta Athena Soluções Automotivas",
     "description": "MECATRÔNICA NO CÂMBIO DSG Facilita o trabalho durante a desmontagem e montagem da unidade mecatrônica da caixa de transmissão automática. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -3659,9 +3659,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-tjc01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/teste-da-junta-de-cabecote-dt--805c6e7f647e.webp",
     "images": [
-      "/products/delta/dt-tjc01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/teste-da-junta-de-cabecote-dt--5c3823092e13.webp"
     ],
     "altText": "TESTE DA JUNTA DE CABEÇOTE (DT-TJC01) Delta Athena Soluções Automotivas",
     "description": "Equipamento utilizado para detectar a presença de gases de escape no sistema de arrefecimento do motor, de forma rápida e eﬁcaz, normalmente causados por uma junta de cabeçote queimada, cabeçote e bloco do motor rachado. Sua ponteira em formato cônico permite que atenda uma gama bastante vasta de veículos, será acoplado no reservatório de",
@@ -3684,9 +3684,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ali02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ali02-d-e37236397f24.webp",
     "images": [
-      "/products/delta/dt-ali02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ali02-d-806b78cee2bb.webp"
     ],
     "altText": "Ferramenta Especial DT-ALI02 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-ALI02.",
@@ -3709,9 +3709,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ali03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-alicates-para-remocao--b01f5c78e660.webp",
     "images": [
-      "/products/delta/dt-ali03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-alicates-para-remocao--042c662a73cc.webp"
     ],
     "altText": "JOGO DE ALICATES PARA REMOÇÃO DE (DT-ALI03) Delta Athena Soluções Automotivas",
     "description": "MANGUEIRAS DE ÁGUA, ÓLEO, COMBUSTÍVEL, COM 9 PEÇAS Conjunto proﬁssional de alta qualidade; Apresenta alicates indicados para a maioria das abraçadeiras que",
@@ -3734,9 +3734,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ali04.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/e-conhecido-tambem-como-aneis--e375aea235c9.webp",
     "images": [
-      "/products/delta/dt-ali04.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/e-conhecido-tambem-como-aneis--b24dd4b62967.webp"
     ],
     "altText": "•É conhecido também como anéis de segmento, onde são montados (DT-ALI04) Delta Athena Soluções Automotivas",
     "description": "nos sulcos ao redor do pistão; Fabricação em ótima qualidade; GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO",
@@ -3759,9 +3759,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-bfm01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/design-arrojado-e-altamente-re-323c3d0db279.webp",
     "images": [
-      "/products/delta/dt-bfm01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/design-arrojado-e-altamente-re-71047be16fa0.webp"
     ],
     "altText": "•Design arrojado e altamente revolucionário; (DT-BFM01) Delta Athena Soluções Automotivas",
     "description": "Capacidade para 10 litros de extração de vários tipos de líquido e óleo de motor de automóveis, caminhões, ônibus e para linha náutica; Fácil de operar e transportar;",
@@ -3784,9 +3784,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-bft01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-bft01-d-c4348b21b567.webp",
     "images": [
-      "/products/delta/dt-bft01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-bft01-d-aa016939db42.webp"
     ],
     "altText": "Ferramenta Especial DT-BFT01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-BFT01.",
@@ -3809,9 +3809,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ali05.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/e-conhecido-tambem-como-aneis--2dc6f005b803.webp",
     "images": [
-      "/products/delta/dt-ali05.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/e-conhecido-tambem-como-aneis--5a1abd12d895.webp"
     ],
     "altText": "•É conhecido também como anéis de segmento, onde são montados (DT-ALI05) Delta Athena Soluções Automotivas",
     "description": "nos sulcos ao redor do pistão; Fabricação em ótima qualidade; GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO",
@@ -3834,9 +3834,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-bvm01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/bomba-manual-de-pressao-e-vacu-9dbc942a6103.webp",
     "images": [
-      "/products/delta/dt-bvm01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/bomba-manual-de-pressao-e-vacu-23adf3ac6f80.webp"
     ],
     "altText": "BOMBA MANUAL DE PRESSÃO E VÁCUO (DT-BVM01) Delta Athena Soluções Automotivas",
     "description": "Utilizada para testar uma grande variedade de conﬁgurações e operações essenciais no veículo. Possui gatilho e acabamento resistente. Veriﬁca tubulações do sistema de freio e de combustível; Veriﬁca ar falso, avanço à vácuo no carburador;",
@@ -3859,9 +3859,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-cma01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-para-compre-433197f5afc2.webp",
     "images": [
-      "/products/delta/dt-cma01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-para-compre-80da2353dfa1.webp"
     ],
     "altText": "KIT DE FERRAMENTAS PARA COMPRESSÃO DE MOLAS (DT-CMA01) Delta Athena Soluções Automotivas",
     "description": "Ferramentas para compressão de molas universal. Fabricado em Aço especial de alta qualidade; Produto em excelente acabamento, evitando que as molas se curvem; Capacidade 1.000 kg;",
@@ -3884,9 +3884,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mcd01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-mcd01-d-0f5285fb3d42.webp",
     "images": [
-      "/products/delta/dt-mcd01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-mcd01-d-0bf977a186cd.webp"
     ],
     "altText": "Ferramenta Especial DT-MCD01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-MCD01.",
@@ -3909,9 +3909,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-cin.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/medidor-de-compressao-de-cilin-1001434a3202.webp",
     "images": [
-      "/products/delta/dt-cin.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/medidor-de-compressao-de-cilin-fe27c5e54997.webp"
     ],
     "altText": "MEDIDOR DE COMPRESSÃO DE CILINDRO (DT-CIN) Delta Athena Soluções Automotivas",
     "description": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE MEDIDOR DE COMPRESSÃO DE CILINDRO LINHA DIESEL COM 17 PEÇAS Jogo de ferramentas para medir a compressão de cilindro",
@@ -3934,9 +3934,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mcc01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-mcc01-d-c0ce8f4d64ee.webp",
     "images": [
-      "/products/delta/dt-mcc01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-mcc01-d-858d03eb0c39.webp"
     ],
     "altText": "Ferramenta Especial DT-MCC01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-MCC01.",
@@ -3959,9 +3959,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mpo01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/o-jogo-mais-completo-do-mercad-d7a2e6ed5665.webp",
     "images": [
-      "/products/delta/dt-mpo01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/o-jogo-mais-completo-do-mercad-69150c8c241c.webp"
     ],
     "altText": "O jogo mais completo do mercado, serve também para medir pressão (DT-MPO01) Delta Athena Soluções Automotivas",
     "description": "da bomba de óleo do câmbio automático. Jogo de ferramentas para analisar as condições da bomba de óleo do motor. Atende LINHA LEVE e PESADA. manômetro de 0 a 28 BAR ou 0 a 400 PSI, 11 adaptadores, manual de instruções, maleta para acomodação.",
@@ -3984,9 +3984,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mvc01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/medidor-de-vazao-de-cilindro-d-f2a5ce8e143d.webp",
     "images": [
-      "/products/delta/dt-mvc01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/medidor-de-vazao-de-cilindro-d-3f589356cd5a.webp"
     ],
     "altText": "MEDIDOR DE VAZÃO DE CILINDRO DO MOTOR (DT-MVC01) Delta Athena Soluções Automotivas",
     "description": "Equipamento ideal para medir vazão de cilindro de motores da linha leve. Veriﬁca perda de ar comprimido no cilindro diagnosticando sede de válvulas, juntas e cabeçotes, folga em pistões, anéis e cilindros.",
@@ -4009,9 +4009,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac06.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-002a98075452.webp",
     "images": [
-      "/products/delta/dt-sac06.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-37d8f4c854ca.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-SAC06) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE FERRAMENTA PARA SACAR O BUJÃO DO ÓLEO DO CÁRTER DE PLÁSTICO AUDI, WV Fabricado em material resistente e de alta durabilidade. Audi A1, A3, A4, A5, A6, A7, Q3, Q5, Q7, TT, TTS,",
@@ -4034,9 +4034,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-extrator-para-rolament-f4e9ea70edbb.webp",
     "images": [
-      "/products/delta/dt-sac03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-extrator-para-rolament-a14cefcc0160.webp"
     ],
     "altText": "JOGO DE EXTRATOR PARA ROLAMENTOS (DT-SAC03) Delta Athena Soluções Automotivas",
     "description": "Jogo ideal para a utilização em alternadores/Câmbio. Possui também a função de saca pista de rolamentos de cubo de roda 2 extratores de diâmetro externo medindo 30mm - 50 mm e",
@@ -4060,9 +4060,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac05.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/extrator-do-terminal-de-direca-e21e8d1ac074.webp",
     "images": [
-      "/products/delta/dt-sac05.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/extrator-do-terminal-de-direca-cb8cedbe3789.webp"
     ],
     "altText": "EXTRATOR DO TERMINAL DE DIREÇÃO UNIVERSAL (DT-SAC05) Delta Athena Soluções Automotivas",
     "description": "Extrator do terminal de direção. Uso universal; Fabricação em aço forjado com excelente acabamento. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO",
@@ -4085,9 +4085,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-rep01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-ferramentas-para-repar-47ad3a30da77.webp",
     "images": [
-      "/products/delta/dt-rep01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-ferramentas-para-repar-76c87bce13ac.webp"
     ],
     "altText": "JOGO DE FERRAMENTAS PARA REPARO (DT-REP01) Delta Athena Soluções Automotivas",
     "description": "DE ROSCAS DO CÁRTER COM 120 PEÇAS Ideal para reparar roscas do cárter de óleo. É muito comum durante as trocas de óleo que a rosca do cárter acabe se daniﬁcando, com este jogo você pode recuperar a rosca e efetuar a substituição do parafuso evitando a troca de peças. Fabricado com a mais alta qualidade de aço.",
@@ -4110,9 +4110,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sfo01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-saca-filtro-de-oleo-co-a1427ccb5d9e.webp",
     "images": [
-      "/products/delta/dt-sfo01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-saca-filtro-de-oleo-co-ed741d6fef12.webp"
     ],
     "altText": "JOGO DE SACA FILTRO DE ÓLEO COM (DT-SFO01) Delta Athena Soluções Automotivas",
     "description": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -4135,9 +4135,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sfo02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sfo02-d-e79401546f1a.webp",
     "images": [
-      "/products/delta/dt-sfo02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sfo02-d-ffd9db0a813f.webp"
     ],
     "altText": "Ferramenta Especial DT-SFO02 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-SFO02.",
@@ -4160,9 +4160,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-vac01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/gerador-de-vacuo-para-sistema--31a68f48f292.webp",
     "images": [
-      "/products/delta/dt-vac01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/gerador-de-vacuo-para-sistema--ba5f97240145.webp"
     ],
     "altText": "GERADOR DE VÁCUO PARA SISTEMA DE (DT-VAC01) Delta Athena Soluções Automotivas",
     "description": "ARREFECIMENTO Ideal para retirar o ar do sistema de arrefecimento. Retira e coloca o líquido de arrefecimento com facilidade sem entrar ar no sistema. Ideal para veículos com 2 válvulas termostáticas e para auxiliar na troca de bomba d’água.",
@@ -4185,9 +4185,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac09.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-09c39cf68270.webp",
     "images": [
-      "/products/delta/dt-sac09.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-feff8a6b3bbd.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-SAC09) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE KIT EXTRATOR PARA TRANSMISSÃO DE EMBREAGEM Conjunto de ferramentas para desmontar o sistema de dupla embreagem do cambio DSG-7 velocidades - Audi TSFI / Jetta / Golf / Tiguan / Passat 2.0 TSI",
@@ -4210,9 +4210,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac10.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sac10-d-df5e30e453f8.webp",
     "images": [
-      "/products/delta/dt-sac10.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sac10-d-628e9efff95c.webp"
     ],
     "altText": "Ferramenta Especial DT-SAC10 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-SAC10.",
@@ -4235,9 +4235,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fsm02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-para-sincro-ea0c29ce697b.webp",
     "images": [
-      "/products/delta/dt-fsm02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-para-sincro-299fa0a20aa2.webp"
     ],
     "altText": "KIT DE FERRAMENTAS PARA SINCRONISMO DOS (DT-FSM02) Delta Athena Soluções Automotivas",
     "description": "MOTORES MINI COOPER GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -4260,9 +4260,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fsm03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-para-sincro-71588aefccf9.webp",
     "images": [
-      "/products/delta/dt-fsm03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-para-sincro-80b93d21d1b1.webp"
     ],
     "altText": "KIT DE FERRAMENTAS PARA SINCRONISMO DOS (DT-FSM03) Delta Athena Soluções Automotivas",
     "description": "MOTORES BMW 2.5 E 3.0 6 CILINDROS GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -4285,9 +4285,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fsm04.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-para-sincro-cb81ea4aff3b.webp",
     "images": [
-      "/products/delta/dt-fsm04.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-de-ferramentas-para-sincro-2504b04265d9.webp"
     ],
     "altText": "KIT DE FERRAMENTAS PARA SINCRONISMO DOS (DT-FSM04) Delta Athena Soluções Automotivas",
     "description": "MOTORES LAND TOVER GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -4310,9 +4310,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-trf01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/20-dt-trf01-delta-de565fac6193.webp",
     "images": [
-      "/products/delta/dt-trf01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/20-dt-trf01-delta-galeria-1-2fc00e7d08f7.webp"
     ],
     "altText": "20 (DT-TRF01) Delta Athena Soluções Automotivas",
     "description": "Sedona (motor K V6 2.5 - Correia)",
@@ -4335,9 +4335,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/delta/dt-fsm01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-fsm01-d-4d6944bf3ae1.webp",
     "images": [
-      "/products/delta/dt-fsm01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-fsm01-d-8ff243bc84c0.webp"
     ],
     "altText": "Ferramenta Especial DT-FSM01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-FSM01.",
@@ -4360,9 +4360,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mft01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/maquina-para-troca-de-fluido-d-a2626c9388af.webp",
     "images": [
-      "/products/delta/dt-mft01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/maquina-para-troca-de-fluido-d-ec175563c82f.webp"
     ],
     "altText": "MÁQUINA PARA TROCA DE FLUÍDO DA (DT-MFT01) Delta Athena Soluções Automotivas",
     "description": "TRANSMISSÃO AUTOMÁTICA 220V (NACIONAL) A máquina DT-MFT01 é a mais nova tecnologia para troca de ﬂuído da transmissão automática de veículos. Seus tanques transparentes permitem facilmente visualizar a coloração e quantidade do ﬂuído de entrada e saída. Possui iluminação.",
@@ -4385,9 +4385,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mft02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sem-aquecimento-dt-mft02-delta-9eb2978a6efd.webp",
     "images": [
-      "/products/delta/dt-mft02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sem-aquecimento-dt-mft02-delta-2fcd5a2e3a76.webp"
     ],
     "altText": "sem aquecimento (DT-MFT02) Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-MFT02.",
@@ -4410,9 +4410,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fpc-01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-fpc-01--e0b81066cd7c.webp",
     "images": [
-      "/products/delta/dt-fpc-01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-fpc-01--a2de62fa14e0.webp"
     ],
     "altText": "Ferramenta Especial DT-FPC-01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-FPC-01.",
@@ -4435,9 +4435,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac13.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sac13-d-235b5c0c6924.webp",
     "images": [
-      "/products/delta/dt-sac13.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sac13-d-48ab3ecc0d05.webp"
     ],
     "altText": "Ferramenta Especial DT-SAC13 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-SAC13.",
@@ -4460,9 +4460,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac16.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-pneumatica-para-ins-0a46607dbd89.webp",
     "images": [
-      "/products/delta/dt-sac16.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-pneumatica-para-ins-f492e290002b.webp"
     ],
     "altText": "FERRAMENTA PNEUMÁTICA PARA INSTALAR (DT-SAC16) Delta Athena Soluções Automotivas",
     "description": "COIFA AUTOMOTIVA Equipamento que facilita a troca da coifa, evitando a desmontagem do semi eixo sem daniﬁcar o componente e a homocinética. APLICAR SOMENTE COIFA ELASTICA. KIT PARA EXTRAIR E INSTALAR RETENTORES AUTOMOTIVOS COM 20 PEÇAS",
@@ -4485,9 +4485,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac11.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-ddd0ae7cafac.webp",
     "images": [
-      "/products/delta/dt-sac11.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-3e2b946a0e7d.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-SAC11) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE JOGO DE SACA ROLAMENTOS INTERNO COM MARRETA DINÂMICA 10 PÇS Fabricado em aço de alta qualidade. Facilita a retirada de rolamentos interno fazendo tração. Jogo completo com marreta deslizante. Ideal para rolamentos de 8 a 32mm (diâmetro interno).",
@@ -4510,9 +4510,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-tor01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/torquimetro-de-vareta-dt-tor01-2cbab3dbdef5.webp",
     "images": [
-      "/products/delta/dt-tor01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/torquimetro-de-vareta-dt-tor01-97c2dbf5982f.webp"
     ],
     "altText": "TORQUÍMETRO DE VARETA (DT-TOR01) Delta Athena Soluções Automotivas",
     "description": "0-300Nm (0-30kg) Aço Cromo Vanádio GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO",
@@ -4537,9 +4537,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-est01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/estetoscopio-automotivo-dt-est-8a2fac7c60d4.webp",
     "images": [
-      "/products/delta/dt-est01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/estetoscopio-automotivo-dt-est-821cc57efa6a.webp"
     ],
     "altText": "ESTETOSCÓPIO AUTOMOTIVO (DT-EST01) Delta Athena Soluções Automotivas",
     "description": "O estetoscópio é muito utilizado para localizar com precisão ruídos haste prolongadora. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -4562,9 +4562,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ftp01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-eebeace8dfb2.webp",
     "images": [
-      "/products/delta/dt-ftp01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-daf60bb0a10b.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-FTP01) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE KIT DE FERRAMENTAS PARA TRAVAR POLIAS Utilizado para travar diversos tipos de polias. Ferramenta de alta qualidade e durabilidade.",
@@ -4587,9 +4587,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac12.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-6183dbb9d947.webp",
     "images": [
-      "/products/delta/dt-sac12.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-e33104e945f6.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-SAC12) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -4612,9 +4612,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac-17.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sac-17--83d8f240edcc.webp",
     "images": [
-      "/products/delta/dt-sac-17.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-sac-17--4e9a3214494a.webp"
     ],
     "altText": "Ferramenta Especial DT-SAC-17 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-SAC-17.",
@@ -4637,9 +4637,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mat01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/fabricado-em-aco-de-alta-quali-2934760dfe83.webp",
     "images": [
-      "/products/delta/dt-mat01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/fabricado-em-aco-de-alta-quali-0759018357aa.webp"
     ],
     "altText": "Fabricado em aço de alta qualidade. (DT-MAT01) Delta Athena Soluções Automotivas",
     "description": "Realiza o trabalho com menor esforço e maior segurança. MEDIDOR ANGULAR DE TORQUE",
@@ -4665,9 +4665,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-cma02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-para-compressao-de--a3cc814819b7.webp",
     "images": [
-      "/products/delta/dt-cma02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-para-compressao-de--557731f84bdf.webp"
     ],
     "altText": "FERRAMENTA PARA COMPRESSÃO DE MOLAS (DT-CMA02) Delta Athena Soluções Automotivas",
     "description": "O encolhedor ou compressor para molas é ideal para instalar ou remover molas de veículos. Possui encaixe quadrado de 1/2\" e abertura de até 370mm aproximadamente. Fabricado em aço carbono de qualidade, oferecendo maior resistência e durabilidade. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -4690,9 +4690,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-jsq01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-jsq01-d-2165e65306c2.webp",
     "images": [
-      "/products/delta/dt-jsq01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-jsq01-d-df32099799f5.webp"
     ],
     "altText": "Ferramenta Especial DT-JSQ01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-JSQ01.",
@@ -4715,9 +4715,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-rel01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/relogio-comparador-dt-rel01-de-59ebe86260b8.webp",
     "images": [
-      "/products/delta/dt-rel01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/relogio-comparador-dt-rel01-de-a0c2bfe38e9d.webp"
     ],
     "altText": "RELÓGIO COMPARADOR (DT-REL01) Delta Athena Soluções Automotivas",
     "description": "Relógio comparador 0 a 10mm em aluminio com graduação de 0,01mm. Produto de ótima qualidade.",
@@ -4743,9 +4743,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-tsa01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/teste-para-sistema-de-arrefeci-5174d33af44a.webp",
     "images": [
-      "/products/delta/dt-tsa01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/teste-para-sistema-de-arrefeci-6ab98e400f63.webp"
     ],
     "altText": "TESTE PARA SISTEMA DE ARREFECIMENTO (DT-TSA01) Delta Athena Soluções Automotivas",
     "description": "Testa o radiador e a tampa do reservatório, analisando todo o sistema de arrefecimento. NÃO NECESSITA DE TAMPAS. O teste é feito através da conexão do reservatório com o radiador pela mangueira do retorno. Manômetro de 2,5 Bar.",
@@ -4768,9 +4768,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fpf03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-ferramentas-para-ajust-7cf10ac8163e.webp",
     "images": [
-      "/products/delta/dt-fpf03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-de-ferramentas-para-ajust-72fce39bd9d2.webp"
     ],
     "altText": "JOGO DE FERRAMENTAS PARA AJUSTE E REPARO (DT-FPF03) Delta Athena Soluções Automotivas",
     "description": "NO SISTEMA DE FREIO GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -4793,9 +4793,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fpf02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-para-retornar-o-emb-730581924fba.webp",
     "images": [
-      "/products/delta/dt-fpf02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-para-retornar-o-emb-224e660d406d.webp"
     ],
     "altText": "FERRAMENTA PARA RETORNAR O ÊMBOLO DA (DT-FPF02) Delta Athena Soluções Automotivas",
     "description": "PINÇA DE FREIO DIANTEIRO GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE Ideal para retornar o êmbolo da pinça de freio durante a troca das pastilhas do freio dianteiro, sem esforço e sem causar nenhum dano ao sistema hidráulico. Fabricada em aço especial de alta qualidade.",
@@ -4818,9 +4818,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sgf.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-para-retornar-o-embolo-da-b59e1cf7e3f0.webp",
     "images": [
-      "/products/delta/dt-sgf.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-para-retornar-o-embolo-da-331f47969953.webp"
     ],
     "altText": "JOGO PARA RETORNAR O ÊMBOLO DA PINÇA DE FREIO (DT-SGF) Delta Athena Soluções Automotivas",
     "description": "TRASEIRO COM 21 PEÇAS Jogo com 21 peças de ferramentas ideais para retornar (pressionar) o êmbolo da pinça de freio a disco traseiro de automóveis e utilitários nacionais e importados. Ajuda a prevenir dados aos pistões e selos. Maleta para acomodação",
@@ -4843,9 +4843,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-fpf01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-fpf01-d-232a3803b6c6.webp",
     "images": [
-      "/products/delta/dt-fpf01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-fpf01-d-9356b98faff2.webp"
     ],
     "altText": "Ferramenta Especial DT-FPF01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-FPF01.",
@@ -4868,9 +4868,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sgf02-r.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-36a1f6f5ebad.webp",
     "images": [
-      "/products/delta/dt-sgf02-r.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-1a522f0451fd.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-SGF02.R) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE RESERVATÓRIO DE REABASTECIMENTO PARA SANGRIA DE FREIOS",
@@ -4893,9 +4893,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-tff01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-49f4b0e4a52d.webp",
     "images": [
-      "/products/delta/dt-tff01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-d255e3f64577.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-TFF01) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE TESTE DE FLUÍDO DE FREIO TIPO CANETA Ideal para analisar a umidade do ﬂuído de freio. Rápido diagnóstico e precisão nos resultados.",
@@ -4918,9 +4918,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ven01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ven01-d-691ecb3b22fe.webp",
     "images": [
-      "/products/delta/dt-ven01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ven01-d-61821d6654f7.webp"
     ],
     "altText": "Ferramenta Especial DT-VEN01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-VEN01.",
@@ -4943,9 +4943,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ven02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ven02-d-8a0111618ad5.webp",
     "images": [
-      "/products/delta/dt-ven02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-ven02-d-7bbca93b4ebe.webp"
     ],
     "altText": "Ferramenta Especial DT-VEN02 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-VEN02.",
@@ -4968,9 +4968,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-ven03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ventosa-com-alca-para-martelin-bd4e05c8bc3b.webp",
     "images": [
-      "/products/delta/dt-ven03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ventosa-com-alca-para-martelin-fe437dbdf7b8.webp"
     ],
     "altText": "VENTOSA COM ALÇA PARA MARTELINHO DE OURO (DT-VEN03) Delta Athena Soluções Automotivas",
     "description": "Confeccionada em silicone; Apresenta ótima sucção com apoio para 3 dedos para melhor precisão no repuxo. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE",
@@ -4993,9 +4993,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/ali07.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-ali07-delt-5ecab8933440.webp",
     "images": [
-      "/products/delta/ali07.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-ali07-delt-3fc8c7a3f29d.webp"
     ],
     "altText": "Ferramenta Especial ALI07 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo ALI07.",
@@ -5018,9 +5018,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mar01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-marreta-dinamica-para-mart-b134871febcf.webp",
     "images": [
-      "/products/delta/dt-mar01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/kit-marreta-dinamica-para-mart-c38d485573cb.webp"
     ],
     "altText": "KIT MARRETA DINÂMICA PARA MARTELINHO (DT-MAR01) Delta Athena Soluções Automotivas",
     "description": "DE OURO 9 PEÇAS Marreta dinâmica para martelinho de ouro fabricada com materiais de excelente qualidade e grande durabilidade. 1 repuxadeira (marreta dinâmica) com 46cm e batedor de 780g, 1 ventosa de silicone de 110m com alça,",
@@ -5043,9 +5043,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-rec01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/de-ar-condicionado-r134a-dt-re-169e6a5e2d78.webp",
     "images": [
-      "/products/delta/dt-rec01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/de-ar-condicionado-r134a-dt-re-b72e95956bd4.webp"
     ],
     "altText": "de ar condicionado R134A (DT-REC01) Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-REC01.",
@@ -5068,9 +5068,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-rec02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sistema-de-ar-condicionado-r13-e3dcf6129000.webp",
     "images": [
-      "/products/delta/dt-rec02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sistema-de-ar-condicionado-r13-c4bfd7e6736f.webp"
     ],
     "altText": "sistema de ar condicionado R134A (DT-REC02) Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-REC02.",
@@ -5093,9 +5093,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-rec03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/de-ar-condicionado-r1234yf-dt--15c8001f013c.webp",
     "images": [
-      "/products/delta/dt-rec03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/de-ar-condicionado-r1234yf-dt--d3e92bf797da.webp"
     ],
     "altText": "de ar condicionado R1234YF (DT-REC03) Delta Athena Soluções Automotivas",
     "description": "Produzido na Itália, Delta Ferramentas representante oﬁcial ISC no Brasil.",
@@ -5118,9 +5118,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-rec.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/de-ar-condicionado-r134a-dt-re-499c690450cd.webp",
     "images": [
-      "/products/delta/dt-rec.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/de-ar-condicionado-r134a-dt-re-8f4b961a33e9.webp"
     ],
     "altText": "de ar condicionado R134A (DT-REC) Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-REC.",
@@ -5143,9 +5143,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-sac04.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-aad48f6fdc05.webp",
     "images": [
-      "/products/delta/dt-sac04.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/garantia-de-6-meses-contra-def-737859db6477.webp"
     ],
     "altText": "GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO (DT-SAC04) Delta Athena Soluções Automotivas",
     "description": "E ASSISTÊNCIA TÉCNICA PERMANENTE CONJUNTO DE SPRING LOCK PARA CONEXÕES DE AR CONDICIONADO COM 9 PEÇAS GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE MANIFOLD PARA GÁS DE AR CONDICIONADO",
@@ -5168,9 +5168,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mga01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-mga01-d-5cc60089938a.webp",
     "images": [
-      "/products/delta/dt-mga01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-mga01-d-8f1a6b045f27.webp"
     ],
     "altText": "Ferramenta Especial DT-MGA01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-MGA01.",
@@ -5193,9 +5193,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mga01eb.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-mga01eb-4fc6507f97e0.webp",
     "images": [
-      "/products/delta/dt-mga01eb.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-mga01eb-f8dde74171b9.webp"
     ],
     "altText": "Ferramenta Especial DT-MGA01EB Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-MGA01EB.",
@@ -5218,9 +5218,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-mga01ea.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/32-dt-mga01ea-delta-801140815ed9.webp",
     "images": [
-      "/products/delta/dt-mga01ea.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/32-dt-mga01ea-delta-galeria-1-4f8bd5db6482.webp"
     ],
     "altText": "32 (DT-MGA01EA) Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-MGA01EA.",
@@ -5243,9 +5243,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-lan02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-lan02-d-e37ad232eef4.webp",
     "images": [
-      "/products/delta/dt-lan02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-lan02-d-4a7361669ed2.webp"
     ],
     "altText": "Ferramenta Especial DT-LAN02 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-LAN02.",
@@ -5268,9 +5268,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-lan03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanterna-led-de-cabeca-dt-lan0-33266fbe39c1.webp",
     "images": [
-      "/products/delta/dt-lan03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanterna-led-de-cabeca-dt-lan0-7bae2dc9175d.webp"
     ],
     "altText": "LANTERNA LED DE CABEÇA (DT-LAN03) Delta Athena Soluções Automotivas",
     "description": "Lanterna de cabeça proﬁssional, recarregável. Possui botão e sensor de toque para facilitar o liga/desliga. Possui lâmpada auxiliar lateral. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE LANTERNA LED DE CABEÇA COM 3 LEDS.",
@@ -5293,9 +5293,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-cap01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-cap01-d-4b6a10015c89.webp",
     "images": [
-      "/products/delta/dt-cap01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-especial-dt-cap01-d-ca26133f76da.webp"
     ],
     "altText": "Ferramenta Especial DT-CAP01 Delta Athena Soluções Automotivas",
     "description": "Equipamento e ferramenta profissional para centro automotivo Delta Ferramentas modelo DT-CAP01.",
@@ -5318,9 +5318,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Delta Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/delta/dt-cap02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/capa-de-banco-para-mecanico-dt-fd26d14a9c97.webp",
     "images": [
-      "/products/delta/dt-cap02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/capa-de-banco-para-mecanico-dt-140b3c1b4839.webp"
     ],
     "altText": "CAPA DE BANCO PARA MECÂNICO (DT-CAP02) Delta Athena Soluções Automotivas",
     "description": "Evita mancha de graxas e sujeiras. Capa produzida em courino. Acabamento reforçado, excelente qualidade e alta durabilidade. Impermeável e fácil de lavar. GARANTIA DE 6 MESES CONTRA DEFEITOS DE FABRICAÇÃO E ASSISTÊNCIA TÉCNICA PERMANENTE JOGO DE CAPAS PARA MECÂNICO COM 5 PEÇAS",
@@ -5343,9 +5343,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/car-10.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chave-de-impacto-eletrica-car--3cbb19b8f247.webp",
     "images": [
-      "/products/sigmatools/car-10.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chave-de-impacto-eletrica-car--423db907b36d.webp"
     ],
     "altText": "Chave De Impacto Elétrica CAR-10 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo CAR-10 Sigma Tools.",
@@ -5373,9 +5373,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/car-20.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chave-de-impacto-eletrica-car--9cae11c8c8de.webp",
     "images": [
-      "/products/sigmatools/car-20.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chave-de-impacto-eletrica-car--ded6b5606f3b.webp"
     ],
     "altText": "Chave De Impacto Elétrica CAR-20 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo CAR-20 Sigma Tools.",
@@ -5403,9 +5403,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/sigmatools/sgt-0528a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0528a-sigma-too-02aee37f2c93.webp",
     "images": [
-      "/products/sigmatools/sgt-0528a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0528a-sigma-too-382838e5b375.webp"
     ],
     "altText": "Ferramenta SGT-0528A Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO",
@@ -5435,9 +5435,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0517.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0517-sigma-tool-ed2c92d532cb.webp",
     "images": [
-      "/products/sigmatools/sgt-0517.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0517-sigma-tool-bf9d57931bdb.webp"
     ],
     "altText": "Ferramenta SGT-0517 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO",
@@ -5467,9 +5467,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0529ak.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0529ak-sigma-to-3ee97a837f09.webp",
     "images": [
-      "/products/sigmatools/sgt-0529ak.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0529ak-sigma-to-6f7ca1e94241.webp"
     ],
     "altText": "Ferramenta SGT-0529AK Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO",
@@ -5499,9 +5499,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0517b.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0517b-sigma-too-6005805e2d6c.webp",
     "images": [
-      "/products/sigmatools/sgt-0517b.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0517b-sigma-too-1059a114f457.webp"
     ],
     "altText": "Ferramenta SGT-0517B Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO",
@@ -5531,9 +5531,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0529a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0529a-sigma-too-e2561ea177b8.webp",
     "images": [
-      "/products/sigmatools/sgt-0529a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0529a-sigma-too-ec2f5b7c67c2.webp"
     ],
     "altText": "Ferramenta SGT-0529A Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO",
@@ -5563,9 +5563,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0532a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0532a-sigma-too-a3a5deee13cf.webp",
     "images": [
-      "/products/sigmatools/sgt-0532a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0532a-sigma-too-81df59a2549b.webp"
     ],
     "altText": "Ferramenta SGT-0532A Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO",
@@ -5595,9 +5595,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0532ak.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0532ak-sigma-to-a75dbdb371d8.webp",
     "images": [
-      "/products/sigmatools/sgt-0532ak.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0532ak-sigma-to-f20c99c39d7e.webp"
     ],
     "altText": "Ferramenta SGT-0532AK Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO",
@@ -5627,9 +5627,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0536a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0536a-sigma-too-130e06c624ee.webp",
     "images": [
-      "/products/sigmatools/sgt-0536a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0536a-sigma-too-a6b6bdd8cca8.webp"
     ],
     "altText": "Ferramenta SGT-0536A Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO",
@@ -5659,9 +5659,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0539.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0539-sigma-tool-9a0f932e68a1.webp",
     "images": [
-      "/products/sigmatools/sgt-0539.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0539-sigma-tool-6347d3a4efbc.webp"
     ],
     "altText": "Ferramenta SGT-0539 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO CAPACIDADE DO PARAFUSO",
@@ -5691,9 +5691,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0544.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--c57e0e9cad92.webp",
     "images": [
-      "/products/sigmatools/sgt-0544.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--68fafa8865d1.webp"
     ],
     "altText": "Chaves De Impacto Pneumáticas 3/4” Tipo Pistola SGT-0544 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0544 Sigma Tools.",
@@ -5723,9 +5723,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0545.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--8cd3e46c6abb.webp",
     "images": [
-      "/products/sigmatools/sgt-0545.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--ae90e9a3c7ee.webp"
     ],
     "altText": "Chaves De Impacto Pneumáticas 3/4” Tipo Pistola SGT-0545 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0545 Sigma Tools.",
@@ -5755,9 +5755,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0542.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--a96bf4203966.webp",
     "images": [
-      "/products/sigmatools/sgt-0542.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--7bf8fed46448.webp"
     ],
     "altText": "Chaves De Impacto Pneumáticas 3/4” Tipo Pistola SGT-0542 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0542 Sigma Tools.",
@@ -5787,9 +5787,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0540b.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--5bcd8b15fae6.webp",
     "images": [
-      "/products/sigmatools/sgt-0540b.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--a24b277e3e90.webp"
     ],
     "altText": "Chaves De Impacto Pneumáticas 3/4” Tipo Pistola SGT-0540B Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0540B Sigma Tools.",
@@ -5819,9 +5819,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0546a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--33f7a452af81.webp",
     "images": [
-      "/products/sigmatools/sgt-0546a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--6af345168c1a.webp"
     ],
     "altText": "Chaves De Impacto Pneumáticas 3/4” Tipo Pistola SGT-0546A Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0546A Sigma Tools.",
@@ -5851,9 +5851,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0556.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--3e5804c791d5.webp",
     "images": [
-      "/products/sigmatools/sgt-0556.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--2cda46549fb5.webp"
     ],
     "altText": "Chaves De Impacto Pneumáticas 3/4” Tipo Pistola SGT-0556 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0556 Sigma Tools.",
@@ -5883,9 +5883,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0555.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--16ab0e0f9248.webp",
     "images": [
-      "/products/sigmatools/sgt-0555.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--c491cc30c3ae.webp"
     ],
     "altText": "Chaves De Impacto Pneumáticas 3/4” Tipo Pistola SGT-0555 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0555 Sigma Tools.",
@@ -5915,9 +5915,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0554.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--4b8ac05fcaa7.webp",
     "images": [
-      "/products/sigmatools/sgt-0554.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-pneumaticas--2dc4e69ef8ab.webp"
     ],
     "altText": "Chaves De Impacto Pneumáticas 3/4” Tipo Pistola SGT-0554 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0554 Sigma Tools.",
@@ -5947,9 +5947,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0569.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0569-sigma-tool-6fc160ef69cc.webp",
     "images": [
-      "/products/sigmatools/sgt-0569.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0569-sigma-tool-b7468d24a2c2.webp"
     ],
     "altText": "Ferramenta SGT-0569 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0569 Sigma Tools.",
@@ -5979,9 +5979,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0559.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0559-sigma-tool-f10aedee2b6e.webp",
     "images": [
-      "/products/sigmatools/sgt-0559.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0559-sigma-tool-5d434d00fddb.webp"
     ],
     "altText": "Ferramenta SGT-0559 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0559 Sigma Tools.",
@@ -6011,9 +6011,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0569c.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0569c-sigma-too-79a88c30d0ad.webp",
     "images": [
-      "/products/sigmatools/sgt-0569c.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0569c-sigma-too-dfe981ad12ca.webp"
     ],
     "altText": "Ferramenta SGT-0569C Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0569C Sigma Tools.",
@@ -6043,9 +6043,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0564.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0564-sigma-tool-d9d991b0b1dc.webp",
     "images": [
-      "/products/sigmatools/sgt-0564.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0564-sigma-tool-ac66a0f909a7.webp"
     ],
     "altText": "Ferramenta SGT-0564 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0564 Sigma Tools.",
@@ -6075,9 +6075,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0566.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0566-sigma-tool-1f1375d9e09d.webp",
     "images": [
-      "/products/sigmatools/sgt-0566.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0566-sigma-tool-dbb77a750b7c.webp"
     ],
     "altText": "Ferramenta SGT-0566 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0566 Sigma Tools.",
@@ -6107,9 +6107,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0564c.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0564c-sigma-too-a5e7cfedec3d.webp",
     "images": [
-      "/products/sigmatools/sgt-0564c.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0564c-sigma-too-b75f8f27fbad.webp"
     ],
     "altText": "Ferramenta SGT-0564C Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0564C Sigma Tools.",
@@ -6139,9 +6139,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0565.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0565-sigma-tool-a7bd8f254589.webp",
     "images": [
-      "/products/sigmatools/sgt-0565.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0565-sigma-tool-e13e6843d70d.webp"
     ],
     "altText": "Ferramenta SGT-0565 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0565 Sigma Tools.",
@@ -6171,9 +6171,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0575c.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0575c-sigma-too-e3916ef39537.webp",
     "images": [
-      "/products/sigmatools/sgt-0575c.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0575c-sigma-too-dd7f88c8d02d.webp"
     ],
     "altText": "Ferramenta SGT-0575C Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0575C Sigma Tools.",
@@ -6203,9 +6203,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0570.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0570-sigma-tool-4fdfd5b54f50.webp",
     "images": [
-      "/products/sigmatools/sgt-0570.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0570-sigma-tool-96a9cdd239a9.webp"
     ],
     "altText": "Ferramenta SGT-0570 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0570 Sigma Tools.",
@@ -6235,9 +6235,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0566c.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0566c-sigma-too-993c2221e3bc.webp",
     "images": [
-      "/products/sigmatools/sgt-0566c.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0566c-sigma-too-9668efc46080.webp"
     ],
     "altText": "Ferramenta SGT-0566C Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0566C Sigma Tools.",
@@ -6267,9 +6267,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0571.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0571-sigma-tool-dec1a877328e.webp",
     "images": [
-      "/products/sigmatools/sgt-0571.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0571-sigma-tool-d76a9e3a6e6c.webp"
     ],
     "altText": "Ferramenta SGT-0571 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-0571 Sigma Tools.",
@@ -6299,9 +6299,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/sigmatools/sgt-7502a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7502a-sigma-too-1fd5542a5fb5.webp",
     "images": [
-      "/products/sigmatools/sgt-7502a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7502a-sigma-too-7e439a03b6d5.webp"
     ],
     "altText": "Ferramenta SGT-7502A Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -6331,9 +6331,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7503a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7503a-sigma-too-3eb3c821cd21.webp",
     "images": [
-      "/products/sigmatools/sgt-7503a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7503a-sigma-too-f220ab3dc62e.webp"
     ],
     "altText": "Ferramenta SGT-7503A Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -6363,9 +6363,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7520.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7520-sigma-tool-9075f861e811.webp",
     "images": [
-      "/products/sigmatools/sgt-7520.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7520-sigma-tool-7356bf0a4e2d.webp"
     ],
     "altText": "Ferramenta SGT-7520 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -6395,9 +6395,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7500a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7500a-sigma-too-44dd679c650e.webp",
     "images": [
-      "/products/sigmatools/sgt-7500a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7500a-sigma-too-ffaca11138a4.webp"
     ],
     "altText": "Ferramenta SGT-7500A Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO PARAFUSO 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -6427,9 +6427,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7510.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7510-sigma-tool-41bbac4d09a3.webp",
     "images": [
-      "/products/sigmatools/sgt-7510.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7510-sigma-tool-dfa2a857d3d0.webp"
     ],
     "altText": "Ferramenta SGT-7510 Sigma Tools Athena Soluções Automotivas",
     "description": "2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO CAPACIDADE DO PARAFUSO",
@@ -6459,9 +6459,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7509.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7509-sigma-tool-a9447ad7eb57.webp",
     "images": [
-      "/products/sigmatools/sgt-7509.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7509-sigma-tool-27429dd260d6.webp"
     ],
     "altText": "Ferramenta SGT-7509 Sigma Tools Athena Soluções Automotivas",
     "description": "2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO CAPACIDADE DO PARAFUSO",
@@ -6491,9 +6491,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7515.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7515-sigma-tool-4536279f4c29.webp",
     "images": [
-      "/products/sigmatools/sgt-7515.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7515-sigma-tool-3ec3d91abd5a.webp"
     ],
     "altText": "Ferramenta SGT-7515 Sigma Tools Athena Soluções Automotivas",
     "description": "2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO CAPACIDADE DO PARAFUSO",
@@ -6523,9 +6523,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4502.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4502-sigma-tool-7211261ca5d8.webp",
     "images": [
-      "/products/sigmatools/sgt-4502.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4502-sigma-tool-a07e2a2810ae.webp"
     ],
     "altText": "Ferramenta SGT-4502 Sigma Tools Athena Soluções Automotivas",
     "description": "2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO CAPACIDADE DO PARAFUSO",
@@ -6555,9 +6555,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7530.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7530-sigma-tool-8f3b563a42ca.webp",
     "images": [
-      "/products/sigmatools/sgt-7530.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7530-sigma-tool-171ae94f2800.webp"
     ],
     "altText": "Ferramenta SGT-7530 Sigma Tools Athena Soluções Automotivas",
     "description": "2 BATERIAS E 1 CARREGADOR PESO APROXIMADO (SEM BATERIA) COMP. APROXIMADO (C x A x L)",
@@ -6587,9 +6587,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7521.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7521-sigma-tool-049be245a3c5.webp",
     "images": [
-      "/products/sigmatools/sgt-7521.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7521-sigma-tool-f5778942f15b.webp"
     ],
     "altText": "Ferramenta SGT-7521 Sigma Tools Athena Soluções Automotivas",
     "description": "2 BATERIAS E 1 CARREGADOR PESO APROXIMADO (SEM BATERIA) COMP. APROXIMADO (C x A x L)",
@@ -6619,9 +6619,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0511bk.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0511bk-sigma-to-ed15144a8c47.webp",
     "images": [
-      "/products/sigmatools/sgt-0511bk.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0511bk-sigma-to-bd7d05d3c278.webp"
     ],
     "altText": "Ferramenta SGT-0511BK Sigma Tools Athena Soluções Automotivas",
     "description": "2 BATERIAS E 1 CARREGADOR PESO APROXIMADO (SEM BATERIA) COMP. APROXIMADO (C x A x L)",
@@ -6651,9 +6651,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0511b.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0511b-sigma-too-f729a5a02e63.webp",
     "images": [
-      "/products/sigmatools/sgt-0511b.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0511b-sigma-too-57d7ae236aa9.webp"
     ],
     "altText": "Ferramenta SGT-0511B Sigma Tools Athena Soluções Automotivas",
     "description": "2 BATERIAS E 1 CARREGADOR PESO APROXIMADO (SEM BATERIA) COMP. APROXIMADO (C x A x L)",
@@ -6683,9 +6683,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0501.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0501-sigma-tool-a1c19a6e1fba.webp",
     "images": [
-      "/products/sigmatools/sgt-0501.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0501-sigma-tool-28829cc9c929.webp"
     ],
     "altText": "Ferramenta SGT-0501 Sigma Tools Athena Soluções Automotivas",
     "description": "PESO DA MÁQUINA COM BATERIA PESO DA MÁQUINA SEM BATERIA DIMENSÕES (C x L x A)",
@@ -6715,9 +6715,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0510.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0510-sigma-tool-4cb9b3148d08.webp",
     "images": [
-      "/products/sigmatools/sgt-0510.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0510-sigma-tool-66938f086c77.webp"
     ],
     "altText": "Ferramenta SGT-0510 Sigma Tools Athena Soluções Automotivas",
     "description": "PESO DA MÁQUINA COM BATERIA PESO DA MÁQUINA SEM BATERIA DIMENSÕES (C x L x A)",
@@ -6747,9 +6747,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7550.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7550-sigma-tool-550c7e387127.webp",
     "images": [
-      "/products/sigmatools/sgt-7550.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7550-sigma-tool-8add99e6d663.webp"
     ],
     "altText": "Ferramenta SGT-7550 Sigma Tools Athena Soluções Automotivas",
     "description": "PESO DA MÁQUINA COM BATERIA PESO DA MÁQUINA SEM BATERIA DIMENSÕES (C x L x A)",
@@ -6779,9 +6779,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7551.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7551-sigma-tool-a682d22ec342.webp",
     "images": [
-      "/products/sigmatools/sgt-7551.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7551-sigma-tool-ca9dbc8dd340.webp"
     ],
     "altText": "Ferramenta SGT-7551 Sigma Tools Athena Soluções Automotivas",
     "description": "PESO DA MÁQUINA COM BATERIA PESO DA MÁQUINA SEM BATERIA DIMENSÕES (C x L x A)",
@@ -6811,9 +6811,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9809.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9809-sigma-tool-f6f18be68425.webp",
     "images": [
-      "/products/sigmatools/sgt-9809.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9809-sigma-tool-43e1ee8e7aed.webp"
     ],
     "altText": "Ferramenta SGT-9809 Sigma Tools Athena Soluções Automotivas",
     "description": "PESO DA MÁQUINA COM BATERIA PESO DA MÁQUINA SEM BATERIA DIMENSÕES (C x L x A)",
@@ -6843,9 +6843,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9811.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9811-sigma-tool-62cf92a8231e.webp",
     "images": [
-      "/products/sigmatools/sgt-9811.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9811-sigma-tool-8f1311564f00.webp"
     ],
     "altText": "Ferramenta SGT-9811 Sigma Tools Athena Soluções Automotivas",
     "description": "PESO DA MÁQUINA COM BATERIA PESO DA MÁQUINA SEM BATERIA DIMENSÕES (C x L x A)",
@@ -6875,9 +6875,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-t-01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-6d0442b048dc.webp",
     "images": [
-      "/products/sigmatools/sgt-t-01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-970eb5fbffd6.webp"
     ],
     "altText": "Car-10 - Carrinho Ergonômico Para Chave De Impacto 1” SGT-T-01 Sigma Tools Athena Soluções Automotivas",
     "description": "TORQUÍMETROS - ESTALO ACOMPANHA SUPORTE PARA FILTRO REGULADOR E LUBRIFICADOR! REDUZ O ESFORÇO DO MECÂNICO;",
@@ -6907,9 +6907,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-tp-01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-09bfe38871e9.webp",
     "images": [
-      "/products/sigmatools/sgt-tp-01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-d152ec116335.webp"
     ],
     "altText": "Car-10 - Carrinho Ergonômico Para Chave De Impacto 1” SGT-TP-01 Sigma Tools Athena Soluções Automotivas",
     "description": "TORQUÍMETROS - ESTALO ACOMPANHA SUPORTE PARA FILTRO REGULADOR E LUBRIFICADOR! REDUZ O ESFORÇO DO MECÂNICO;",
@@ -6939,9 +6939,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-tp-02.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-037211081df1.webp",
     "images": [
-      "/products/sigmatools/sgt-tp-02.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-2f9a651d611c.webp"
     ],
     "altText": "Car-10 - Carrinho Ergonômico Para Chave De Impacto 1” SGT-TP-02 Sigma Tools Athena Soluções Automotivas",
     "description": "TORQUÍMETROS - ESTALO ACOMPANHA SUPORTE PARA FILTRO REGULADOR E LUBRIFICADOR! REDUZ O ESFORÇO DO MECÂNICO;",
@@ -6971,9 +6971,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-tp-03.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-58231e03e562.webp",
     "images": [
-      "/products/sigmatools/sgt-tp-03.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-b8a38c8e0561.webp"
     ],
     "altText": "Car-10 - Carrinho Ergonômico Para Chave De Impacto 1” SGT-TP-03 Sigma Tools Athena Soluções Automotivas",
     "description": "TORQUÍMETROS - ESTALO ACOMPANHA SUPORTE PARA FILTRO REGULADOR E LUBRIFICADOR! REDUZ O ESFORÇO DO MECÂNICO;",
@@ -7003,9 +7003,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/pwr-35k.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-20-carrinho-ergonomico-par-af1acac97c9c.webp",
     "images": [
-      "/products/sigmatools/pwr-35k.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-20-carrinho-ergonomico-par-a37ecb7ff8cd.webp"
     ],
     "altText": "Car-20 - Carrinho Ergonômico Para Chave De Impacto 1” PWR-35K Sigma Tools Athena Soluções Automotivas",
     "description": "COMPRIMENTO APROXIMADO ACESSÓRIOS DE REPOSIÇÃO ACESSÓRIOS DE REPOSIÇÃO",
@@ -7035,9 +7035,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/pwr-35.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-20-carrinho-ergonomico-par-a0b1d0ed10fb.webp",
     "images": [
-      "/products/sigmatools/pwr-35.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-20-carrinho-ergonomico-par-e6afbcd3a9a1.webp"
     ],
     "altText": "Car-20 - Carrinho Ergonômico Para Chave De Impacto 1” PWR-35 Sigma Tools Athena Soluções Automotivas",
     "description": "COMPRIMENTO APROXIMADO ACESSÓRIOS DE REPOSIÇÃO ACESSÓRIOS DE REPOSIÇÃO",
@@ -7067,9 +7067,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4501-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-620a0ba0ff69.webp",
     "images": [
-      "/products/sigmatools/sgt-4501-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-cb90d2d983b5.webp"
     ],
     "altText": "Chaves De Impacto/Parafusadeira À Bateria 1/2” SGT-4501-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS DE REPOSIÇÃO CAPACIDADE DA BATERIA • 4 Soquetes (17mm, 19mm",
@@ -7099,9 +7099,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0516-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-601d5c5bf661.webp",
     "images": [
-      "/products/sigmatools/sgt-0516-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-135c83b4a642.webp"
     ],
     "altText": "Chaves De Impacto/Parafusadeira À Bateria 1/2” SGT-0516-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS DE REPOSIÇÃO CAPACIDADE DA BATERIA • 4 Soquetes (17mm, 19mm",
@@ -7131,9 +7131,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0516k-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-c5652ce06d14.webp",
     "images": [
-      "/products/sigmatools/sgt-0516k-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-cabf9d8355a1.webp"
     ],
     "altText": "Chaves De Impacto/Parafusadeira À Bateria 1/2” SGT-0516K-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS DE REPOSIÇÃO CAPACIDADE DA BATERIA • 4 Soquetes (17mm, 19mm",
@@ -7163,9 +7163,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7504-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-dc0f888c81e7.webp",
     "images": [
-      "/products/sigmatools/sgt-7504-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-bd494f6dd738.webp"
     ],
     "altText": "Chaves De Impacto/Parafusadeira À Bateria 1/2” SGT-7504-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "0-1900 à 0-2400 / 0-3000 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -7195,9 +7195,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7501a-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-3d033fa8324c.webp",
     "images": [
-      "/products/sigmatools/sgt-7501a-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-74aad2f990a6.webp"
     ],
     "altText": "Chaves De Impacto/Parafusadeira À Bateria 1/2” SGT-7501A-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "0-1900 à 0-2400 / 0-3000 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -7227,9 +7227,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7507-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-fc54ae5be679.webp",
     "images": [
-      "/products/sigmatools/sgt-7507-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-e8c020072cd0.webp"
     ],
     "altText": "Chaves De Impacto/Parafusadeira À Bateria 1/2” SGT-7507-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "0-1900 à 0-2400 / 0-3000 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -7259,9 +7259,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7544-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-88420f3cdccf.webp",
     "images": [
-      "/products/sigmatools/sgt-7544-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/chaves-de-impacto-parafusadeir-714931d0f7ab.webp"
     ],
     "altText": "Chaves De Impacto/Parafusadeira À Bateria 1/2” SGT-7544-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "0-1900 à 0-2400 / 0-3000 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -7291,9 +7291,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0211.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0211-sigma-tool-57de5b0b2735.webp",
     "images": [
-      "/products/sigmatools/sgt-0211.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0211-sigma-tool-24dc84d3bb73.webp"
     ],
     "altText": "Ferramenta SGT-0211 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL",
@@ -7323,9 +7323,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0210.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0210-sigma-tool-362a146f7e6b.webp",
     "images": [
-      "/products/sigmatools/sgt-0210.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0210-sigma-tool-580f8058c3b3.webp"
     ],
     "altText": "Ferramenta SGT-0210 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL",
@@ -7355,9 +7355,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0221a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0221a-sigma-too-9653553d8509.webp",
     "images": [
-      "/products/sigmatools/sgt-0221a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0221a-sigma-too-e7532355158b.webp"
     ],
     "altText": "Ferramenta SGT-0221A Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL",
@@ -7387,9 +7387,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0233.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0233-sigma-tool-3d075a494ee2.webp",
     "images": [
-      "/products/sigmatools/sgt-0233.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0233-sigma-tool-1a956c0d916e.webp"
     ],
     "altText": "Ferramenta SGT-0233 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL",
@@ -7419,9 +7419,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0213.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0213-sigma-tool-ea0cc2f51284.webp",
     "images": [
-      "/products/sigmatools/sgt-0213.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0213-sigma-tool-c7a1210dab8f.webp"
     ],
     "altText": "Ferramenta SGT-0213 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL",
@@ -7451,9 +7451,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0212.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0212-sigma-tool-6e3aecbe2c04.webp",
     "images": [
-      "/products/sigmatools/sgt-0212.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0212-sigma-tool-19e3e2e8abcb.webp"
     ],
     "altText": "Ferramenta SGT-0212 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL",
@@ -7483,9 +7483,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0232.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0232-sigma-tool-a00b8a04ade2.webp",
     "images": [
-      "/products/sigmatools/sgt-0232.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0232-sigma-tool-197a14a9381e.webp"
     ],
     "altText": "Ferramenta SGT-0232 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL",
@@ -7515,9 +7515,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0230.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0230-sigma-tool-eb85d06e272b.webp",
     "images": [
-      "/products/sigmatools/sgt-0230.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0230-sigma-tool-30222908fa2b.webp"
     ],
     "altText": "Ferramenta SGT-0230 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL CAPACIDADE DO MANDRIL",
@@ -7547,9 +7547,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7100.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-e5601e1e90c4.webp",
     "images": [
-      "/products/sigmatools/sgt-7100.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-988e454fd79a.webp"
     ],
     "altText": "Furadeira E Parafusadeira De Impacto À Bateria 3/8” - 10Mm - 20Nm SGT-7100 Sigma Tools Athena Soluções Automotivas",
     "description": "1 BATERIA E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO CARREGADOR DA BATERIA",
@@ -7579,9 +7579,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7120.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-674501127bcc.webp",
     "images": [
-      "/products/sigmatools/sgt-7120.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-3cd5a516923f.webp"
     ],
     "altText": "Furadeira E Parafusadeira De Impacto À Bateria 3/8” - 10Mm - 20Nm SGT-7120 Sigma Tools Athena Soluções Automotivas",
     "description": "1 BATERIA E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO CARREGADOR DA BATERIA",
@@ -7611,9 +7611,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0240.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-5a6d86d9ece4.webp",
     "images": [
-      "/products/sigmatools/sgt-0240.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-ddd0d21496c2.webp"
     ],
     "altText": "Furadeira E Parafusadeira De Impacto À Bateria 3/8” - 10Mm - 20Nm SGT-0240 Sigma Tools Athena Soluções Automotivas",
     "description": "1 BATERIA E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO CARREGADOR DA BATERIA",
@@ -7643,9 +7643,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0241.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-0b70c7498432.webp",
     "images": [
-      "/products/sigmatools/sgt-0241.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-0905856f609f.webp"
     ],
     "altText": "Furadeira E Parafusadeira De Impacto À Bateria 3/8” - 10Mm - 20Nm SGT-0241 Sigma Tools Athena Soluções Automotivas",
     "description": "1 BATERIA E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO CARREGADOR DA BATERIA",
@@ -7675,9 +7675,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0251.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-48a53566a012.webp",
     "images": [
-      "/products/sigmatools/sgt-0251.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/furadeira-e-parafusadeira-de-i-9ff5e9f3cc92.webp"
     ],
     "altText": "Furadeira E Parafusadeira De Impacto À Bateria 3/8” - 10Mm - 20Nm SGT-0251 Sigma Tools Athena Soluções Automotivas",
     "description": "1 BATERIA E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO CARREGADOR DA BATERIA",
@@ -7707,9 +7707,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7130.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-7-64a8613a00b7.webp",
     "images": [
-      "/products/sigmatools/sgt-7130.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-7-3b5d463a79a4.webp"
     ],
     "altText": "Parafusadeira De Impacto SGT-7130 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRA DE IMPACTO 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -7739,9 +7739,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7140.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-7-3f1c5ad7926e.webp",
     "images": [
-      "/products/sigmatools/sgt-7140.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-7-88b7573d66f6.webp"
     ],
     "altText": "Parafusadeira De Impacto SGT-7140 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRA DE IMPACTO 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -7771,9 +7771,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0131.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-0-34c5cce5c8ad.webp",
     "images": [
-      "/products/sigmatools/sgt-0131.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-0-39d11395aa65.webp"
     ],
     "altText": "Parafusadeira De Impacto SGT-0131 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRA DE IMPACTO 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -7803,9 +7803,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0135.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-0-40b502c467a8.webp",
     "images": [
-      "/products/sigmatools/sgt-0135.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-0-ffdde4fff2fa.webp"
     ],
     "altText": "Parafusadeira De Impacto SGT-0135 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRA DE IMPACTO 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -7835,9 +7835,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0132.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-0-a22d3e1228cc.webp",
     "images": [
-      "/products/sigmatools/sgt-0132.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeira-de-impacto-sgt-0-928f937c0b2c.webp"
     ],
     "altText": "Parafusadeira De Impacto SGT-0132 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRA DE IMPACTO 2 BATERIAS E 1 CARREGADOR ACESSÓRIOS DE REPOSIÇÃO",
@@ -7867,9 +7867,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0110.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-22887183ab8d.webp",
     "images": [
-      "/products/sigmatools/sgt-0110.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-d8a61f920de1.webp"
     ],
     "altText": "Parafusadeiras Deslizantes SGT-0110 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS DESLIZANTES PARAFUSADEIRAS DESLIZANTES CAPACIDADE DO PARAFUSO",
@@ -7899,9 +7899,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0112.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-41a68cf2b8c0.webp",
     "images": [
-      "/products/sigmatools/sgt-0112.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-0b5e513e0398.webp"
     ],
     "altText": "Parafusadeiras Deslizantes SGT-0112 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS DESLIZANTES PARAFUSADEIRAS DESLIZANTES CAPACIDADE DO PARAFUSO",
@@ -7931,9 +7931,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0141.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-7b92f4a68bd5.webp",
     "images": [
-      "/products/sigmatools/sgt-0141.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-89e0397ec857.webp"
     ],
     "altText": "Parafusadeiras Deslizantes SGT-0141 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS DESLIZANTES PARAFUSADEIRAS DESLIZANTES CAPACIDADE DO PARAFUSO",
@@ -7963,9 +7963,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0142.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-079d7129713a.webp",
     "images": [
-      "/products/sigmatools/sgt-0142.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-812bcb4d5cbe.webp"
     ],
     "altText": "Parafusadeiras Deslizantes SGT-0142 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS DESLIZANTES PARAFUSADEIRAS DESLIZANTES CAPACIDADE DO PARAFUSO",
@@ -7995,9 +7995,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0143.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-eec464b0a4c2.webp",
     "images": [
-      "/products/sigmatools/sgt-0143.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-b3018476d877.webp"
     ],
     "altText": "Parafusadeiras Deslizantes SGT-0143 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS DESLIZANTES PARAFUSADEIRAS DESLIZANTES CAPACIDADE DO PARAFUSO",
@@ -8027,9 +8027,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0154.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-a1596c0c7586.webp",
     "images": [
-      "/products/sigmatools/sgt-0154.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-29eeec688ac1.webp"
     ],
     "altText": "Parafusadeiras Deslizantes SGT-0154 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS DESLIZANTES PARAFUSADEIRAS DESLIZANTES CAPACIDADE DO PARAFUSO",
@@ -8059,9 +8059,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0157.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-8e1ccf123972.webp",
     "images": [
-      "/products/sigmatools/sgt-0157.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-8a581b924604.webp"
     ],
     "altText": "Parafusadeiras Deslizantes SGT-0157 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS DESLIZANTES PARAFUSADEIRAS DESLIZANTES CAPACIDADE DO PARAFUSO",
@@ -8091,9 +8091,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0159.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-edeacb087b66.webp",
     "images": [
-      "/products/sigmatools/sgt-0159.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-sgt-f2531d697b19.webp"
     ],
     "altText": "Parafusadeiras Deslizantes SGT-0159 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS DESLIZANTES PARAFUSADEIRAS DESLIZANTES CAPACIDADE DO PARAFUSO",
@@ -8123,9 +8123,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/mxt-0111.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-mxt-55feb0cde078.webp",
     "images": [
-      "/products/sigmatools/mxt-0111.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-deslizantes-mxt-10f1b96902ec.webp"
     ],
     "altText": "Parafusadeiras Deslizantes MXT-0111 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS DESLIZANTES PARAFUSADEIRAS DESLIZANTES CAPACIDADE DO PARAFUSO",
@@ -8155,9 +8155,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-pe-e35.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-b34852526cd4.webp",
     "images": [
-      "/products/sigmatools/sgt-pe-e35.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-e307e32854de.webp"
     ],
     "altText": "Parafusadeiras Automáticas / Shut-Off SGT-PE-E35 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS AUTOMÁTICAS / SHUT-OFF PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS",
@@ -8187,9 +8187,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-pe-d25.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-c426369db511.webp",
     "images": [
-      "/products/sigmatools/sgt-pe-d25.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-e11297c4cda7.webp"
     ],
     "altText": "Parafusadeiras Automáticas / Shut-Off SGT-PE-D25 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS AUTOMÁTICAS / SHUT-OFF PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS",
@@ -8219,9 +8219,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-pe-d35.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-d26be5aff587.webp",
     "images": [
-      "/products/sigmatools/sgt-pe-d35.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-8ff4d6e85771.webp"
     ],
     "altText": "Parafusadeiras Automáticas / Shut-Off SGT-PE-D35 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS AUTOMÁTICAS / SHUT-OFF PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS",
@@ -8251,9 +8251,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-pe-s25.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-806f08efca93.webp",
     "images": [
-      "/products/sigmatools/sgt-pe-s25.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-99938a340f11.webp"
     ],
     "altText": "Parafusadeiras Automáticas / Shut-Off SGT-PE-S25 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS AUTOMÁTICAS / SHUT-OFF PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS",
@@ -8283,9 +8283,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-pe-s35.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-9f460407e5ba.webp",
     "images": [
-      "/products/sigmatools/sgt-pe-s35.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-4474ea5f72f8.webp"
     ],
     "altText": "Parafusadeiras Automáticas / Shut-Off SGT-PE-S35 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS AUTOMÁTICAS / SHUT-OFF PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS",
@@ -8315,9 +8315,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-pe-t10.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-a0b93c224ebd.webp",
     "images": [
-      "/products/sigmatools/sgt-pe-t10.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-72570a63a1e8.webp"
     ],
     "altText": "Parafusadeiras Automáticas / Shut-Off SGT-PE-T10 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS AUTOMÁTICAS / SHUT-OFF PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS",
@@ -8347,9 +8347,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0160.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-042d011db108.webp",
     "images": [
-      "/products/sigmatools/sgt-0160.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-73001b400c95.webp"
     ],
     "altText": "Parafusadeiras Automáticas / Shut-Off SGT-0160 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS AUTOMÁTICAS / SHUT-OFF PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS",
@@ -8379,9 +8379,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0150.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-1b2ce32b1568.webp",
     "images": [
-      "/products/sigmatools/sgt-0150.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-automaticas-shu-b9d1c5a0d3a2.webp"
     ],
     "altText": "Parafusadeiras Automáticas / Shut-Off SGT-0150 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS AUTOMÁTICAS / SHUT-OFF PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS",
@@ -8411,9 +8411,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-pe-t10p.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-4bca0e1c3862.webp",
     "images": [
-      "/products/sigmatools/sgt-pe-t10p.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-f25e9ae405e5.webp"
     ],
     "altText": "Parafusadeiras Elétricas Industriais SGT-PE-T10P Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS REBITADORES DE REPUXO HIDROPNEUMÁTICOS INFORMAÇÕES TÉCNICAS SGT-PE-T10P",
@@ -8443,9 +8443,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-pe-t20.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-544b27ac2928.webp",
     "images": [
-      "/products/sigmatools/sgt-pe-t20.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-5c2dc0c2ab44.webp"
     ],
     "altText": "Parafusadeiras Elétricas Industriais SGT-PE-T20 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS REBITADORES DE REPUXO HIDROPNEUMÁTICOS INFORMAÇÕES TÉCNICAS SGT-PE-T10P",
@@ -8475,9 +8475,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-pe-t20p.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-ed5a668539c3.webp",
     "images": [
-      "/products/sigmatools/sgt-pe-t20p.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-29abc8cdb22f.webp"
     ],
     "altText": "Parafusadeiras Elétricas Industriais SGT-PE-T20P Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS REBITADORES DE REPUXO HIDROPNEUMÁTICOS INFORMAÇÕES TÉCNICAS SGT-PE-T10P",
@@ -8507,9 +8507,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0709a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-75afd128082c.webp",
     "images": [
-      "/products/sigmatools/sgt-0709a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-9f059581c272.webp"
     ],
     "altText": "Parafusadeiras Elétricas Industriais SGT-0709A Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS REBITADORES DE REPUXO HIDROPNEUMÁTICOS INFORMAÇÕES TÉCNICAS SGT-PE-T10P",
@@ -8539,9 +8539,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0719.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-22007dd30476.webp",
     "images": [
-      "/products/sigmatools/sgt-0719.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-b575836b7a2d.webp"
     ],
     "altText": "Parafusadeiras Elétricas Industriais SGT-0719 Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS REBITADORES DE REPUXO HIDROPNEUMÁTICOS INFORMAÇÕES TÉCNICAS SGT-PE-T10P",
@@ -8571,9 +8571,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0713a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-237c9a7fb3a2.webp",
     "images": [
-      "/products/sigmatools/sgt-0713a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-82046f231aaa.webp"
     ],
     "altText": "Parafusadeiras Elétricas Industriais SGT-0713A Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS REBITADORES DE REPUXO HIDROPNEUMÁTICOS INFORMAÇÕES TÉCNICAS SGT-PE-T10P",
@@ -8603,9 +8603,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0723a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-51ddbe984741.webp",
     "images": [
-      "/products/sigmatools/sgt-0723a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/parafusadeiras-eletricas-indus-0f6d0c2acbf5.webp"
     ],
     "altText": "Parafusadeiras Elétricas Industriais SGT-0723A Sigma Tools Athena Soluções Automotivas",
     "description": "PARAFUSADEIRAS ELÉTRICAS INDUSTRIAIS REBITADORES DE REPUXO HIDROPNEUMÁTICOS INFORMAÇÕES TÉCNICAS SGT-PE-T10P",
@@ -8635,9 +8635,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7705.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7705-sigma-tool-9b547e9f80b3.webp",
     "images": [
-      "/products/sigmatools/sgt-7705.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7705-sigma-tool-570957791117.webp"
     ],
     "altText": "Ferramenta SGT-7705 Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO À BATERIA",
@@ -8667,9 +8667,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0724a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0724a-sigma-too-9e33c1227ef8.webp",
     "images": [
-      "/products/sigmatools/sgt-0724a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0724a-sigma-too-4c9a2de5929d.webp"
     ],
     "altText": "Ferramenta SGT-0724A Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO À BATERIA",
@@ -8699,9 +8699,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0714a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0714a-sigma-too-e4cb9476b479.webp",
     "images": [
-      "/products/sigmatools/sgt-0714a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0714a-sigma-too-6feb4a8a0054.webp"
     ],
     "altText": "Ferramenta SGT-0714A Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO À BATERIA",
@@ -8731,9 +8731,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0725a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0725a-sigma-too-9aacc400b62a.webp",
     "images": [
-      "/products/sigmatools/sgt-0725a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0725a-sigma-too-13840a2f1a58.webp"
     ],
     "altText": "Ferramenta SGT-0725A Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO À BATERIA",
@@ -8763,9 +8763,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0731.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0731-sigma-tool-9a56ef187802.webp",
     "images": [
-      "/products/sigmatools/sgt-0731.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0731-sigma-tool-75c5be82f2fa.webp"
     ],
     "altText": "Ferramenta SGT-0731 Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO À BATERIA",
@@ -8795,9 +8795,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0740.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0740-sigma-tool-eea967de93e6.webp",
     "images": [
-      "/products/sigmatools/sgt-0740.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0740-sigma-tool-53351003f953.webp"
     ],
     "altText": "Ferramenta SGT-0740 Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO HIDROPNEUMÁTICOS REBITADORES DE REPUXO À BATERIA",
@@ -8827,9 +8827,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7710.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7710-sigma-tool-4e98f9a01e0a.webp",
     "images": [
-      "/products/sigmatools/sgt-7710.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7710-sigma-tool-07f484933b7f.webp"
     ],
     "altText": "Ferramenta SGT-7710 Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO À BATERIA MALETA COM 2 BATERIAS E 1 CARREGADOR. ACESSÓRIOS DE REPOSIÇÃO",
@@ -8859,9 +8859,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7706.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7706-sigma-tool-1d1719ecb4de.webp",
     "images": [
-      "/products/sigmatools/sgt-7706.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7706-sigma-tool-f8d139c57c42.webp"
     ],
     "altText": "Ferramenta SGT-7706 Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO À BATERIA MALETA COM 2 BATERIAS E 1 CARREGADOR. ACESSÓRIOS DE REPOSIÇÃO",
@@ -8891,9 +8891,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1311.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1311-sigma-tool-2e2819e0f830.webp",
     "images": [
-      "/products/sigmatools/sgt-1311.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1311-sigma-tool-8d266d991ba7.webp"
     ],
     "altText": "Ferramenta SGT-1311 Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO À BATERIA MALETA COM 2 BATERIAS E 1 CARREGADOR. ACESSÓRIOS DE REPOSIÇÃO",
@@ -8923,9 +8923,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1324.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1324-sigma-tool-c667c22d0547.webp",
     "images": [
-      "/products/sigmatools/sgt-1324.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1324-sigma-tool-0b97d1374b9a.webp"
     ],
     "altText": "Ferramenta SGT-1324 Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO À BATERIA MALETA COM 2 BATERIAS E 1 CARREGADOR. ACESSÓRIOS DE REPOSIÇÃO",
@@ -8955,9 +8955,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1421.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1421-sigma-tool-8f51066690d4.webp",
     "images": [
-      "/products/sigmatools/sgt-1421.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1421-sigma-tool-7900ceb4f018.webp"
     ],
     "altText": "Ferramenta SGT-1421 Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO À BATERIA MALETA COM 2 BATERIAS E 1 CARREGADOR. ACESSÓRIOS DE REPOSIÇÃO",
@@ -8987,9 +8987,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1411a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1411a-sigma-too-bb538c083aeb.webp",
     "images": [
-      "/products/sigmatools/sgt-1411a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1411a-sigma-too-a3ea03f8db49.webp"
     ],
     "altText": "Ferramenta SGT-1411A Sigma Tools Athena Soluções Automotivas",
     "description": "REBITADORES DE REPUXO À BATERIA MALETA COM 2 BATERIAS E 1 CARREGADOR. ACESSÓRIOS DE REPOSIÇÃO",
@@ -9019,9 +9019,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1455.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1455-sigma-tool-c01a0a23a286.webp",
     "images": [
-      "/products/sigmatools/sgt-1455.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1455-sigma-tool-ca5860a16e21.webp"
     ],
     "altText": "Ferramenta SGT-1455 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MAGAZINE PREGADOR PNEUMÁTICO 550 CAPACIDADE DO MAGAZINE",
@@ -9051,9 +9051,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1470.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1470-sigma-tool-a91d69d046c0.webp",
     "images": [
-      "/products/sigmatools/sgt-1470.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1470-sigma-tool-4482409143c1.webp"
     ],
     "altText": "Ferramenta SGT-1470 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MAGAZINE PREGADOR PNEUMÁTICO 550 CAPACIDADE DO MAGAZINE",
@@ -9083,9 +9083,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1480.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1480-sigma-tool-a33f16ea073f.webp",
     "images": [
-      "/products/sigmatools/sgt-1480.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1480-sigma-tool-fce4f1e3ca0b.webp"
     ],
     "altText": "Ferramenta SGT-1480 Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MAGAZINE PREGADOR PNEUMÁTICO 550 CAPACIDADE DO MAGAZINE",
@@ -9115,9 +9115,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7102-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7102-pro-sigma--fd86b1c0214e.webp",
     "images": [
-      "/products/sigmatools/sgt-7102-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7102-pro-sigma--05fd59ccb14f.webp"
     ],
     "altText": "Ferramenta SGT-7102-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MAGAZINE PREGADOR PNEUMÁTICO 550 CAPACIDADE DO MAGAZINE",
@@ -9147,9 +9147,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-7101-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7101-pro-sigma--a6ff35804ce2.webp",
     "images": [
-      "/products/sigmatools/sgt-7101-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-7101-pro-sigma--94f49159d0a9.webp"
     ],
     "altText": "Ferramenta SGT-7101-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "CAPACIDADE DO MAGAZINE PREGADOR PNEUMÁTICO 550 CAPACIDADE DO MAGAZINE",
@@ -9179,9 +9179,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0421.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-eb66ff454fef.webp",
     "images": [
-      "/products/sigmatools/sgt-0421.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-1f56e2d61f86.webp"
     ],
     "altText": "Esmerilhadeiras Pneumáticas SGT-0421 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS PNEUMÁTICAS",
@@ -9211,9 +9211,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0422.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-83e018d9c1a5.webp",
     "images": [
-      "/products/sigmatools/sgt-0422.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-c4d878c9d2ed.webp"
     ],
     "altText": "Esmerilhadeiras Pneumáticas SGT-0422 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS PNEUMÁTICAS",
@@ -9243,9 +9243,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0409.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-c1000de1ea70.webp",
     "images": [
-      "/products/sigmatools/sgt-0409.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-3b25f6de3849.webp"
     ],
     "altText": "Esmerilhadeiras Pneumáticas SGT-0409 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS PNEUMÁTICAS",
@@ -9275,9 +9275,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0412.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-13d57a77c5aa.webp",
     "images": [
-      "/products/sigmatools/sgt-0412.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-cd23ed9143c5.webp"
     ],
     "altText": "Esmerilhadeiras Pneumáticas SGT-0412 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS PNEUMÁTICAS",
@@ -9307,9 +9307,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0411.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-45a9cac940e4.webp",
     "images": [
-      "/products/sigmatools/sgt-0411.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-f7c4672a540c.webp"
     ],
     "altText": "Esmerilhadeiras Pneumáticas SGT-0411 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS PNEUMÁTICAS",
@@ -9339,9 +9339,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0415.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-8550c53597b7.webp",
     "images": [
-      "/products/sigmatools/sgt-0415.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-d6b65f27c058.webp"
     ],
     "altText": "Esmerilhadeiras Pneumáticas SGT-0415 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS PNEUMÁTICAS",
@@ -9371,9 +9371,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0423.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-a6156c895bab.webp",
     "images": [
-      "/products/sigmatools/sgt-0423.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-e69edfe292ea.webp"
     ],
     "altText": "Esmerilhadeiras Pneumáticas SGT-0423 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS PNEUMÁTICAS",
@@ -9403,9 +9403,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0425.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-e48cdc423da2.webp",
     "images": [
-      "/products/sigmatools/sgt-0425.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-pneumaticas-sg-9b3bbcfb23e6.webp"
     ],
     "altText": "Esmerilhadeiras Pneumáticas SGT-0425 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS PNEUMÁTICAS",
@@ -9435,9 +9435,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4406.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--a1946848ae12.webp",
     "images": [
-      "/products/sigmatools/sgt-4406.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--b641d29d8b57.webp"
     ],
     "altText": "Esmerilhadeiras Elétricas SGT-4406 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS ELÉTRICAS",
@@ -9467,9 +9467,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4407.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--60b832d3ceca.webp",
     "images": [
-      "/products/sigmatools/sgt-4407.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--7ed65b04ce5d.webp"
     ],
     "altText": "Esmerilhadeiras Elétricas SGT-4407 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS ELÉTRICAS",
@@ -9499,9 +9499,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4410.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--b2a400f35e3c.webp",
     "images": [
-      "/products/sigmatools/sgt-4410.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--88a6807efaf9.webp"
     ],
     "altText": "Esmerilhadeiras Elétricas SGT-4410 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS ELÉTRICAS",
@@ -9531,9 +9531,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4408.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--2537ef1225a2.webp",
     "images": [
-      "/products/sigmatools/sgt-4408.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--286d9d0f7c34.webp"
     ],
     "altText": "Esmerilhadeiras Elétricas SGT-4408 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS ELÉTRICAS",
@@ -9563,9 +9563,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4409.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--1aadb30abdcf.webp",
     "images": [
-      "/products/sigmatools/sgt-4409.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/esmerilhadeiras-eletricas-sgt--da0f9874db00.webp"
     ],
     "altText": "Esmerilhadeiras Elétricas SGT-4409 Sigma Tools Athena Soluções Automotivas",
     "description": "ESMERILHADEIRAS ELÉTRICAS",
@@ -9595,9 +9595,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0625.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0625-sigma-tool-2d70451b42f0.webp",
     "images": [
-      "/products/sigmatools/sgt-0625.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0625-sigma-tool-f82cbb08d1a8.webp"
     ],
     "altText": "Ferramenta SGT-0625 Sigma Tools Athena Soluções Automotivas",
     "description": "COM DOIS ROLAMENTOS FRONTAIS",
@@ -9627,9 +9627,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0615.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0615-sigma-tool-77ebfac0a72b.webp",
     "images": [
-      "/products/sigmatools/sgt-0615.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0615-sigma-tool-17261fef567c.webp"
     ],
     "altText": "Ferramenta SGT-0615 Sigma Tools Athena Soluções Automotivas",
     "description": "COM DOIS ROLAMENTOS FRONTAIS",
@@ -9659,9 +9659,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0615k.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0615k-sigma-too-ff76aa507b7f.webp",
     "images": [
-      "/products/sigmatools/sgt-0615k.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0615k-sigma-too-581e948e9a24.webp"
     ],
     "altText": "Ferramenta SGT-0615K Sigma Tools Athena Soluções Automotivas",
     "description": "COM DOIS ROLAMENTOS FRONTAIS",
@@ -9691,9 +9691,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0616.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0616-sigma-tool-1ef7876f5884.webp",
     "images": [
-      "/products/sigmatools/sgt-0616.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0616-sigma-tool-95d64535f204.webp"
     ],
     "altText": "Ferramenta SGT-0616 Sigma Tools Athena Soluções Automotivas",
     "description": "COM DOIS ROLAMENTOS FRONTAIS",
@@ -9723,9 +9723,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0617.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0617-sigma-tool-f55b6c138b88.webp",
     "images": [
-      "/products/sigmatools/sgt-0617.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0617-sigma-tool-fa9860413670.webp"
     ],
     "altText": "Ferramenta SGT-0617 Sigma Tools Athena Soluções Automotivas",
     "description": "COM DOIS ROLAMENTOS FRONTAIS",
@@ -9755,9 +9755,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0610.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0610-sigma-tool-eb9a7056518a.webp",
     "images": [
-      "/products/sigmatools/sgt-0610.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0610-sigma-tool-d64ce4e4fcec.webp"
     ],
     "altText": "Ferramenta SGT-0610 Sigma Tools Athena Soluções Automotivas",
     "description": "COM DOIS ROLAMENTOS FRONTAIS",
@@ -9787,9 +9787,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0642.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0642-sigma-tool-abcfedb9aa01.webp",
     "images": [
-      "/products/sigmatools/sgt-0642.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0642-sigma-tool-6c38ba295c6f.webp"
     ],
     "altText": "Ferramenta SGT-0642 Sigma Tools Athena Soluções Automotivas",
     "description": "COM DOIS ROLAMENTOS FRONTAIS",
@@ -9819,9 +9819,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0613.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0613-sigma-tool-9ada86395ac7.webp",
     "images": [
-      "/products/sigmatools/sgt-0613.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0613-sigma-tool-c3079a491b63.webp"
     ],
     "altText": "Ferramenta SGT-0613 Sigma Tools Athena Soluções Automotivas",
     "description": "COM DOIS ROLAMENTOS FRONTAIS",
@@ -9851,9 +9851,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0614.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0614-sigma-tool-98b696f363e2.webp",
     "images": [
-      "/products/sigmatools/sgt-0614.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0614-sigma-tool-c89693ea1592.webp"
     ],
     "altText": "Ferramenta SGT-0614 Sigma Tools Athena Soluções Automotivas",
     "description": "COM DOIS ROLAMENTOS FRONTAIS",
@@ -9883,9 +9883,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1512r.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1512r-sigma-too-b05089e4df5f.webp",
     "images": [
-      "/products/sigmatools/sgt-1512r.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1512r-sigma-too-74c3316cc3a4.webp"
     ],
     "altText": "Ferramenta SGT-1512R Sigma Tools Athena Soluções Automotivas",
     "description": "07 51 0610 38  Pinça 3mm Para SGT-0610 07 51 0610 39  Pinça 6mm Para SGT-0610 07 51 0613 23 Pinça 1/4” Para SGT-0613",
@@ -9915,9 +9915,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1512h.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1512h-sigma-too-638cff8f609b.webp",
     "images": [
-      "/products/sigmatools/sgt-1512h.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1512h-sigma-too-7c4eaf6bab07.webp"
     ],
     "altText": "Ferramenta SGT-1512H Sigma Tools Athena Soluções Automotivas",
     "description": "07 51 0610 38  Pinça 3mm Para SGT-0610 07 51 0610 39  Pinça 6mm Para SGT-0610 07 51 0613 23 Pinça 1/4” Para SGT-0613",
@@ -9947,9 +9947,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1513r.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1513r-sigma-too-586ae9891d88.webp",
     "images": [
-      "/products/sigmatools/sgt-1513r.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1513r-sigma-too-6c12057a6c16.webp"
     ],
     "altText": "Ferramenta SGT-1513R Sigma Tools Athena Soluções Automotivas",
     "description": "07 51 0610 38  Pinça 3mm Para SGT-0610 07 51 0610 39  Pinça 6mm Para SGT-0610 07 51 0613 23 Pinça 1/4” Para SGT-0613",
@@ -9979,9 +9979,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1513h.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1513h-sigma-too-f1ca557ad243.webp",
     "images": [
-      "/products/sigmatools/sgt-1513h.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1513h-sigma-too-dfe83b29f2c2.webp"
     ],
     "altText": "Ferramenta SGT-1513H Sigma Tools Athena Soluções Automotivas",
     "description": "07 51 0610 38  Pinça 3mm Para SGT-0610 07 51 0610 39  Pinça 6mm Para SGT-0610 07 51 0613 23 Pinça 1/4” Para SGT-0613",
@@ -10011,9 +10011,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1514r.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1514r-sigma-too-d657f2c36666.webp",
     "images": [
-      "/products/sigmatools/sgt-1514r.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1514r-sigma-too-a3272eaf3d39.webp"
     ],
     "altText": "Ferramenta SGT-1514R Sigma Tools Athena Soluções Automotivas",
     "description": "07 51 0610 38  Pinça 3mm Para SGT-0610 07 51 0610 39  Pinça 6mm Para SGT-0610 07 51 0613 23 Pinça 1/4” Para SGT-0613",
@@ -10043,9 +10043,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1514h.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1514h-sigma-too-60d82fa94497.webp",
     "images": [
-      "/products/sigmatools/sgt-1514h.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1514h-sigma-too-ccf0d02a4f10.webp"
     ],
     "altText": "Ferramenta SGT-1514H Sigma Tools Athena Soluções Automotivas",
     "description": "07 51 0610 38  Pinça 3mm Para SGT-0610 07 51 0610 39  Pinça 6mm Para SGT-0610 07 51 0613 23 Pinça 1/4” Para SGT-0613",
@@ -10075,9 +10075,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1515.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1515-sigma-tool-5808feda5de7.webp",
     "images": [
-      "/products/sigmatools/sgt-1515.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1515-sigma-tool-2029f5aac358.webp"
     ],
     "altText": "Ferramenta SGT-1515 Sigma Tools Athena Soluções Automotivas",
     "description": "0751151517 - Mola para martelete pneumático 0751151518 - Cinzel Talhadeira Longo Redondo 0751151519 - Cinzel Ponteira Longo Redondo",
@@ -10107,9 +10107,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1516.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1516-sigma-tool-73877ddd87d4.webp",
     "images": [
-      "/products/sigmatools/sgt-1516.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1516-sigma-tool-5088552baa55.webp"
     ],
     "altText": "Ferramenta SGT-1516 Sigma Tools Athena Soluções Automotivas",
     "description": "0751151517 - Mola para martelete pneumático 0751151518 - Cinzel Talhadeira Longo Redondo 0751151519 - Cinzel Ponteira Longo Redondo",
@@ -10139,9 +10139,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4400-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4400-pro-sigma--a6080c00aae1.webp",
     "images": [
-      "/products/sigmatools/sgt-4400-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4400-pro-sigma--d365b1996826.webp"
     ],
     "altText": "Ferramenta SGT-4400-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "0751151517 - Mola para martelete pneumático 0751151518 - Cinzel Talhadeira Longo Redondo 0751151519 - Cinzel Ponteira Longo Redondo",
@@ -10171,9 +10171,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0235.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0235-sigma-tool-c05a19b236c9.webp",
     "images": [
-      "/products/sigmatools/sgt-0235.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0235-sigma-tool-418a41cbe99d.webp"
     ],
     "altText": "Ferramenta SGT-0235 Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS PARA RECAPAGEM CAPACIDADE DO MANDRIL DIMENSÕES (C x L x A)",
@@ -10203,9 +10203,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0236.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0236-sigma-tool-072b24f57dd4.webp",
     "images": [
-      "/products/sigmatools/sgt-0236.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0236-sigma-tool-0dda7f0c61c4.webp"
     ],
     "altText": "Ferramenta SGT-0236 Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS PARA RECAPAGEM CAPACIDADE DO MANDRIL DIMENSÕES (C x L x A)",
@@ -10235,9 +10235,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0617s.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0617s-sigma-too-0eb1b2aafae3.webp",
     "images": [
-      "/products/sigmatools/sgt-0617s.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0617s-sigma-too-7156a53e1084.webp"
     ],
     "altText": "Ferramenta SGT-0617S Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS PARA RECAPAGEM CAPACIDADE DO MANDRIL DIMENSÕES (C x L x A)",
@@ -10267,9 +10267,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0613s.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0613s-sigma-too-db4b21059dd1.webp",
     "images": [
-      "/products/sigmatools/sgt-0613s.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0613s-sigma-too-d1015a5416c0.webp"
     ],
     "altText": "Ferramenta SGT-0613S Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS PARA RECAPAGEM CAPACIDADE DO MANDRIL DIMENSÕES (C x L x A)",
@@ -10299,9 +10299,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0635.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0635-sigma-tool-ccf6781a6e8b.webp",
     "images": [
-      "/products/sigmatools/sgt-0635.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0635-sigma-tool-63893dd244de.webp"
     ],
     "altText": "Ferramenta SGT-0635 Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS PARA RECAPAGEM CAPACIDADE DO MANDRIL DIMENSÕES (C x L x A)",
@@ -10331,9 +10331,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0635s.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0635s-sigma-too-bf981d6829a3.webp",
     "images": [
-      "/products/sigmatools/sgt-0635s.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0635s-sigma-too-7ae5314c71c3.webp"
     ],
     "altText": "Ferramenta SGT-0635S Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS PARA RECAPAGEM CAPACIDADE DO MANDRIL DIMENSÕES (C x L x A)",
@@ -10363,9 +10363,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1215.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1215-sigma-tool-d8aafc40c500.webp",
     "images": [
-      "/products/sigmatools/sgt-1215.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1215-sigma-tool-d077f47eeac5.webp"
     ],
     "altText": "Ferramenta SGT-1215 Sigma Tools Athena Soluções Automotivas",
     "description": "25mm (ALUM.) / 20mm (AÇO) CORTADORES DE DISCO (CUT-OFF)",
@@ -10395,9 +10395,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1210.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1210-sigma-tool-76f1b1bd5e74.webp",
     "images": [
-      "/products/sigmatools/sgt-1210.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1210-sigma-tool-58df72315b77.webp"
     ],
     "altText": "Ferramenta SGT-1210 Sigma Tools Athena Soluções Automotivas",
     "description": "25mm (ALUM.) / 20mm (AÇO) CORTADORES DE DISCO (CUT-OFF)",
@@ -10427,9 +10427,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0441.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0441-sigma-tool-466f5149a19c.webp",
     "images": [
-      "/products/sigmatools/sgt-0441.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0441-sigma-tool-d1eaa508084e.webp"
     ],
     "altText": "Ferramenta SGT-0441 Sigma Tools Athena Soluções Automotivas",
     "description": "25mm (ALUM.) / 20mm (AÇO) CORTADORES DE DISCO (CUT-OFF)",
@@ -10459,9 +10459,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0442.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0442-sigma-tool-28836f20e8bf.webp",
     "images": [
-      "/products/sigmatools/sgt-0442.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0442-sigma-tool-98bd31927041.webp"
     ],
     "altText": "Ferramenta SGT-0442 Sigma Tools Athena Soluções Automotivas",
     "description": "25mm (ALUM.) / 20mm (AÇO) CORTADORES DE DISCO (CUT-OFF)",
@@ -10491,9 +10491,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1212.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1212-sigma-tool-31578f000db8.webp",
     "images": [
-      "/products/sigmatools/sgt-1212.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1212-sigma-tool-9c65005ca084.webp"
     ],
     "altText": "Ferramenta SGT-1212 Sigma Tools Athena Soluções Automotivas",
     "description": "25mm (ALUM.) / 20mm (AÇO) CORTADORES DE DISCO (CUT-OFF)",
@@ -10523,9 +10523,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5200-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5200-pro-sigma--dec21efa2f59.webp",
     "images": [
-      "/products/sigmatools/sgt-5200-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5200-pro-sigma--81c63a579b7f.webp"
     ],
     "altText": "Ferramenta SGT-5200-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "SERRA MÁRMORE ELÉTRICA PROF. MÁXIMA DE CORTE DIMENSÕES (C x L x A)",
@@ -10555,9 +10555,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5221-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5221-pro-sigma--1c4fd5407709.webp",
     "images": [
-      "/products/sigmatools/sgt-5221-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5221-pro-sigma--942627b1d24e.webp"
     ],
     "altText": "Ferramenta SGT-5221-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "SERRA MÁRMORE ELÉTRICA PROF. MÁXIMA DE CORTE DIMENSÕES (C x L x A)",
@@ -10587,9 +10587,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0331.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-eletrica-a-umido-sgt-fc29f5fb9d0f.webp",
     "images": [
-      "/products/sigmatools/sgt-0331.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-eletrica-a-umido-sgt-691b30b5b2f0.webp"
     ],
     "altText": "Lixadeira Elétrica À Úmido SGT-0331 Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS PNEUMÁTICAS À ÚMIDO LIXADEIRA ELÉTRICA À ÚMIDO DIMENSÕES (C x L x A)",
@@ -10619,9 +10619,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1220.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-eletrica-a-umido-sgt-96388ced6c47.webp",
     "images": [
-      "/products/sigmatools/sgt-1220.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-eletrica-a-umido-sgt-1220f2f2cf7b.webp"
     ],
     "altText": "Lixadeira Elétrica À Úmido SGT-1220 Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS PNEUMÁTICAS À ÚMIDO LIXADEIRA ELÉTRICA À ÚMIDO DIMENSÕES (C x L x A)",
@@ -10651,9 +10651,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4310.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-eletrica-a-umido-sgt-cff602da5903.webp",
     "images": [
-      "/products/sigmatools/sgt-4310.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-eletrica-a-umido-sgt-1f27dc7c259d.webp"
     ],
     "altText": "Lixadeira Elétrica À Úmido SGT-4310 Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS PNEUMÁTICAS À ÚMIDO LIXADEIRA ELÉTRICA À ÚMIDO DIMENSÕES (C x L x A)",
@@ -10683,9 +10683,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1615.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1615-sigma-tool-20365d25f684.webp",
     "images": [
-      "/products/sigmatools/sgt-1615.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1615-sigma-tool-ab23c0bef205.webp"
     ],
     "altText": "Ferramenta SGT-1615 Sigma Tools Athena Soluções Automotivas",
     "description": "0751161523 - Agulhas em aço 2mm x 180mm (caixa com 100un). 0751161505 - Agulhas em aço 3mm x 180mm (caixa com 100un). 0751161524 - Agulhas em aço 4mm x 180mm (caixa com 50un).",
@@ -10715,9 +10715,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1616.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1616-sigma-tool-a48944ad2efe.webp",
     "images": [
-      "/products/sigmatools/sgt-1616.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1616-sigma-tool-2dbae7672f41.webp"
     ],
     "altText": "Ferramenta SGT-1616 Sigma Tools Athena Soluções Automotivas",
     "description": "0751161523 - Agulhas em aço 2mm x 180mm (caixa com 100un). 0751161505 - Agulhas em aço 3mm x 180mm (caixa com 100un). 0751161524 - Agulhas em aço 4mm x 180mm (caixa com 50un).",
@@ -10747,9 +10747,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1620.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1620-sigma-tool-4edefd5ddb95.webp",
     "images": [
-      "/products/sigmatools/sgt-1620.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1620-sigma-tool-645d4efe312e.webp"
     ],
     "altText": "Ferramenta SGT-1620 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-1620 Sigma Tools.",
@@ -10779,9 +10779,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1622.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1622-sigma-tool-1c369c5a58eb.webp",
     "images": [
-      "/products/sigmatools/sgt-1622.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1622-sigma-tool-2ebdf578c494.webp"
     ],
     "altText": "Ferramenta SGT-1622 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-1622 Sigma Tools.",
@@ -10811,9 +10811,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1630.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1630-sigma-tool-39ede9426d5f.webp",
     "images": [
-      "/products/sigmatools/sgt-1630.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1630-sigma-tool-dd31a5a01551.webp"
     ],
     "altText": "Ferramenta SGT-1630 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-1630 Sigma Tools.",
@@ -10843,9 +10843,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1621.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1621-sigma-tool-9bc06214b1dd.webp",
     "images": [
-      "/products/sigmatools/sgt-1621.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1621-sigma-tool-c9cf0204f53f.webp"
     ],
     "altText": "Ferramenta SGT-1621 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-1621 Sigma Tools.",
@@ -10875,9 +10875,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1623.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1623-sigma-tool-d130f57be4b7.webp",
     "images": [
-      "/products/sigmatools/sgt-1623.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1623-sigma-tool-6dd1497d1e67.webp"
     ],
     "altText": "Ferramenta SGT-1623 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-1623 Sigma Tools.",
@@ -10907,9 +10907,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0318-sa.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-cec5f7431007.webp",
     "images": [
-      "/products/sigmatools/sgt-0318-sa.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-41edae71b2a6.webp"
     ],
     "altText": "Lixadeiras Orbitais (Hookit) SGT-0318-SA Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT)",
@@ -10939,9 +10939,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0319.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-22d19e2b09e0.webp",
     "images": [
-      "/products/sigmatools/sgt-0319.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-01f5b59bf4b8.webp"
     ],
     "altText": "Lixadeiras Orbitais (Hookit) SGT-0319 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT)",
@@ -10971,9 +10971,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0319-sa.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-341475dca7ca.webp",
     "images": [
-      "/products/sigmatools/sgt-0319-sa.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-c2a3e2370648.webp"
     ],
     "altText": "Lixadeiras Orbitais (Hookit) SGT-0319-SA Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT)",
@@ -11003,9 +11003,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0308.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-fcb20a831f3e.webp",
     "images": [
-      "/products/sigmatools/sgt-0308.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-b84f9181d3d3.webp"
     ],
     "altText": "Lixadeiras Orbitais (Hookit) SGT-0308 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT)",
@@ -11035,9 +11035,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0309.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-5633a2c2edeb.webp",
     "images": [
-      "/products/sigmatools/sgt-0309.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-0f905bedb70a.webp"
     ],
     "altText": "Lixadeiras Orbitais (Hookit) SGT-0309 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT)",
@@ -11067,9 +11067,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0314.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-676193e9a2ec.webp",
     "images": [
-      "/products/sigmatools/sgt-0314.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-e67ae17830fb.webp"
     ],
     "altText": "Lixadeiras Orbitais (Hookit) SGT-0314 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT)",
@@ -11099,9 +11099,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0315.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-b68bbb860853.webp",
     "images": [
-      "/products/sigmatools/sgt-0315.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-orbitais-hookit-sgt-6a183ea03e26.webp"
     ],
     "altText": "Lixadeiras Orbitais (Hookit) SGT-0315 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT)",
@@ -11131,9 +11131,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0362b.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-0362b-sigma-too-b51a6b42cd94.webp",
     "images": [
-      "/products/sigmatools/sgt-0362b.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-0362b-sigma-too-a9374b55ae96.webp"
     ],
     "altText": "Lixadeiras SGT-0362B Sigma Tools Athena Soluções Automotivas",
     "description": "75 mm / 115 mm / 125 mm",
@@ -11163,9 +11163,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0350.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-0350-sigma-tool-5dcf0950393b.webp",
     "images": [
-      "/products/sigmatools/sgt-0350.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-0350-sigma-tool-c79332720ead.webp"
     ],
     "altText": "Lixadeiras SGT-0350 Sigma Tools Athena Soluções Automotivas",
     "description": "75 mm / 115 mm / 125 mm",
@@ -11195,9 +11195,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0325.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-0325-sigma-tool-9814e8708f3b.webp",
     "images": [
-      "/products/sigmatools/sgt-0325.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-0325-sigma-tool-e253d63553f8.webp"
     ],
     "altText": "Lixadeiras SGT-0325 Sigma Tools Athena Soluções Automotivas",
     "description": "75 mm / 115 mm / 125 mm",
@@ -11227,9 +11227,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0320.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-0320-sigma-tool-59cd1f6b772a.webp",
     "images": [
-      "/products/sigmatools/sgt-0320.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-0320-sigma-tool-daa5c4e156b8.webp"
     ],
     "altText": "Lixadeiras SGT-0320 Sigma Tools Athena Soluções Automotivas",
     "description": "75 mm / 115 mm / 125 mm",
@@ -11259,9 +11259,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0391.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0391-sigma-tool-a56a1746db09.webp",
     "images": [
-      "/products/sigmatools/sgt-0391.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0391-sigma-tool-961d59b498b8.webp"
     ],
     "altText": "Ferramenta SGT-0391 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÃO APROX. (C x L) DIMENSÃO APROX. (C x L)",
@@ -11291,9 +11291,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0392.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0392-sigma-tool-5a251b0e9db4.webp",
     "images": [
-      "/products/sigmatools/sgt-0392.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0392-sigma-tool-dbbae244cbd9.webp"
     ],
     "altText": "Ferramenta SGT-0392 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÃO APROX. (C x L) DIMENSÃO APROX. (C x L)",
@@ -11323,9 +11323,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0393.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0393-sigma-tool-5755221d88c4.webp",
     "images": [
-      "/products/sigmatools/sgt-0393.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0393-sigma-tool-502527833cc2.webp"
     ],
     "altText": "Ferramenta SGT-0393 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÃO APROX. (C x L) DIMENSÃO APROX. (C x L)",
@@ -11355,9 +11355,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0394.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0394-sigma-tool-f2e51968386c.webp",
     "images": [
-      "/products/sigmatools/sgt-0394.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0394-sigma-tool-572a52c95a75.webp"
     ],
     "altText": "Ferramenta SGT-0394 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÃO APROX. (C x L) DIMENSÃO APROX. (C x L)",
@@ -11387,9 +11387,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/mxt-0311.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-0311-sigma-tool-76b2cb190f0a.webp",
     "images": [
-      "/products/sigmatools/mxt-0311.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-0311-sigma-tool-7229741ebd7f.webp"
     ],
     "altText": "Ferramenta MXT-0311 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT) DIMENSÕES (C x L x A) DIMENSÕES (C x L x A)",
@@ -11419,9 +11419,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/mxt-0311-sa.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-0311-sa-sigma-t-7a1cc8edb4e1.webp",
     "images": [
-      "/products/sigmatools/mxt-0311-sa.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-0311-sa-sigma-t-279486f8590a.webp"
     ],
     "altText": "Ferramenta MXT-0311-SA Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT) DIMENSÕES (C x L x A) DIMENSÕES (C x L x A)",
@@ -11451,9 +11451,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4321-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4321-pro-sigma--5468061bf186.webp",
     "images": [
-      "/products/sigmatools/sgt-4321-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4321-pro-sigma--4f8d8ae2b3f5.webp"
     ],
     "altText": "Ferramenta SGT-4321-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT) DIMENSÕES (C x L x A) DIMENSÕES (C x L x A)",
@@ -11483,9 +11483,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4322-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4322-pro-sigma--a1ad9204318c.webp",
     "images": [
-      "/products/sigmatools/sgt-4322-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4322-pro-sigma--588be4402463.webp"
     ],
     "altText": "Ferramenta SGT-4322-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRAS ORBITAIS (HOOKIT) DIMENSÕES (C x L x A) DIMENSÕES (C x L x A)",
@@ -11515,9 +11515,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0810.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0810-sigma-tool-531cb55d8937.webp",
     "images": [
-      "/products/sigmatools/sgt-0810.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0810-sigma-tool-1b15e37bf073.webp"
     ],
     "altText": "Ferramenta SGT-0810 Sigma Tools Athena Soluções Automotivas",
     "description": "FRESA PARA DESPONTEADEIRA Ø8mm FRESA PARA DESPONTEADEIRA Ø6,5mm Lâmina Reta Rebaixada",
@@ -11547,9 +11547,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0811.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0811-sigma-tool-365fa5919a2f.webp",
     "images": [
-      "/products/sigmatools/sgt-0811.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0811-sigma-tool-13e16ae17ce3.webp"
     ],
     "altText": "Ferramenta SGT-0811 Sigma Tools Athena Soluções Automotivas",
     "description": "FRESA PARA DESPONTEADEIRA Ø8mm FRESA PARA DESPONTEADEIRA Ø6,5mm Lâmina Reta Rebaixada",
@@ -11579,9 +11579,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0910.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0910-sigma-tool-876d54817dfb.webp",
     "images": [
-      "/products/sigmatools/sgt-0910.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0910-sigma-tool-ad6b33404c5e.webp"
     ],
     "altText": "Ferramenta SGT-0910 Sigma Tools Athena Soluções Automotivas",
     "description": "FRESA PARA DESPONTEADEIRA Ø8mm FRESA PARA DESPONTEADEIRA Ø6,5mm Lâmina Reta Rebaixada",
@@ -11611,9 +11611,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9900.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9900-sigma-tool-95130f91646f.webp",
     "images": [
-      "/products/sigmatools/sgt-9900.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9900-sigma-tool-3f8434687c02.webp"
     ],
     "altText": "Ferramenta SGT-9900 Sigma Tools Athena Soluções Automotivas",
     "description": "FRESA PARA DESPONTEADEIRA Ø8mm FRESA PARA DESPONTEADEIRA Ø6,5mm Lâmina Reta Rebaixada",
@@ -11643,9 +11643,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0630.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0630-sigma-tool-f7258d6dfeb9.webp",
     "images": [
-      "/products/sigmatools/sgt-0630.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-0630-sigma-tool-80db65101994.webp"
     ],
     "altText": "Ferramenta SGT-0630 Sigma Tools Athena Soluções Automotivas",
     "description": "PUXADOR MARTELINHO DE OURO FILME MASCARAMENTO ELETROESTÁTICO CONSUMO DE AR INSTANTÂNEO",
@@ -11675,9 +11675,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9920.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9920-sigma-tool-8005d595df75.webp",
     "images": [
-      "/products/sigmatools/sgt-9920.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9920-sigma-tool-598534d4bbee.webp"
     ],
     "altText": "Ferramenta SGT-9920 Sigma Tools Athena Soluções Automotivas",
     "description": "PUXADOR MARTELINHO DE OURO FILME MASCARAMENTO ELETROESTÁTICO CONSUMO DE AR INSTANTÂNEO",
@@ -11707,9 +11707,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0307.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-60da98d75748.webp",
     "images": [
-      "/products/sigmatools/sgt-0307.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-681a48c7e4df.webp"
     ],
     "altText": "Lixadeira Pneumática Detalhamento - Linha Industrial SGT-0307 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRA PNEUMÁTICA DETALHAMENTO - LINHA INDUSTRIAL",
@@ -11739,9 +11739,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1116.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-dc0bf8ae992a.webp",
     "images": [
-      "/products/sigmatools/sgt-1116.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-240e15f1e2cd.webp"
     ],
     "altText": "Lixadeira Pneumática Detalhamento - Linha Industrial SGT-1116 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRA PNEUMÁTICA DETALHAMENTO - LINHA INDUSTRIAL",
@@ -11771,9 +11771,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1117.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-feb58ceb30f7.webp",
     "images": [
-      "/products/sigmatools/sgt-1117.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-f0fb5e8377a2.webp"
     ],
     "altText": "Lixadeira Pneumática Detalhamento - Linha Industrial SGT-1117 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRA PNEUMÁTICA DETALHAMENTO - LINHA INDUSTRIAL",
@@ -11803,9 +11803,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1120.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-6e18e9ceb1c8.webp",
     "images": [
-      "/products/sigmatools/sgt-1120.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-9e264adbd0a1.webp"
     ],
     "altText": "Lixadeira Pneumática Detalhamento - Linha Industrial SGT-1120 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRA PNEUMÁTICA DETALHAMENTO - LINHA INDUSTRIAL",
@@ -11835,9 +11835,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-0305.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-b396ae74d7db.webp",
     "images": [
-      "/products/sigmatools/sgt-0305.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-140c6923413a.webp"
     ],
     "altText": "Lixadeira Pneumática Detalhamento - Linha Profissional SGT-0305 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRA PNEUMÁTICA DETALHAMENTO - LINHA PROFISSIONAL",
@@ -11867,9 +11867,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1119.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-44cbe3062cd7.webp",
     "images": [
-      "/products/sigmatools/sgt-1119.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-edefb9efe5b0.webp"
     ],
     "altText": "Lixadeira Pneumática Detalhamento - Linha Profissional SGT-1119 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRA PNEUMÁTICA DETALHAMENTO - LINHA PROFISSIONAL",
@@ -11899,9 +11899,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1115.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-b44109682577.webp",
     "images": [
-      "/products/sigmatools/sgt-1115.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeira-pneumatica-detalhame-4083164345af.webp"
     ],
     "altText": "Lixadeira Pneumática Detalhamento - Linha Profissional SGT-1115 Sigma Tools Athena Soluções Automotivas",
     "description": "LIXADEIRA PNEUMÁTICA DETALHAMENTO - LINHA PROFISSIONAL",
@@ -11931,9 +11931,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5126.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-a1445ed5d00a.webp",
     "images": [
-      "/products/sigmatools/sgt-5126.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-848e6ffe15e4.webp"
     ],
     "altText": "Politrizes Elétricas Rotativas SGT-5126 Sigma Tools Athena Soluções Automotivas",
     "description": "PARA MAIOR FLEXIBILIDADE DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A)",
@@ -11963,9 +11963,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5127.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-6400311742be.webp",
     "images": [
-      "/products/sigmatools/sgt-5127.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-4b8bb14638f3.webp"
     ],
     "altText": "Politrizes Elétricas Rotativas SGT-5127 Sigma Tools Athena Soluções Automotivas",
     "description": "PARA MAIOR FLEXIBILIDADE DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A)",
@@ -11995,9 +11995,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5145.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-5d8412e4d007.webp",
     "images": [
-      "/products/sigmatools/sgt-5145.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-2b825379e9f6.webp"
     ],
     "altText": "Politrizes Elétricas Rotativas SGT-5145 Sigma Tools Athena Soluções Automotivas",
     "description": "PARA MAIOR FLEXIBILIDADE DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A)",
@@ -12027,9 +12027,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5114.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-0b69b29c6eb9.webp",
     "images": [
-      "/products/sigmatools/sgt-5114.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-1f061a64f3d5.webp"
     ],
     "altText": "Politrizes Elétricas Rotativas SGT-5114 Sigma Tools Athena Soluções Automotivas",
     "description": "PARA MAIOR FLEXIBILIDADE DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A)",
@@ -12059,9 +12059,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5106.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-421d8d807f79.webp",
     "images": [
-      "/products/sigmatools/sgt-5106.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-387ae64ba0aa.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5106 Sigma Tools Athena Soluções Automotivas",
     "description": "ROTO ORBITAL 5” RED&SHINE - 12mm DIMENSÕES (C x L x A) ROTO ORBITAL RED&SHINE",
@@ -12091,9 +12091,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/sigmatools/sgt-5116p.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-66010c4c9e06.webp",
     "images": [
-      "/products/sigmatools/sgt-5116p.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-16073ea2c51c.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5116P Sigma Tools Athena Soluções Automotivas",
     "description": "ROTO ORBITAL 5” RED&SHINE - 12mm DIMENSÕES (C x L x A) ROTO ORBITAL RED&SHINE",
@@ -12123,9 +12123,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5108.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-bd475a70a4cb.webp",
     "images": [
-      "/products/sigmatools/sgt-5108.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-f46f0be9b700.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5108 Sigma Tools Athena Soluções Automotivas",
     "description": "ROTO ORBITAL 5” RED&SHINE - 12mm DIMENSÕES (C x L x A) ROTO ORBITAL RED&SHINE",
@@ -12155,9 +12155,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5109.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-a34527b28925.webp",
     "images": [
-      "/products/sigmatools/sgt-5109.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-c22b4ad2f9a7.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5109 Sigma Tools Athena Soluções Automotivas",
     "description": "ROTO ORBITAL 5” RED&SHINE - 12mm DIMENSÕES (C x L x A) ROTO ORBITAL RED&SHINE",
@@ -12187,9 +12187,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5140.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-be903b427240.webp",
     "images": [
-      "/products/sigmatools/sgt-5140.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-22783bc5b6e8.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5140 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES (C x L x A) DIÂMETRO DO PRATO SUPORTE ROTO ORBITAL FORÇADA RED&SHINE",
@@ -12219,9 +12219,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5149.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-9b51042db503.webp",
     "images": [
-      "/products/sigmatools/sgt-5149.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-dbd45905c3cf.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5149 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES (C x L x A) DIÂMETRO DO PRATO SUPORTE ROTO ORBITAL FORÇADA RED&SHINE",
@@ -12251,9 +12251,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/sigmatools/sgt-5116.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-ee60b6f027bb.webp",
     "images": [
-      "/products/sigmatools/sgt-5116.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-22b17828b9f0.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5116 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES (C x L x A) DIÂMETRO DO PRATO SUPORTE ROTO ORBITAL FORÇADA RED&SHINE",
@@ -12283,9 +12283,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5122.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-5974cd91e767.webp",
     "images": [
-      "/products/sigmatools/sgt-5122.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-f2619b71a518.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5122 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES (C x L x A) DIÂMETRO DO PRATO SUPORTE ROTO ORBITAL FORÇADA RED&SHINE",
@@ -12315,9 +12315,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5150.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-945c56a02a11.webp",
     "images": [
-      "/products/sigmatools/sgt-5150.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-fe081f1357e7.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5150 Sigma Tools Athena Soluções Automotivas",
     "description": "DIÂMETRO DO PRATO DO SUPORTE DIÂMETRO DO PRATO SUPORTE",
@@ -12347,9 +12347,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5118.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-f03d9d023165.webp",
     "images": [
-      "/products/sigmatools/sgt-5118.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-e0099cd2d4ed.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais SGT-5118 Sigma Tools Athena Soluções Automotivas",
     "description": "DIÂMETRO DO PRATO DO SUPORTE DIÂMETRO DO PRATO SUPORTE",
@@ -12379,9 +12379,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8101.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8101--01a88a2948e8.webp",
     "images": [
-      "/products/sigmatools/sgt-8101.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8101--1d928c870c23.webp"
     ],
     "altText": "Politrizes À Bateria SGT-8101 Sigma Tools Athena Soluções Automotivas",
     "description": "DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A) ACESSÓRIOS DE REPOSIÇÃO",
@@ -12411,9 +12411,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8103.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8103--c6a33e890ac1.webp",
     "images": [
-      "/products/sigmatools/sgt-8103.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8103--74d938e3e042.webp"
     ],
     "altText": "Politrizes À Bateria SGT-8103 Sigma Tools Athena Soluções Automotivas",
     "description": "DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A) ACESSÓRIOS DE REPOSIÇÃO",
@@ -12443,9 +12443,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8105.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8105--0f5244864207.webp",
     "images": [
-      "/products/sigmatools/sgt-8105.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8105--026d2634f26e.webp"
     ],
     "altText": "Politrizes À Bateria SGT-8105 Sigma Tools Athena Soluções Automotivas",
     "description": "DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A) ACESSÓRIOS DE REPOSIÇÃO",
@@ -12475,9 +12475,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8116.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8116--3efde9a0a95f.webp",
     "images": [
-      "/products/sigmatools/sgt-8116.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8116--9f1dab823c03.webp"
     ],
     "altText": "Politrizes À Bateria SGT-8116 Sigma Tools Athena Soluções Automotivas",
     "description": "ROTO ORBITAL 5” - 15mm DIÂMETRO DO PRATO DO SUPORTE PESO DA MÁQUINA (APROXIMADO)",
@@ -12507,9 +12507,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8106.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8106--5277066f742c.webp",
     "images": [
-      "/products/sigmatools/sgt-8106.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8106--8ce8b7013cd0.webp"
     ],
     "altText": "Politrizes À Bateria SGT-8106 Sigma Tools Athena Soluções Automotivas",
     "description": "ROTO ORBITAL 5” - 15mm DIÂMETRO DO PRATO DO SUPORTE PESO DA MÁQUINA (APROXIMADO)",
@@ -12539,9 +12539,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8110.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8110--4e5e57934957.webp",
     "images": [
-      "/products/sigmatools/sgt-8110.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-a-bateria-sgt-8110--b361c1e1f47a.webp"
     ],
     "altText": "Politrizes À Bateria SGT-8110 Sigma Tools Athena Soluções Automotivas",
     "description": "ROTO ORBITAL 5” - 15mm DIÂMETRO DO PRATO DO SUPORTE PESO DA MÁQUINA (APROXIMADO)",
@@ -12571,9 +12571,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5117.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-42aec4b910d7.webp",
     "images": [
-      "/products/sigmatools/sgt-5117.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-b89c4687e84b.webp"
     ],
     "altText": "Politrizes Elétricas Rotativas SGT-5117 Sigma Tools Athena Soluções Automotivas",
     "description": "DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A) ROTO ORBITAL 5” - SGT-PRO - 15mm",
@@ -12603,9 +12603,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5123.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-b0e01c80616b.webp",
     "images": [
-      "/products/sigmatools/sgt-5123.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-d28d7f73671d.webp"
     ],
     "altText": "Politrizes Elétricas Rotativas SGT-5123 Sigma Tools Athena Soluções Automotivas",
     "description": "DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A) ROTO ORBITAL 5” - SGT-PRO - 15mm",
@@ -12635,9 +12635,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5135.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-bd0e0b148719.webp",
     "images": [
-      "/products/sigmatools/sgt-5135.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-rotativas-be396047cc79.webp"
     ],
     "altText": "Politrizes Elétricas Rotativas SGT-5135 Sigma Tools Athena Soluções Automotivas",
     "description": "DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A) ROTO ORBITAL 5” - SGT-PRO - 15mm",
@@ -12667,9 +12667,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/pwr-5120.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-4d7bbd919bf4.webp",
     "images": [
-      "/products/sigmatools/pwr-5120.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/politrizes-eletricas-roto-orbi-fc14a2af7c92.webp"
     ],
     "altText": "Politrizes Elétricas Roto Orbitais PWR-5120 Sigma Tools Athena Soluções Automotivas",
     "description": "DIÂMETRO DO PRATO DO SUPORTE DIMENSÕES (C x L x A)",
@@ -12699,9 +12699,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5112.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/suporte-3-politriz-forcada-sgt-36d166cd3258.webp",
     "images": [
-      "/products/sigmatools/sgt-5112.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/suporte-3-politriz-forcada-sgt-c6d6b7c83b55.webp"
     ],
     "altText": "Suporte 3” Politriz Forçada Sgt-5112 SGT-5112 Sigma Tools Athena Soluções Automotivas",
     "description": "INTERFACES, DISCOS, PRATOS E SUPORTES PRATO SUPORTE 6” PARA LIXADEIRA ROTO PRATO SUPORTE 5” P/ LIXADEIRA",
@@ -12731,9 +12731,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-m-01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-m-01-sigma-tool-bc3d1334f977.webp",
     "images": [
-      "/products/sigmatools/sgt-m-01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-m-01-sigma-tool-081d10ea3dba.webp"
     ],
     "altText": "Ferramenta SGT-M-01 Sigma Tools Athena Soluções Automotivas",
     "description": "MEDIDOR DE ESPESSURA DE COATING 115 mm x 50 mm x 25 mm",
@@ -12763,9 +12763,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9918.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9918-sigma-tools-994d5280d646.webp",
     "images": [
-      "/products/sigmatools/sgt-9918.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9918-sigma-tools-00449390a4e2.webp"
     ],
     "altText": "Snow Foam SGT-9918 Sigma Tools Athena Soluções Automotivas",
     "description": "ENGATE CONECTOR TIPO ROSCA INFORMAÇÕES TÉCNICAS SGT-9918 INFORMAÇÕES TÉCNICAS SGT-9923",
@@ -12795,9 +12795,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9923.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9923-sigma-tools-ac46de9dbdf4.webp",
     "images": [
-      "/products/sigmatools/sgt-9923.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9923-sigma-tools-15faeb18cb66.webp"
     ],
     "altText": "Snow Foam SGT-9923 Sigma Tools Athena Soluções Automotivas",
     "description": "ENGATE CONECTOR TIPO ROSCA INFORMAÇÕES TÉCNICAS SGT-9918 INFORMAÇÕES TÉCNICAS SGT-9923",
@@ -12827,9 +12827,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9919.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9919-sigma-tools-a38a3344f577.webp",
     "images": [
-      "/products/sigmatools/sgt-9919.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9919-sigma-tools-fed2a58d913a.webp"
     ],
     "altText": "Snow Foam SGT-9919 Sigma Tools Athena Soluções Automotivas",
     "description": "ENGATE CONECTOR TIPO ROSCA INFORMAÇÕES TÉCNICAS SGT-9918 INFORMAÇÕES TÉCNICAS SGT-9923",
@@ -12859,9 +12859,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9932.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9932-sigma-tools-6b012144863f.webp",
     "images": [
-      "/products/sigmatools/sgt-9932.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9932-sigma-tools-0fc36121c702.webp"
     ],
     "altText": "Snow Foam SGT-9932 Sigma Tools Athena Soluções Automotivas",
     "description": "ENGATE CONECTOR TIPO ROSCA INFORMAÇÕES TÉCNICAS SGT-9918 INFORMAÇÕES TÉCNICAS SGT-9923",
@@ -12891,9 +12891,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9934.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9934-sigma-tools-4e1ac836d89f.webp",
     "images": [
-      "/products/sigmatools/sgt-9934.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9934-sigma-tools-29f64e986308.webp"
     ],
     "altText": "Snow Foam SGT-9934 Sigma Tools Athena Soluções Automotivas",
     "description": "ENGATE CONECTOR TIPO ROSCA INFORMAÇÕES TÉCNICAS SGT-9918 INFORMAÇÕES TÉCNICAS SGT-9923",
@@ -12923,9 +12923,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8610.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-8610-sigma-tools-05a409086f47.webp",
     "images": [
-      "/products/sigmatools/sgt-8610.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-8610-sigma-tools-b52a0111fa81.webp"
     ],
     "altText": "Snow Foam SGT-8610 Sigma Tools Athena Soluções Automotivas",
     "description": "ENGATE CONECTOR TIPO ROSCA INFORMAÇÕES TÉCNICAS SGT-9918 INFORMAÇÕES TÉCNICAS SGT-9923",
@@ -12955,9 +12955,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9939.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9939-sigma-tools-4f8abca1bb7c.webp",
     "images": [
-      "/products/sigmatools/sgt-9939.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/snow-foam-sgt-9939-sigma-tools-9c55eaadefa3.webp"
     ],
     "altText": "Snow Foam SGT-9939 Sigma Tools Athena Soluções Automotivas",
     "description": "ENGATE CONECTOR TIPO ROSCA INFORMAÇÕES TÉCNICAS SGT-9918 INFORMAÇÕES TÉCNICAS SGT-9923",
@@ -12987,9 +12987,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9924.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9924-sigma-tool-5971550f4ee9.webp",
     "images": [
-      "/products/sigmatools/sgt-9924.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9924-sigma-tool-e90d66397766.webp"
     ],
     "altText": "Ferramenta SGT-9924 Sigma Tools Athena Soluções Automotivas",
     "description": "3 EM 1 - EXCEL LINE - 2L TEMPERATURA DE TRABALHO RESISTENTE À QUÍMICOS",
@@ -13019,9 +13019,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9942.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9942-sigma-tool-c35d68d9731b.webp",
     "images": [
-      "/products/sigmatools/sgt-9942.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9942-sigma-tool-db3cccb06f71.webp"
     ],
     "altText": "Ferramenta SGT-9942 Sigma Tools Athena Soluções Automotivas",
     "description": "3 EM 1 - EXCEL LINE - 2L TEMPERATURA DE TRABALHO RESISTENTE À QUÍMICOS",
@@ -13051,9 +13051,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9930.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9930-sigma-tool-aa9e9c055920.webp",
     "images": [
-      "/products/sigmatools/sgt-9930.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9930-sigma-tool-549b48da3406.webp"
     ],
     "altText": "Ferramenta SGT-9930 Sigma Tools Athena Soluções Automotivas",
     "description": "3 EM 1 - EXCEL LINE - 2L TEMPERATURA DE TRABALHO RESISTENTE À QUÍMICOS",
@@ -13083,9 +13083,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9922.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9922-sigma-tool-8b90e8af347d.webp",
     "images": [
-      "/products/sigmatools/sgt-9922.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9922-sigma-tool-52b21be707f2.webp"
     ],
     "altText": "Ferramenta SGT-9922 Sigma Tools Athena Soluções Automotivas",
     "description": "3 EM 1 - EXCEL LINE - 2L TEMPERATURA DE TRABALHO RESISTENTE À QUÍMICOS",
@@ -13115,9 +13115,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9937.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9937-sigma-tool-f0437c04b000.webp",
     "images": [
-      "/products/sigmatools/sgt-9937.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9937-sigma-tool-57909405a9e8.webp"
     ],
     "altText": "Ferramenta SGT-9937 Sigma Tools Athena Soluções Automotivas",
     "description": "3 EM 1 - EXCEL LINE - 2L TEMPERATURA DE TRABALHO RESISTENTE À QUÍMICOS",
@@ -13147,9 +13147,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9938.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9938-sigma-tool-bdd7c834b511.webp",
     "images": [
-      "/products/sigmatools/sgt-9938.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9938-sigma-tool-4bd199a7ddbe.webp"
     ],
     "altText": "Ferramenta SGT-9938 Sigma Tools Athena Soluções Automotivas",
     "description": "3 EM 1 - EXCEL LINE - 2L TEMPERATURA DE TRABALHO RESISTENTE À QUÍMICOS",
@@ -13179,9 +13179,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9943.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9943-sigma-tool-ff03f53189af.webp",
     "images": [
-      "/products/sigmatools/sgt-9943.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9943-sigma-tool-542379a0ec09.webp"
     ],
     "altText": "Ferramenta SGT-9943 Sigma Tools Athena Soluções Automotivas",
     "description": "SPRAYERS MANUAIS MULTIUSO RESISTENTE À QUÍMICOS - 800mL SPRAYER MULTIUSO RESISTENTE",
@@ -13211,9 +13211,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9925.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9925-sigma-tool-f8d88acd3cfc.webp",
     "images": [
-      "/products/sigmatools/sgt-9925.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9925-sigma-tool-dcffa1f232f8.webp"
     ],
     "altText": "Ferramenta SGT-9925 Sigma Tools Athena Soluções Automotivas",
     "description": "SPRAYERS MANUAIS MULTIUSO RESISTENTE À QUÍMICOS - 800mL SPRAYER MULTIUSO RESISTENTE",
@@ -13243,9 +13243,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9933.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9933-sigma-tool-e7b8114537d4.webp",
     "images": [
-      "/products/sigmatools/sgt-9933.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9933-sigma-tool-02a7af5bb416.webp"
     ],
     "altText": "Ferramenta SGT-9933 Sigma Tools Athena Soluções Automotivas",
     "description": "SPRAYERS MANUAIS MULTIUSO RESISTENTE À QUÍMICOS - 800mL SPRAYER MULTIUSO RESISTENTE",
@@ -13275,9 +13275,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9936.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9936-sigma-tool-5212b1d071a3.webp",
     "images": [
-      "/products/sigmatools/sgt-9936.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9936-sigma-tool-dab567f37bc4.webp"
     ],
     "altText": "Ferramenta SGT-9936 Sigma Tools Athena Soluções Automotivas",
     "description": "SPRAYERS MANUAIS MULTIUSO RESISTENTE À QUÍMICOS - 800mL SPRAYER MULTIUSO RESISTENTE",
@@ -13307,9 +13307,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9941.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9941-sigma-tool-eb4bc2ffed7b.webp",
     "images": [
-      "/products/sigmatools/sgt-9941.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9941-sigma-tool-d52d68f33b9f.webp"
     ],
     "altText": "Ferramenta SGT-9941 Sigma Tools Athena Soluções Automotivas",
     "description": "SPRAYERS MANUAIS MULTIUSO RESISTENTE À QUÍMICOS - 800mL SPRAYER MULTIUSO RESISTENTE",
@@ -13339,9 +13339,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9927.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9927-sigma-tool-f65aa11160a6.webp",
     "images": [
-      "/products/sigmatools/sgt-9927.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9927-sigma-tool-3360d8069226.webp"
     ],
     "altText": "Ferramenta SGT-9927 Sigma Tools Athena Soluções Automotivas",
     "description": "SPRAYERS MANUAIS MULTIUSO RESISTENTE À QUÍMICOS - 800mL SPRAYER MULTIUSO RESISTENTE",
@@ -13371,9 +13371,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9929.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9929-sigma-tool-56aacf8f8741.webp",
     "images": [
-      "/products/sigmatools/sgt-9929.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9929-sigma-tool-ad1056c28d46.webp"
     ],
     "altText": "Ferramenta SGT-9929 Sigma Tools Athena Soluções Automotivas",
     "description": "SPRAYERS MANUAIS MULTIUSO RESISTENTE À QUÍMICOS - 800mL SPRAYER MULTIUSO RESISTENTE",
@@ -13403,9 +13403,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9928.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9928-sigma-tool-5d0558e0a2ba.webp",
     "images": [
-      "/products/sigmatools/sgt-9928.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9928-sigma-tool-ed4b5c3b2f27.webp"
     ],
     "altText": "Ferramenta SGT-9928 Sigma Tools Athena Soluções Automotivas",
     "description": "SPRAYERS MANUAIS MULTIUSO RESISTENTE À QUÍMICOS - 800mL SPRAYER MULTIUSO RESISTENTE",
@@ -13435,9 +13435,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9906.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-e-acessorios-sgt-9906-6fc7ccbbfc0b.webp",
     "images": [
-      "/products/sigmatools/sgt-9906.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-e-acessorios-sgt-9906-3575b7db459d.webp"
     ],
     "altText": "Pistolas E Acessórios SGT-9906 Sigma Tools Athena Soluções Automotivas",
     "description": "PISTOLAS E ACESSÓRIOS ENGATE RÁPIDO G-2SF M14 ACESSÓRIO DE REPOSIÇÃO",
@@ -13467,9 +13467,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9905.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-e-acessorios-sgt-9905-f9a03fad1348.webp",
     "images": [
-      "/products/sigmatools/sgt-9905.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-e-acessorios-sgt-9905-de5543e5ef8b.webp"
     ],
     "altText": "Pistolas E Acessórios SGT-9905 Sigma Tools Athena Soluções Automotivas",
     "description": "PISTOLAS E ACESSÓRIOS ENGATE RÁPIDO G-2SF M14 ACESSÓRIO DE REPOSIÇÃO",
@@ -13499,9 +13499,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9907.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-e-acessorios-sgt-9907-9431981f9606.webp",
     "images": [
-      "/products/sigmatools/sgt-9907.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-e-acessorios-sgt-9907-6b911d85924b.webp"
     ],
     "altText": "Pistolas E Acessórios SGT-9907 Sigma Tools Athena Soluções Automotivas",
     "description": "PISTOLAS E ACESSÓRIOS ENGATE RÁPIDO G-2SF M14 ACESSÓRIO DE REPOSIÇÃO",
@@ -13531,9 +13531,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9921.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-e-acessorios-sgt-9921-e2d37ce5b949.webp",
     "images": [
-      "/products/sigmatools/sgt-9921.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-e-acessorios-sgt-9921-5a4e15ba8b7f.webp"
     ],
     "altText": "Pistolas E Acessórios SGT-9921 Sigma Tools Athena Soluções Automotivas",
     "description": "PISTOLAS E ACESSÓRIOS ENGATE RÁPIDO G-2SF M14 ACESSÓRIO DE REPOSIÇÃO",
@@ -13563,9 +13563,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8601.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-4ad76303aec7.webp",
     "images": [
-      "/products/sigmatools/sgt-8601.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-bbffa85d0044.webp"
     ],
     "altText": "Pistola Lavadora De Alta Pressão À Bateria SGT-8601 Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS DE REPOSIÇÃO Especificações Técnicas pressão com trama de aço;",
@@ -13595,9 +13595,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9010.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-1619d724e231.webp",
     "images": [
-      "/products/sigmatools/sgt-9010.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-2985ef86f892.webp"
     ],
     "altText": "Pistola Lavadora De Alta Pressão À Bateria SGT-9010 Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS DE REPOSIÇÃO Especificações Técnicas pressão com trama de aço;",
@@ -13627,9 +13627,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9911.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-f4c1d95152ba.webp",
     "images": [
-      "/products/sigmatools/sgt-9911.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-f775ea3e4646.webp"
     ],
     "altText": "Pistola Lavadora De Alta Pressão À Bateria SGT-9911 Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS DE REPOSIÇÃO Especificações Técnicas pressão com trama de aço;",
@@ -13659,9 +13659,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9904.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-b502274f9fe6.webp",
     "images": [
-      "/products/sigmatools/sgt-9904.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-75f6e796eb91.webp"
     ],
     "altText": "Pistola Lavadora De Alta Pressão À Bateria SGT-9904 Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS DE REPOSIÇÃO Especificações Técnicas pressão com trama de aço;",
@@ -13691,9 +13691,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9908.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-ce537399e0ac.webp",
     "images": [
-      "/products/sigmatools/sgt-9908.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-lavadora-de-alta-press-e9b6972652c8.webp"
     ],
     "altText": "Pistola Lavadora De Alta Pressão À Bateria SGT-9908 Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS DE REPOSIÇÃO Especificações Técnicas pressão com trama de aço;",
@@ -13723,9 +13723,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9912.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9912-sigma-tool-e8046a93cd53.webp",
     "images": [
-      "/products/sigmatools/sgt-9912.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9912-sigma-tool-46ca6f041ada.webp"
     ],
     "altText": "Tornadores SGT-9912 Sigma Tools Athena Soluções Automotivas",
     "description": "CANECO SGT-9916 / SGT-9915 / SGT-9917 ACESSÓRIOS DE REPOSIÇÃO CONSUMO MÁXIMO DE LÍQUIDO",
@@ -13755,9 +13755,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9914.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9914-sigma-tool-bdd8582c0608.webp",
     "images": [
-      "/products/sigmatools/sgt-9914.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9914-sigma-tool-d9d5702bdf26.webp"
     ],
     "altText": "Tornadores SGT-9914 Sigma Tools Athena Soluções Automotivas",
     "description": "CANECO SGT-9916 / SGT-9915 / SGT-9917 ACESSÓRIOS DE REPOSIÇÃO CONSUMO MÁXIMO DE LÍQUIDO",
@@ -13787,9 +13787,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9916.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9916-sigma-tool-615b71b862fd.webp",
     "images": [
-      "/products/sigmatools/sgt-9916.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9916-sigma-tool-50085032d2cc.webp"
     ],
     "altText": "Tornadores SGT-9916 Sigma Tools Athena Soluções Automotivas",
     "description": "CANECO SGT-9916 / SGT-9915 / SGT-9917 ACESSÓRIOS DE REPOSIÇÃO CONSUMO MÁXIMO DE LÍQUIDO",
@@ -13819,9 +13819,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9915.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9915-sigma-tool-8b33acc741bc.webp",
     "images": [
-      "/products/sigmatools/sgt-9915.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9915-sigma-tool-7440826051e1.webp"
     ],
     "altText": "Tornadores SGT-9915 Sigma Tools Athena Soluções Automotivas",
     "description": "CANECO SGT-9916 / SGT-9915 / SGT-9917 ACESSÓRIOS DE REPOSIÇÃO CONSUMO MÁXIMO DE LÍQUIDO",
@@ -13851,9 +13851,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9917.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9917-sigma-tool-4abd85053882.webp",
     "images": [
-      "/products/sigmatools/sgt-9917.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9917-sigma-tool-f646d3462e79.webp"
     ],
     "altText": "Tornadores SGT-9917 Sigma Tools Athena Soluções Automotivas",
     "description": "CANECO SGT-9916 / SGT-9915 / SGT-9917 ACESSÓRIOS DE REPOSIÇÃO CONSUMO MÁXIMO DE LÍQUIDO",
@@ -13883,9 +13883,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9913.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9913-sigma-tool-4fcf10dc862a.webp",
     "images": [
-      "/products/sigmatools/sgt-9913.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9913-sigma-tool-9f875d38da94.webp"
     ],
     "altText": "Tornadores SGT-9913 Sigma Tools Athena Soluções Automotivas",
     "description": "CANECO SGT-9916 / SGT-9915 / SGT-9917 ACESSÓRIOS DE REPOSIÇÃO CONSUMO MÁXIMO DE LÍQUIDO",
@@ -13915,9 +13915,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9935.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9935-sigma-tool-df9078aa1306.webp",
     "images": [
-      "/products/sigmatools/sgt-9935.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/tornadores-sgt-9935-sigma-tool-d5cc1aeedc4b.webp"
     ],
     "altText": "Tornadores SGT-9935 Sigma Tools Athena Soluções Automotivas",
     "description": "CANECO SGT-9916 / SGT-9915 / SGT-9917 ACESSÓRIOS DE REPOSIÇÃO CONSUMO MÁXIMO DE LÍQUIDO",
@@ -13947,9 +13947,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/sigmatools/sgt-8501.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-sgt-8501-sigma-tools-a12923e9ece1.webp",
     "images": [
-      "/products/sigmatools/sgt-8501.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-sgt-8501-sigma-tools-be8d061e69a4.webp"
     ],
     "altText": "Lanternas SGT-8501 Sigma Tools Athena Soluções Automotivas",
     "description": "170lm (LED TOPO) / 300lm (LED FRONTAL) TEMPO DE CARREGAMENTO LANTERNA 180° LED COB",
@@ -13979,9 +13979,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8503.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-sgt-8503-sigma-tools-94ec965ebe0c.webp",
     "images": [
-      "/products/sigmatools/sgt-8503.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-sgt-8503-sigma-tools-cd3528a81191.webp"
     ],
     "altText": "Lanternas SGT-8503 Sigma Tools Athena Soluções Automotivas",
     "description": "170lm (LED TOPO) / 300lm (LED FRONTAL) TEMPO DE CARREGAMENTO LANTERNA 180° LED COB",
@@ -14011,9 +14011,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8510.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-sgt-8510-sigma-tools-1eddf25edd8e.webp",
     "images": [
-      "/products/sigmatools/sgt-8510.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-sgt-8510-sigma-tools-aeda24e5d544.webp"
     ],
     "altText": "Lanternas SGT-8510 Sigma Tools Athena Soluções Automotivas",
     "description": "170lm (LED TOPO) / 300lm (LED FRONTAL) TEMPO DE CARREGAMENTO LANTERNA 180° LED COB",
@@ -14043,9 +14043,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8520.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8520-sigm-bd0cb05ee594.webp",
     "images": [
-      "/products/sigmatools/sgt-8520.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8520-sigm-9a0b063ca5c4.webp"
     ],
     "altText": "Lanternas Cri 96+ SGT-8520 Sigma Tools Athena Soluções Automotivas",
     "description": "2 CONJUNTOS DE BATERIAS 2.000mAh 3 IMÃS POR EMPUNHADURA FLUXO LUMINOSO POR LÂMPADA",
@@ -14073,9 +14073,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8511.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8511-sigm-ff3b6c6529c7.webp",
     "images": [
-      "/products/sigmatools/sgt-8511.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8511-sigm-cdf003db9343.webp"
     ],
     "altText": "Lanternas Cri 96+ SGT-8511 Sigma Tools Athena Soluções Automotivas",
     "description": "2 CONJUNTOS DE BATERIAS 2.000mAh 3 IMÃS POR EMPUNHADURA FLUXO LUMINOSO POR LÂMPADA",
@@ -14103,9 +14103,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8516.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8516-sigm-f4160c7a4c25.webp",
     "images": [
-      "/products/sigmatools/sgt-8516.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8516-sigm-2b3ab79d8b8f.webp"
     ],
     "altText": "Lanternas Cri 96+ SGT-8516 Sigma Tools Athena Soluções Automotivas",
     "description": "2 CONJUNTOS DE BATERIAS 2.000mAh 3 IMÃS POR EMPUNHADURA FLUXO LUMINOSO POR LÂMPADA",
@@ -14133,9 +14133,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8525.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8525-sigm-be2826cc6fd5.webp",
     "images": [
-      "/products/sigmatools/sgt-8525.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8525-sigm-81ba2165f801.webp"
     ],
     "altText": "Lanternas Cri 96+ SGT-8525 Sigma Tools Athena Soluções Automotivas",
     "description": "LANTERNA DE INSPEÇÃO 3 CORES TEMPO DE USO - LUZ DO TOPO TEMPO DE USO - LUZ PRINCIPAL",
@@ -14165,9 +14165,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8517.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8517-sigm-82b176075874.webp",
     "images": [
-      "/products/sigmatools/sgt-8517.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-cri-96-sgt-8517-sigm-6694df20263e.webp"
     ],
     "altText": "Lanternas Cri 96+ SGT-8517 Sigma Tools Athena Soluções Automotivas",
     "description": "LANTERNA DE INSPEÇÃO 3 CORES TEMPO DE USO - LUZ DO TOPO TEMPO DE USO - LUZ PRINCIPAL",
@@ -14197,9 +14197,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8518.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-holofotes-sgt-8518-s-8ce6816bb6c4.webp",
     "images": [
-      "/products/sigmatools/sgt-8518.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-holofotes-sgt-8518-s-7eb9af9f9b82.webp"
     ],
     "altText": "Lanternas Holofotes SGT-8518 Sigma Tools Athena Soluções Automotivas",
     "description": "LANTERNA HOLOFOTE - REFLETOR DE INSPEÇÃO - 700lm TEMPO DE CARREGAMENTO LANTERNA HOLOFOTE - REFLETOR DE INSPEÇÃO - 1400lm",
@@ -14225,9 +14225,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8519.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-holofotes-sgt-8519-s-9bb3ea915071.webp",
     "images": [
-      "/products/sigmatools/sgt-8519.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lanternas-holofotes-sgt-8519-s-e9f817962c9e.webp"
     ],
     "altText": "Lanternas Holofotes SGT-8519 Sigma Tools Athena Soluções Automotivas",
     "description": "LANTERNA HOLOFOTE - REFLETOR DE INSPEÇÃO - 700lm TEMPO DE CARREGAMENTO LANTERNA HOLOFOTE - REFLETOR DE INSPEÇÃO - 1400lm",
@@ -14253,9 +14253,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5601.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-5601--9e733e6ac06e.webp",
     "images": [
-      "/products/sigmatools/sgt-5601.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-5601--ed79d1369fdc.webp"
     ],
     "altText": "Sopradores Elétricos SGT-5601 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES (C x L x H) DIMENSÕES (C x L x H)",
@@ -14285,9 +14285,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/pwr-5600.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-pwr-5600--c3e03874b3f7.webp",
     "images": [
-      "/products/sigmatools/pwr-5600.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-pwr-5600--f297830eb52a.webp"
     ],
     "altText": "Sopradores Elétricos PWR-5600 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES (C x L x H) DIMENSÕES (C x L x H)",
@@ -14317,9 +14317,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3312.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-3312--60f557ac4ba6.webp",
     "images": [
-      "/products/sigmatools/sgt-3312.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-3312--90b8f893f27d.webp"
     ],
     "altText": "Sopradores Elétricos SGT-3312 Sigma Tools Athena Soluções Automotivas",
     "description": "PISTOLAS / BICOS DE AR SGT- 3311   PISTOLA DE AR CURTA - 100mm SGT-3312   PISTOLA DE AR LONGA - 300mm",
@@ -14349,9 +14349,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3316.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-3316--de2290ed4e3f.webp",
     "images": [
-      "/products/sigmatools/sgt-3316.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-3316--d1a889726e2a.webp"
     ],
     "altText": "Sopradores Elétricos SGT-3316 Sigma Tools Athena Soluções Automotivas",
     "description": "PISTOLAS / BICOS DE AR SGT- 3311   PISTOLA DE AR CURTA - 100mm SGT-3312   PISTOLA DE AR LONGA - 300mm",
@@ -14381,9 +14381,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3310.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-3310--bf00679c5e20.webp",
     "images": [
-      "/products/sigmatools/sgt-3310.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-3310--48ed67918d9c.webp"
     ],
     "altText": "Sopradores Elétricos SGT-3310 Sigma Tools Athena Soluções Automotivas",
     "description": "PISTOLAS / BICOS DE AR SGT- 3311   PISTOLA DE AR CURTA - 100mm SGT-3312   PISTOLA DE AR LONGA - 300mm",
@@ -14413,9 +14413,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5606.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-5606--7ef13bef9127.webp",
     "images": [
-      "/products/sigmatools/sgt-5606.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/sopradores-eletricos-sgt-5606--c8189f881e82.webp"
     ],
     "altText": "Sopradores Elétricos SGT-5606 Sigma Tools Athena Soluções Automotivas",
     "description": "PISTOLAS / BICOS DE AR SGT- 3311   PISTOLA DE AR CURTA - 100mm SGT-3312   PISTOLA DE AR LONGA - 300mm",
@@ -14445,9 +14445,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/sigmatools/sgt-3010a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3010a-s-e4faa9b67cd8.webp",
     "images": [
-      "/products/sigmatools/sgt-3010a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3010a-s-1d58b7827291.webp"
     ],
     "altText": "Pistola De Pintura SGT-3010A Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14477,9 +14477,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3010.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3010-si-6aeb1d7b7e48.webp",
     "images": [
-      "/products/sigmatools/sgt-3010.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3010-si-d3081a87f680.webp"
     ],
     "altText": "Pistola De Pintura SGT-3010 Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14509,9 +14509,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3011a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3011a-s-a8cffcac4070.webp",
     "images": [
-      "/products/sigmatools/sgt-3011a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3011a-s-b92f488d90b6.webp"
     ],
     "altText": "Pistola De Pintura SGT-3011A Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14541,9 +14541,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3011b.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3011b-s-e409b027f370.webp",
     "images": [
-      "/products/sigmatools/sgt-3011b.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3011b-s-3a85373c0ed9.webp"
     ],
     "altText": "Pistola De Pintura SGT-3011B Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14573,9 +14573,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3012a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3012a-s-d46394837e69.webp",
     "images": [
-      "/products/sigmatools/sgt-3012a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3012a-s-024f506c25f3.webp"
     ],
     "altText": "Pistola De Pintura SGT-3012A Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14605,9 +14605,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3710a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3710a-s-89524d90b0cc.webp",
     "images": [
-      "/products/sigmatools/sgt-3710a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3710a-s-7fe17a14e4d5.webp"
     ],
     "altText": "Pistola De Pintura SGT-3710A Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14637,9 +14637,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3710.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3710-si-941baf287eeb.webp",
     "images": [
-      "/products/sigmatools/sgt-3710.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3710-si-b3d2ff0a265d.webp"
     ],
     "altText": "Pistola De Pintura SGT-3710 Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14669,9 +14669,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3013b.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3013b-s-4f515d2ff6de.webp",
     "images": [
-      "/products/sigmatools/sgt-3013b.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3013b-s-66f18f87ef65.webp"
     ],
     "altText": "Pistola De Pintura SGT-3013B Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14701,9 +14701,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3013.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3013-si-74ff31bc4501.webp",
     "images": [
-      "/products/sigmatools/sgt-3013.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3013-si-f489faab6a32.webp"
     ],
     "altText": "Pistola De Pintura SGT-3013 Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14733,9 +14733,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3811.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3811-si-3240475bedaa.webp",
     "images": [
-      "/products/sigmatools/sgt-3811.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistola-de-pintura-sgt-3811-si-8b04d2cea03d.webp"
     ],
     "altText": "Pistola De Pintura SGT-3811 Sigma Tools Athena Soluções Automotivas",
     "description": "KIT BICO/CAPA/AGULHA 1.0mm CANECA PARA PISTOLA DE PINTURA 125ml - ROSCA FÊMEA",
@@ -14765,9 +14765,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3815.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3815-sigma-tool-2021e677d368.webp",
     "images": [
-      "/products/sigmatools/sgt-3815.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3815-sigma-tool-aaa066cf8a74.webp"
     ],
     "altText": "Ferramenta SGT-3815 Sigma Tools Athena Soluções Automotivas",
     "description": "MATERIAL DO BICO E AGULHA KIT BICO/CAPA/AGULHA 1,3mm CANECA PARA PISTOLA DE",
@@ -14797,9 +14797,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3820.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3820-sigma-tool-fe500568d8ec.webp",
     "images": [
-      "/products/sigmatools/sgt-3820.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3820-sigma-tool-4991ada4fa14.webp"
     ],
     "altText": "Ferramenta SGT-3820 Sigma Tools Athena Soluções Automotivas",
     "description": "MATERIAL DO BICO E AGULHA KIT BICO/CAPA/AGULHA 1,3mm CANECA PARA PISTOLA DE",
@@ -14829,9 +14829,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3290.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3290-sigma-tool-75813c01d53d.webp",
     "images": [
-      "/products/sigmatools/sgt-3290.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3290-sigma-tool-916dd9def9a1.webp"
     ],
     "altText": "Ferramenta SGT-3290 Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO KIT BICO/CAPA/AGULHA 1.8mm KIT BICO/CAPA/AGULHA 1.8mm",
@@ -14861,9 +14861,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3201.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3201-sigma-tool-c5c89fa7f5d0.webp",
     "images": [
-      "/products/sigmatools/sgt-3201.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3201-sigma-tool-92669a0f7597.webp"
     ],
     "altText": "Ferramenta SGT-3201 Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO KIT BICO/CAPA/AGULHA 1.8mm KIT BICO/CAPA/AGULHA 1.8mm",
@@ -14893,9 +14893,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3202.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3202-sigma-tool-2139cc42701a.webp",
     "images": [
-      "/products/sigmatools/sgt-3202.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3202-sigma-tool-71dfa3a75960.webp"
     ],
     "altText": "Ferramenta SGT-3202 Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO KIT BICO/CAPA/AGULHA 1.8mm KIT BICO/CAPA/AGULHA 1.8mm",
@@ -14925,9 +14925,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3203.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3203-sigma-tool-698a020bd795.webp",
     "images": [
-      "/products/sigmatools/sgt-3203.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3203-sigma-tool-38b26beae967.webp"
     ],
     "altText": "Ferramenta SGT-3203 Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO KIT BICO/CAPA/AGULHA 1.8mm KIT BICO/CAPA/AGULHA 1.8mm",
@@ -14957,9 +14957,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3112a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3112a-sigma-too-3e3f2d41fbbf.webp",
     "images": [
-      "/products/sigmatools/sgt-3112a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3112a-sigma-too-da8204ba6be3.webp"
     ],
     "altText": "Ferramenta SGT-3112A Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO KIT BICO/CAPA/AGULHA 1.8mm KIT BICO/CAPA/AGULHA 1.8mm",
@@ -14989,9 +14989,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3113a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3113a-sigma-too-34f3ce61145b.webp",
     "images": [
-      "/products/sigmatools/sgt-3113a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3113a-sigma-too-aab694c16376.webp"
     ],
     "altText": "Ferramenta SGT-3113A Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO KIT BICO/CAPA/AGULHA 1.8mm KIT BICO/CAPA/AGULHA 1.8mm",
@@ -15021,9 +15021,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3210a.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3210a-sigma-too-59914ac4d181.webp",
     "images": [
-      "/products/sigmatools/sgt-3210a.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3210a-sigma-too-00d757006d4e.webp"
     ],
     "altText": "Ferramenta SGT-3210A Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO KIT BICO/CAPA/AGULHA 1.8mm KIT BICO/CAPA/AGULHA 1.8mm",
@@ -15053,9 +15053,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3410.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3410-sigma-tool-5086898975de.webp",
     "images": [
-      "/products/sigmatools/sgt-3410.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3410-sigma-tool-e2331bcb7b17.webp"
     ],
     "altText": "Ferramenta SGT-3410 Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO KIT BICO/CAPA/AGULHA 1.8mm KIT BICO/CAPA/AGULHA 1.8mm",
@@ -15085,9 +15085,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3860.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3860-sigma-tool-dd866b0b92f1.webp",
     "images": [
-      "/products/sigmatools/sgt-3860.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3860-sigma-tool-6e77d07321cb.webp"
     ],
     "altText": "Ferramenta SGT-3860 Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO TANQUE DE PINTURA COM MANGUEIRA E COM PISTOLA",
@@ -15113,9 +15113,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3861.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3861-sigma-tool-9f3a25484c04.webp",
     "images": [
-      "/products/sigmatools/sgt-3861.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3861-sigma-tool-41e2f0cd5b61.webp"
     ],
     "altText": "Ferramenta SGT-3861 Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO TANQUE DE PINTURA COM MANGUEIRA E COM PISTOLA",
@@ -15141,9 +15141,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3601-cmp.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3601-cmp-sigma--54d1a1afeea4.webp",
     "images": [
-      "/products/sigmatools/sgt-3601-cmp.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3601-cmp-sigma--00052967adb5.webp"
     ],
     "altText": "Ferramenta SGT-3601-CMP Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO TANQUE DE PINTURA COM MANGUEIRA E COM PISTOLA",
@@ -15169,9 +15169,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3204.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3204-sigma-tool-98d4a6d27087.webp",
     "images": [
-      "/products/sigmatools/sgt-3204.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3204-sigma-tool-96f030c3a82c.webp"
     ],
     "altText": "Ferramenta SGT-3204 Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO TANQUE DE PINTURA COM MANGUEIRA E COM PISTOLA",
@@ -15197,9 +15197,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3601.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3601-sigma-tool-3fba7999fe61.webp",
     "images": [
-      "/products/sigmatools/sgt-3601.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-3601-sigma-tool-8ef2fe4872d8.webp"
     ],
     "altText": "Ferramenta SGT-3601 Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE PINTURA - SUCÇÃO TANQUE DE PINTURA COM MANGUEIRA E COM PISTOLA",
@@ -15225,9 +15225,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-6050.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-eletricas-pulverizado-7b28fb5a2203.webp",
     "images": [
-      "/products/sigmatools/sgt-6050.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-eletricas-pulverizado-0e95b30640a3.webp"
     ],
     "altText": "Pistolas Elétricas Pulverizadoras Para Pintura SGT-6050 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES DA PISTOLA (C x L x A) DIMENSÕES DA PISTOLA (C x L x A)",
@@ -15257,9 +15257,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-6051.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-eletricas-pulverizado-b37cef2d20d8.webp",
     "images": [
-      "/products/sigmatools/sgt-6051.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-eletricas-pulverizado-1a1dec441659.webp"
     ],
     "altText": "Pistolas Elétricas Pulverizadoras Para Pintura SGT-6051 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES DA PISTOLA (C x L x A) DIMENSÕES DA PISTOLA (C x L x A)",
@@ -15289,9 +15289,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3850.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-eletricas-pulverizado-a650d19fe556.webp",
     "images": [
-      "/products/sigmatools/sgt-3850.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-eletricas-pulverizado-a9c672882db8.webp"
     ],
     "altText": "Pistolas Elétricas Pulverizadoras Para Pintura SGT-3850 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES DA PISTOLA (C x L x A) DIMENSÕES DA PISTOLA (C x L x A)",
@@ -15321,9 +15321,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3851.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-eletricas-pulverizado-825ae2d3c349.webp",
     "images": [
-      "/products/sigmatools/sgt-3851.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/pistolas-eletricas-pulverizado-f8fc1eed34f5.webp"
     ],
     "altText": "Pistolas Elétricas Pulverizadoras Para Pintura SGT-3851 Sigma Tools Athena Soluções Automotivas",
     "description": "DIMENSÕES DA PISTOLA (C x L x A) DIMENSÕES DA PISTOLA (C x L x A)",
@@ -15353,9 +15353,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5802.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5802-sigma-tool-9e6c542a3c58.webp",
     "images": [
-      "/products/sigmatools/sgt-5802.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5802-sigma-tool-2eecabe224d7.webp"
     ],
     "altText": "Ferramenta SGT-5802 Sigma Tools Athena Soluções Automotivas",
     "description": "MARTELETES ROMPEDORES, PERFURADORES E DEMOLIDORES 1 Medidor de Profundidade 1 Medidor de Profundidade",
@@ -15385,9 +15385,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5803.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5803-sigma-tool-a7e486f6e357.webp",
     "images": [
-      "/products/sigmatools/sgt-5803.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5803-sigma-tool-d4c71e4c2331.webp"
     ],
     "altText": "Ferramenta SGT-5803 Sigma Tools Athena Soluções Automotivas",
     "description": "MARTELETES ROMPEDORES, PERFURADORES E DEMOLIDORES 1 Medidor de Profundidade 1 Medidor de Profundidade",
@@ -15417,9 +15417,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5805.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5805-sigma-tool-188c8c734f46.webp",
     "images": [
-      "/products/sigmatools/sgt-5805.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5805-sigma-tool-37143bf8c2d2.webp"
     ],
     "altText": "Ferramenta SGT-5805 Sigma Tools Athena Soluções Automotivas",
     "description": "MARTELETES ROMPEDORES, PERFURADORES E DEMOLIDORES 1 Medidor de Profundidade 1 Medidor de Profundidade",
@@ -15449,9 +15449,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5804.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5804-sigma-tool-30f03a7a0a1b.webp",
     "images": [
-      "/products/sigmatools/sgt-5804.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5804-sigma-tool-2cae7b09ccb7.webp"
     ],
     "altText": "Ferramenta SGT-5804 Sigma Tools Athena Soluções Automotivas",
     "description": "MARTELETES ROMPEDORES, PERFURADORES E DEMOLIDORES 1 Medidor de Profundidade 1 Medidor de Profundidade",
@@ -15481,9 +15481,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/sigmatools/sgt-6001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/maquinas-de-pintura-airless-sg-7cd881d284bd.webp",
     "images": [
-      "/products/sigmatools/sgt-6001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/maquinas-de-pintura-airless-sg-ab8bcde6c1ee.webp"
     ],
     "altText": "Máquinas De Pintura Airless SGT-6001 Sigma Tools Athena Soluções Automotivas",
     "description": "MÁQUINAS DE PINTURA AIRLESS APLICABILIDADE POR TIPO DE TINTA COMPRIMENTO DA MANGUEIRA",
@@ -15513,9 +15513,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-6008.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/maquinas-de-pintura-airless-sg-52abe1e19adc.webp",
     "images": [
-      "/products/sigmatools/sgt-6008.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/maquinas-de-pintura-airless-sg-18f6d8f3c005.webp"
     ],
     "altText": "Máquinas De Pintura Airless SGT-6008 Sigma Tools Athena Soluções Automotivas",
     "description": "MÁQUINAS DE PINTURA AIRLESS APLICABILIDADE POR TIPO DE TINTA COMPRIMENTO DA MANGUEIRA",
@@ -15545,9 +15545,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-6009.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/maquinas-de-pintura-airless-sg-7c0da27a55af.webp",
     "images": [
-      "/products/sigmatools/sgt-6009.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/maquinas-de-pintura-airless-sg-6848b4395ce2.webp"
     ],
     "altText": "Máquinas De Pintura Airless SGT-6009 Sigma Tools Athena Soluções Automotivas",
     "description": "MÁQUINAS DE PINTURA AIRLESS APLICABILIDADE POR TIPO DE TINTA COMPRIMENTO DA MANGUEIRA",
@@ -15577,9 +15577,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3415.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/acessorios-para-maquinas-de-pi-80c1ff74b974.webp",
     "images": [
-      "/products/sigmatools/sgt-3415.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/acessorios-para-maquinas-de-pi-eeb07b295e4a.webp"
     ],
     "altText": "Acessórios Para Máquinas De Pintura Airless SGT-3415 Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS PARA MÁQUINAS DE PINTURA AIRLESS PISTOLA PROJETORA DE TEXTURA BICO AIRLESS 211 - 1,1mm - LEQUE 10-15cm",
@@ -15609,9 +15609,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-6002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/acessorios-para-maquinas-de-pi-cc53cce5512c.webp",
     "images": [
-      "/products/sigmatools/sgt-6002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/acessorios-para-maquinas-de-pi-46259427252c.webp"
     ],
     "altText": "Acessórios Para Máquinas De Pintura Airless SGT-6002 Sigma Tools Athena Soluções Automotivas",
     "description": "ACESSÓRIOS PARA MÁQUINAS DE PINTURA AIRLESS PISTOLA PROJETORA DE TEXTURA BICO AIRLESS 211 - 1,1mm - LEQUE 10-15cm",
@@ -15641,9 +15641,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4301.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-4301-sigma-tool-225ac2d30eed.webp",
     "images": [
-      "/products/sigmatools/sgt-4301.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-4301-sigma-tool-7838c1f9a682.webp"
     ],
     "altText": "Lixadeiras SGT-4301 Sigma Tools Athena Soluções Automotivas",
     "description": "DESEMPENADEIRA MANUAL Pode ser ajustado sem o auxílio de ferramentas. Botão Liga/Desliga com proteção contra poeira e",
@@ -15673,9 +15673,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4305.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-4305-sigma-tool-3dce0a96717d.webp",
     "images": [
-      "/products/sigmatools/sgt-4305.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/lixadeiras-sgt-4305-sigma-tool-a5edd3e7ecc3.webp"
     ],
     "altText": "Lixadeiras SGT-4305 Sigma Tools Athena Soluções Automotivas",
     "description": "DESEMPENADEIRA MANUAL Pode ser ajustado sem o auxílio de ferramentas. Botão Liga/Desliga com proteção contra poeira e",
@@ -15705,9 +15705,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5900.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5900-sigma-tool-6cfc479e041a.webp",
     "images": [
-      "/products/sigmatools/sgt-5900.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5900-sigma-tool-70008664308e.webp"
     ],
     "altText": "Ferramenta SGT-5900 Sigma Tools Athena Soluções Automotivas",
     "description": "DESEMPENADEIRA ELÉTRICA PROF. E LARG. MÁX. DO CORTE PROFUNDIDADE. MÁX. DO CORTE",
@@ -15737,9 +15737,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-6100.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-6100-sigma-tool-6086c99b631b.webp",
     "images": [
-      "/products/sigmatools/sgt-6100.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-6100-sigma-tool-051beca27f06.webp"
     ],
     "altText": "Ferramenta SGT-6100 Sigma Tools Athena Soluções Automotivas",
     "description": "DESEMPENADEIRA ELÉTRICA PROF. E LARG. MÁX. DO CORTE PROFUNDIDADE. MÁX. DO CORTE",
@@ -15769,9 +15769,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-6105.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-6105-sigma-tool-364c86c9080e.webp",
     "images": [
-      "/products/sigmatools/sgt-6105.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-6105-sigma-tool-b545911372c6.webp"
     ],
     "altText": "Ferramenta SGT-6105 Sigma Tools Athena Soluções Automotivas",
     "description": "DESEMPENADEIRA ELÉTRICA PROF. E LARG. MÁX. DO CORTE PROFUNDIDADE. MÁX. DO CORTE",
@@ -15801,9 +15801,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-6110.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-6110-sigma-tool-510d53a48deb.webp",
     "images": [
-      "/products/sigmatools/sgt-6110.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-6110-sigma-tool-2489f95a2a5f.webp"
     ],
     "altText": "Ferramenta SGT-6110 Sigma Tools Athena Soluções Automotivas",
     "description": "DESEMPENADEIRA ELÉTRICA PROF. E LARG. MÁX. DO CORTE PROFUNDIDADE. MÁX. DO CORTE",
@@ -15833,9 +15833,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8650.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-8650-sigma-tool-28d5bf002460.webp",
     "images": [
-      "/products/sigmatools/sgt-8650.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-8650-sigma-tool-9ae0b4ce0121.webp"
     ],
     "altText": "Ferramenta SGT-8650 Sigma Tools Athena Soluções Automotivas",
     "description": "PASSA FIOS - 30 METROS • ACIONAMENTO DA PARADA AUTOMÁTICA • ALÇA COM GANCHO PARA",
@@ -15865,9 +15865,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-6115.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-6115-sigma-tool-6642db2b8484.webp",
     "images": [
-      "/products/sigmatools/sgt-6115.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-6115-sigma-tool-e247d1799a86.webp"
     ],
     "altText": "Ferramenta SGT-6115 Sigma Tools Athena Soluções Automotivas",
     "description": "PASSA FIOS - 30 METROS • ACIONAMENTO DA PARADA AUTOMÁTICA • ALÇA COM GANCHO PARA",
@@ -15897,9 +15897,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5800-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5800-pro-sigma--b39f51f23408.webp",
     "images": [
-      "/products/sigmatools/sgt-5800-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5800-pro-sigma--12bf1a563d4d.webp"
     ],
     "altText": "Ferramenta SGT-5800-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "MARTELETES ROMPEDORES, PERFURADORES E DEMOLIDORES MISTURADOR ELÉTRICO DE ARGAMASSA E TINTAS 1 Ponteira 280 X 17mm.",
@@ -15929,9 +15929,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5801-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5801-pro-sigma--d0aeb205896c.webp",
     "images": [
-      "/products/sigmatools/sgt-5801-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5801-pro-sigma--a92a5e240a65.webp"
     ],
     "altText": "Ferramenta SGT-5801-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "MARTELETES ROMPEDORES, PERFURADORES E DEMOLIDORES MISTURADOR ELÉTRICO DE ARGAMASSA E TINTAS 1 Ponteira 280 X 17mm.",
@@ -15961,9 +15961,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5500-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5500-pro-sigma--d6deb23726e1.webp",
     "images": [
-      "/products/sigmatools/sgt-5500-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5500-pro-sigma--6132d2f9d129.webp"
     ],
     "altText": "Ferramenta SGT-5500-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "MARTELETES ROMPEDORES, PERFURADORES E DEMOLIDORES MISTURADOR ELÉTRICO DE ARGAMASSA E TINTAS 1 Ponteira 280 X 17mm.",
@@ -15993,9 +15993,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1009.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/calafetadores-pneumaticos-sgt--f6678a039687.webp",
     "images": [
-      "/products/sigmatools/sgt-1009.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/calafetadores-pneumaticos-sgt--cab639a78af2.webp"
     ],
     "altText": "Calafetadores Pneumáticos SGT-1009 Sigma Tools Athena Soluções Automotivas",
     "description": "CALAFETADORES PNEUMÁTICOS CALAFETADORES À BATERIA CAPACIDADE DO CARTUCHO",
@@ -16025,9 +16025,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1013.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/calafetadores-pneumaticos-sgt--3e8a82498804.webp",
     "images": [
-      "/products/sigmatools/sgt-1013.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/calafetadores-pneumaticos-sgt--9bdc5a338a42.webp"
     ],
     "altText": "Calafetadores Pneumáticos SGT-1013 Sigma Tools Athena Soluções Automotivas",
     "description": "CALAFETADORES PNEUMÁTICOS CALAFETADORES À BATERIA CAPACIDADE DO CARTUCHO",
@@ -16057,9 +16057,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/calafetadores-pneumaticos-sgt--fb679373c4fd.webp",
     "images": [
-      "/products/sigmatools/sgt-8002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/calafetadores-pneumaticos-sgt--4e48cd2d8809.webp"
     ],
     "altText": "Calafetadores Pneumáticos SGT-8002 Sigma Tools Athena Soluções Automotivas",
     "description": "CALAFETADORES PNEUMÁTICOS CALAFETADORES À BATERIA CAPACIDADE DO CARTUCHO",
@@ -16089,9 +16089,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-8001.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/calafetadores-pneumaticos-sgt--6991bef67ed9.webp",
     "images": [
-      "/products/sigmatools/sgt-8001.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/calafetadores-pneumaticos-sgt--96e37e3a4fcd.webp"
     ],
     "altText": "Calafetadores Pneumáticos SGT-8001 Sigma Tools Athena Soluções Automotivas",
     "description": "CALAFETADORES PNEUMÁTICOS CALAFETADORES À BATERIA CAPACIDADE DO CARTUCHO",
@@ -16121,9 +16121,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9820.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9820-sigma-tool-22d384712c88.webp",
     "images": [
-      "/products/sigmatools/sgt-9820.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9820-sigma-tool-7625745a4897.webp"
     ],
     "altText": "Ferramenta SGT-9820 Sigma Tools Athena Soluções Automotivas",
     "description": "DESCOLADOR DE PNEUS AGRÍCOLA/CAMINHÃO DESCOLADOR MANUAL PARA PNEUS",
@@ -16152,9 +16152,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9960.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9960-sigma-tool-fc49e6c54647.webp",
     "images": [
-      "/products/sigmatools/sgt-9960.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9960-sigma-tool-b18d6c269a18.webp"
     ],
     "altText": "Ferramenta SGT-9960 Sigma Tools Athena Soluções Automotivas",
     "description": "DESTALONADOR HIDRÁULICO DE PNEUS DESTALONADOR PNEUMÁTICO PARA PNEUS COMPRIMENTO APROXIMADO",
@@ -16184,9 +16184,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-1520.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1520-sigma-tool-310c2aa3d454.webp",
     "images": [
-      "/products/sigmatools/sgt-1520.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-1520-sigma-tool-a796d015e69d.webp"
     ],
     "altText": "Ferramenta SGT-1520 Sigma Tools Athena Soluções Automotivas",
     "description": "DESTALONADOR HIDRÁULICO DE PNEUS DESTALONADOR PNEUMÁTICO PARA PNEUS COMPRIMENTO APROXIMADO",
@@ -16216,9 +16216,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/sigmatools/sgt-2025.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-tipo-sanfona-sgt-2025--6c8c7907f938.webp",
     "images": [
-      "/products/sigmatools/sgt-2025.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-tipo-sanfona-sgt-2025--06a9bc671761.webp"
     ],
     "altText": "Macacos Tipo Sanfona SGT-2025 Sigma Tools Athena Soluções Automotivas",
     "description": "- Não sobrecarregue o macaco além da sua capacidade nominal. - Utilize o macaco sempre em locais firmes e em supefícies planas. ESPECIFICAÇÕES TÉCNICAS",
@@ -16248,9 +16248,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-2030.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-tipo-sanfona-sgt-2030--aac26b05f596.webp",
     "images": [
-      "/products/sigmatools/sgt-2030.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-tipo-sanfona-sgt-2030--ac6d7744705e.webp"
     ],
     "altText": "Macacos Tipo Sanfona SGT-2030 Sigma Tools Athena Soluções Automotivas",
     "description": "- Não sobrecarregue o macaco além da sua capacidade nominal. - Utilize o macaco sempre em locais firmes e em supefícies planas. ESPECIFICAÇÕES TÉCNICAS",
@@ -16280,9 +16280,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3035.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-pneumaticos-hidropneum-3afdf9003072.webp",
     "images": [
-      "/products/sigmatools/sgt-3035.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-pneumaticos-hidropneum-02b8434d2d27.webp"
     ],
     "altText": "Macacos Pneumáticos/Hidropneumáticos SGT-3035 Sigma Tools Athena Soluções Automotivas",
     "description": "MACACOS PNEUMÁTICOS/HIDROPNEUMÁTICOS ESPECIFICAÇÕES TÉCNICAS Rodinhas de nylon que não",
@@ -16310,9 +16310,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-3050.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-pneumaticos-hidropneum-ea2b53367e37.webp",
     "images": [
-      "/products/sigmatools/sgt-3050.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-pneumaticos-hidropneum-75d680787782.webp"
     ],
     "altText": "Macacos Pneumáticos/Hidropneumáticos SGT-3050 Sigma Tools Athena Soluções Automotivas",
     "description": "MACACOS PNEUMÁTICOS/HIDROPNEUMÁTICOS ESPECIFICAÇÕES TÉCNICAS Rodinhas de nylon que não",
@@ -16340,9 +16340,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": true,
-    "image": "/products/sigmatools/sgt-3040.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-pneumaticos-hidropneum-79ee42130837.webp",
     "images": [
-      "/products/sigmatools/sgt-3040.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/macacos-pneumaticos-hidropneum-19dd5fb66240.webp"
     ],
     "altText": "Macacos Pneumáticos/Hidropneumáticos SGT-3040 Sigma Tools Athena Soluções Automotivas",
     "description": "MACACOS PNEUMÁTICOS/HIDROPNEUMÁTICOS MACACO  E PRANCHA OFF-ROAD MACACO TIPO FARM JACK",
@@ -16369,9 +16369,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4150.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desparafusadeira-de-grampo-lon-3c3afb668fba.webp",
     "images": [
-      "/products/sigmatools/sgt-4150.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desparafusadeira-de-grampo-lon-115f225fd409.webp"
     ],
     "altText": "Desparafusadeira De Grampo Longa SGT-4150 Sigma Tools Athena Soluções Automotivas",
     "description": "DESPARAFUSADEIRA DE GRAMPO LONGA DESPARAFUSADEIRA DE GRAMPO CURTA UM PROFISSIONAL ESPECIALIZADO!",
@@ -16401,9 +16401,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4151.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desparafusadeira-de-grampo-lon-e504f5970f85.webp",
     "images": [
-      "/products/sigmatools/sgt-4151.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desparafusadeira-de-grampo-lon-f47d870151cc.webp"
     ],
     "altText": "Desparafusadeira De Grampo Longa SGT-4151 Sigma Tools Athena Soluções Automotivas",
     "description": "DESPARAFUSADEIRA DE GRAMPO LONGA DESPARAFUSADEIRA DE GRAMPO CURTA UM PROFISSIONAL ESPECIALIZADO!",
@@ -16433,9 +16433,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4150-01.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desparafusadeira-de-grampo-lon-da9e823ebf88.webp",
     "images": [
-      "/products/sigmatools/sgt-4150-01.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/desparafusadeira-de-grampo-lon-10cb6b553fe5.webp"
     ],
     "altText": "Desparafusadeira De Grampo Longa SGT-4150-01 Sigma Tools Athena Soluções Automotivas",
     "description": "DESPARAFUSADEIRA DE GRAMPO LONGA DESPARAFUSADEIRA DE GRAMPO CURTA UM PROFISSIONAL ESPECIALIZADO!",
@@ -16465,9 +16465,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4000.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4000-sigma-tool-2cdd0803cb08.webp",
     "images": [
-      "/products/sigmatools/sgt-4000.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4000-sigma-tool-18b50c89533e.webp"
     ],
     "altText": "Ferramenta SGT-4000 Sigma Tools Athena Soluções Automotivas",
     "description": "GRAXEIRAS / ENGRAXADEIRAS PROPULSORA PNEUMÁTICA PARA GRAXA - 12L ESPECIFICAÇÕES TÉCNICAS",
@@ -16497,9 +16497,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9903k.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9903k-sigma-too-69edcb86f3c2.webp",
     "images": [
-      "/products/sigmatools/sgt-9903k.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9903k-sigma-too-62b7ff5ac618.webp"
     ],
     "altText": "Ferramenta SGT-9903K Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS ESPECIAIS SGT-9903K - KIT DE FERRAMENTAS PARA RETORNAR ÊMBOLO DA",
@@ -16525,9 +16525,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-990402k.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-990402k-sigma-t-ceddad200d70.webp",
     "images": [
-      "/products/sigmatools/sgt-990402k.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-990402k-sigma-t-83dbb60ba2f1.webp"
     ],
     "altText": "Ferramenta SGT-990402K Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS ESPECIAIS SGT-9903K - KIT DE FERRAMENTAS PARA RETORNAR ÊMBOLO DA",
@@ -16553,9 +16553,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-990401.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-990401-sigma-to-93a1684964cd.webp",
     "images": [
-      "/products/sigmatools/sgt-990401.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-990401-sigma-to-407b18b15e21.webp"
     ],
     "altText": "Ferramenta SGT-990401 Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS ESPECIAIS SGT-9903K - KIT DE FERRAMENTAS PARA RETORNAR ÊMBOLO DA",
@@ -16581,9 +16581,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9812.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9812-sigma-tool-28631c100620.webp",
     "images": [
-      "/products/sigmatools/sgt-9812.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9812-sigma-tool-630d1481ac5a.webp"
     ],
     "altText": "Ferramenta SGT-9812 Sigma Tools Athena Soluções Automotivas",
     "description": "FERRAMENTAS ESPECIAIS SGT-9903K - KIT DE FERRAMENTAS PARA RETORNAR ÊMBOLO DA",
@@ -16609,9 +16609,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-kit57.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit57-sigma-too-39c3db63d147.webp",
     "images": [
-      "/products/sigmatools/sgt-kit57.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit57-sigma-too-acde95b18ff1.webp"
     ],
     "altText": "Ferramenta SGT-KIT57 Sigma Tools Athena Soluções Automotivas",
     "description": "ESTRIADOS 8mm à 32mm - 1/2” COMPLETO 1/4” - 3/8” - 1/2” SGT-KIT178 - 178 PEÇAS",
@@ -16641,9 +16641,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-kit94.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit94-sigma-too-9bcdd745df33.webp",
     "images": [
-      "/products/sigmatools/sgt-kit94.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit94-sigma-too-cde132237dc2.webp"
     ],
     "altText": "Ferramenta SGT-KIT94 Sigma Tools Athena Soluções Automotivas",
     "description": "ESTRIADOS 8mm à 32mm - 1/2” COMPLETO 1/4” - 3/8” - 1/2” SGT-KIT178 - 178 PEÇAS",
@@ -16673,9 +16673,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-kit22.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit22-sigma-too-a09d1c147dab.webp",
     "images": [
-      "/products/sigmatools/sgt-kit22.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit22-sigma-too-056bd5776186.webp"
     ],
     "altText": "Ferramenta SGT-KIT22 Sigma Tools Athena Soluções Automotivas",
     "description": "ESTRIADOS 8mm à 32mm - 1/2” COMPLETO 1/4” - 3/8” - 1/2” SGT-KIT178 - 178 PEÇAS",
@@ -16705,9 +16705,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-kit178.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit178-sigma-to-a6c9adabeb14.webp",
     "images": [
-      "/products/sigmatools/sgt-kit178.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit178-sigma-to-ec8b34ae69b4.webp"
     ],
     "altText": "Ferramenta SGT-KIT178 Sigma Tools Athena Soluções Automotivas",
     "description": "ESTRIADOS 8mm à 32mm - 1/2” COMPLETO 1/4” - 3/8” - 1/2” SGT-KIT178 - 178 PEÇAS",
@@ -16737,9 +16737,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-kit216.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit216-sigma-to-c492cbdc5380.webp",
     "images": [
-      "/products/sigmatools/sgt-kit216.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-kit216-sigma-to-eb2cd0c06128.webp"
     ],
     "altText": "Ferramenta SGT-KIT216 Sigma Tools Athena Soluções Automotivas",
     "description": "ESTRIADOS 8mm à 32mm - 1/2” COMPLETO 1/4” - 3/8” - 1/2” SGT-KIT178 - 178 PEÇAS",
@@ -16769,9 +16769,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-9002.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9002-sigma-tool-4b6e3c2ebc90.webp",
     "images": [
-      "/products/sigmatools/sgt-9002.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-9002-sigma-tool-302595d5dc25.webp"
     ],
     "altText": "Ferramenta SGT-9002 Sigma Tools Athena Soluções Automotivas",
     "description": "CARRETEL ENROLADOR MANGUEIRA DE AR HÍBRIDA - 8mm x 12mm REDE E SISTEMAS DE AR COMPRIMENTO DA MANGUEIRA",
@@ -16801,9 +16801,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-flex.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-flex-sigma-tool-a398a1625272.webp",
     "images": [
-      "/products/sigmatools/sgt-flex.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-flex-sigma-tool-9a315dcd7cc7.webp"
     ],
     "altText": "Ferramenta SGT-FLEX Sigma Tools Athena Soluções Automotivas",
     "description": "LINHA DE ENGATES E PINOS - MODELO EUROPEU CONECTORES DE AR / REGULADOR DE AR CONECTOR DE AR GIRATÓRIO",
@@ -16827,9 +16827,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4405-pro.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4405-pro-sigma--bb3b4734d365.webp",
     "images": [
-      "/products/sigmatools/sgt-4405-pro.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4405-pro-sigma--7b80bc41407d.webp"
     ],
     "altText": "Ferramenta SGT-4405-PRO Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-4405-PRO Sigma Tools.",
@@ -16856,9 +16856,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/mxt-5130.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5130-sigma-tool-364903a41cba.webp",
     "images": [
-      "/products/sigmatools/mxt-5130.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5130-sigma-tool-e9233d736824.webp"
     ],
     "altText": "Ferramenta MXT-5130 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo MXT-5130 Sigma Tools.",
@@ -16888,9 +16888,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/mxt-5131.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5131-sigma-tool-b67d3403782d.webp",
     "images": [
-      "/products/sigmatools/mxt-5131.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5131-sigma-tool-e8747faaa40a.webp"
     ],
     "altText": "Ferramenta MXT-5131 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo MXT-5131 Sigma Tools.",
@@ -16920,9 +16920,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/mxt-5135.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5135-sigma-tool-648ce59b8837.webp",
     "images": [
-      "/products/sigmatools/mxt-5135.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5135-sigma-tool-4b25dd67126d.webp"
     ],
     "altText": "Ferramenta MXT-5135 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo MXT-5135 Sigma Tools.",
@@ -16952,9 +16952,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/mxt-5138.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5138-sigma-tool-75fece4c0a47.webp",
     "images": [
-      "/products/sigmatools/mxt-5138.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5138-sigma-tool-3e80aa64c863.webp"
     ],
     "altText": "Ferramenta MXT-5138 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo MXT-5138 Sigma Tools.",
@@ -16984,9 +16984,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/mxt-5500.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5500-sigma-tool-2044bd2c0523.webp",
     "images": [
-      "/products/sigmatools/mxt-5500.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-mxt-5500-sigma-tool-2e51f482c85f.webp"
     ],
     "altText": "Ferramenta MXT-5500 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo MXT-5500 Sigma Tools.",
@@ -17016,9 +17016,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/pwr-4220.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-pwr-4220-sigma-tool-82e2a104b635.webp",
     "images": [
-      "/products/sigmatools/pwr-4220.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-pwr-4220-sigma-tool-bf1a7af1e0a8.webp"
     ],
     "altText": "Ferramenta PWR-4220 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo PWR-4220 Sigma Tools.",
@@ -17048,9 +17048,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5800.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5800-sigma-tool-48950e810715.webp",
     "images": [
-      "/products/sigmatools/sgt-5800.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5800-sigma-tool-d7852931393d.webp"
     ],
     "altText": "Ferramenta SGT-5800 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5800 Sigma Tools.",
@@ -17080,9 +17080,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4300.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4300-sigma-tool-7dfd1a4d1f29.webp",
     "images": [
-      "/products/sigmatools/sgt-4300.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4300-sigma-tool-e5b65d3df8ed.webp"
     ],
     "altText": "Ferramenta SGT-4300 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-4300 Sigma Tools.",
@@ -17112,9 +17112,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4322.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4322-sigma-tool-95712e29fd42.webp",
     "images": [
-      "/products/sigmatools/sgt-4322.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4322-sigma-tool-be5fe2e15d61.webp"
     ],
     "altText": "Ferramenta SGT-4322 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-4322 Sigma Tools.",
@@ -17144,9 +17144,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4400.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4400-sigma-tool-df4010aca18a.webp",
     "images": [
-      "/products/sigmatools/sgt-4400.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4400-sigma-tool-25127f338935.webp"
     ],
     "altText": "Ferramenta SGT-4400 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-4400 Sigma Tools.",
@@ -17176,9 +17176,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5119.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5119-sigma-tool-85fd361a536b.webp",
     "images": [
-      "/products/sigmatools/sgt-5119.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5119-sigma-tool-fd211d11ee78.webp"
     ],
     "altText": "Ferramenta SGT-5119 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5119 Sigma Tools.",
@@ -17208,9 +17208,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5500.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5500-sigma-tool-85fec13869a1.webp",
     "images": [
-      "/products/sigmatools/sgt-5500.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5500-sigma-tool-3a3d4cdcd131.webp"
     ],
     "altText": "Ferramenta SGT-5500 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5500 Sigma Tools.",
@@ -17240,9 +17240,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5200.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5200-sigma-tool-398e4012bd0f.webp",
     "images": [
-      "/products/sigmatools/sgt-5200.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5200-sigma-tool-db145b5ea256.webp"
     ],
     "altText": "Ferramenta SGT-5200 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5200 Sigma Tools.",
@@ -17272,9 +17272,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-4501.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4501-sigma-tool-31ea5f3b139c.webp",
     "images": [
-      "/products/sigmatools/sgt-4501.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-4501-sigma-tool-d92f5212a411.webp"
     ],
     "altText": "Ferramenta SGT-4501 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-4501 Sigma Tools.",
@@ -17304,9 +17304,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5801.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5801-sigma-tool-26ca064deb08.webp",
     "images": [
-      "/products/sigmatools/sgt-5801.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5801-sigma-tool-2d555381a4a1.webp"
     ],
     "altText": "Ferramenta SGT-5801 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5801 Sigma Tools.",
@@ -17336,9 +17336,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5125.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5125-sigma-tool-2deed443cf1a.webp",
     "images": [
-      "/products/sigmatools/sgt-5125.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5125-sigma-tool-f814a12e984f.webp"
     ],
     "altText": "Ferramenta SGT-5125 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5125 Sigma Tools.",
@@ -17368,9 +17368,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5600.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5600-sigma-tool-0b884f079ad6.webp",
     "images": [
-      "/products/sigmatools/sgt-5600.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5600-sigma-tool-480bf981676c.webp"
     ],
     "altText": "Ferramenta SGT-5600 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5600 Sigma Tools.",
@@ -17400,9 +17400,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5602.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5602-sigma-tool-a6899bce4ab1.webp",
     "images": [
-      "/products/sigmatools/sgt-5602.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5602-sigma-tool-f6bc867c50a8.webp"
     ],
     "altText": "Ferramenta SGT-5602 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5602 Sigma Tools.",
@@ -17432,9 +17432,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5100.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5100-sigma-tool-5b8fd0d8fe40.webp",
     "images": [
-      "/products/sigmatools/sgt-5100.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5100-sigma-tool-32438545a744.webp"
     ],
     "altText": "Ferramenta SGT-5100 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5100 Sigma Tools.",
@@ -17464,9 +17464,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5101.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5101-sigma-tool-751a9f942dd0.webp",
     "images": [
-      "/products/sigmatools/sgt-5101.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5101-sigma-tool-e238c7be026f.webp"
     ],
     "altText": "Ferramenta SGT-5101 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5101 Sigma Tools.",
@@ -17496,9 +17496,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5105.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5105-sigma-tool-c33acab1bbdc.webp",
     "images": [
-      "/products/sigmatools/sgt-5105.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5105-sigma-tool-ac70ebc087f4.webp"
     ],
     "altText": "Ferramenta SGT-5105 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5105 Sigma Tools.",
@@ -17528,9 +17528,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5104.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5104-sigma-tool-9a4a7868205f.webp",
     "images": [
-      "/products/sigmatools/sgt-5104.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5104-sigma-tool-99368d530a26.webp"
     ],
     "altText": "Ferramenta SGT-5104 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5104 Sigma Tools.",
@@ -17560,9 +17560,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5110.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5110-sigma-tool-146f5be6b478.webp",
     "images": [
-      "/products/sigmatools/sgt-5110.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5110-sigma-tool-fa720cec146d.webp"
     ],
     "altText": "Ferramenta SGT-5110 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5110 Sigma Tools.",
@@ -17592,9 +17592,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5111.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5111-sigma-tool-5318189ed59d.webp",
     "images": [
-      "/products/sigmatools/sgt-5111.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5111-sigma-tool-a51a03922910.webp"
     ],
     "altText": "Ferramenta SGT-5111 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5111 Sigma Tools.",
@@ -17624,9 +17624,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5113.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5113-sigma-tool-b363de9a12ee.webp",
     "images": [
-      "/products/sigmatools/sgt-5113.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5113-sigma-tool-a44475f79fdb.webp"
     ],
     "altText": "Ferramenta SGT-5113 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5113 Sigma Tools.",
@@ -17656,9 +17656,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5115.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5115-sigma-tool-8ad2569ae003.webp",
     "images": [
-      "/products/sigmatools/sgt-5115.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5115-sigma-tool-3c30bb573a10.webp"
     ],
     "altText": "Ferramenta SGT-5115 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5115 Sigma Tools.",
@@ -17688,9 +17688,9 @@ export const INITIAL_PRODUCTS = [
     "badge": "Sigma Pro",
     "status": "published",
     "isFeatured": false,
-    "image": "/products/sigmatools/sgt-5121.jpg",
+    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5121-sigma-tool-f8d5afd09829.webp",
     "images": [
-      "/products/sigmatools/sgt-5121.jpg"
+      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/ferramenta-sgt-5121-sigma-tool-c1506c9ee173.webp"
     ],
     "altText": "Ferramenta SGT-5121 Sigma Tools Athena Soluções Automotivas",
     "description": "Ferramenta profissional e equipamento industrial modelo SGT-5121 Sigma Tools.",
