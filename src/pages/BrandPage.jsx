@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ProductCard from '../components/ProductCard';
+import Pagination from '../components/Pagination';
 import NotFoundPage from './NotFoundPage';
-import { Tag, ArrowLeft, Layers, ShieldCheck, ExternalLink, Globe } from 'lucide-react';
+import { Tag, ArrowLeft, Layers, ExternalLink, Globe, Search, LayoutGrid, List, SlidersHorizontal, Package } from 'lucide-react';
 
 export default function BrandPage({
   brandId,
-  brands,
-  products,
-  categories,
+  brands = [],
+  products = [],
+  categories = [],
   onSelectProduct,
   isAdmin,
   onEditProduct,
@@ -16,7 +17,18 @@ export default function BrandPage({
   comparisonList,
   onToggleComparison
 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [sortBy, setSortBy] = useState('featured');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+
   const brand = brands.find((b) => b.id === brandId || b.slug === brandId);
+
+  // Reset to page 1 when brand, search or sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [brandId, searchTerm, sortBy, itemsPerPage]);
 
   if (!brand) {
     return (
@@ -27,7 +39,52 @@ export default function BrandPage({
     );
   }
 
-  const brandProducts = products.filter((p) => p.brandId === brand.id && p.status !== 'draft');
+  const normalizeText = (text) => {
+    if (!text) return '';
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  };
+
+  const rawBrandProducts = (products || []).filter((p) => p.brandId === brand.id && p.status !== 'draft');
+
+  // Filter products by search term inside brand
+  const filteredProducts = rawBrandProducts.filter((prod) => {
+    const term = normalizeText(searchTerm);
+    if (!term) return true;
+
+    const category = categories.find((c) => c.id === prod.categoryId);
+    return (
+      normalizeText(prod.name).includes(term) ||
+      normalizeText(prod.description).includes(term) ||
+      normalizeText(prod.badge).includes(term) ||
+      (category && normalizeText(category.name).includes(term)) ||
+      (prod.specs && prod.specs.some((s) => normalizeText(s).includes(term)))
+    );
+  });
+
+  // Sort products
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (sortBy === 'featured') {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return 0;
+    }
+    if (sortBy === 'price-low') return (a.price || 0) - (b.price || 0);
+    if (sortBy === 'price-high') return (b.price || 0) - (a.price || 0);
+    if (sortBy === 'name-az') return (a.name || '').localeCompare(b.name || '');
+    return 0;
+  });
+
+  // Pagination calculation
+  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
+  const paginatedProducts = sortedProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const goToPage = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 200, behavior: 'smooth' });
+  };
 
   return (
     <div className="py-10">
@@ -84,7 +141,7 @@ export default function BrandPage({
           </div>
 
           <div className="flex flex-col sm:flex-row md:flex-col items-center gap-3 shrink-0">
-            {/* Partner Website Button (If websiteUrl is present) */}
+            {/* Partner Website Button */}
             {brand.websiteUrl && (
               <a
                 href={brand.websiteUrl}
@@ -100,7 +157,7 @@ export default function BrandPage({
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center w-full min-w-[160px]">
               <span className="text-2xl font-extrabold text-sky-700 font-display block">
-                {brandProducts.length}
+                {rawBrandProducts.length}
               </span>
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mt-0.5">
                 Equipamento(s)
@@ -109,40 +166,140 @@ export default function BrandPage({
           </div>
         </div>
 
-        {/* Brand Product Grid */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-            Equipamentos da Marca {brand.name}
-          </h2>
-
-          {brandProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {brandProducts.map((product) => {
-                const category = categories.find((c) => c.id === product.categoryId);
-                return (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    category={category}
-                    brand={brand}
-                    onSelectProduct={onSelectProduct}
-                    isAdmin={isAdmin}
-                    onEditProduct={onEditProduct}
-                    onDeleteProduct={onDeleteProduct}
-                    isInComparison={comparisonList?.some((p) => p.id === product.id)}
-                    onToggleComparison={onToggleComparison}
-                  />
-                );
-              })}
+        {/* Brand Product Grid Header & Controls */}
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+            <div>
+              <h2 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                Equipamentos {brand.name}
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                  {sortedProducts.length} encontrados
+                </span>
+              </h2>
             </div>
+
+            {/* Filter / Search / Sort Controls */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Mini Search inside Brand */}
+              <div className="relative min-w-[180px] sm:min-w-[220px]">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={`Buscar em ${brand.name}...`}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-1 focus:ring-amber-500 outline-none"
+                />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">Ordenar:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value="featured">Destaques</option>
+                  <option value="name-az">Nome (A-Z)</option>
+                  <option value="price-low">Menor Preço</option>
+                  <option value="price-high">Maior Preço</option>
+                </select>
+              </div>
+
+              {/* Items Per Page */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">Exibir:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                  className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 outline-none focus:ring-1 focus:ring-amber-500"
+                >
+                  <option value={12}>12 por pág.</option>
+                  <option value={24}>24 por pág.</option>
+                  <option value={48}>48 por pág.</option>
+                </select>
+              </div>
+
+              {/* Grid / List View Toggle */}
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
+                  title="Visualização em Grade"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
+                  title="Visualização em Lista"
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Product Grid / List */}
+          {paginatedProducts.length > 0 ? (
+            <>
+              <div className={
+                viewMode === 'grid'
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                  : "flex flex-col space-y-4"
+              }>
+                {paginatedProducts.map((product) => {
+                  const category = categories.find((c) => c.id === product.categoryId);
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      category={category}
+                      brand={brand}
+                      onSelectProduct={onSelectProduct}
+                      isAdmin={isAdmin}
+                      onEditProduct={onEditProduct}
+                      onDeleteProduct={onDeleteProduct}
+                      isInComparison={comparisonList?.some((p) => p.id === product.id)}
+                      onToggleComparison={onToggleComparison}
+                      viewMode={viewMode}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={sortedProducts.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={goToPage}
+                itemName={`equipamentos ${brand.name}`}
+              />
+            </>
           ) : (
             <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                <Package className="w-6 h-6" />
+              </div>
               <p className="text-sm font-semibold text-slate-600">
-                Nenhum equipamento cadastrado para a marca {brand.name} no momento.
+                {searchTerm 
+                  ? `Nenhum equipamento da marca ${brand.name} corresponde à busca "${searchTerm}".`
+                  : `Nenhum equipamento cadastrado para a marca ${brand.name} no momento.`}
               </p>
-              <button onClick={() => onNavigate('catalog')} className="btn-gold text-xs">
-                Ver todo o catálogo
-              </button>
+              {searchTerm ? (
+                <button onClick={() => setSearchTerm('')} className="btn-secondary text-xs">
+                  Limpar Busca
+                </button>
+              ) : (
+                <button onClick={() => onNavigate('catalog')} className="btn-gold text-xs">
+                  Ver todo o catálogo
+                </button>
+              )}
             </div>
           )}
         </div>
