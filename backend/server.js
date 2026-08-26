@@ -17,6 +17,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'data', 'athena-db.json');
 
+// Enable trust proxy for Render / Cloudflare / Heroku load balancers
+app.set('trust proxy', 1);
+
 // -------------------------------------------------------------
 // OWASP SECURITY HARDENING & RATE LIMITING MIDDLEWARES
 // -------------------------------------------------------------
@@ -31,6 +34,7 @@ const apiLimiter = rateLimit({
   max: 300, // 300 requests per 15 minutes per IP
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   message: { error: 'Muitas requisições originadas deste IP. Por favor, aguarde alguns minutos.' }
 });
 
@@ -40,6 +44,7 @@ const loginLimiter = rateLimit({
   max: 10, // Max 10 failed login attempts per 15 min per IP
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
   message: { error: 'Muitas tentativas de login incorretas. Acesso bloqueado por 15 minutos por segurança contra ataques de força bruta.' }
 });
 

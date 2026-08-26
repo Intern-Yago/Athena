@@ -64,7 +64,9 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
 
   // If it's an image, convert to WebP using Sharp
   if (!isPdf) {
+    const originalSizeKb = (buffer.length / 1024).toFixed(1);
     try {
+      console.log(`[Sharp Engine] Processando imagem (${originalSizeKb} KB)... Convertendo para WebP (máx. 1200x1200px)...`);
       finalBuffer = await sharp(buffer)
         .resize(1200, 1200, {
           fit: 'inside',
@@ -73,10 +75,14 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
         .webp({ quality: 82, effort: 4 })
         .toBuffer();
       finalContentType = 'image/webp';
+      const newSizeKb = (finalBuffer.length / 1024).toFixed(1);
+      const reduction = (((buffer.length - finalBuffer.length) / buffer.length) * 100).toFixed(1);
+      console.log(`[Sharp Engine] Sucesso: ${originalSizeKb} KB -> ${newSizeKb} KB (Economia de ${reduction}% em WebP)`);
     } catch (sharpError) {
-      console.warn('Aviso Sharp ao converter imagem:', sharpError.message);
-      // If sharp fails (e.g. invalid image format), upload original buffer
+      console.warn('[Sharp Engine] Falha ao converter imagem, mantendo buffer original:', sharpError.message);
     }
+  } else {
+    console.log(`[Storage] Processando documento PDF (${(buffer.length / 1024).toFixed(1)} KB)...`);
   }
 
   // Generate clean unique key
