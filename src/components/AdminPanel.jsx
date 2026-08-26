@@ -2322,16 +2322,30 @@ export default function AdminPanel({
 
                                       <button
                                         type="button"
-                                        onClick={() => {
+                                        onClick={async () => {
                                           const remainingImages = allImages.filter(img => img !== imgUrl);
                                           setProductForm({
                                             ...productForm,
                                             image: isCover ? (remainingImages[0] || '') : productForm.image,
                                             images: remainingImages
                                           });
+
+                                          // Exclui automaticamente a imagem do Cloudflare R2 / Storage em segundo plano
+                                          if (imgUrl && (imgUrl.includes('.r2.dev') || imgUrl.includes('.r2.cloudflarestorage.com') || imgUrl.includes('cloudinary.com'))) {
+                                            try {
+                                              const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+                                              fetch(`${apiUrl}/upload/delete`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ url: imgUrl })
+                                              }).catch(() => {});
+                                            } catch (err) {
+                                              // Ignora falha de rede sem travar a interface
+                                            }
+                                          }
                                         }}
                                         className="text-red-600 hover:text-red-800 font-bold ml-auto"
-                                        title="Remover esta foto"
+                                        title="Remover esta foto e apagar do storage"
                                       >
                                         Excluir
                                       </button>

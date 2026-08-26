@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const cloudinary = require('cloudinary').v2;
 const swaggerUi = require('swagger-ui-express');
 const basicAuth = require('express-basic-auth');
-const { isR2Configured, uploadToR2 } = require('./r2Service');
+const { isR2Configured, uploadToR2, deleteFromR2 } = require('./r2Service');
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -349,6 +349,39 @@ app.post('/api/upload', async (req, res) => {
   } catch (error) {
     console.error('Erro no upload de imagem:', error);
     return res.status(500).json({ error: 'Erro ao fazer upload da imagem/arquivo para a nuvem.' });
+  }
+});
+
+// Endpoint para excluir imagem do Cloudflare R2
+app.post('/api/upload/delete', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'Nenhuma URL informada para exclusão.' });
+    }
+
+    // 1. Tenta excluir do Cloudflare R2
+    if (isR2Configured && (url.includes('.r2.dev') || url.includes('.r2.cloudflarestorage.com'))) {
+      const deleted = await deleteFromR2(url);
+      return res.json({ success: deleted, provider: 'cloudflare-r2' });
+    }
+
+    // 2. Se for Cloudinary, tenta excluir pelo public_id
+    if (url.includes('cloudinary.com')) {
+      try {
+        const parts = url.split('/');
+        const fileWithExt = parts.slice(-2).join('/');
+        const publicId = fileWithExt.replace(/\.[^/.]+$/, '');
+        await cloudinary.uploader.destroy(publicId);
+      } catch (cErr) {
+        console.warn('Aviso ao excluir do Cloudinary:', cErr.message);
+      }
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Erro ao excluir mídia do storage:', error);
+    return res.status(500).json({ error: 'Erro ao remover imagem do storage.' });
   }
 });
 

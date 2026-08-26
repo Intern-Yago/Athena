@@ -106,10 +106,43 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
   };
 }
 
+/**
+ * Deletes a file from Cloudflare R2 given its public URL or key.
+ */
+async function deleteFromR2(urlOrKey) {
+  if (!isR2Configured || !r2Client || !urlOrKey) return false;
+  try {
+    let key = urlOrKey;
+    if (typeof urlOrKey === 'string' && (urlOrKey.startsWith('http://') || urlOrKey.startsWith('https://'))) {
+      try {
+        const urlObj = new URL(urlOrKey);
+        key = urlObj.pathname.replace(/^\//, '');
+      } catch (e) {
+        key = urlOrKey;
+      }
+    }
+
+    if (!key) return false;
+
+    const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+    await r2Client.send(new DeleteObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+    }));
+
+    console.log(`[Cloudflare R2] Objeto excluído com sucesso: ${key}`);
+    return true;
+  } catch (err) {
+    console.warn(`[Cloudflare R2] Falha ao excluir objeto ${urlOrKey}:`, err.message);
+    return false;
+  }
+}
+
 module.exports = {
   isR2Configured,
   r2Client,
   uploadToR2,
+  deleteFromR2,
   R2_BUCKET_NAME,
   R2_PUBLIC_URL
 };
