@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ProductCard from '../components/ProductCard';
 import ProductImageGallery from '../components/ProductImageGallery';
-import FormattedDescription from '../components/FormattedDescription';
+import FormattedDescription, { stripFormattingTags } from '../components/FormattedDescription';
 import NotFoundPage from './NotFoundPage';
 import { 
   ArrowLeft, 
@@ -79,6 +79,90 @@ export default function ProductDetailPage({
   const whatsappMessage = encodeURIComponent(
     `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação oficial para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'N/A'}\nCategoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
   );
+
+  // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
+  useEffect(() => {
+    if (!product) return;
+
+    const originalTitle = document.title;
+    const cleanDesc = stripFormattingTags(product.description || '').slice(0, 160) || 
+      `Conheça o equipamento ${product.name} da marca ${brand?.name || 'Athena'}. Especificações completas, fotos em alta resolução e cotação oficial.`;
+
+    document.title = `${product.name} | ${brand?.name ? brand.name + ' - ' : ''}Athena Soluções Automotivas`;
+
+    // Meta Description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    const originalDesc = metaDesc ? metaDesc.getAttribute('content') : '';
+    if (metaDesc) {
+      metaDesc.setAttribute('content', cleanDesc);
+    }
+
+    // Canonical
+    let canonical = document.querySelector('link[rel="canonical"]');
+    const originalCanonical = canonical ? canonical.getAttribute('href') : '';
+    const productUrl = `https://www.athenaconsultoria.com.br/produto/${product.slug || product.id}`;
+    if (canonical) {
+      canonical.setAttribute('href', productUrl);
+    }
+
+    // OpenGraph Tags
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', `${product.name} | Athena Soluções Automotivas`);
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute('content', cleanDesc);
+    const ogImage = document.querySelector('meta[property="og:image"]');
+    if (ogImage && product.image) ogImage.setAttribute('content', product.image);
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) ogUrl.setAttribute('content', productUrl);
+
+    // Dynamic JSON-LD Product Schema
+    const scriptId = 'product-json-ld';
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.type = 'application/ld+json';
+      document.head.appendChild(script);
+    }
+
+    const productSchema = {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      "name": product.name,
+      "image": product.images && product.images.length > 0 ? product.images : [product.image],
+      "description": cleanDesc,
+      "sku": product.id,
+      "mpn": product.slug,
+      "brand": {
+        "@type": "Brand",
+        "name": brand?.name || "Athena Soluções Automotivas"
+      },
+      "category": category?.name || "Equipamentos Automotivos",
+      "offers": {
+        "@type": "Offer",
+        "url": productUrl,
+        "priceCurrency": "BRL",
+        "price": product.price ? product.price : "0.00",
+        "priceValidUntil": "2027-12-31",
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": product.inStock !== false ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        "seller": {
+          "@type": "Organization",
+          "name": "Athena Soluções Automotivas"
+        }
+      }
+    };
+
+    script.textContent = JSON.stringify(productSchema);
+
+    return () => {
+      document.title = originalTitle;
+      if (metaDesc && originalDesc) metaDesc.setAttribute('content', originalDesc);
+      if (canonical && originalCanonical) canonical.setAttribute('href', originalCanonical);
+      const existingScript = document.getElementById(scriptId);
+      if (existingScript) existingScript.remove();
+    };
+  }, [product, brand, category]);
 
   // SMART BACK BUTTON LOGIC
   let backTargetRoute = 'catalog';

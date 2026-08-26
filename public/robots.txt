@@ -1,0 +1,17 @@
+# Robots.txt - Athena Soluções Automotivas
+# https://www.athenaconsultoria.com.br
+
+User-agent: *
+Allow: /
+Allow: /produto/
+Allow: /categoria/
+Allow: /marca/
+Allow: /sobre
+
+# Bloqueio de rotas administrativas e API interna para proteger segurança e indexação
+Disallow: /admin
+Disallow: /api/
+Disallow: /api-docs
+
+# Sitemap oficial indexador
+Sitemap: https://www.athenaconsultoria.com.br/sitemap.xml
