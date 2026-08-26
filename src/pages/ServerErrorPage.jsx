@@ -37,7 +37,7 @@ export default function ServerErrorPage({ onNavigate, onRetry, errorDetails }) {
         )}
 
         {/* Action Buttons */}
-        <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 flex-wrap">
           <button
             onClick={() => {
               if (onRetry) onRetry();
@@ -47,6 +47,20 @@ export default function ServerErrorPage({ onNavigate, onRetry, errorDetails }) {
           >
             <RefreshCw className="w-4 h-4" />
             <span>Tentar Novamente</span>
+          </button>
+
+          <button
+            onClick={() => {
+              try {
+                localStorage.removeItem('athena_products');
+              } catch (e) {}
+              window.location.reload();
+            }}
+            className="btn-secondary w-full sm:w-auto px-5 py-3 text-xs font-bold flex items-center justify-center gap-2 border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100"
+            title="Libera a memória temporária do navegador e recarrega o catálogo"
+          >
+            <ShieldAlert className="w-4 h-4 text-amber-600" />
+            <span>Recuperar Memória Local</span>
           </button>
 
           <button
