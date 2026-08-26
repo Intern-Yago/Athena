@@ -89,6 +89,7 @@ export default function ProductImageGallery({ product }) {
         <img 
           src={currentImageUrl} 
           alt={product?.name || 'Equipamento Athena'} 
+          decoding="async"
           className="w-full h-full object-cover rounded-2xl transition-opacity duration-300"
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
@@ -179,6 +180,8 @@ export default function ProductImageGallery({ product }) {
               <img 
                 src={imgUrl} 
                 alt={`Miniatura ${idx + 1}`} 
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.src = fallbackImage;
