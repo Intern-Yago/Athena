@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
 import { X, Layers, Tag, PackageCheck, Info, ChevronDown, ChevronRight, PhoneCall, Lock, Grid } from 'lucide-react';
 
-export default function MobileDrawer({ isOpen, onClose, categories, brands, products, onNavigate }) {
+export default function MobileDrawer({ 
+  isOpen, 
+  onClose, 
+  categories = [], 
+  brands = [], 
+  products = [], 
+  onNavigate 
+}) {
   const [openAccordion, setOpenAccordion] = useState(null); // 'categories', 'brands' or null
 
   if (!isOpen) return null;
+
+  const safeCategories = categories || [];
+  const safeBrands = brands || [];
+  const safeProducts = products || [];
 
   const formattedPhone = "(61) 98348-5671";
   const whatsappUrl = "https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+informa%C3%A7%C3%B5es.";
@@ -68,7 +79,7 @@ export default function MobileDrawer({ isOpen, onClose, categories, brands, prod
             >
               <div className="flex items-center gap-2.5">
                 <Layers className="w-4 h-4 text-amber-600" />
-                <span>Categorias ({categories.length})</span>
+                <span>Categorias ({safeCategories.length})</span>
               </div>
               <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openAccordion === 'categories' ? 'rotate-180' : ''}`} />
             </button>
@@ -87,7 +98,7 @@ export default function MobileDrawer({ isOpen, onClose, categories, brands, prod
                   <span>VER TODAS AS CATEGORIAS</span>
                 </button>
 
-                {categories.map((cat) => (
+                {safeCategories.map((cat) => (
                   <button
                     key={cat.id}
                     onClick={() => {
@@ -98,7 +109,7 @@ export default function MobileDrawer({ isOpen, onClose, categories, brands, prod
                   >
                     <span>{cat.name}</span>
                     <span className="text-[10px] text-slate-400">
-                      {products.filter(p => p.categoryId === cat.id).length}
+                      {safeProducts.filter(p => p.categoryId === cat.id).length}
                     </span>
                   </button>
                 ))}
@@ -114,7 +125,7 @@ export default function MobileDrawer({ isOpen, onClose, categories, brands, prod
             >
               <div className="flex items-center gap-2.5">
                 <Tag className="w-4 h-4 text-sky-600" />
-                <span>Marcas ({brands.length})</span>
+                <span>Marcas ({safeBrands.length})</span>
               </div>
               <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openAccordion === 'brands' ? 'rotate-180' : ''}`} />
             </button>
@@ -133,7 +144,7 @@ export default function MobileDrawer({ isOpen, onClose, categories, brands, prod
                   <span>VER TODAS AS MARCAS</span>
                 </button>
 
-                {brands.map((b) => (
+                {safeBrands.map((b) => (
                   <button
                     key={b.id}
                     onClick={() => {
@@ -144,7 +155,7 @@ export default function MobileDrawer({ isOpen, onClose, categories, brands, prod
                   >
                     <span>{b.name}</span>
                     <span className="text-[10px] text-slate-400">
-                      {products.filter(p => p.brandId === b.id).length}
+                      {safeProducts.filter(p => p.brandId === b.id).length}
                     </span>
                   </button>
                 ))}

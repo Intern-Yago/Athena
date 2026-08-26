@@ -1,50 +1,59 @@
 import React from 'react';
-import { X, ArrowLeftRight, CheckCircle2, MessageCircle, Eye, Tag, Layers, Trash2, Download } from 'lucide-react';
+import { X, ArrowLeftRight, CheckCircle2, MessageCircle, Eye, Tag, Trash2, Info } from 'lucide-react';
 
 export default function ProductComparisonModal({
   isOpen,
   onClose,
-  comparisonList,
-  categories,
-  brands,
+  comparisonList = [],
+  categories = [],
+  brands = [],
   onRemoveItem,
   onClearComparison,
   onNavigate
 }) {
   if (!isOpen || !comparisonList || comparisonList.length === 0) return null;
 
+  const safeComparisonList = comparisonList || [];
+  const safeCategories = categories || [];
+  const safeBrands = brands || [];
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fade-in">
-      <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-slate-950/75 flex items-center justify-center p-2 sm:p-4 md:p-6 animate-in fade-in duration-150">
+      <div 
+        className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] overscroll-contain animate-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Modal Header */}
-        <div className="p-4 sm:p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+        <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold">
-              <ArrowLeftRight className="w-5 h-5" />
+            <div className="p-2 sm:p-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold shrink-0">
+              <ArrowLeftRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black font-display text-white">
+              <h2 className="text-sm sm:text-base font-black font-display text-white leading-tight">
                 Comparativo de Equipamentos
               </h2>
-              <p className="text-[11px] sm:text-xs text-slate-400">
-                Análise técnica lado a lado de {comparisonList.length} modelos
+              <p className="text-[10px] sm:text-xs text-slate-400">
+                Análise técnica lado a lado de {safeComparisonList.length} modelos
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={onClearComparison}
-              className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors hidden sm:flex items-center gap-1"
+              className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors hidden sm:flex items-center gap-1 font-bold"
             >
               <Trash2 className="w-3.5 h-3.5" /> Limpar Todos
             </button>
 
             <button
+              type="button"
               onClick={onClose}
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-              title="Fechar"
+              title="Fechar comparativo"
             >
               <X className="w-5 h-5" />
             </button>
@@ -52,13 +61,13 @@ export default function ProductComparisonModal({
         </div>
 
         {/* Modal Content - Side by side columns */}
-        <div className="overflow-y-auto overflow-x-auto p-4 sm:p-6 flex-1">
-          <div className={`grid gap-4 sm:gap-6 min-w-[550px] ${
-            comparisonList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
+        <div className="overflow-y-auto overflow-x-auto p-4 sm:p-6 flex-1 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className={`grid gap-4 sm:gap-6 min-w-[500px] ${
+            safeComparisonList.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
           }`}>
-            {comparisonList.map((prod) => {
-              const category = categories.find((c) => c.id === prod.categoryId);
-              const brand = brands.find((b) => b.id === prod.brandId);
+            {safeComparisonList.map((prod) => {
+              const category = safeCategories.find((c) => c.id === prod.categoryId);
+              const brand = safeBrands.find((b) => b.id === prod.brandId);
 
               const formattedPrice = prod.price 
                 ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.price)
@@ -76,11 +85,12 @@ export default function ProductComparisonModal({
                   
                   {/* Top Bar with Remove */}
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-white text-slate-700 border border-slate-200">
+                    <span className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-white text-slate-700 border border-slate-200 truncate max-w-[150px]">
                       {category?.name || 'Equipamento'}
                     </span>
 
                     <button
+                      type="button"
                       onClick={() => onRemoveItem(prod.id)}
                       className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                       title="Remover este produto da comparação"
@@ -90,11 +100,13 @@ export default function ProductComparisonModal({
                   </div>
 
                   {/* Product Image */}
-                  <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-white border border-slate-200">
+                  <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-white border border-slate-200 flex items-center justify-center p-2">
                     <img
                       src={prod.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'}
                       alt={prod.name}
-                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-contain"
                     />
                     {prod.badge && (
                       <span className="absolute top-2 left-2 bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-xs">
@@ -131,7 +143,7 @@ export default function ProductComparisonModal({
                     <span className="text-[11px] font-extrabold text-slate-900 uppercase tracking-wide block">
                       Especificações Técnicas:
                     </span>
-                    <div className="space-y-1.5 bg-white p-3 rounded-xl border border-slate-200 text-[11px] text-slate-700">
+                    <div className="space-y-1.5 bg-white p-3 rounded-xl border border-slate-200 text-[11px] text-slate-700 max-h-48 overflow-y-auto">
                       {prod.specs && prod.specs.length > 0 ? (
                         prod.specs.map((spec, idx) => (
                           <div key={idx} className="flex items-start gap-1.5 leading-relaxed">
@@ -158,6 +170,7 @@ export default function ProductComparisonModal({
                     </a>
 
                     <button
+                      type="button"
                       onClick={() => {
                         onClose();
                         onNavigate(`produto/${prod.slug || prod.id}`);
@@ -176,8 +189,9 @@ export default function ProductComparisonModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3 sm:p-4 bg-slate-100 border-t border-slate-200 text-center text-[11px] text-slate-600">
-          💡 <strong>Dica Athena:</strong> Nossos consultores técnicos auxiliam no dimensionamento elétrico, alvenaria e compatibilidade de equipamentos para sua oficina.
+        <div className="p-3 sm:p-3.5 bg-slate-100 border-t border-slate-200 text-center text-[11px] text-slate-600 flex items-center justify-center gap-1.5">
+          <Info className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+          <span><strong>Consultoria Técnica Athena:</strong> Auxiliamos no dimensionamento elétrico, alvenaria e compatibilidade de equipamentos para sua oficina.</span>
         </div>
 
       </div>

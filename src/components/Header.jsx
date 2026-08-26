@@ -183,6 +183,7 @@ export default function Header({
         onNavigate={onNavigate}
         categories={categories}
         brands={brands}
+        products={products}
       />
     </>
   );
