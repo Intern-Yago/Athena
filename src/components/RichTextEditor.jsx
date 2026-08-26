@@ -15,7 +15,8 @@ import {
   Outdent,
   Undo2,
   Redo2,
-  HelpCircle
+  HelpCircle,
+  Type
 } from 'lucide-react';
 import FormattedDescription from './FormattedDescription';
 
@@ -28,6 +29,7 @@ export default function RichTextEditor({
   const textareaRef = useRef(null);
   const [activeTab, setActiveTab] = useState('write'); // 'write' | 'preview'
   const [showColorMenu, setShowColorMenu] = useState(false);
+  const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   // Undo / Redo History Stack
@@ -242,6 +244,7 @@ export default function RichTextEditor({
     if (!selectedText) return;
 
     const cleaned = selectedText
+      .replace(/\[(tamanho|size)=[^\]]+\](.*?)\[\/(tamanho|size)\]/gi, '$2')
       .replace(/\[color=[^\]]+\](.*?)\[\/color\]/gi, '$1')
       .replace(/\[cor=[^\]]+\](.*?)\[\/cor\]/gi, '$1')
       .replace(/\[destaque\](.*?)\[\/destaque\]/gi, '$1')
@@ -636,11 +639,86 @@ export default function RichTextEditor({
 
           <div className="h-4 w-px bg-slate-300 mx-0.5" />
 
+          {/* Font Size Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowSizeMenu(!showSizeMenu);
+                setShowColorMenu(false);
+              }}
+              title="Tamanho da Fonte"
+              className="h-7 px-2 rounded-lg hover:bg-slate-200/80 text-slate-700 hover:text-slate-950 flex items-center gap-1 font-bold text-[11px] transition-colors"
+            >
+              <Type className="w-3.5 h-3.5 text-slate-600" />
+              <span>Tamanho</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {showSizeMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowSizeMenu(false)}
+                />
+                <div className="absolute top-full left-0 mt-1 w-44 bg-white rounded-xl shadow-lg border border-slate-200 p-1.5 z-50 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      applyFormatting('[tamanho=p]', '[/tamanho]');
+                      setShowSizeMenu(false);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-100 text-xs text-slate-600 flex items-center justify-between group"
+                  >
+                    <span className="text-[11px]">Pequeno (Nota)</span>
+                    <span className="text-[10px] text-slate-400 font-mono">P</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      applyFormatting('[tamanho=m]', '[/tamanho]');
+                      setShowSizeMenu(false);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-slate-100 text-xs text-slate-800 font-medium flex items-center justify-between group"
+                  >
+                    <span className="text-xs">Normal (Padrão)</span>
+                    <span className="text-[10px] text-slate-400 font-mono">M</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      applyFormatting('[tamanho=g]', '[/tamanho]');
+                      setShowSizeMenu(false);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-amber-50 text-xs text-slate-900 font-bold flex items-center justify-between group"
+                  >
+                    <span className="text-sm font-bold">Grande (Destaque)</span>
+                    <span className="text-[10px] text-amber-700 font-mono">G</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      applyFormatting('[tamanho=gg]', '[/tamanho]');
+                      setShowSizeMenu(false);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-amber-50 text-xs text-slate-950 font-black flex items-center justify-between group"
+                  >
+                    <span className="text-base font-black">Título (Extra)</span>
+                    <span className="text-[10px] text-amber-800 font-mono">GG</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Text Color Dropdown */}
           <div className="relative">
             <button
               type="button"
-              onClick={() => setShowColorMenu(!showColorMenu)}
+              onClick={() => {
+                setShowColorMenu(!showColorMenu);
+                setShowSizeMenu(false);
+              }}
               title="Cor do Texto"
               className="h-7 px-2 rounded-lg hover:bg-slate-200/80 text-slate-700 hover:text-slate-950 flex items-center gap-1 font-bold text-[11px] transition-colors"
             >
@@ -739,7 +817,7 @@ export default function RichTextEditor({
       </div>
 
       {/* Live Preview footer when in write mode */}
-      {activeTab === 'write' && value && (value.includes('**') || value.includes('*') || value.includes('•') || value.includes('1.') || value.includes('[cor=') || value.includes('[destaque]')) && (
+      {activeTab === 'write' && value && (value.includes('**') || value.includes('*') || value.includes('•') || value.includes('1.') || value.includes('[cor=') || value.includes('[destaque]') || value.includes('[tamanho=') || value.includes('[size=')) && (
         <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200/70 text-xs">
           <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 block mb-1.5">
             Pré-visualização em Tempo Real:

@@ -6,6 +6,7 @@ import React from 'react';
 export function stripFormattingTags(text = '') {
   if (!text) return '';
   return text
+    .replace(/\[(tamanho|size)=[^\]]+\](.*?)\[\/(tamanho|size)\]/gi, '$2')
     .replace(/\[color=[^\]]+\](.*?)\[\/color\]/gi, '$1')
     .replace(/\[cor=[^\]]+\](.*?)\[\/cor\]/gi, '$1')
     .replace(/\[destaque\](.*?)\[\/destaque\]/gi, '$1')
@@ -22,7 +23,7 @@ export function stripFormattingTags(text = '') {
 }
 
 /**
- * Parses inline rich text formatting (bold, italic, underline, custom colors, highlights).
+ * Parses inline rich text formatting (bold, italic, underline, custom colors, highlights, font sizes).
  */
 export function parseInlineFormatting(text = '') {
   if (!text) return null;
@@ -31,7 +32,7 @@ export function parseInlineFormatting(text = '') {
   let remaining = text;
   let keyIndex = 0;
 
-  const tokenRegex = /(\[cor=(ambar|azul|verde|vermelho|gold|dourado|sky|blue|emerald|green|red)\](.*?)\[\/cor\]|\[color=([^\]]+)\](.*?)\[\/color\]|\[destaque\](.*?)\[\/destaque\]|\[highlight\](.*?)\[\/highlight\]|<mark>(.*?)<\/mark>|\*\*(.*?)\*\*|<b>(.*?)<\/b>|<strong>(.*?)<\/strong>|\*(.*?)\*|<i>(.*?)<\/i>|<em>(.*?)<\/em>|<u>(.*?)<\/u>)/i;
+  const tokenRegex = /(\[(?:tamanho|size)=(p|pequeno|sm|m|medio|md|g|grande|lg|gg|extra|xl|titulo)\](.*?)\[\/(?:tamanho|size)\]|\[cor=(ambar|azul|verde|vermelho|gold|dourado|sky|blue|emerald|green|red)\](.*?)\[\/cor\]|\[color=([^\]]+)\](.*?)\[\/color\]|\[destaque\](.*?)\[\/destaque\]|\[highlight\](.*?)\[\/highlight\]|<mark>(.*?)<\/mark>|\*\*(.*?)\*\*|<b>(.*?)<\/b>|<strong>(.*?)<\/strong>|\*(.*?)\*|<i>(.*?)<\/i>|<em>(.*?)<\/em>|<u>(.*?)<\/u>)/i;
 
   while (remaining) {
     const match = remaining.match(tokenRegex);
@@ -51,10 +52,29 @@ export function parseInlineFormatting(text = '') {
 
     const fullMatch = match[0];
     
-    // [cor=xxx]...[/cor]
+    // [tamanho=xxx]...[/tamanho] or [size=xxx]...[/size]
     if (match[2] && match[3] !== undefined) {
-      const colorType = match[2].toLowerCase();
+      const sizeType = match[2].toLowerCase();
       const content = match[3];
+      let sizeClass = 'text-sm';
+      if (['p', 'pequeno', 'sm'].includes(sizeType)) {
+        sizeClass = 'text-xs text-slate-600 inline-block';
+      } else if (['g', 'grande', 'lg'].includes(sizeType)) {
+        sizeClass = 'text-base sm:text-lg font-bold text-slate-900 inline-block';
+      } else if (['gg', 'extra', 'xl', 'titulo'].includes(sizeType)) {
+        sizeClass = 'text-lg sm:text-xl font-black text-slate-950 inline-block tracking-tight';
+      }
+      
+      parts.push(
+        <span key={`size-${keyIndex++}`} className={sizeClass}>
+          {parseInlineFormatting(content)}
+        </span>
+      );
+    }
+    // [cor=xxx]...[/cor]
+    else if (match[4] && match[5] !== undefined) {
+      const colorType = match[4].toLowerCase();
+      const content = match[5];
       let colorClass = 'text-amber-700 font-bold';
       if (colorType === 'azul' || colorType === 'sky' || colorType === 'blue') colorClass = 'text-sky-700 font-bold';
       if (colorType === 'verde' || colorType === 'emerald' || colorType === 'green') colorClass = 'text-emerald-700 font-bold';
@@ -67,16 +87,16 @@ export function parseInlineFormatting(text = '') {
       );
     }
     // [color=custom]...[/color]
-    else if (match[4] && match[5] !== undefined) {
+    else if (match[6] && match[7] !== undefined) {
       parts.push(
-        <span key={`custom-color-${keyIndex++}`} style={{ color: match[4] }} className="font-bold">
-          {parseInlineFormatting(match[5])}
+        <span key={`custom-color-${keyIndex++}`} style={{ color: match[6] }} className="font-bold">
+          {parseInlineFormatting(match[7])}
         </span>
       );
     }
     // [destaque] or [highlight] or <mark>
-    else if (match[6] !== undefined || match[7] !== undefined || match[8] !== undefined) {
-      const content = match[6] || match[7] || match[8];
+    else if (match[8] !== undefined || match[9] !== undefined || match[10] !== undefined) {
+      const content = match[8] || match[9] || match[10];
       parts.push(
         <mark key={`mark-${keyIndex++}`} className="bg-amber-100/90 text-amber-950 px-1 py-0.5 rounded font-medium border border-amber-200/60">
           {parseInlineFormatting(content)}
@@ -84,8 +104,8 @@ export function parseInlineFormatting(text = '') {
       );
     }
     // **bold** or <b> or <strong>
-    else if (match[9] !== undefined || match[10] !== undefined || match[11] !== undefined) {
-      const content = match[9] || match[10] || match[11];
+    else if (match[11] !== undefined || match[12] !== undefined || match[13] !== undefined) {
+      const content = match[11] || match[12] || match[13];
       parts.push(
         <strong key={`bold-${keyIndex++}`} className="font-extrabold text-slate-900">
           {parseInlineFormatting(content)}
@@ -93,8 +113,8 @@ export function parseInlineFormatting(text = '') {
       );
     }
     // *italic* or <i> or <em>
-    else if (match[12] !== undefined || match[13] !== undefined || match[14] !== undefined) {
-      const content = match[12] || match[13] || match[14];
+    else if (match[14] !== undefined || match[15] !== undefined || match[16] !== undefined) {
+      const content = match[14] || match[15] || match[16];
       parts.push(
         <em key={`italic-${keyIndex++}`} className="italic">
           {parseInlineFormatting(content)}
@@ -102,8 +122,8 @@ export function parseInlineFormatting(text = '') {
       );
     }
     // <u>underline</u>
-    else if (match[15] !== undefined) {
-      const content = match[15];
+    else if (match[17] !== undefined) {
+      const content = match[17];
       parts.push(
         <u key={`u-${keyIndex++}`} className="underline decoration-amber-500 decoration-1.5 underline-offset-2">
           {parseInlineFormatting(content)}
