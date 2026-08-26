@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -6,6 +7,7 @@ const { Pool } = require('pg');
 const cloudinary = require('cloudinary').v2;
 const swaggerUi = require('swagger-ui-express');
 const basicAuth = require('express-basic-auth');
+const { isR2Configured, uploadToR2 } = require('./r2Service');
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -93,9 +95,9 @@ const swaggerDocument = {
 app.use('/api-docs', swaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // -------------------------------------------------------------
-// POSTGRESQL POOL SETUP & USERS TABLE
+// POSTGRESQL POOL SETUP & USERS TABLE (IPV4 COMPLIANT POOLER)
 // -------------------------------------------------------------
-const SUPABASE_DB_URL = 'postgresql://postgres:XIdMCm8CWoO31qiz@db.cjtqfkedqqjuhraeesmg.supabase.co:5432/postgres';
+const SUPABASE_DB_URL = 'postgresql://postgres.cjtqfkedqqjuhraeesmg:XIdMCm8CWoO31qiz@aws-0-us-east-1.pooler.supabase.com:5432/postgres';
 const dbConnectionString = process.env.DATABASE_URL || SUPABASE_DB_URL;
 
 let pool = null;
@@ -301,15 +303,37 @@ function writeDbJson(data) {
 initDb();
 
 // -------------------------------------------------------------
-// CLOUDINARY UPLOAD ENDPOINT
+// CLOUDFLARE R2 / CLOUDINARY UPLOAD ENDPOINT (AUTO-WEBP)
 // -------------------------------------------------------------
 app.post('/api/upload', async (req, res) => {
   try {
-    const { file, folder } = req.body;
+    const { file, folder, filename } = req.body;
     if (!file) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     }
 
+    // 1. Try Cloudflare R2 (Primary & Fast with automatic WebP conversion)
+    if (isR2Configured) {
+      try {
+        const r2Result = await uploadToR2({
+          file,
+          folder: folder || 'produtos',
+          filename: filename || `upload-${Date.now()}`
+        });
+
+        return res.json({
+          url: r2Result.url,
+          publicId: r2Result.key,
+          format: r2Result.format,
+          bytes: r2Result.bytes,
+          provider: 'cloudflare-r2'
+        });
+      } catch (r2Error) {
+        console.warn('Falha no upload R2, tentando fallback Cloudinary:', r2Error.message);
+      }
+    }
+
+    // 2. Fallback to Cloudinary if R2 not available
     const uploadResponse = await cloudinary.uploader.upload(file, {
       folder: folder || 'athena_automotivas',
       resource_type: 'auto'
@@ -319,11 +343,21 @@ app.post('/api/upload', async (req, res) => {
       url: uploadResponse.secure_url,
       publicId: uploadResponse.public_id,
       format: uploadResponse.format,
-      bytes: uploadResponse.bytes
+      bytes: uploadResponse.bytes,
+      provider: 'cloudinary'
     });
   } catch (error) {
-    console.error('Erro no upload Cloudinary:', error);
-    return res.status(500).json({ error: 'Erro ao fazer upload da imagem/arquivo para a nuvem.' });
+    console.error('Erro no upload de imagem:', error);
+// Endpoint para disparar a migração em lote de imagens do Cloudinary para o Cloudflare R2
+app.post('/api/admin/migrate-r2', async (req, res) => {
+  try {
+    const { runMigration } = require('./migrateCloudinaryToR2');
+    // Executa em segundo plano para não travar a requisição HTTP
+    runMigration().catch(err => console.error('Erro na migração R2:', err));
+    return res.json({ message: 'Migração para Cloudflare R2 iniciada em segundo plano no servidor!' });
+  } catch (error) {
+    console.error('Erro ao iniciar migração:', error);
+    return res.status(500).json({ error: 'Falha ao iniciar processo de migração.' });
   }
 });
 
