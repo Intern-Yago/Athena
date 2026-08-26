@@ -1,4 +1,5 @@
 import React from 'react';
+import { stripFormattingTags } from './FormattedDescription';
 import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText } from 'lucide-react';
 
 export default function ProductCard({ 
@@ -130,7 +131,7 @@ export default function ProductCard({
             </h3>
 
             <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
-              {product.description}
+              {stripFormattingTags(product.description)}
             </p>
 
             {/* Technical Specs List */}
@@ -301,7 +302,7 @@ export default function ProductCard({
 
           {/* Short Description */}
           <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-            {product.description}
+            {stripFormattingTags(product.description)}
           </p>
         </div>
 

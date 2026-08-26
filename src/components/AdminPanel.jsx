@@ -37,6 +37,8 @@ import {
 } from 'lucide-react';
 import { formatAttachmentLabel } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
+import RichTextEditor from './RichTextEditor';
+import FormattedDescription from './FormattedDescription';
 
 export default function AdminPanel({
   products,
@@ -265,92 +267,211 @@ export default function AdminPanel({
     });
   };
 
-  // Dynamic parser that analyzes ONLY the user's description and name
-  const parseSpecsFromText = (descriptionText, nameText = '') => {
-    const fullText = (descriptionText || '') + '\n' + (nameText || '');
-    if (!fullText.trim()) return [];
+  const optimizeDescriptionAndSpecs = (rawText = '', nameText = '') => {
+    let text = (rawText || '').trim();
+    if (!text) return { cleanDescription: '', extractedSpecs: [] };
 
-    const results = [];
+    const extractedSpecs = [];
     const seen = new Set();
+    const segmentsToRemove = [];
 
-    const addSpec = (spec) => {
+    const addSpec = (spec, originalSegment) => {
       let clean = spec.trim().replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim();
       if (clean.length >= 3 && clean.length <= 140 && !seen.has(clean.toLowerCase())) {
         seen.add(clean.toLowerCase());
-        results.push(clean);
+        extractedSpecs.push(clean);
+      }
+      if (originalSegment && typeof originalSegment === 'string' && originalSegment.trim().length > 3) {
+        segmentsToRemove.push(originalSegment.trim());
       }
     };
 
-    // 1. Line-by-line check (for bullet points or Key: Value pairs in user's text)
-    const lines = fullText.split(/\r?\n|[;•·\t]/).map(l => l.trim()).filter(Boolean);
+    const lines = text.split(/\r?\n|[;•·\t]/).map(l => l.trim()).filter(Boolean);
     for (const line of lines) {
       if (line.includes(':')) {
         const parts = line.split(':');
-        if (parts[0].trim().length > 1 && parts[1].trim().length > 0) {
-          addSpec(line);
-          continue;
-        }
-      }
-      // If line contains specific measurements or technical keywords from user's text
-      if (/\b(\d+(\.\d+)?\s*(kg|t|toneladas?|mm|cm|m|bar|psi|nm|kgfm|rpm|pcm|hp|cv|kw|v|volts?|mah|ah|pol|"|pcs|peças|litros|l))\b/i.test(line)) {
-        if (line.length < 90) {
-          addSpec(line);
+        if (parts[0].trim().length > 1 && parts[1].trim().length > 0 && line.length < 90) {
+          addSpec(line, line);
         }
       }
     }
 
-    // 2. Natural language sentence extraction from the user's description
-    const text = fullText;
+    const dimMatch1 = text.match(/(?:tamanho(?:\s*do\s*produto)?|dimens[õo]es(?:\s*do\s*produto)?|medidas(?:\s*do\s*produto)?)\s*[:=]?\s*([\d\.,\s\*xX×\-\/]+(?:mm|cm|m|pol|"))/i);
+    if (dimMatch1) {
+      const rawVal = dimMatch1[1].trim().replace(/\s*[\*xX×]\s*/g, ' × ');
+      addSpec(`Dimensões: ${rawVal}`, dimMatch1[0]);
+    } else {
+      const dimMatch2 = text.match(/\b(\d+[\.,]?\d*)\s*[\*xX×]\s*(\d+[\.,]?\d*)\s*[\*xX×]\s*(\d+[\.,]?\d*)\s*(mm|cm|m)\b/i);
+      if (dimMatch2) {
+        addSpec(`Dimensões: ${dimMatch2[1]} × ${dimMatch2[2]} × ${dimMatch2[3]} ${dimMatch2[4]}`, dimMatch2[0]);
+      }
+    }
 
-    // Match Capacidade
-    const capMatch = text.match(/(capacidade\s*(de\s*carga)?\s*(de|:)?\s*[\d\.,]+\s*(kg|t|ton|toneladas|litros|l|mah))/i);
-    if (capMatch) addSpec(`Capacidade: ${capMatch[0].replace(/^capacidade\s*(de\s*carga)?\s*(de|:)?\s*/i, '').trim()}`);
+    const weightMatch = text.match(/(?:peso\s*bruto|peso\s*líquido|peso\s*total|peso)\s*[:=]?\s*([\d\.,]+\s*(?:kg|t|ton|toneladas|g))/i);
+    if (weightMatch) {
+      const isBruto = /bruto/i.test(weightMatch[0]);
+      const isLiquido = /l[íi]quido/i.test(weightMatch[0]);
+      const label = isBruto ? 'Peso Bruto' : (isLiquido ? 'Peso Líquido' : 'Peso');
+      addSpec(`${label}: ${weightMatch[1].trim()}`, weightMatch[0]);
+    }
 
-    // Match Altura / Elevação
-    const altMatch = text.match(/(altura\s*(máxima|de\s*elevação)?\s*(de|:)?\s*[\d\.,]+\s*(mm|cm|m))/i);
-    if (altMatch) addSpec(`Altura de Elevação: ${altMatch[0].replace(/^altura\s*(máxima|de\s*elevação)?\s*(de|:)?\s*/i, '').trim()}`);
+    const volMatch = text.match(/(?:volume(?:\s*do\s*produto)?)\s*[:=]?\s*([^\.\n,;]+?(?:m³|m3|m|litros|l|cm³))/i);
+    if (volMatch) {
+      let val = volMatch[1].trim();
+      if (/^[\d\.,\s]+m$/i.test(val)) val = val.replace(/m$/i, 'm³');
+      addSpec(`Volume: ${val}`, volMatch[0]);
+    }
 
-    // Match Motor / Tensão
-    const motorMatch = text.match(/(motor\s*(trifásico|monofásico|elétrico|hidráulico)?\s*(de\s*[\d\.,]+\s*(hp|cv|kw))?\s*(220v|380v|110v|12v|24v)?(\/380v|\/220v)?)/i) ||
-                       text.match(/(tensão|voltagem|alimentação)\s*(de|:)?\s*(220v|380v|110v|12v|24v|bivolt)(\/380v|\/220v)?/i);
-    if (motorMatch) addSpec(`Motor / Alimentação: ${motorMatch[0].replace(/^(motor|tensão|voltagem|alimentação)\s*(de|:)?\s*/i, '').trim()}`);
+    const espMatch = text.match(/(?:espessura(?:\s*da\s*chapa|\s*do\s*aço)?)\s*(?:de\s*)?[:=]?\s*([\d\.,]+\s*(?:mm|cm|pol|"))/i);
+    if (espMatch) {
+      addSpec(`Espessura da Chapa: ${espMatch[1].trim()}`, espMatch[0]);
+    }
 
-    // Match Pressão
-    const pressMatch = text.match(/(pressão\s*(de\s*trabalho)?\s*(de|:)?\s*[\d\.,\-\s]+(bar|psi))/i);
-    if (pressMatch) addSpec(`Pressão de Trabalho: ${pressMatch[0].replace(/^pressão\s*(de\s*trabalho)?\s*(de|:)?\s*/i, '').trim()}`);
+    const tampoMatch = text.match(/(?:opções\s*(?:com|de)?\s*tampo|tampo)\s*(?:de\s*|:)?\s*([^\.\n;]+?(?:aço\s*inox|madeira|inox|aço|mdf|emborrachado)[^\.\n;]*)/i);
+    if (tampoMatch) {
+      const formattedTampo = tampoMatch[0].trim().replace(/^opções\s*(?:com|de)?\s*tampo\s*(?:de\s*|:)?/i, 'Tampo ');
+      addSpec(`Opções de Tampo: ${formattedTampo}`, tampoMatch[0]);
+    }
 
-    // Match Torque
-    const torqMatch = text.match(/(torque\s*(máximo)?\s*(de|:)?\s*[\d\.,]+\s*(nm|kgfm))/i);
-    if (torqMatch) addSpec(`Torque Máximo: ${torqMatch[0].replace(/^torque\s*(máximo)?\s*(de|:)?\s*/i, '').trim()}`);
+    const capMatch = text.match(/(capacidade\s*(?:de\s*carga)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:kg|t|ton|toneladas|litros|l|mah|bar|psi))/i);
+    if (capMatch) {
+      addSpec(`Capacidade: ${capMatch[0].replace(/^capacidade\s*(?:de\s*carga)?\s*(?:de|:)?\s*/i, '').trim()}`, capMatch[0]);
+    }
 
-    // Match Display / Tela
-    const displayMatch = text.match(/(tela|display|monitor)\s*(touchscreen|lcd|led|colorido)?\s*(de\s*[\d\.,]+(\s*polegadas|\s*pol|"))?/i);
-    if (displayMatch && displayMatch[0].length > 6) addSpec(`Display: ${displayMatch[0].replace(/^(tela|display|monitor)\s*(de|:)?\s*/i, '').trim()}`);
+    const altMatch = text.match(/(altura\s*(?:máxima|de\s*elevação)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:mm|cm|m))/i);
+    if (altMatch) {
+      addSpec(`Altura de Elevação: ${altMatch[0].replace(/^altura\s*(?:máxima|de\s*elevação)?\s*(?:de|:)?\s*/i, '').trim()}`, altMatch[0]);
+    }
 
-    // Match Protocolos
-    const protoMatch = text.match(/(protocolos?\s*(suportados?)?:?\s*(can-fd|doip|j2534|obd2|iso[\d\-]+)[\w\s\-,/]+)/i);
-    if (protoMatch) addSpec(`Protocolos: ${protoMatch[0].replace(/^protocolos?\s*(suportados?)?:?\s*/i, '').trim()}`);
+    const motorMatch = text.match(/(motor\s*(?:trifásico|monofásico|elétrico|hidráulico)?\s*(?:de\s*[\d\.,]+\s*(?:hp|cv|kw))?\s*(?:220v|380v|110v|12v|24v)?(?:\/380v|\/220v)?)/i) ||
+                       text.match(/(tensão|voltagem|alimentação)\s*(?:de|:)?\s*(?:220v|380v|110v|12v|24v|bivolt)(?:\/380v|\/220v)?/i);
+    if (motorMatch) {
+      addSpec(`Motor / Alimentação: ${motorMatch[0].replace(/^(motor|tensão|voltagem|alimentação)\s*(?:de|:)?\s*/i, '').trim()}`, motorMatch[0]);
+    }
 
-    // Match Bateria / Autonomia
-    const batMatch = text.match(/(bateria\s*(interna|recarregável)?\s*(de|:)?\s*[\d\.,]+\s*(mah|ah))/i);
-    if (batMatch) addSpec(`Bateria: ${batMatch[0].replace(/^bateria\s*(interna|recarregável)?\s*(de|:)?\s*/i, '').trim()}`);
+    const pressMatch = text.match(/(pressão\s*(?:de\s*trabalho|máxima)?\s*(?:de|:)?\s*[\d\.,\-\s]+(?:bar|psi))/i);
+    if (pressMatch) {
+      addSpec(`Pressão de Trabalho: ${pressMatch[0].replace(/^pressão\s*(?:de\s*trabalho|máxima)?\s*(?:de|:)?\s*/i, '').trim()}`, pressMatch[0]);
+    }
 
-    // Match Encaixe / Dimensões
-    const encaixeMatch = text.match(/(encaixe\s*(quadrado)?\s*(de|:)?\s*[\d\.,/]+(\s*pol|"))/i);
-    if (encaixeMatch) addSpec(`Encaixe: ${encaixeMatch[0].replace(/^encaixe\s*(quadrado)?\s*(de|:)?\s*/i, '').trim()}`);
+    const torqMatch = text.match(/(torque\s*(?:máximo)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:nm|kgfm))/i);
+    if (torqMatch) {
+      addSpec(`Torque Máximo: ${torqMatch[0].replace(/^torque\s*(?:máximo)?\s*(?:de|:)?\s*/i, '').trim()}`, torqMatch[0]);
+    }
 
-    // Match Aro / Diâmetro
-    const aroMatch = text.match(/(aro\s*(de|:)?\s*[\d\.,\s\-"a]+(pol|"))/i) || text.match(/(diâmetro\s*(do\s*aro)?\s*(de|:)?\s*[\d\.,\s\-"a]+(pol|"))/i);
-    if (aroMatch) addSpec(`Diâmetro do Aro: ${aroMatch[0].replace(/^(aro|diâmetro\s*(do\s*aro)?)\s*(de|:)?\s*/i, '').trim()}`);
+    const displayMatch = text.match(/(tela|display|monitor)\s*(?:touchscreen|lcd|led|colorido)?\s*(?:de\s*[\d\.,]+(?:\s*polegadas|\s*pol|"))?/i);
+    if (displayMatch && displayMatch[0].length > 6) {
+      addSpec(`Display: ${displayMatch[0].replace(/^(tela|display|monitor)\s*(?:de|:)?\s*/i, '').trim()}`, displayMatch[0]);
+    }
 
-    // Match Garantia
-    const garMatch = text.match(/(garantia\s*(de\s*fábrica)?\s*(de|:)?\s*[\d\.,]+\s*(meses|anos?))/i);
-    if (garMatch) addSpec(`Garantia: ${garMatch[0].replace(/^garantia\s*(de\s*fábrica)?\s*(de|:)?\s*/i, '').trim()}`);
+    const protoMatch = text.match(/(protocolos?\s*(?:suportados?)?:?\s*(?:can-fd|doip|j2534|obd2|iso[\d\-]+)[\w\s\-,/]+)/i);
+    if (protoMatch) {
+      addSpec(`Protocolos: ${protoMatch[0].replace(/^protocolos?\s*(?:suportados?)?:?\s*/i, '').trim()}`, protoMatch[0]);
+    }
 
-    return results;
+    const batMatch = text.match(/(bateria\s*(?:interna|recarregável)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:mah|ah))/i);
+    if (batMatch) {
+      addSpec(`Bateria: ${batMatch[0].replace(/^bateria\s*(?:interna|recarregável)?\s*(?:de|:)?\s*/i, '').trim()}`, batMatch[0]);
+    }
+
+    const aroMatch = text.match(/(?:aro|diâmetro(?:\s*do\s*aro)?)\s*(?:de|:)?\s*([\d\.,\s\-"a]+(?:pol|"))/i);
+    if (aroMatch) {
+      addSpec(`Diâmetro do Aro: ${aroMatch[1].trim()}`, aroMatch[0]);
+    }
+
+    const encaixeMatch = text.match(/(encaixe\s*(?:quadrado)?\s*(?:de|:)?\s*[\d\.,/]+(?:\s*pol|"))/i);
+    if (encaixeMatch) {
+      addSpec(`Encaixe: ${encaixeMatch[0].replace(/^encaixe\s*(?:quadrado)?\s*(?:de|:)?\s*/i, '').trim()}`, encaixeMatch[0]);
+    }
+
+    const garMatch = text.match(/(garantia\s*(?:de\s*fábrica)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:meses|anos?))/i);
+    if (garMatch) {
+      addSpec(`Garantia: ${garMatch[0].replace(/^garantia\s*(?:de\s*fábrica)?\s*(?:de|:)?\s*/i, '').trim()}`, garMatch[0]);
+    }
+
+    let cleanDesc = text;
+
+    for (const seg of segmentsToRemove) {
+      const escaped = seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      cleanDesc = cleanDesc.replace(new RegExp(escaped, 'gi'), '');
+    }
+
+    cleanDesc = cleanDesc
+      .replace(/\b(TAMANHO(\s*DO\s*PRODUTO)?|PESO(\s*BRUTO|\s*L[IÍ]QUIDO)?|VOLUME(\s*DO\s*PRODUTO)?|ESPESSURA(\s*DA\s*CHAPA)?|DIMENS[ÕO]ES|MEDIDAS)\b[:=]?/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\s*,\s*,+/g, ',')
+      .replace(/\s*\.\s*\.+/g, '.')
+      .replace(/\s*,\s*\./g, '.')
+      .replace(/^\s*[,;.\-–—]\s*/, '')
+      .trim();
+
+    const commonPrefixFixes = [
+      { pattern: /^onjunto\b/i, fix: 'Conjunto' },
+      { pattern: /^quipamento\b/i, fix: 'Equipamento' },
+      { pattern: /^levador\b/i, fix: 'Elevador' },
+      { pattern: /^ompressor\b/i, fix: 'Compressor' },
+      { pattern: /^alanceador/i, fix: 'Balanceador' },
+      { pattern: /^esmontadora/i, fix: 'Desmontadora' },
+      { pattern: /^trutura/i, fix: 'Estrutura' },
+      { pattern: /^strutura/i, fix: 'Estrutura' },
+      { pattern: /^carrinho\b/i, fix: 'Carrinho' },
+      { pattern: /^armário\b/i, fix: 'Armário' },
+      { pattern: /^armario\b/i, fix: 'Armário' }
+    ];
+
+    for (const { pattern, fix } of commonPrefixFixes) {
+      if (pattern.test(cleanDesc)) {
+        cleanDesc = cleanDesc.replace(pattern, fix);
+        break;
+      }
+    }
+
+    if (cleanDesc.length > 0) {
+      cleanDesc = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
+    }
+
+    cleanDesc = cleanDesc.replace(/\.\s+([a-zà-ú])/g, (_, letter) => `. ${letter.toUpperCase()}`);
+
+    if (cleanDesc.length > 0 && !/[.!?]$/.test(cleanDesc)) {
+      cleanDesc += '.';
+    }
+
+    return {
+      cleanDescription: cleanDesc,
+      extractedSpecs
+    };
   };
 
-  // Smart Parser & Extractor from Description
+  const parseSpecsFromText = (descriptionText, nameText = '') => {
+    const { extractedSpecs } = optimizeDescriptionAndSpecs(descriptionText, nameText);
+    return extractedSpecs;
+  };
+
+  const handleOptimizeDescriptionAndSpecs = () => {
+    if (!productForm.description || !productForm.description.trim()) {
+      showNotification('Digite ou cole a descrição do produto para otimizar.', 'error');
+      return;
+    }
+
+    const { cleanDescription, extractedSpecs } = optimizeDescriptionAndSpecs(productForm.description, productForm.name);
+
+    const currentSpecsLower = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
+    const newItems = extractedSpecs.filter(s => !currentSpecsLower.has(s.toLowerCase().trim()));
+    const updatedSpecs = [...(productForm.specs || []), ...newItems];
+
+    setProductForm(prev => ({
+      ...prev,
+      description: cleanDescription || prev.description,
+      specs: updatedSpecs
+    }));
+
+    if (newItems.length > 0) {
+      showNotification(`Descrição otimizada e ${newItems.length} especificação(ões) adicionada(s) à tabela.`, 'success');
+    } else {
+      showNotification('Descrição otimizada e formatada com sucesso.', 'success');
+    }
+  };
+
   const handleExtractSpecsFromDescription = () => {
     const extracted = parseSpecsFromText(productForm.description, productForm.name);
     if (extracted.length === 0) {
@@ -1950,621 +2071,697 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* FULL PRODUCT FORM MODAL */}
+        {/* FULL PRODUCT FORM MODAL - SHOPIFY-STYLE EXPANDED LAYOUT */}
         {isProductModalOpen && canEditContent && (
-          <div className="modal-backdrop" onClick={() => setIsProductModalOpen(false)}>
-            <div className="modal-content max-w-2xl p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
-              
-              <button 
-                onClick={() => setIsProductModalOpen(false)}
-                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900"
-              >
-                <X className="w-5 h-5" />
-              </button>
+          <div className="modal-backdrop !p-2 sm:!p-4 md:!p-6" onClick={() => setIsProductModalOpen(false)}>
+            <div 
+              className="modal-content !max-w-6xl !w-full !max-h-[94vh] !p-0 bg-slate-100/95 border border-slate-300 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Sticky Top Header */}
+              <div className="bg-white px-5 sm:px-8 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+                    <Package className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+                      {editingProduct ? 'Editar Equipamento' : 'Cadastrar Novo Equipamento'}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {productForm.name || 'Preencha as informações comerciais, fotos e especificações técnicas'}
+                    </p>
+                  </div>
+                </div>
 
-              <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Package className="w-5 h-5 text-amber-600" />
-                {editingProduct ? 'Editar Equipamento' : 'Cadastrar Novo Equipamento'}
-              </h3>
-
-              <form onSubmit={handleProductSubmit} className="space-y-4">
-                
-                {/* PROMINENT DESTAQUE ATHENA BANNER AT TOP OF MODAL */}
-                <div 
-                  onClick={() => setProductForm(p => ({ ...p, isFeatured: !p.isFeatured }))}
-                  className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                    productForm.isFeatured 
-                      ? 'bg-amber-100/90 border-amber-500 shadow-xs' 
-                      : 'bg-slate-50 border-slate-200 hover:border-amber-300'
-                  }`}
+                <button 
+                  type="button"
+                  onClick={() => setIsProductModalOpen(false)}
+                  className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors"
+                  title="Fechar"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${
-                      productForm.isFeatured ? 'bg-amber-500 text-slate-950 shadow-xs' : 'bg-slate-200 text-slate-400'
-                    }`}>
-                      <Star className={`w-5 h-5 ${productForm.isFeatured ? 'fill-slate-950 text-slate-950' : 'text-slate-400'}`} />
-                    </div>
-                    <div>
-                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                        ⭐ PRODUTO EM DESTAQUE ATHENA
-                        {productForm.isFeatured && (
-                          <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                            ATIVO NO TOPO
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-[11px] text-slate-600 block mt-0.5">
-                        {productForm.isFeatured 
-                          ? 'Selo dourado ativo. O equipamento aparecerá nas primeiras posições do catálogo.' 
-                          : 'Clique para ativar e fixar este produto no topo do catálogo com selo dourado.'}
-                      </span>
-                    </div>
-                  </div>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-                  <div className="relative inline-flex items-center shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={!!productForm.isFeatured}
-                      onChange={(e) => setProductForm(p => ({ ...p, isFeatured: e.target.checked }))}
-                      className="sr-only peer"
-                    />
-                    <div className="w-12 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-                  </div>
-                </div>
+              {/* Scrollable Form Content */}
+              <form id="productMainForm" onSubmit={handleProductSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+                
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* MAIN COLUMN (8 cols): Title, Description, Media, Specs, Attachments */}
+                  <div className="lg:col-span-8 space-y-6">
+                    
+                    {/* CARD 1: Informações Gerais (Nome, Slug, Descrição Rica) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Informações Principais</h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Nome do Equipamento *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Elevador Automotivo 2 Colunas 4.000kg"
-                      value={productForm.name}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setProductForm({ 
-                          ...productForm, 
-                          name: val,
-                          slug: productForm.slug ? productForm.slug : generateSlug(val)
-                        });
-                      }}
-                      className="form-input text-xs"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      Slug da URL (SEO)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="elevador-automotivo-2-colunas"
-                      value={productForm.slug}
-                      onChange={(e) => setProductForm({ ...productForm, slug: generateSlug(e.target.value) })}
-                      className="form-input text-xs font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-700">Categoria *</label>
-                      <button
-                        type="button"
-                        onClick={() => setIsQuickCatModalOpen(true)}
-                        className="text-[11px] text-amber-700 font-bold hover:underline flex items-center gap-0.5"
-                      >
-                        <Plus className="w-3 h-3" /> Nova Categoria
-                      </button>
-                    </div>
-                    <select
-                      value={productForm.categoryId}
-                      onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
-                      className="form-select text-xs"
-                      required
-                    >
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-700">Marca / Fabricante *</label>
-                      <button
-                        type="button"
-                        onClick={openNewBrandModal}
-                        className="text-[11px] text-sky-700 font-bold hover:underline flex items-center gap-0.5"
-                      >
-                        <Plus className="w-3 h-3" /> Nova Marca
-                      </button>
-                    </div>
-                    <select
-                      value={productForm.brandId}
-                      onChange={(e) => setProductForm({ ...productForm, brandId: e.target.value })}
-                      className="form-select text-xs"
-                      required
-                    >
-                      {brands.map((b) => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">Status de Publicação</label>
-                    <select
-                      value={productForm.status}
-                      onChange={(e) => setProductForm({ ...productForm, status: e.target.value })}
-                      className="form-select text-xs font-bold"
-                    >
-                      <option value="published">Publicado (Default)</option>
-                      <option value="draft">Rascunho (Oculto)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">Preço (R$)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="18900.00"
-                      disabled={productForm.priceNegotiable}
-                      value={productForm.price}
-                      onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                      className="form-input text-xs disabled:opacity-40"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2 py-3">
-                    <input
-                      type="checkbox"
-                      id="priceNegotiable"
-                      checked={productForm.priceNegotiable}
-                      onChange={(e) => setProductForm({ ...productForm, priceNegotiable: e.target.checked })}
-                      className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
-                    />
-                    <label htmlFor="priceNegotiable" className="text-xs font-semibold text-slate-700 cursor-pointer">
-                      Preço Sob Consulta (Default)
-                    </label>
-                  </div>
-                </div>
-
-                {/* Fotos & Galeria de Imagens do Produto */}
-                <div className="space-y-3 pt-2 border-t border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-xs font-bold text-slate-900 block">Fotos do Produto (Galeria & Capa)</label>
-                      <p className="text-[11px] text-slate-500">Você pode adicionar múltiplas fotos para o carrossel e zoom.</p>
-                    </div>
-                    <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
-                      <button
-                        type="button"
-                        onClick={() => setImageSourceMode('upload')}
-                        className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
-                          imageSourceMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
-                        }`}
-                      >
-                        Upload de Fotos
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImageSourceMode('url')}
-                        className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
-                          imageSourceMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
-                        }`}
-                      >
-                        Adicionar por URL
-                      </button>
-                    </div>
-                  </div>
-
-                  {imageSourceMode === 'upload' ? (
-                    <div 
-                      onDragOver={(e) => { e.preventDefault(); setIsDraggingImage(true); }}
-                      onDragLeave={() => setIsDraggingImage(false)}
-                      onDrop={handleDropImage}
-                      className={`border-2 border-dashed rounded-2xl p-4 text-center transition-colors cursor-pointer ${
-                        isDraggingImage ? 'border-amber-500 bg-amber-50' : 'border-slate-300 hover:border-amber-400 bg-slate-50'
-                      }`}
-                    >
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => e.target.files && handleMultipleImageUpload(e.target.files)}
-                        className="hidden" 
-                        id="fileDropInputModal"
-                      />
-
-                      <label htmlFor="fileDropInputModal" className="cursor-pointer space-y-1 block">
-                        <Upload className="w-6 h-6 mx-auto text-amber-600" />
-                        <span className="text-xs font-bold text-slate-800 block">
-                          Arraste e solte fotos aqui ou clique para selecionar (aceita várias)
-                        </span>
-                        <span className="text-[10px] text-slate-400">Arquivos JPG, PNG ou WEBP</span>
-                      </label>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Nome do Equipamento *
+                        </label>
                         <input
-                          type="url"
-                          placeholder="https://suaimagem.com/foto.jpg"
-                          value={productImageUrlInput}
-                          onChange={(e) => setProductImageUrlInput(e.target.value)}
-                          className="form-input text-xs !pl-10"
+                          type="text"
+                          placeholder="Ex: Elevador Automotivo 2 Colunas 4.000kg"
+                          value={productForm.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setProductForm({ 
+                              ...productForm, 
+                              name: val,
+                              slug: productForm.slug ? productForm.slug : generateSlug(val)
+                            });
+                          }}
+                          className="form-input text-sm font-bold !py-2.5"
+                          required
                         />
-                        <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!productImageUrlInput.trim()) return;
-                          const url = productImageUrlInput.trim();
-                          setProductForm((prev) => {
-                            const current = Array.isArray(prev.images) ? [...prev.images] : [];
-                            const updated = current.includes(url) ? current : [...current, url];
-                            return {
-                              ...prev,
-                              image: prev.image || url,
-                              images: updated
-                            };
-                          });
-                          setProductImageUrlInput('');
-                          showNotification('Foto adicionada à galeria!', 'success');
-                        }}
-                        className="btn-secondary text-xs font-bold py-2 px-3 shrink-0"
-                      >
-                        + Adicionar Foto
-                      </button>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Slug da URL (SEO)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="elevador-automotivo-2-colunas"
+                          value={productForm.slug}
+                          onChange={(e) => setProductForm({ ...productForm, slug: generateSlug(e.target.value) })}
+                          className="form-input text-xs font-mono text-slate-600 bg-slate-50"
+                        />
+                      </div>
+
+                      {/* Rich Text Editor for Description with generous height */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                          Descrição Comercial do Equipamento
+                        </label>
+                        <RichTextEditor
+                          value={productForm.description}
+                          onChange={(val) => setProductForm({ ...productForm, description: val })}
+                          onOptimize={handleOptimizeDescriptionAndSpecs}
+                          placeholder="Descreva o produto, recursos, diferenciais e materiais..."
+                        />
+                      </div>
                     </div>
-                  )}
 
-                  {/* Visual Gallery Grid Preview */}
-                  {(() => {
-                    const allImages = Array.from(
-                      new Set([
-                        ...(productForm.image ? [productForm.image] : []),
-                        ...(Array.isArray(productForm.images) ? productForm.images : [])
-                      ].filter(Boolean))
-                    );
+                    {/* CARD 2: Mídia / Fotos do Produto */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Fotos do Produto (Galeria & Capa)</h4>
+                          <p className="text-[11px] text-slate-500">Adicione imagens em alta qualidade para carrossel e zoom de detalhes.</p>
+                        </div>
 
-                    if (allImages.length === 0) return null;
-
-                    return (
-                      <div className="space-y-2 pt-2">
-                        <span className="text-[11px] font-bold text-slate-600 block">
-                          Galeria ({allImages.length} foto{allImages.length > 1 ? 's' : ''}):
-                        </span>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                          {allImages.map((imgUrl, i) => {
-                            const isCover = productForm.image === imgUrl;
-                            return (
-                              <div 
-                                key={i} 
-                                className={`relative rounded-xl border p-1 bg-white flex flex-col justify-between overflow-hidden group shadow-xs ${
-                                  isCover ? 'border-amber-500 ring-2 ring-amber-400/40' : 'border-slate-200'
-                                }`}
-                              >
-                                <div className="aspect-square rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center p-1 relative">
-                                  <img src={imgUrl} alt={`Foto ${i + 1}`} className="max-h-full max-w-full object-contain" />
-                                  {isCover && (
-                                    <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-amber-500 text-white font-extrabold text-[9px] shadow-xs flex items-center gap-0.5">
-                                      ⭐ Capa
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="pt-1.5 flex items-center justify-between text-[10px]">
-                                  {!isCover ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => setProductForm({ ...productForm, image: imgUrl })}
-                                      className="text-amber-700 hover:text-amber-900 font-bold hover:underline"
-                                    >
-                                      Tornar Capa
-                                    </button>
-                                  ) : (
-                                    <span className="text-slate-400 font-bold">Principal</span>
-                                  )}
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const remainingImages = allImages.filter(img => img !== imgUrl);
-                                      setProductForm({
-                                        ...productForm,
-                                        image: isCover ? (remainingImages[0] || '') : productForm.image,
-                                        images: remainingImages
-                                      });
-                                    }}
-                                    className="text-red-600 hover:text-red-800 font-bold ml-auto"
-                                    title="Remover esta foto"
-                                  >
-                                    Excluir
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
+                        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setImageSourceMode('upload')}
+                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                              imageSourceMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                            }`}
+                          >
+                            Upload de Fotos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setImageSourceMode('url')}
+                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                              imageSourceMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                            }`}
+                          >
+                            Adicionar por URL
+                          </button>
                         </div>
                       </div>
-                    );
-                  })()}
-                </div>
 
-                {/* OPTIONAL ATTACHMENTS MANAGER SECTION */}
-                <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <Paperclip className="w-4 h-4 text-amber-600" />
-                      Anexos & Documentos (Opcional — Manuais, Fichas Técnicas em PDF)
-                    </label>
-                    <span className="text-[10px] text-slate-400 font-medium">Quantos quiser</span>
-                  </div>
+                      {imageSourceMode === 'upload' ? (
+                        <div 
+                          onDragOver={(e) => { e.preventDefault(); setIsDraggingImage(true); }}
+                          onDragLeave={() => setIsDraggingImage(false)}
+                          onDrop={handleDropImage}
+                          className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors cursor-pointer ${
+                            isDraggingImage ? 'border-amber-500 bg-amber-50' : 'border-slate-300 hover:border-amber-400 bg-slate-50/70'
+                          }`}
+                        >
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            multiple
+                            onChange={(e) => e.target.files && handleMultipleImageUpload(e.target.files)}
+                            className="hidden" 
+                            id="fileDropInputModal"
+                          />
 
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="file"
-                      id="attachmentFileInput"
-                      className="hidden"
-                      onChange={(e) => e.target.files && handleAttachmentUpload(e.target.files[0])}
-                    />
-                    <label
-                      htmlFor="attachmentFileInput"
-                      className="btn-secondary text-xs py-2 px-3 gap-1.5 cursor-pointer inline-flex"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Adicionar Anexo</span>
-                    </label>
-                  </div>
-
-                  {productForm.attachments && productForm.attachments.length > 0 && (
-                    <div className="space-y-1.5 pt-2">
-                      {productForm.attachments.map((att) => (
-                        <div key={att.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <FileText className="w-4 h-4 text-amber-600 shrink-0" />
-                            <span className="font-bold text-amber-900 truncate">
-                              {formatAttachmentLabel(att.fileName)}
+                          <label htmlFor="fileDropInputModal" className="cursor-pointer space-y-1.5 block">
+                            <Upload className="w-8 h-8 mx-auto text-amber-600" />
+                            <span className="text-xs font-bold text-slate-800 block">
+                              Arraste e solte fotos aqui ou clique para selecionar (aceita várias)
                             </span>
-                            <span className="text-[10px] text-slate-400 shrink-0">({att.fileName})</span>
+                            <span className="text-[11px] text-slate-400">Arquivos JPG, PNG ou WEBP em alta definição</span>
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="url"
+                              placeholder="https://suaimagem.com/foto.jpg"
+                              value={productImageUrlInput}
+                              onChange={(e) => setProductImageUrlInput(e.target.value)}
+                              className="form-input text-xs !pl-10"
+                            />
+                            <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!productImageUrlInput.trim()) return;
+                              const url = productImageUrlInput.trim();
+                              setProductForm((prev) => {
+                                const current = Array.isArray(prev.images) ? [...prev.images] : [];
+                                const updated = current.includes(url) ? current : [...current, url];
+                                return {
+                                  ...prev,
+                                  image: prev.image || url,
+                                  images: updated
+                                };
+                              });
+                              setProductImageUrlInput('');
+                              showNotification('Foto adicionada à galeria.', 'success');
+                            }}
+                            className="btn-secondary text-xs font-bold py-2 px-3.5 shrink-0"
+                          >
+                            + Adicionar Foto
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Visual Gallery Grid Preview */}
+                      {(() => {
+                        const allImages = Array.from(
+                          new Set([
+                            ...(productForm.image ? [productForm.image] : []),
+                            ...(Array.isArray(productForm.images) ? productForm.images : [])
+                          ].filter(Boolean))
+                        );
+
+                        if (allImages.length === 0) return null;
+
+                        return (
+                          <div className="space-y-2 pt-2">
+                            <span className="text-[11px] font-bold text-slate-600 block">
+                              Galeria ({allImages.length} foto{allImages.length > 1 ? 's' : ''}):
+                            </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                              {allImages.map((imgUrl, i) => {
+                                const isCover = productForm.image === imgUrl;
+                                return (
+                                  <div 
+                                    key={i} 
+                                    className={`relative rounded-xl border p-1 bg-white flex flex-col justify-between overflow-hidden group shadow-xs ${
+                                      isCover ? 'border-amber-500 ring-2 ring-amber-400/40' : 'border-slate-200'
+                                    }`}
+                                  >
+                                    <div className="aspect-square rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center p-1 relative">
+                                      <img src={imgUrl} alt={`Foto ${i + 1}`} className="max-h-full max-w-full object-contain" />
+                                      {isCover && (
+                                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-black text-[9px] shadow-xs flex items-center gap-0.5">
+                                          Capa
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="pt-1.5 flex items-center justify-between text-[10px]">
+                                      {!isCover ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => setProductForm({ ...productForm, image: imgUrl })}
+                                          className="text-amber-700 hover:text-amber-900 font-bold hover:underline"
+                                        >
+                                          Tornar Capa
+                                        </button>
+                                      ) : (
+                                        <span className="text-slate-400 font-bold">Principal</span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const remainingImages = allImages.filter(img => img !== imgUrl);
+                                          setProductForm({
+                                            ...productForm,
+                                            image: isCover ? (remainingImages[0] || '') : productForm.image,
+                                            images: remainingImages
+                                          });
+                                        }}
+                                        className="text-red-600 hover:text-red-800 font-bold ml-auto"
+                                        title="Remover esta foto"
+                                      >
+                                        Excluir
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700">Texto Alternativo (Alt Text SEO)</label>
+                          <button
+                            type="button"
+                            onClick={generateAutoAltText}
+                            className="text-[11px] text-amber-700 font-bold hover:underline flex items-center gap-1"
+                          >
+                            <Sparkles className="w-3 h-3" /> Gerar Alt Automático
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Descrição da imagem para SEO e acessibilidade"
+                          value={productForm.altText}
+                          onChange={(e) => setProductForm({ ...productForm, altText: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* CARD 3: Especificações Técnicas (Smart Manager) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <Layers className="w-4 h-4 text-amber-600" />
+                            Especificações Técnicas
+                          </h4>
+                          <p className="text-[11px] text-slate-500">Itens tabulados no formato "Rótulo: Valor" exibidos na página e no comparador.</p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleExtractSpecsFromDescription}
+                            className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100 inline-flex items-center"
+                            title="Extrair dados técnicos da descrição automaticamente"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Extrair da Descrição</span>
+                          </button>
 
                           <button
                             type="button"
-                            onClick={() => removeAttachment(att.id)}
-                            className="p-1 rounded text-red-600 hover:bg-red-50"
-                            title="Remover anexo"
+                            onClick={() => handleAddSpec('')}
+                            className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 inline-flex items-center"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Plus className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Nova Linha</span>
                           </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-700">Texto Alternativo (Alt Text SEO)</label>
-                    <button
-                      type="button"
-                      onClick={generateAutoAltText}
-                      className="text-[11px] text-amber-700 font-bold hover:underline flex items-center gap-1"
-                    >
-                      <Sparkles className="w-3 h-3" /> Gerar Alt Automático
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Descrição da imagem para SEO e acessibilidade"
-                    value={productForm.altText}
-                    onChange={(e) => setProductForm({ ...productForm, altText: e.target.value })}
-                    className="form-input text-xs"
-                  />
-                </div>
+                      {/* Live Dynamic Specs Detected */}
+                      {(() => {
+                        const detected = parseSpecsFromText(productForm.description, productForm.name);
+                        const currentSpecsLower = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
+                        const unaddedDetected = detected.filter(s => !currentSpecsLower.has(s.toLowerCase().trim()));
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Descrição</label>
-                  <textarea
-                    placeholder="Descreva as características técnicas do produto..."
-                    value={productForm.description}
-                    onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                    className="form-textarea text-xs h-20"
-                  />
-                </div>
+                        return (
+                          <div className="space-y-1.5 bg-amber-50/70 p-3.5 rounded-xl border border-amber-200">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-extrabold text-amber-900 flex items-center gap-1.5">
+                                <FileText className="w-3.5 h-3.5 text-amber-700" />
+                                {unaddedDetected.length > 0 ? (
+                                  <span>Sugestões Encontradas na sua Descrição ({unaddedDetected.length}):</span>
+                                ) : (
+                                  <span>Análise da Descrição em Tempo Real:</span>
+                                )}
+                              </span>
 
-                {/* SMART TECHNICAL SPECIFICATIONS MANAGER */}
-                <div className="space-y-3 pt-3 border-t border-slate-200">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                        <Layers className="w-4 h-4 text-amber-600" />
-                        Especificações Técnicas
-                      </label>
-                      <p className="text-[11px] text-slate-500">Adicione itens no formato "Rótulo: Valor" para destacar na página do produto.</p>
-                    </div>
+                              {unaddedDetected.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setProductForm(prev => ({
+                                      ...prev,
+                                      specs: [...(prev.specs || []), ...unaddedDetected]
+                                    }));
+                                    showNotification(`${unaddedDetected.length} especificações adicionadas.`, 'success');
+                                  }}
+                                  className="text-[10px] font-extrabold text-amber-800 hover:text-amber-950 underline"
+                                >
+                                  + Adicionar Todas ({unaddedDetected.length})
+                                </button>
+                              )}
+                            </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleExtractSpecsFromDescription}
-                        className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100 inline-flex items-center"
-                        title="Extrair dados técnicos da descrição automaticamente"
-                      >
-                        <FileText className="w-3.5 h-3.5 text-amber-700" />
-                        <span>Extrair da Descrição</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleAddSpec('')}
-                        className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 inline-flex items-center"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-slate-600" />
-                        <span>Nova Linha</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Live Dynamic Specs Detected in User Description */}
-                  {(() => {
-                    const detected = parseSpecsFromText(productForm.description, productForm.name);
-                    const currentSpecsLower = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
-                    const unaddedDetected = detected.filter(s => !currentSpecsLower.has(s.toLowerCase().trim()));
-
-                    return (
-                      <div className="space-y-1.5 bg-amber-50/70 p-3 rounded-xl border border-amber-200">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-extrabold text-amber-900 flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5 text-amber-700" />
                             {unaddedDetected.length > 0 ? (
-                              <span>Sugestões Encontradas na sua Descrição ({unaddedDetected.length}):</span>
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {unaddedDetected.map((item, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => handleAddSpec(item)}
+                                    className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:border-amber-500 text-amber-950 hover:bg-amber-100/60 text-[11px] font-bold transition-all shadow-2xs text-left"
+                                    title="Clique para adicionar à lista"
+                                  >
+                                    + {item}
+                                  </button>
+                                ))}
+                              </div>
                             ) : (
-                              <span>Análise da Descrição em Tempo Real:</span>
+                              <p className="text-[11px] text-amber-800/80 leading-tight">
+                                {productForm.description && productForm.description.trim().length > 5 ? (
+                                  <span>Todas as especificações encontradas na descrição já foram adicionadas à lista abaixo.</span>
+                                ) : (
+                                  <span>Cole ou digite a descrição com dados técnicos acima para extrair automaticamente as especificações deste produto.</span>
+                                )}
+                              </p>
                             )}
-                          </span>
+                          </div>
+                        );
+                      })()}
 
-                          {unaddedDetected.length > 0 && (
+                      {/* Active Specs List */}
+                      {productForm.specs && productForm.specs.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
+                            <span>Itens Cadastrados ({productForm.specs.length}):</span>
                             <button
                               type="button"
-                              onClick={() => {
-                                setProductForm(prev => ({
-                                  ...prev,
-                                  specs: [...(prev.specs || []), ...unaddedDetected]
-                                }));
-                                showNotification(`${unaddedDetected.length} especificações da descrição adicionadas.`, 'success');
-                              }}
-                              className="text-[10px] font-extrabold text-amber-800 hover:text-amber-950 underline"
+                              onClick={() => setProductForm(prev => ({ ...prev, specs: [] }))}
+                              className="text-red-600 hover:underline text-[10px]"
                             >
-                              + Adicionar Todas ({unaddedDetected.length})
+                              Limpar Todos
                             </button>
-                          )}
-                        </div>
+                          </div>
 
-                        {unaddedDetected.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {unaddedDetected.map((item, idx) => (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => handleAddSpec(item)}
-                                className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:border-amber-500 text-amber-950 hover:bg-amber-100/60 text-[11px] font-bold transition-all shadow-2xs text-left"
-                                title="Clique para adicionar à lista"
-                              >
-                                + {item}
-                              </button>
+                          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                            {productForm.specs.map((specItem, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                                <span className="w-5 text-center text-[10px] font-bold text-slate-400 shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  placeholder="Ex: Capacidade de Carga: 4.000 kg"
+                                  value={specItem}
+                                  onChange={(e) => handleUpdateSpec(idx, e.target.value)}
+                                  className="form-input text-xs flex-1 !py-1.5 !px-2.5 border-none focus:ring-1 focus:ring-amber-500 bg-white rounded-lg font-medium text-slate-800"
+                                />
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSpec(idx, 'up')}
+                                  disabled={idx === 0}
+                                  className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                                  title="Mover para cima"
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSpec(idx, 'down')}
+                                  disabled={idx === productForm.specs.length - 1}
+                                  className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                                  title="Mover para baixo"
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSpec(idx)}
+                                  className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"
+                                  title="Remover especificação"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             ))}
                           </div>
-                        ) : (
-                          <p className="text-[11px] text-amber-800/80 leading-tight">
-                            {productForm.description && productForm.description.trim().length > 5 ? (
-                              <span>Todas as especificações encontradas na descrição já foram adicionadas à lista abaixo.</span>
-                            ) : (
-                              <span>Cole ou digite a descrição técnica acima para extrair automaticamente as especificações reais deste produto.</span>
-                            )}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })()}
+                        </div>
+                      ) : (
+                        <div className="p-5 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400 bg-slate-50/50">
+                          Nenhuma especificação adicionada ainda. Digite a descrição e clique em <strong>Extrair da Descrição</strong> ou adicione manualmente.
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Active Specs List */}
-                  {productForm.specs && productForm.specs.length > 0 ? (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
-                        <span>Itens Cadastrados ({productForm.specs.length}):</span>
-                        <button
-                          type="button"
-                          onClick={() => setProductForm(prev => ({ ...prev, specs: [] }))}
-                          className="text-red-600 hover:underline text-[10px]"
+                    {/* CARD 4: Anexos e Manuais em PDF */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <Paperclip className="w-4 h-4 text-amber-600" />
+                            Anexos & Documentos (Manuais, Fichas Técnicas em PDF)
+                          </h4>
+                          <p className="text-[11px] text-slate-500">Arquivos para download na página dedicada do produto.</p>
+                        </div>
+
+                        <input
+                          type="file"
+                          id="attachmentFileInput"
+                          className="hidden"
+                          onChange={(e) => e.target.files && handleAttachmentUpload(e.target.files[0])}
+                        />
+                        <label
+                          htmlFor="attachmentFileInput"
+                          className="btn-secondary text-xs py-1.5 px-3 gap-1.5 cursor-pointer inline-flex items-center font-bold"
                         >
-                          Limpar Todos
-                        </button>
+                          <Plus className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Adicionar PDF</span>
+                        </label>
                       </div>
 
-                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                        {productForm.specs.map((specItem, idx) => (
-                          <div key={idx} className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
-                            <span className="w-5 text-center text-[10px] font-bold text-slate-400 shrink-0">
-                              {idx + 1}
-                            </span>
-                            <input
-                              type="text"
-                              placeholder="Ex: Capacidade de Carga: 4.000 kg"
-                              value={specItem}
-                              onChange={(e) => handleUpdateSpec(idx, e.target.value)}
-                              className="form-input text-xs flex-1 !py-1.5 !px-2.5 border-none focus:ring-1 focus:ring-amber-500 bg-slate-50 rounded-lg font-medium text-slate-800"
-                            />
-                            
-                            <button
-                              type="button"
-                              onClick={() => handleMoveSpec(idx, 'up')}
-                              disabled={idx === 0}
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
-                              title="Mover para cima"
-                            >
-                              <ArrowUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveSpec(idx, 'down')}
-                              disabled={idx === productForm.specs.length - 1}
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
-                              title="Mover para baixo"
-                            >
-                              <ArrowDown className="w-3.5 h-3.5" />
-                            </button>
+                      {productForm.attachments && productForm.attachments.length > 0 ? (
+                        <div className="space-y-1.5 pt-1">
+                          {productForm.attachments.map((att) => (
+                            <div key={att.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <FileText className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span className="font-bold text-amber-900 truncate">
+                                  {formatAttachmentLabel(att.fileName)}
+                                </span>
+                                <span className="text-[10px] text-slate-400 shrink-0">({att.fileName})</span>
+                              </div>
 
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSpec(idx)}
-                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"
-                              title="Remover especificação"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                              <button
+                                type="button"
+                                onClick={() => removeAttachment(att.id)}
+                                className="p-1 rounded text-red-600 hover:bg-red-50"
+                                title="Remover anexo"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400 bg-slate-50/50">
+                          Nenhum documento anexado. Clique em "Adicionar PDF" para enviar manuais ou catálogos.
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400">
-                      Nenhuma especificação adicionada ainda. Digite a descrição e clique em <strong>🪄 Extrair da Descrição</strong> ou use as sugestões acima.
-                    </div>
-                  )}
-                </div>
 
-                <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsProductModalOpen(false);
-                      onNavigate(`produto/${productForm.slug || 'preview'}`);
-                    }}
-                    className="btn-secondary text-xs"
-                  >
-                    <Eye className="w-4 h-4 text-emerald-600" />
-                    <span>Pré-visualizar Página</span>
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setIsProductModalOpen(false)} className="btn-secondary text-xs">Cancelar</button>
-                    <button type="submit" className="btn-gold text-xs font-bold py-2.5 px-5">
-                      <Check className="w-4 h-4" /> Salvar Produto
-                    </button>
                   </div>
+
+                  {/* SIDEBAR COLUMN (4 cols): Destaque, Organization, Pricing, Status */}
+                  <div className="lg:col-span-4 space-y-6">
+                    
+                    {/* SIDEBAR CARD 1: Destaque Athena */}
+                    <div 
+                      onClick={() => setProductForm(p => ({ ...p, isFeatured: !p.isFeatured }))}
+                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
+                        productForm.isFeatured 
+                          ? 'bg-amber-100/90 border-amber-500 shadow-xs' 
+                          : 'bg-white border-slate-200 hover:border-amber-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 ${
+                            productForm.isFeatured ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            <Star className={`w-4 h-4 ${productForm.isFeatured ? 'fill-slate-950 text-slate-950' : 'text-slate-400'}`} />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-slate-900 block">
+                              PRODUTO EM DESTAQUE
+                            </span>
+                            {productForm.isFeatured && (
+                              <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded uppercase">
+                                ATIVO NO TOPO
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="relative inline-flex items-center shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={!!productForm.isFeatured}
+                            onChange={(e) => setProductForm(p => ({ ...p, isFeatured: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-600 leading-tight">
+                        {productForm.isFeatured 
+                          ? 'Selo dourado ativo. O equipamento aparecerá no topo do catálogo.' 
+                          : 'Ative para fixar este produto no topo do catálogo com selo dourado.'}
+                      </p>
+                    </div>
+
+                    {/* SIDEBAR CARD 2: Organização & Classificação */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Organização</h4>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700">Categoria *</label>
+                          <button
+                            type="button"
+                            onClick={() => setIsQuickCatModalOpen(true)}
+                            className="text-[11px] text-amber-700 font-bold hover:underline flex items-center gap-0.5"
+                          >
+                            <Plus className="w-3 h-3" /> Nova
+                          </button>
+                        </div>
+                        <select
+                          value={productForm.categoryId}
+                          onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
+                          className="form-select text-xs font-medium"
+                          required
+                        >
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700">Marca / Fabricante *</label>
+                          <button
+                            type="button"
+                            onClick={openNewBrandModal}
+                            className="text-[11px] text-sky-700 font-bold hover:underline flex items-center gap-0.5"
+                          >
+                            <Plus className="w-3 h-3" /> Nova
+                          </button>
+                        </div>
+                        <select
+                          value={productForm.brandId}
+                          onChange={(e) => setProductForm({ ...productForm, brandId: e.target.value })}
+                          className="form-select text-xs font-medium"
+                          required
+                        >
+                          {brands.map((b) => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Selo Promocional / Badge
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Lançamento, Linha Pesada, Top de Linha"
+                          value={productForm.badge}
+                          onChange={(e) => setProductForm({ ...productForm, badge: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">Status de Publicação</label>
+                        <select
+                          value={productForm.status}
+                          onChange={(e) => setProductForm({ ...productForm, status: e.target.value })}
+                          className="form-select text-xs font-bold"
+                        >
+                          <option value="published">Publicado (Visível no Catálogo)</option>
+                          <option value="draft">Rascunho (Oculto)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* SIDEBAR CARD 3: Preços & Condições Comerciais */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Preços & Condições</h4>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">Preço Base (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="18900.00"
+                          disabled={productForm.priceNegotiable}
+                          value={productForm.price}
+                          onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                          className="form-input text-xs disabled:opacity-40 font-mono"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <input
+                          type="checkbox"
+                          id="priceNegotiable"
+                          checked={productForm.priceNegotiable}
+                          onChange={(e) => setProductForm({ ...productForm, priceNegotiable: e.target.checked })}
+                          className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                        />
+                        <label htmlFor="priceNegotiable" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                          Preço Sob Consulta (Negociável)
+                        </label>
+                      </div>
+                    </div>
+
+                  </div>
+
                 </div>
 
               </form>
+
+              {/* Sticky Action Footer */}
+              <div className="bg-white px-5 sm:px-8 py-4 border-t border-slate-200 flex items-center justify-between shrink-0 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProductModalOpen(false);
+                    onNavigate(`produto/${productForm.slug || 'preview'}`);
+                  }}
+                  className="btn-secondary text-xs py-2.5 px-4 font-bold flex items-center gap-1.5"
+                >
+                  <Eye className="w-4 h-4 text-emerald-600" />
+                  <span>Pré-visualizar Página</span>
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsProductModalOpen(false)} 
+                    className="btn-secondary text-xs py-2.5 px-4 font-bold"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    form="productMainForm"
+                    className="btn-gold text-xs font-extrabold py-2.5 px-6 shadow-md"
+                  >
+                    <Check className="w-4 h-4" /> Salvar Equipamento
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
         )}

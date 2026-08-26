@@ -1,4 +1,5 @@
 import React from 'react';
+import FormattedDescription from './FormattedDescription';
 import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles } from 'lucide-react';
 
 export default function ProductModal({ product, category, brand, onClose }) {
@@ -101,9 +102,9 @@ export default function ProductModal({ product, category, brand, onClose }) {
               {/* Description */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Descrição do Equipamento</h4>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {product.description}
-                </p>
+                <div className="text-xs text-slate-600 leading-relaxed max-h-48 overflow-y-auto">
+                  <FormattedDescription text={product.description} />
+                </div>
               </div>
 
               {/* Specs List */}

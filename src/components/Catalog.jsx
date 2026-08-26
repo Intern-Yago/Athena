@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
 import FilterSidebar from './FilterSidebar';
-import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react';
+import Pagination from './Pagination';
+import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, LayoutGrid, List } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -320,48 +321,15 @@ export default function Catalog({
                   })}
                 </div>
 
-                {/* PAGINATION CONTROLS (Rendered if >= 20 items or totalPages > 1) */}
-                {(sortedProducts.length >= ITEMS_PER_PAGE || totalPages > 1) && (
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold shadow-xs">
-                    <span className="text-slate-500 font-medium">
-                      Página <strong className="text-slate-900">{currentPage}</strong> de <strong className="text-slate-900">{totalPages}</strong> ({sortedProducts.length} itens)
-                    </span>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => goToPage(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="btn-secondary py-2 px-3 text-xs gap-1 disabled:opacity-40"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        <span>Anterior</span>
-                      </button>
-
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                        <button
-                          key={pageNum}
-                          onClick={() => goToPage(pageNum)}
-                          className={`w-8 h-8 rounded-xl font-extrabold text-xs transition-colors flex items-center justify-center ${
-                            currentPage === pageNum
-                              ? 'bg-amber-600 text-white shadow-xs'
-                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      ))}
-
-                      <button
-                        onClick={() => goToPage(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="btn-secondary py-2 px-3 text-xs gap-1 disabled:opacity-40"
-                      >
-                        <span>Próxima</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* PAGINATION CONTROLS */}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={sortedProducts.length}
+                  itemsPerPage={ITEMS_PER_PAGE}
+                  onPageChange={goToPage}
+                  itemName="equipamentos"
+                />
               </>
             ) : (
               <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-4 max-w-lg mx-auto shadow-xs">

@@ -1,6 +1,7 @@
 import React from 'react';
 import ProductCard from '../components/ProductCard';
 import ProductImageGallery from '../components/ProductImageGallery';
+import FormattedDescription from '../components/FormattedDescription';
 import NotFoundPage from './NotFoundPage';
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, PhoneCall, Sparkles, Truck, Package, FileText, Download, ArrowLeftRight } from 'lucide-react';
 
@@ -230,9 +231,9 @@ export default function ProductDetailPage({
             {/* Description */}
             <div className="space-y-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Descrição do Produto</h3>
-              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
-                {product.description}
-              </p>
+              <div className="text-xs sm:text-sm bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                <FormattedDescription text={product.description} />
+              </div>
             </div>
 
             {/* Technical Specs List */}

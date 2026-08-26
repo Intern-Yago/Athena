@@ -65,6 +65,17 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
 
           const specsList = (p.specs || []).map(s => `<li>${s}</li>`).join('');
 
+          const formattedDesc = (p.description || '')
+            .replace(/\[(?:color|cor)=([a-zA-Z0-9_\-]+)\](.*?)\[\/(?:color|cor)\]/gi, (_, color, text) => {
+              const hex = color.includes('azul') || color.includes('blue') ? '#0284c7' : (color.includes('verde') || color.includes('green') ? '#059669' : (color.includes('vermelho') || color.includes('red') ? '#dc2626' : '#d97706'));
+              return `<span style="color:${hex};font-weight:bold;">${text}</span>`;
+            })
+            .replace(/\[(?:destaque|highlight)\](.*?)\[\/(?:destaque|highlight)\]/gi, '<mark style="background:#fef3c7;color:#78350f;padding:1px 4px;border-radius:3px;">$1</mark>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>')
+            .replace(/^[•\-\*]\s+(.*)$/gm, '&bull; $1<br/>');
+
           return `
             <div class="product-card">
               <div class="img-box">
@@ -75,7 +86,7 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
                   <h4 class="prod-title">${p.name}</h4>
                   ${p.isFeatured ? '<span class="feat-tag">⭐ Destaque</span>' : ''}
                 </div>
-                <p class="desc">${p.description || ''}</p>
+                <p class="desc">${formattedDesc}</p>
                 ${specsList ? `<ul class="specs">${specsList}</ul>` : ''}
                 <div class="price-box">
                   <span>Condição Comercial:</span>
