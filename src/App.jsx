@@ -78,8 +78,13 @@ export default function App() {
   const [currentRoute, setCurrentRoute] = useState(getRouteFromUrl);
   const [previousRoute, setPreviousRoute] = useState(null);
 
+  const getInitialSearchTerm = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('q') || params.get('busca') || params.get('search') || '';
+  };
+
   // Multi-Selection E-commerce Filter States
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(getInitialSearchTerm);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedBrands, setSelectedBrands] = useState([]);
   const [maxPriceFilter, setMaxPriceFilter] = useState(null);
@@ -90,6 +95,16 @@ export default function App() {
   // Side-by-Side Product Comparison States
   const [comparisonList, setComparisonList] = useState([]);
   const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (isComparisonModalOpen) {
+      const orig = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = orig;
+      };
+    }
+  }, [isComparisonModalOpen]);
 
   const handleToggleComparison = (product) => {
     if (comparisonList.some((p) => p.id === product.id)) {
@@ -147,6 +162,11 @@ export default function App() {
   useEffect(() => {
     const handleUrlChange = () => {
       const route = getRouteFromUrl();
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('q') || params.get('busca') || params.get('search');
+      if (q !== null) {
+        setSearchTerm(q);
+      }
       setCurrentRoute((prev) => {
         setPreviousRoute(prev);
         return route;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, X } from 'lucide-react';
 
 export default function ProductImageGallery({ product }) {
   // Collect all images (primary product.image + optional product.images array)
@@ -17,6 +17,7 @@ export default function ProductImageGallery({ product }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoomState, setZoomState] = useState({ show: false, x: 50, y: 50 });
   const [zoomLevel, setZoomLevel] = useState(2.5); // Default 2.5x magnification
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const containerRef = useRef(null);
 
@@ -25,6 +26,28 @@ export default function ProductImageGallery({ product }) {
     setCurrentIndex(0);
     setZoomLevel(2.5);
   }, [product?.id]);
+
+  // Lock background scroll and handle ESC/arrow keys when lightbox is open
+  useEffect(() => {
+    if (isLightboxOpen) {
+      const orig = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          setIsLightboxOpen(false);
+        } else if (e.key === 'ArrowLeft') {
+          setCurrentIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
+        } else if (e.key === 'ArrowRight') {
+          setCurrentIndex((prev) => (prev + 1) % displayImages.length);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = orig;
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [isLightboxOpen, displayImages.length]);
 
   // Add non-passive wheel event listener to container so e.preventDefault() works smoothly
   useEffect(() => {
@@ -69,28 +92,25 @@ export default function ProductImageGallery({ product }) {
     setZoomState((prev) => ({ ...prev, show: false }));
   };
 
-  const handleMouseEnter = () => {
-    // hover zoom active
-  };
-
   const currentImageUrl = displayImages[currentIndex] || fallbackImage;
 
   return (
     <div className="space-y-3 select-none">
       
-      {/* Main Image Viewport with Hover Zoom Lens */}
+      {/* Main Image Viewport with Hover Zoom Lens + Click to Expand */}
       <div 
         ref={containerRef}
-        className="bg-white p-3 rounded-3xl border border-slate-200 shadow-xs aspect-square relative flex items-center justify-center overflow-hidden cursor-crosshair group"
+        onClick={() => setIsLightboxOpen(true)}
+        className="bg-white p-3 rounded-3xl border border-slate-200 shadow-xs aspect-square relative flex items-center justify-center overflow-hidden cursor-pointer group"
         onMouseMove={handleMouseMove}
-        onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        title="Clique para abrir e ver a foto expandida"
       >
         <img 
           src={currentImageUrl} 
           alt={product?.name || 'Equipamento Athena'} 
           decoding="async"
-          className="w-full h-full object-cover rounded-2xl transition-opacity duration-300"
+          className="w-full h-full object-cover rounded-2xl transition-opacity duration-300 group-hover:scale-[1.02] transition-transform"
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
           }}
@@ -102,6 +122,20 @@ export default function ProductImageGallery({ product }) {
             {product.badge}
           </span>
         )}
+
+        {/* Click to Expand Trigger Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsLightboxOpen(true);
+          }}
+          className="absolute top-4 right-4 z-30 p-2 rounded-xl bg-white/90 hover:bg-amber-600 text-slate-800 hover:text-white shadow-md transition-all flex items-center gap-1.5 text-xs font-bold backdrop-blur-xs"
+          title="Ver foto expandida sem zoom"
+        >
+          <Maximize2 className="w-4 h-4 text-amber-600 hover:text-white transition-colors" />
+          <span className="hidden sm:inline text-[11px]">Ampliar</span>
+        </button>
 
         {/* Desktop PC Magnifier Zoom Layer (Triggers on Hover) */}
         {zoomState.show && (
@@ -119,7 +153,7 @@ export default function ProductImageGallery({ product }) {
               <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
               <span>Zoom: {zoomLevel.toFixed(1)}x</span>
               <span className="text-[9px] text-slate-400 border-l border-slate-700 pl-2">
-                (Role a rodinha do mouse para ajustar)
+                (Clique para tela cheia)
               </span>
             </div>
           </div>
@@ -189,6 +223,100 @@ export default function ProductImageGallery({ product }) {
               />
             </button>
           ))}
+        </div>
+      )}
+
+      {/* FULL SCREEN EXPANDED PHOTO LIGHTBOX MODAL */}
+      {isLightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          {/* Top Header of Lightbox */}
+          <div 
+            className="w-full max-w-5xl flex items-center justify-between text-white pb-3 border-b border-slate-800 z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-sm sm:text-base text-slate-200 truncate max-w-xs sm:max-w-md">
+                {product?.name || 'Equipamento'}
+              </span>
+              {displayImages.length > 1 && (
+                <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold shrink-0">
+                  Foto {currentIndex + 1} de {displayImages.length}
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsLightboxOpen(false)}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+              title="Fechar visualizador (ESC)"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Main Full Image Viewport */}
+          <div 
+            className="flex-1 w-full max-w-5xl flex items-center justify-center relative p-2 my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {displayImages.length > 1 && (
+              <button
+                type="button"
+                onClick={handlePrev}
+                className="absolute left-2 sm:left-4 z-20 p-3 rounded-full bg-slate-900/80 hover:bg-amber-600 text-white shadow-xl transition-all active:scale-95"
+                title="Foto Anterior (Seta Esquerda)"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            )}
+
+            <img
+              src={currentImageUrl}
+              alt={product?.name || 'Equipamento Athena'}
+              className="max-h-[75vh] max-w-full object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 select-none bg-white/5 p-2"
+            />
+
+            {displayImages.length > 1 && (
+              <button
+                type="button"
+                onClick={handleNext}
+                className="absolute right-2 sm:right-4 z-20 p-3 rounded-full bg-slate-900/80 hover:bg-amber-600 text-white shadow-xl transition-all active:scale-95"
+                title="Próxima Foto (Seta Direita)"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Thumbnails in Lightbox */}
+          {displayImages.length > 1 && (
+            <div 
+              className="w-full max-w-2xl flex items-center justify-center gap-2 overflow-x-auto py-2 z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayImages.map((imgUrl, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentIndex(idx)}
+                  className={`relative w-14 h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 bg-slate-900 ${
+                    currentIndex === idx
+                      ? 'border-amber-400 scale-105 shadow-lg ring-2 ring-amber-400/40'
+                      : 'border-slate-700 opacity-60 hover:opacity-100 hover:border-slate-400'
+                  }`}
+                >
+                  <img
+                    src={imgUrl}
+                    alt={`Miniatura ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

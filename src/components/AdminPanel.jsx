@@ -197,6 +197,16 @@ export default function AdminPanel({
     mode: 'url' // 'url' | 'upload'
   });
 
+  // State for Editing Existing Attachment / PDF
+  const [editingAttachmentId, setEditingAttachmentId] = useState(null);
+  const [editingAttachmentForm, setEditingAttachmentForm] = useState({
+    title: '',
+    url: '',
+    mode: 'url',
+    fileName: '',
+    fileSize: ''
+  });
+
   // Quick Category Modal State
   const [isQuickCatModalOpen, setIsQuickCatModalOpen] = useState(false);
   const [quickCatName, setQuickCatName] = useState('');
@@ -216,6 +226,19 @@ export default function AdminPanel({
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isDraggingBrandLogo, setIsDraggingBrandLogo] = useState(false);
   const [previewingImage, setPreviewingImage] = useState(null);
+
+  const isAnyModalOpen = isProductModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage;
+
+  // Background body scroll lock while any modal is open
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      const orig = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = orig;
+      };
+    }
+  }, [isAnyModalOpen]);
 
   useEffect(() => {
     const shouldReopen = sessionStorage.getItem('athena_reopen_editor');
@@ -705,6 +728,77 @@ export default function AdminPanel({
       ...prev,
       attachments: (prev.attachments || []).filter(a => a.id !== attId)
     }));
+    if (editingAttachmentId === attId) {
+      setEditingAttachmentId(null);
+    }
+  };
+
+  const handleStartEditAttachment = (att) => {
+    setEditingAttachmentId(att.id);
+    setEditingAttachmentForm({
+      title: att.title || att.name || '',
+      url: att.url || '',
+      mode: att.url?.startsWith('data:') ? 'upload' : 'url',
+      fileName: att.fileName || '',
+      fileSize: att.fileSize || 'PDF'
+    });
+  };
+
+  const handleSaveEditAttachment = (attId) => {
+    if (!editingAttachmentForm.url || !editingAttachmentForm.url.trim()) {
+      showNotification('Insira a URL do arquivo PDF ou faça o upload.', 'error');
+      return;
+    }
+    const cleanUrl = editingAttachmentForm.url.trim();
+    const extractedFileName = cleanUrl.split('/').pop().split('?')[0] || editingAttachmentForm.fileName || 'documento.pdf';
+    const displayTitle = editingAttachmentForm.title?.trim() || formatAttachmentLabel(extractedFileName);
+
+    setProductForm(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).map(a => {
+        if (a.id === attId) {
+          return {
+            ...a,
+            title: displayTitle,
+            name: displayTitle,
+            fileName: editingAttachmentForm.fileName || extractedFileName,
+            url: cleanUrl,
+            fileSize: editingAttachmentForm.fileSize || a.fileSize || 'PDF'
+          };
+        }
+        return a;
+      })
+    }));
+
+    setEditingAttachmentId(null);
+    showNotification(`PDF "${displayTitle}" atualizado com sucesso!`, 'success');
+  };
+
+  const handleEditAttachmentFileUpload = (file) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      showNotification('Por favor, selecione um arquivo no formato PDF.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Url = event.target.result;
+      const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+      const sizeStr = sizeInMB > 0 ? `${sizeInMB} MB` : `${Math.round(file.size / 1024)} KB`;
+      const autoTitle = formatAttachmentLabel(file.name);
+
+      setEditingAttachmentForm(prev => ({
+        ...prev,
+        title: prev.title || autoTitle,
+        fileName: file.name,
+        url: base64Url,
+        fileSize: sizeStr
+      }));
+
+      showNotification(`Arquivo PDF "${file.name}" carregado.`, 'info');
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleUpdateAttachmentTitle = (attId, newTitle) => {
@@ -1470,6 +1564,136 @@ export default function AdminPanel({
     setEditingProduct(null);
   };
 
+  const handleProductFormKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      const target = e.target;
+      const tagName = target?.tagName?.toLowerCase();
+
+      // Textareas support newline
+      if (tagName === 'textarea') return;
+      // Buttons support click
+      if (tagName === 'button') return;
+
+      // PDF adding input -> add PDF
+      if (target?.dataset?.role === 'pdf-input') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleAddAttachmentSubmit(e);
+        return;
+      }
+
+      // PDF editing input -> save PDF edit
+      if (target?.dataset?.role === 'pdf-edit-input') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (editingAttachmentId) {
+          handleSaveEditAttachment(editingAttachmentId);
+        }
+        return;
+      }
+
+      // Any other input field -> prevent submitting/closing modal on Enter
+      if (tagName === 'input') {
+        e.preventDefault();
+      }
+    }
+  };
+
+  // Global Keydown Listener for ESC (close modal without saving) and ENTER (save when not focused on input)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      // 1. ESC KEY -> Close whichever modal is currently active without saving
+      if (e.key === 'Escape') {
+        if (previewingImage) {
+          setPreviewingImage(null);
+          return;
+        }
+        if (editingAttachmentId) {
+          setEditingAttachmentId(null);
+          return;
+        }
+        if (confirmModal?.isOpen) {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          return;
+        }
+        if (isPdfModalOpen) {
+          setIsPdfModalOpen(false);
+          return;
+        }
+        if (isCategoryModalOpen) {
+          setIsCategoryModalOpen(false);
+          setEditingCategory(null);
+          return;
+        }
+        if (isBrandModalOpen) {
+          setIsBrandModalOpen(false);
+          setEditingBrand(null);
+          return;
+        }
+        if (isUserModalOpen) {
+          setIsUserModalOpen(false);
+          return;
+        }
+        if (isQuickCatModalOpen) {
+          setIsQuickCatModalOpen(false);
+          return;
+        }
+        if (isProductModalOpen) {
+          setIsProductModalOpen(false);
+          setEditingProduct(null);
+          return;
+        }
+      }
+
+      // 2. ENTER KEY when NOT focused on any interactive element -> Save active modal
+      if (e.key === 'Enter') {
+        const activeEl = document.activeElement;
+        const tagName = activeEl ? activeEl.tagName.toLowerCase() : '';
+        const isInteractive = ['input', 'textarea', 'select', 'button', 'a'].includes(tagName) || activeEl?.isContentEditable;
+
+        if (!isInteractive) {
+          if (isProductModalOpen) {
+            e.preventDefault();
+            handleProductSubmit(e);
+          } else if (isCategoryModalOpen) {
+            e.preventDefault();
+            handleCategorySubmit(e);
+          } else if (isBrandModalOpen) {
+            e.preventDefault();
+            handleBrandSubmit(e);
+          } else if (isUserModalOpen) {
+            e.preventDefault();
+            handleCreateUser(e);
+          } else if (isQuickCatModalOpen) {
+            e.preventDefault();
+            handleQuickCategoryCreate(e);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [
+    isProductModalOpen,
+    isCategoryModalOpen,
+    isBrandModalOpen,
+    isUserModalOpen,
+    isQuickCatModalOpen,
+    isPdfModalOpen,
+    confirmModal?.isOpen,
+    previewingImage,
+    editingAttachmentId,
+    productForm,
+    categoryForm,
+    brandForm,
+    userForm,
+    quickCatName,
+    editingProduct,
+    editingCategory,
+    editingBrand
+  ]);
+
   // Submit New Employee User Form (Admin Only)
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -1915,7 +2139,9 @@ export default function AdminPanel({
                                     src={prod.image} 
                                     alt={prod.altText || prod.name}
                                     loading="lazy"
-                                    className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-200 shrink-0 p-1" 
+                                    onClick={() => setPreviewingImage(prod.image)}
+                                    className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-200 shrink-0 p-1 cursor-pointer hover:border-amber-400 hover:scale-105 transition-transform" 
+                                    title="Clique para expandir a foto"
                                   />
                                   <div>
                                     <span className="font-bold text-slate-900 text-xs block leading-snug">
@@ -2702,7 +2928,7 @@ export default function AdminPanel({
               </div>
 
               {/* Scrollable Form Content */}
-              <form id="productMainForm" onSubmit={handleProductSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+              <form id="productMainForm" onSubmit={handleProductSubmit} onKeyDown={handleProductFormKeyDown} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
                 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   
@@ -2898,11 +3124,15 @@ export default function AdminPanel({
                                       isCover ? 'border-amber-500 ring-2 ring-amber-400/40 shadow-xs' : 'border-slate-200 hover:border-slate-300'
                                     }`}
                                   >
-                                    <div className="aspect-square rounded-lg overflow-hidden bg-slate-50 relative">
+                                    <div
+                                      onClick={() => setPreviewingImage(imgUrl)}
+                                      className="aspect-square rounded-lg overflow-hidden bg-slate-50 relative cursor-pointer group/img"
+                                      title="Clique para expandir a foto"
+                                    >
                                       <img
                                         src={imgUrl}
                                         alt={`Foto ${index + 1}`}
-                                        className="w-full h-full object-contain p-1"
+                                        className="w-full h-full object-contain p-1 group-hover/img:scale-105 transition-transform"
                                       />
 
                                       {isCover && (
@@ -3054,14 +3284,15 @@ export default function AdminPanel({
                         <div>
                           <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                             <FileText className="w-4 h-4 text-amber-600" />
-                            Fichas Técnicas & Manuais
+                            Fichas Técnicas & Manuais em PDF
                           </h4>
+                          <p className="text-[11px] text-slate-500">Adicione ou edite manuais e links para os clientes baixarem.</p>
                         </div>
                       </div>
 
                       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-slate-700">Adicionar Documento:</span>
+                          <span className="text-xs font-bold text-slate-700">Adicionar Novo Documento:</span>
                           <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
                             <button
                               type="button"
@@ -3088,10 +3319,18 @@ export default function AdminPanel({
                           <div className="sm:col-span-5">
                             <input
                               type="text"
-                              placeholder="Nome (Opcional)"
+                              data-role="pdf-input"
+                              placeholder="Nome do Documento (Ex: Manual Técnico)"
                               value={newAttachmentForm.title}
                               onChange={(e) => setNewAttachmentForm({ ...newAttachmentForm, title: e.target.value })}
-                              className="form-input text-xs"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleAddAttachmentSubmit(e);
+                                }
+                              }}
+                              className="form-input text-xs bg-white"
                             />
                           </div>
 
@@ -3100,10 +3339,18 @@ export default function AdminPanel({
                               <div className="relative flex-1">
                                 <input
                                   type="url"
+                                  data-role="pdf-input"
                                   placeholder="https://exemplo.com/manual.pdf"
                                   value={newAttachmentForm.url}
                                   onChange={(e) => setNewAttachmentForm({ ...newAttachmentForm, url: e.target.value })}
-                                  className="form-input text-xs !pl-8"
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleAddAttachmentSubmit(e);
+                                    }
+                                  }}
+                                  className="form-input text-xs !pl-8 bg-white"
                                 />
                                 <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                               </div>
@@ -3137,14 +3384,181 @@ export default function AdminPanel({
                       </div>
 
                       {productForm.attachments && productForm.attachments.length > 0 && (
-                        <div className="max-h-56 overflow-y-auto space-y-2">
-                          {productForm.attachments.map((att) => (
-                            <div key={att.id} className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2 text-xs">
-                              <FileText className="w-4 h-4 text-amber-600 shrink-0" />
-                              <span className="truncate flex-1 font-bold">{att.title || att.fileName}</span>
-                              <button type="button" onClick={() => handleRemoveAttachment(att.id)} className="text-red-500 hover:text-red-700">Excluir</button>
-                            </div>
-                          ))}
+                        <div className="max-h-72 overflow-y-auto space-y-2.5 pt-1">
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block px-1">
+                            Documentos Cadastrados ({productForm.attachments.length}):
+                          </span>
+
+                          {productForm.attachments.map((att) => {
+                            const isEditingThis = editingAttachmentId === att.id;
+                            if (isEditingThis) {
+                              return (
+                                <div key={att.id} className="p-3.5 rounded-xl bg-amber-50/90 border-2 border-amber-400 space-y-3 shadow-xs animate-in fade-in duration-150">
+                                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                                      <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                                      Editando Documento:
+                                    </span>
+                                    <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-amber-200">
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingAttachmentForm(f => ({ ...f, mode: 'url' }))}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                                          editingAttachmentForm.mode === 'url' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                      >
+                                        <LinkIcon className="w-3 h-3 inline mr-1" /> Link
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingAttachmentForm(f => ({ ...f, mode: 'upload' }))}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                                          editingAttachmentForm.mode === 'upload' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                      >
+                                        <Upload className="w-3 h-3 inline mr-1" /> PDF
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                                    <div className="sm:col-span-5">
+                                      <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Nome do PDF</label>
+                                      <input
+                                        type="text"
+                                        data-role="pdf-edit-input"
+                                        placeholder="Nome do Documento"
+                                        value={editingAttachmentForm.title}
+                                        onChange={(e) => setEditingAttachmentForm({ ...editingAttachmentForm, title: e.target.value })}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleSaveEditAttachment(att.id);
+                                          } else if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setEditingAttachmentId(null);
+                                          }
+                                        }}
+                                        className="form-input text-xs bg-white"
+                                      />
+                                    </div>
+
+                                    {editingAttachmentForm.mode === 'url' ? (
+                                      <div className="sm:col-span-7">
+                                        <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Link / URL do PDF</label>
+                                        <div className="relative">
+                                          <input
+                                            type="url"
+                                            data-role="pdf-edit-input"
+                                            placeholder="https://exemplo.com/manual.pdf"
+                                            value={editingAttachmentForm.url}
+                                            onChange={(e) => setEditingAttachmentForm({ ...editingAttachmentForm, url: e.target.value })}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleSaveEditAttachment(att.id);
+                                              } else if (e.key === 'Escape') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setEditingAttachmentId(null);
+                                              }
+                                            }}
+                                            className="form-input text-xs !pl-8 bg-white"
+                                          />
+                                          <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="sm:col-span-7">
+                                        <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Arquivo PDF</label>
+                                        <input
+                                          type="file"
+                                          id={`editPdfFileInput_${att.id}`}
+                                          accept="application/pdf,.pdf"
+                                          className="hidden"
+                                          onChange={(e) => e.target.files && handleEditAttachmentFileUpload(e.target.files[0])}
+                                        />
+                                        <label
+                                          htmlFor={`editPdfFileInput_${att.id}`}
+                                          className="btn-secondary text-xs py-2 px-3 gap-1.5 cursor-pointer w-full flex items-center justify-center font-bold border-dashed border-amber-400 bg-white hover:bg-amber-50 text-amber-900"
+                                        >
+                                          <Upload className="w-3.5 h-3.5 text-amber-600" />
+                                          <span>{editingAttachmentForm.fileName ? `Trocar: ${editingAttachmentForm.fileName}` : 'Selecionar Novo PDF'}</span>
+                                        </label>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-200">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingAttachmentId(null)}
+                                      className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 text-xs font-bold transition"
+                                    >
+                                      Cancelar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEditAttachment(att.id)}
+                                      className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition flex items-center gap-1 shadow-xs"
+                                    >
+                                      <Check className="w-3.5 h-3.5" /> Salvar Alterações
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div key={att.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors flex items-center justify-between gap-3 text-xs">
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                                    <FileText className="w-4 h-4" />
+                                  </div>
+                                  <div className="truncate min-w-0 flex-1">
+                                    <span className="font-bold text-slate-900 block truncate">{att.title || att.fileName}</span>
+                                    <span className="text-[10px] text-slate-400 font-mono block truncate">{att.url?.startsWith('data:') ? `Arquivo Carregado (${att.fileSize || 'PDF'})` : att.url}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditAttachment(att)}
+                                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-amber-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                                    title="Editar nome ou link deste PDF"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Editar</span>
+                                  </button>
+
+                                  {att.url && (
+                                    <a
+                                      href={att.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 rounded-lg bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 transition shadow-2xs"
+                                      title="Abrir PDF em nova aba"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveAttachment(att.id)}
+                                    className="p-1.5 rounded-lg bg-white border border-slate-200 hover:border-red-300 text-slate-400 hover:text-red-600 transition shadow-2xs"
+                                    title="Excluir PDF"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

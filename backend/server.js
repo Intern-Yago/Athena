@@ -1350,18 +1350,85 @@ app.put('/api/products/:id', async (req, res) => {
 });
 
 app.delete('/api/products/:id', async (req, res) => {
+  const productId = req.params.id;
+  let productToDelete = null;
+
   if (pool) {
     try {
-      await pool.query('DELETE FROM products WHERE id = $1', [req.params.id]);
-      return res.json({ success: true, id: req.params.id });
+      const selectRes = await pool.query('SELECT * FROM products WHERE id = $1', [productId]);
+      if (selectRes.rows && selectRes.rows.length > 0) {
+        productToDelete = selectRes.rows[0];
+      }
+    } catch (e) {
+      console.error('[Delete Product DB Select Error]:', e);
+    }
+  }
+
+  if (!productToDelete) {
+    const db = readDbJson();
+    productToDelete = (db.products || []).find((p) => p.id === productId);
+  }
+
+  // If product found, delete its images & attachments from Cloudflare R2 / Cloudinary
+  if (productToDelete) {
+    const imagesToDelete = [];
+
+    // Main image
+    if (productToDelete.image) {
+      imagesToDelete.push(productToDelete.image);
+    }
+
+    // Gallery images
+    if (Array.isArray(productToDelete.images)) {
+      productToDelete.images.forEach(img => {
+        if (img && typeof img === 'string') imagesToDelete.push(img);
+      });
+    }
+
+    // PDF Attachments
+    if (Array.isArray(productToDelete.attachments)) {
+      productToDelete.attachments.forEach(att => {
+        if (att && att.url && typeof att.url === 'string') imagesToDelete.push(att.url);
+      });
+    }
+
+    // Remove duplicates
+    const uniqueUrls = [...new Set(imagesToDelete)];
+
+    for (const url of uniqueUrls) {
+      try {
+        if (isR2Configured && (url.includes('.r2.dev') || url.includes('.r2.cloudflarestorage.com'))) {
+          await deleteFromR2(url);
+          console.log(`[Product Delete] Imagem removida do Cloudflare R2: ${url}`);
+        } else if (url.includes('cloudinary.com')) {
+          try {
+            const parts = url.split('/');
+            const fileWithExt = parts.slice(-2).join('/');
+            const publicId = fileWithExt.replace(/\.[^/.]+$/, '');
+            await cloudinary.uploader.destroy(publicId);
+            console.log(`[Product Delete] Imagem removida do Cloudinary: ${publicId}`);
+          } catch (cErr) {
+            console.warn('[Cloudinary Delete Warning]:', cErr.message);
+          }
+        }
+      } catch (err) {
+        console.warn(`[Storage Delete Warning] Falha ao excluir ${url}:`, err.message);
+      }
+    }
+  }
+
+  if (pool) {
+    try {
+      await pool.query('DELETE FROM products WHERE id = $1', [productId]);
+      return res.json({ success: true, id: productId });
     } catch (e) {
       console.error(e);
     }
   }
   const db = readDbJson();
-  db.products = db.products.filter((p) => p.id !== req.params.id);
+  db.products = (db.products || []).filter((p) => p.id !== productId);
   writeDbJson(db);
-  res.json({ success: true, id: req.params.id });
+  res.json({ success: true, id: productId });
 });
 
 app.listen(PORT, () => {

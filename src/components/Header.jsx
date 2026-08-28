@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Layers, Tag, PackageCheck, PhoneCall, Menu, ChevronDown, Info } from 'lucide-react';
+import { Search, Layers, Tag, PackageCheck, PhoneCall, Menu, ChevronDown, Info, X } from 'lucide-react';
 import MegaMenu from './MegaMenu';
 import MobileDrawer from './MobileDrawer';
 
@@ -23,6 +23,15 @@ export default function Header({
 
   const toggleMegaMenu = (menuType) => {
     setActiveMegaMenu(activeMegaMenu === menuType ? null : menuType);
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setActiveMegaMenu(null);
+    if (onNavigate) {
+      onNavigate('catalog');
+    }
+    window.scrollTo({ top: 350, behavior: 'smooth' });
   };
 
   return (
@@ -115,16 +124,46 @@ export default function Header({
 
             {/* Desktop Search Bar & Phone */}
             <div className="hidden lg:flex items-center gap-3">
-              <div className="relative w-60">
+              <form onSubmit={handleSearchSubmit} className="relative w-64">
                 <input
                   type="text"
                   placeholder="Buscar equipamento..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-xl !pl-9 pr-4 py-2.5 outline-none transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearchSubmit(e);
+                    }
+                  }}
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-xl !pl-9 pr-14 py-2.5 outline-none transition-colors"
                 />
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+                <button
+                  type="submit"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-amber-600 transition-colors"
+                  title="Pesquisar no catálogo"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+                {searchTerm && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+                      title="Limpar busca"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold hover:bg-amber-600 transition-colors"
+                      title="Pesquisar"
+                    >
+                      Ir
+                    </button>
+                  </div>
+                )}
+              </form>
 
               <a
                 href={whatsappUrl}
@@ -139,16 +178,37 @@ export default function Header({
 
             {/* Mobile Header: Search Input + Hamburger (Locked on Screen) */}
             <div className="flex md:hidden items-center gap-1.5 min-w-0 shrink">
-              <div className="relative min-w-0 flex-1 max-w-[130px] min-[380px]:max-w-[180px]">
+              <form onSubmit={handleSearchSubmit} className="relative min-w-0 flex-1 max-w-[140px] min-[380px]:max-w-[190px]">
                 <input
                   type="text"
                   placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-lg !pl-7 pr-2 py-1.5 outline-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearchSubmit(e);
+                    }
+                  }}
+                  className="w-full bg-slate-50 border border-slate-300 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-lg !pl-7 pr-6 py-1.5 outline-none"
                 />
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
+                <button
+                  type="submit"
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-amber-600"
+                  title="Pesquisar"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                </button>
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700"
+                    title="Limpar busca"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </form>
 
               <button
                 onClick={() => setIsMobileDrawerOpen(true)}
