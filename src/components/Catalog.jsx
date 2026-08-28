@@ -69,22 +69,22 @@ export default function Catalog({
     const tokens = getSearchTokens(rawTerm);
 
     const matchesSearch = !term || (() => {
-      const fullSearchCorpus = [
+      const customTabsContent = Array.isArray(prod.customTabs) 
+        ? prod.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ')
+        : '';
+      const specsContent = Array.isArray(prod.specs) ? prod.specs.join(' ') : '';
+
+      const productCorpus = [
         prod.name,
-        prod.description,
         prod.badge,
-        prod.altText,
-        prod.slug,
+        prod.description,
         category?.name,
-        category?.description,
-        category?.slug,
         brand?.name,
-        brand?.description,
-        brand?.slug,
-        ...(Array.isArray(prod.specs) ? prod.specs : [])
+        specsContent,
+        customTabsContent
       ].map(normalizeText).join(' ');
 
-      return fullSearchCorpus.includes(term) || (tokens.length > 0 && tokens.some(t => fullSearchCorpus.includes(t)));
+      return productCorpus.includes(term) || (tokens.length > 0 && tokens.some(t => productCorpus.includes(t)));
     })();
 
     const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prod.categoryId);

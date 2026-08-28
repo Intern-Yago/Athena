@@ -31,13 +31,36 @@ export default function FilterSidebar({
 
   const currentMaxPrice = maxPriceFilter !== null ? maxPriceFilter : priceBounds.max;
 
+  // Helper for accent-insensitive search matching
+  const normalizeText = (text) => {
+    if (!text) return '';
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  };
+
   // DYNAMIC CROSS-FILTER ENGINE
   const matchesBase = (p) => {
-    const matchesSearch = !searchTerm || 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.specs && p.specs.some(s => s.toLowerCase().includes(searchTerm.toLowerCase())));
+    const rawTerm = searchTerm.trim();
+    const term = normalizeText(rawTerm);
+    if (!term) return maxPriceFilter === null || (p.price > 0 ? p.price <= maxPriceFilter : true);
 
+    const category = categories.find((c) => c.id === p.categoryId);
+    const brand = brands.find((b) => b.id === p.brandId);
+    const customTabsContent = Array.isArray(p.customTabs) 
+      ? p.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ')
+      : '';
+    const specsContent = Array.isArray(p.specs) ? p.specs.join(' ') : '';
+
+    const productCorpus = [
+      p.name,
+      p.badge,
+      p.description,
+      category?.name,
+      brand?.name,
+      specsContent,
+      customTabsContent
+    ].map(normalizeText).join(' ');
+
+    const matchesSearch = productCorpus.includes(term);
     const matchesPrice = maxPriceFilter === null || (p.price > 0 ? p.price <= maxPriceFilter : true);
 
     return matchesSearch && matchesPrice;
