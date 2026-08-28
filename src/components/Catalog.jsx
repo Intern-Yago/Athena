@@ -35,27 +35,57 @@ export default function Catalog({
     setCurrentPage(1);
   }, [selectedCategories, selectedBrands, maxPriceFilter, searchTerm, sortBy]);
 
-  // Helper for accent-insensitive search matching
+  // Helper for accent-insensitive search matching with plural/singular stemming
   const normalizeText = (text) => {
     if (!text) return '';
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   };
 
+  const getSearchTokens = (term) => {
+    if (!term) return [];
+    const normalized = normalizeText(term).trim();
+    const words = normalized.split(/\s+/).filter(Boolean);
+    const tokens = new Set();
+    
+    words.forEach(w => {
+      tokens.add(w);
+      if (w.endsWith('es') && w.length > 4) {
+        tokens.add(w.slice(0, -2)); // elevadores -> elevador, alinhadores -> alinhador
+      } else if (w.endsWith('s') && w.length > 3) {
+        tokens.add(w.slice(0, -1)); // rampas -> rampa, ferramentas -> ferramenta
+      }
+    });
+    
+    return Array.from(tokens);
+  };
+
   // Filter products according to all active multi-selections
   const filteredProducts = products.filter((prod) => {
-    const term = normalizeText(searchTerm);
+    const rawTerm = searchTerm.trim();
+    const term = normalizeText(rawTerm);
     const category = categories.find((c) => c.id === prod.categoryId);
     const brand = brands.find((b) => b.id === prod.brandId);
 
-    const matchesSearch = !term || 
-      normalizeText(prod.name).includes(term) ||
-      normalizeText(prod.description).includes(term) ||
-      normalizeText(prod.badge).includes(term) ||
-      normalizeText(prod.altText).includes(term) ||
-      normalizeText(prod.slug).includes(term) ||
-      (category && (normalizeText(category.name).includes(term) || normalizeText(category.description).includes(term) || normalizeText(category.slug).includes(term))) ||
-      (brand && (normalizeText(brand.name).includes(term) || normalizeText(brand.description).includes(term) || normalizeText(brand.slug).includes(term))) ||
-      (prod.specs && prod.specs.some(s => normalizeText(s).includes(term)));
+    const tokens = getSearchTokens(rawTerm);
+
+    const matchesSearch = !term || (() => {
+      const fullSearchCorpus = [
+        prod.name,
+        prod.description,
+        prod.badge,
+        prod.altText,
+        prod.slug,
+        category?.name,
+        category?.description,
+        category?.slug,
+        brand?.name,
+        brand?.description,
+        brand?.slug,
+        ...(Array.isArray(prod.specs) ? prod.specs : [])
+      ].map(normalizeText).join(' ');
+
+      return fullSearchCorpus.includes(term) || (tokens.length > 0 && tokens.some(t => fullSearchCorpus.includes(t)));
+    })();
 
     const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prod.categoryId);
     const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(prod.brandId);

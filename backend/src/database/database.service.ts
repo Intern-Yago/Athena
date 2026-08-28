@@ -26,9 +26,14 @@ export interface Product {
   priceNegotiable: boolean;
   badge?: string;
   image?: string;
+  images?: string[];
+  altText?: string;
   description: string;
   specs: string[];
+  attachments?: Array<{ id: string; name?: string; title?: string; fileName?: string; url: string; fileSize?: string }>;
   inStock?: boolean;
+  videoUrl?: string;
+  customTabs?: Array<{ id: string; title: string; content: string }>;
 }
 
 export interface DatabaseData {

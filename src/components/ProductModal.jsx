@@ -1,6 +1,6 @@
 import React from 'react';
 import FormattedDescription from './FormattedDescription';
-import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles } from 'lucide-react';
+import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles, Play } from 'lucide-react';
 
 export default function ProductModal({ product, category, brand, onClose }) {
   if (!product) return null;
@@ -78,6 +78,17 @@ export default function ProductModal({ product, category, brand, onClose }) {
                   <span className="badge badge-gold">
                     {product.badge}
                   </span>
+                )}
+                {(product.videoUrl || product.youtubeVideoUrl) && (
+                  <a
+                    href={product.videoUrl || product.youtubeVideoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="badge badge-red hover:bg-red-100 flex items-center gap-1 text-red-700 bg-red-50 border-red-200"
+                  >
+                    <Play className="w-3 h-3 fill-current text-red-600" />
+                    <span>Vídeo de Entrega Técnica</span>
+                  </a>
                 )}
               </div>
 

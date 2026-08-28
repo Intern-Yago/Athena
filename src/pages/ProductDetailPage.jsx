@@ -22,14 +22,90 @@ import {
   Edit3,
   Share2,
   Copy,
-  Check
+  Check,
+  Play,
+  Film,
+  ExternalLink
 } from 'lucide-react';
 
+export function getYouTubeEmbedUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  let trimmed = url.trim();
+  if (!trimmed) return null;
+
+  // 1. If user pasted raw <iframe ... src="..." ...></iframe> code, extract the src URL
+  const iframeSrcMatch = trimmed.match(/<iframe\b[^>]*\bsrc=["']([^"']+)["']/i);
+  if (iframeSrcMatch && iframeSrcMatch[1]) {
+    trimmed = iframeSrcMatch[1].trim();
+  }
+
+  // 2. youtube.com/embed/VIDEO_ID or youtube-nocookie.com/embed/VIDEO_ID
+  if (trimmed.includes('youtube.com/embed/') || trimmed.includes('youtube-nocookie.com/embed/')) {
+    const parts = trimmed.split(/\/embed\/([a-zA-Z0-9_-]{11})/i);
+    if (parts && parts[1]) {
+      return `https://www.youtube.com/embed/${parts[1]}`;
+    }
+    const cleanId = trimmed.split('/embed/')[1]?.split('?')[0]?.split('&')[0];
+    if (cleanId) return `https://www.youtube.com/embed/${cleanId}`;
+    return trimmed;
+  }
+  
+  // 3. youtu.be/VIDEO_ID
+  const shortMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
+  if (shortMatch && shortMatch[1]) {
+    return `https://www.youtube.com/embed/${shortMatch[1]}`;
+  }
+  
+  // 4. watch?v=VIDEO_ID
+  const watchMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
+  if (watchMatch && watchMatch[1]) {
+    return `https://www.youtube.com/embed/${watchMatch[1]}`;
+  }
+  
+  // 5. youtube.com/shorts/VIDEO_ID
+  const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/i);
+  if (shortsMatch && shortsMatch[1]) {
+    return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+  }
+
+  // 6. Generic YouTube ID match anywhere in the string
+  const genericMatch = trimmed.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (genericMatch && genericMatch[1]) {
+    return `https://www.youtube.com/embed/${genericMatch[1]}`;
+  }
+
+  return null;
+}
+
 export const formatAttachmentLabel = (fileName) => {
-  if (!fileName) return 'Baixe Documento';
-  const nameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
-  const cleanName = nameWithoutExt.replace(/[-_]/g, " ");
-  return `Baixe ${cleanName}`;
+  if (!fileName || typeof fileName !== 'string') return 'Documento';
+  
+  // 1. If it's a URL or path, extract just the file name at the end
+  let cleanName = fileName.split('/').pop().split('?')[0] || fileName;
+  
+  // 2. Remove file extension (.pdf, .PDF, .doc, etc.)
+  cleanName = cleanName.replace(/\.[^/.]+$/, '');
+  
+  // 3. Decode URI and replace underscores and multiple hyphens with spaces
+  try {
+    cleanName = decodeURIComponent(cleanName);
+  } catch (e) {}
+  
+  cleanName = cleanName.replace(/[_]/g, ' ').replace(/-+/g, ' ').replace(/\.+/g, ' ');
+  
+  // 4. Normalize spaces
+  cleanName = cleanName.replace(/\s+/g, ' ').trim();
+  if (!cleanName) return 'Documento';
+  
+  // 5. Capitalize words (preserving uppercase acronyms / model codes like MAH, 3004, REV02)
+  const words = cleanName.split(' ');
+  const capitalized = words.map(w => {
+    if (!w) return '';
+    if (w.length > 1 && w === w.toUpperCase() && !/[a-z]/.test(w)) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }).join(' ');
+
+  return capitalized;
 };
 
 export function decodeDraftFromToken(token) {
@@ -74,6 +150,7 @@ export default function ProductDetailPage({
   onToggleComparison
 }) {
   const [copiedLink, setCopiedLink] = useState(false);
+  const [activeTab, setActiveTab] = useState('specs');
 
   // 1. Check for shareable encoded draft in URL search params (?d=... or ?token=...)
   const urlDraft = (() => {
@@ -249,20 +326,38 @@ export default function ProductDetailPage({
     }
   };
 
-  // Smart Related Products Algorithm
-  const sameCatDiffBrand = products.find(
-    (p) => p.id !== product.id && p.categoryId === product.categoryId && p.brandId !== product.brandId && p.status !== 'draft'
+  // Smart Related Products Algorithm (Prioritizes same category first, then same brand)
+  const sameCategoryProducts = products.filter(
+    (p) => p.id !== product.id && p.categoryId === product.categoryId && p.status !== 'draft'
   );
 
-  const sameBrandDiffCat = products.find(
+  const sameBrandProducts = products.filter(
     (p) => p.id !== product.id && p.brandId === product.brandId && p.categoryId !== product.categoryId && p.status !== 'draft'
   );
 
-  const diffCatDiffBrand = products.find(
-    (p) => p.id !== product.id && p.categoryId !== product.categoryId && p.brandId !== product.brandId && p.status !== 'draft'
-  );
+  const relatedProducts = [
+    ...sameCategoryProducts,
+    ...sameBrandProducts
+  ].slice(0, 5);
 
-  const relatedProducts = [sameCatDiffBrand, sameBrandDiffCat, diffCatDiffBrand].filter(Boolean);
+  const hasSpecs = Array.isArray(product?.specs) && product.specs.length > 0;
+  const validCustomTabs = Array.isArray(product?.customTabs) 
+    ? product.customTabs.filter(t => t.title && t.title.trim() !== '' && t.content && t.content.trim() !== '') 
+    : [];
+  const hasAttachments = Array.isArray(product?.attachments) && product.attachments.length > 0;
+  const hasVideo = Boolean(product?.videoUrl || product?.youtubeVideoUrl);
+
+  useEffect(() => {
+    if (hasSpecs) {
+      setActiveTab('specs');
+    } else if (validCustomTabs.length > 0) {
+      setActiveTab(validCustomTabs[0].id);
+    } else if (hasAttachments) {
+      setActiveTab('attachments');
+    } else if (hasVideo) {
+      setActiveTab('video');
+    }
+  }, [product?.id, hasSpecs, validCustomTabs.length, hasAttachments, hasVideo]);
 
   return (
     <div className="pb-12">
@@ -361,9 +456,8 @@ export default function ProductDetailPage({
         {/* Product Details Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Left Column: Image & Badges */}
           {/* Left Column: Interactive Carousel & Zoom Gallery + Trust Badges */}
-          <div className="lg:col-span-5 space-y-4">
+          <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-24 self-start">
             <ProductImageGallery product={product} />
 
             {/* Trust Badges */}
@@ -386,11 +480,11 @@ export default function ProductDetailPage({
             </div>
           </div>
 
-          {/* Right Column: Title, Price, Specs, Attachments, Description & WhatsApp CTA */}
-          <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+          {/* Right Column: Title, Modest Price, Clean Description, WhatsApp CTA & Dynamic Tabs */}
+          <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-5">
             
             <div className="space-y-3">
-              {/* Category & Brand Pills */}
+              {/* Category & Brand Pills + Quick Video Access */}
               <div className="flex flex-wrap items-center gap-2">
                 {category && (
                   <button 
@@ -411,138 +505,268 @@ export default function ProductDetailPage({
                     {brand.name}
                   </button>
                 )}
+
+                {product.badge && product.badge.trim() && (
+                  <span className="badge badge-gold font-bold">
+                    {product.badge}
+                  </span>
+                )}
+
+                {hasVideo && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      document.getElementById('entrega-tecnica-video')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="badge badge-red hover:bg-red-100 cursor-pointer text-red-700 bg-red-50 border border-red-200 flex items-center gap-1"
+                  >
+                    <Play className="w-3 h-3 fill-current text-red-600" />
+                    <span>Vídeo de Entrega Técnica</span>
+                  </button>
+                )}
               </div>
 
               {/* Title */}
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
                 {product.name}
               </h1>
-            </div>
 
-            {/* Price Box */}
-            <div className="bg-gradient-to-r from-amber-50/80 to-amber-100/50 p-5 rounded-2xl border border-amber-200 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                  {product.price > 0 ? (product.priceNegotiable ? 'Preço Estimado' : 'Valor Comercial') : 'Condição Comercial'}
+              {/* Modest / Subtle Commercial Condition Banner */}
+              <div className="flex flex-wrap items-baseline gap-2 pt-0.5">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {product.price > 0 ? (product.priceNegotiable ? 'Preço Estimado:' : 'Valor Comercial:') : 'Condição Comercial:'}
                 </span>
-                <span className="text-2xl sm:text-3xl font-extrabold text-amber-800 font-display">
+                <span className="text-xl sm:text-2xl font-extrabold text-amber-800 font-display">
                   {formattedPrice}
                 </span>
-              </div>
-
-              <div className="flex items-center gap-2.5 flex-wrap">
-                {onToggleComparison && (
-                  <button
-                    onClick={() => onToggleComparison(product)}
-                    className={`text-xs py-3 px-4 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      comparisonList?.some(p => p.id === product.id)
-                        ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 font-extrabold'
-                        : 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-xs'
-                    }`}
-                  >
-                    <ArrowLeftRight className="w-4 h-4" />
-                    <span>{comparisonList?.some(p => p.id === product.id) ? 'Em Comparação' : 'Comparar Modelo'}</span>
-                  </button>
+                {product.priceNegotiable && (
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    (Consulte condições)
+                  </span>
                 )}
-
-                <a
-                  href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-gold text-xs sm:text-sm py-3 px-5 shadow-md font-extrabold"
-                >
-                  <MessageCircle className="w-4 h-4 fill-current" />
-                  <span>Cotação Instantânea no WhatsApp</span>
-                </a>
               </div>
             </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Descrição do Produto</h3>
-              <div className="text-xs sm:text-sm bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+            {/* Clean Description on Normal White Background */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Descrição do Equipamento</h3>
+              <div className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                 <FormattedDescription text={product.description} />
               </div>
             </div>
 
-            {/* Technical Specs List */}
-            {product.specs && product.specs.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-amber-600" />
-                    Especificações Técnicas
-                  </h3>
-                  <span className="text-[10px] text-slate-400 font-bold">{product.specs.length} especificações</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {product.specs.map((spec, idx) => {
-                    const colonIndex = spec.indexOf(':');
-                    const hasColon = colonIndex !== -1;
-                    const label = hasColon ? spec.slice(0, colonIndex).trim() : null;
-                    const value = hasColon ? spec.slice(colonIndex + 1).trim() : spec;
+            {/* Action Buttons Below Description */}
+            <div className="pt-2 flex flex-wrap items-center gap-3">
+              <a
+                href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-bold flex items-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4 fill-current" />
+                <span>Cotação Instantânea no WhatsApp</span>
+              </a>
 
-                    return (
-                      <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 text-xs text-slate-800 transition-colors shadow-2xs">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <div className="space-y-0.5 min-w-0 flex-1">
-                          {label && (
-                            <span className="font-extrabold text-[10px] uppercase tracking-wider text-slate-500 block">
-                              {label}
-                            </span>
-                          )}
-                          <span className={label ? "font-bold text-slate-900 block leading-snug break-words" : "font-semibold text-slate-800"}>
-                            {value}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+              {onToggleComparison && (
+                <button
+                  onClick={() => onToggleComparison(product)}
+                  className={`text-xs py-2.5 px-4 rounded-xl font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    comparisonList?.some(p => p.id === product.id)
+                      ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 font-extrabold'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-2xs'
+                  }`}
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  <span>{comparisonList?.some(p => p.id === product.id) ? 'Em Comparação' : 'Comparar Modelo'}</span>
+                </button>
+              )}
+            </div>
 
-            {/* Attachments & Documents Downloads Section */}
-            {product.attachments && product.attachments.length > 0 && (
-              <div className="space-y-3 pt-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-amber-600" />
-                  Manuais e Fichas Técnicas para Download
-                </h3>
+            {/* VIDEO EMBED: Between Description / CTA and Custom Tabs */}
+            {(() => {
+              const embedUrl = getYouTubeEmbedUrl(product.videoUrl || product.youtubeVideoUrl);
+              if (!embedUrl) return null;
+
+              return (
+                <div id="entrega-tecnica-video" className="space-y-3 pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <Film className="w-4 h-4 text-red-600" />
+                        Entrega Técnica & Treinamento Oficial
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Vídeo com montagem, calibração e orientações técnicas de uso deste equipamento.
+                      </p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200 text-[10px] font-extrabold flex items-center gap-1.5">
+                      <Play className="w-3 h-3 fill-current" /> Vídeo Exclusivo Athena
+                    </span>
+                  </div>
+
+                  <div className="aspect-video w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-950">
+                    <iframe
+                      src={embedUrl}
+                      title={`Entrega Técnica - ${product.name}`}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* TABS SECTION: "Especificações", Abas Extras Personalizadas, "Ficha Técnica" (se houver) */}
+            {(hasSpecs || validCustomTabs.length > 0 || hasAttachments) && (
+              <div id="tabs-section" className="pt-5 border-t border-slate-200/80 space-y-4">
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {product.attachments.map((att) => (
-                    <a
-                      key={att.id}
-                      href={att.url}
-                      download={att.fileName}
-                      className="p-3 rounded-xl bg-slate-100 hover:bg-amber-50 border border-slate-200 hover:border-amber-400 text-slate-900 transition-colors flex items-center justify-between gap-3 text-xs font-bold shadow-xs group"
+                {/* Tab Navigation Buttons */}
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-2.5 overflow-x-auto">
+                  {hasSpecs && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('specs')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+                        activeTab === 'specs'
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                      }`}
                     >
-                      <div className="flex items-center gap-2.5 overflow-hidden">
-                        <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="truncate">
-                          <span className="block truncate text-amber-900 group-hover:text-amber-800">
-                            {formatAttachmentLabel(att.fileName)}
-                          </span>
-                          {att.fileSize && (
-                            <span className="text-[10px] text-slate-500 font-medium block">
-                              {att.fileSize}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      <Layers className={`w-3.5 h-3.5 ${activeTab === 'specs' ? 'text-amber-400' : 'text-slate-500'}`} />
+                      <span>Especificações</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${activeTab === 'specs' ? 'bg-slate-800 text-amber-300' : 'bg-slate-200 text-slate-600'}`}>
+                        {product.specs.length}
+                      </span>
+                    </button>
+                  )}
 
-                      <Download className="w-4 h-4 text-amber-600 shrink-0 group-hover:scale-110 transition-transform" />
-                    </a>
+                  {validCustomTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+                        activeTab === tab.id
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                      }`}
+                    >
+                      <Sparkles className={`w-3.5 h-3.5 ${activeTab === tab.id ? 'text-amber-400' : 'text-slate-500'}`} />
+                      <span>{tab.title}</span>
+                    </button>
                   ))}
+
+                  {hasAttachments && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('attachments')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+                        activeTab === 'attachments'
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                      }`}
+                    >
+                      <FileText className={`w-3.5 h-3.5 ${activeTab === 'attachments' ? 'text-amber-400' : 'text-slate-500'}`} />
+                      <span>Ficha Técnica</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${activeTab === 'attachments' ? 'bg-slate-800 text-amber-300' : 'bg-slate-200 text-slate-600'}`}>
+                        {product.attachments.length}
+                      </span>
+                    </button>
+                  )}
                 </div>
+
+                {/* TAB CONTENT: Especificações */}
+                {activeTab === 'specs' && hasSpecs && (
+                  <div className="space-y-3 animate-in fade-in duration-150">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {product.specs.map((spec, idx) => {
+                        const colonIndex = spec.indexOf(':');
+                        const hasColon = colonIndex !== -1;
+                        const label = hasColon ? spec.slice(0, colonIndex).trim() : null;
+                        const value = hasColon ? spec.slice(colonIndex + 1).trim() : spec;
+
+                        return (
+                          <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 text-xs text-slate-800 transition-colors shadow-2xs">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5 min-w-0 flex-1">
+                              {label && (
+                                <span className="font-extrabold text-[10px] uppercase tracking-wider text-slate-500 block">
+                                  {label}
+                                </span>
+                              )}
+                              <span className={label ? "font-bold text-slate-900 block leading-snug break-words" : "font-semibold text-slate-800"}>
+                                {value}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB CONTENT: Abas Personalizadas (Aplicações, Funções, etc.) */}
+                {(() => {
+                  const currentCustomTab = validCustomTabs.find(t => t.id === activeTab);
+                  if (!currentCustomTab) return null;
+
+                  return (
+                    <div className="space-y-3 animate-in fade-in duration-150">
+                      <div className="p-4 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                        <FormattedDescription text={currentCustomTab.content} />
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* TAB CONTENT: Ficha Técnica & Downloads */}
+                {activeTab === 'attachments' && hasAttachments && (
+                  <div className="space-y-3 animate-in fade-in duration-150">
+                    <p className="text-xs text-slate-500">
+                      Documentos oficiais, manuais de operação e folhetos técnicos disponíveis para visualização e download:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {product.attachments.map((att) => {
+                        const displayLabel = att.title || att.name || formatAttachmentLabel(att.fileName);
+                        return (
+                          <a
+                            key={att.id}
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-3.5 rounded-2xl bg-slate-50 hover:bg-amber-50/80 border border-slate-200 hover:border-amber-400 text-slate-900 transition-colors flex items-center justify-between gap-3 text-xs font-bold shadow-xs group"
+                          >
+                            <div className="flex items-center gap-2.5 overflow-hidden">
+                              <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                                <FileText className="w-5 h-5 text-amber-700" />
+                              </div>
+                              <div className="truncate">
+                                <span className="block truncate text-slate-900 group-hover:text-amber-900">
+                                  {displayLabel}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-medium block">
+                                  {att.fileSize ? `${att.fileSize} • ` : ''}Abrir em Nova Aba
+                                </span>
+                              </div>
+                            </div>
+
+                            <span className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 group-hover:border-amber-400 text-slate-700 group-hover:text-amber-900 text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs">
+                              <ExternalLink className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Visualizar PDF</span>
+                            </span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
               </div>
             )}
 
             {/* Direct Contact Callout */}
-            <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+            <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
               <div className="flex items-center gap-2">
                 <PhoneCall className="w-4 h-4 text-emerald-600" />
                 <span>Atendimento comercial via WhatsApp: <strong>(61) 98348-5671</strong></span>
@@ -563,7 +787,9 @@ export default function ProductDetailPage({
                 <span>Equipamentos Relacionados</span>
               </h2>
               <p className="text-xs text-slate-500">
-                Opções similares da mesma categoria para o seu centro automotivo.
+                {sameCategoryProducts.length > 0 
+                  ? `Opções similares da linha de ${category?.name || 'equipamentos'} para o seu centro automotivo.` 
+                  : `Outros equipamentos recomendados da marca ${brand?.name || 'Athena'} para o seu centro automotivo.`}
               </p>
             </div>
 

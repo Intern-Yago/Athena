@@ -599,6 +599,12 @@ async function initDb() {
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='images') THEN 
             ALTER TABLE products ADD COLUMN images JSONB; 
           END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='video_url') THEN 
+            ALTER TABLE products ADD COLUMN video_url TEXT; 
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='custom_tabs') THEN 
+            ALTER TABLE products ADD COLUMN custom_tabs JSONB; 
+          END IF;
         END $$;
       `);
 
@@ -645,7 +651,7 @@ async function initDb() {
                 prod.brandId,
                 prod.price || 0,
                 prod.priceNegotiable !== undefined ? prod.priceNegotiable : true,
-                prod.badge || 'Disponível',
+                prod.badge || '',
                 prod.status || 'published',
                 prod.image || '',
                 prod.altText || '',
@@ -1226,7 +1232,7 @@ app.get('/api/products', async (req, res) => {
   if (pool) {
     try {
       const result = await pool.query(`
-        SELECT id, name, slug, category_id as "categoryId", brand_id as "brandId", price::float, price_negotiable as "priceNegotiable", badge, status, is_featured as "isFeatured", image, images, alt_text as "altText", description, specs, attachments, in_stock as "inStock", created_at
+        SELECT id, name, slug, category_id as "categoryId", brand_id as "brandId", price::float, price_negotiable as "priceNegotiable", badge, status, is_featured as "isFeatured", image, images, alt_text as "altText", description, specs, attachments, in_stock as "inStock", video_url as "videoUrl", custom_tabs as "customTabs", created_at
         FROM products 
         ORDER BY created_at DESC
       `);
@@ -1244,10 +1250,10 @@ app.post('/api/products', async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock, video_url, custom_tabs)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         ON CONFLICT (id) DO UPDATE SET 
-          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, is_featured=$10, image=$11, images=$12, alt_text=$13, description=$14, specs=$15, attachments=$16, in_stock=$17
+          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, is_featured=$10, image=$11, images=$12, alt_text=$13, description=$14, specs=$15, attachments=$16, in_stock=$17, video_url=$18, custom_tabs=$19
       `, [
         newProduct.id,
         newProduct.name,
@@ -1256,7 +1262,7 @@ app.post('/api/products', async (req, res) => {
         newProduct.brandId,
         newProduct.price || 0,
         newProduct.priceNegotiable !== undefined ? newProduct.priceNegotiable : true,
-        newProduct.badge || 'Disponível',
+        newProduct.badge || '',
         newProduct.status || 'published',
         !!newProduct.isFeatured,
         newProduct.image || '',
@@ -1265,7 +1271,9 @@ app.post('/api/products', async (req, res) => {
         newProduct.description || '',
         JSON.stringify(newProduct.specs || []),
         JSON.stringify(newProduct.attachments || []),
-        newProduct.inStock !== undefined ? newProduct.inStock : true
+        newProduct.inStock !== undefined ? newProduct.inStock : true,
+        newProduct.videoUrl || newProduct.youtubeVideoUrl || '',
+        JSON.stringify(newProduct.customTabs || [])
       ]);
       return res.status(201).json(newProduct);
     } catch (e) {
@@ -1303,8 +1311,8 @@ app.put('/api/products/:id', async (req, res) => {
     try {
       await pool.query(`
         UPDATE products SET 
-          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, is_featured=$9, image=$10, images=$11, alt_text=$12, description=$13, specs=$14, attachments=$15, in_stock=$16
-        WHERE id=$17
+          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, is_featured=$9, image=$10, images=$11, alt_text=$12, description=$13, specs=$14, attachments=$15, in_stock=$16, video_url=$17, custom_tabs=$18
+        WHERE id=$19
       `, [
         updatedProduct.name,
         updatedProduct.slug || '',
@@ -1312,7 +1320,7 @@ app.put('/api/products/:id', async (req, res) => {
         updatedProduct.brandId,
         updatedProduct.price || 0,
         updatedProduct.priceNegotiable !== undefined ? updatedProduct.priceNegotiable : true,
-        updatedProduct.badge || 'Disponível',
+        updatedProduct.badge || '',
         updatedProduct.status || 'published',
         !!updatedProduct.isFeatured,
         updatedProduct.image || '',
@@ -1322,6 +1330,8 @@ app.put('/api/products/:id', async (req, res) => {
         JSON.stringify(updatedProduct.specs || []),
         JSON.stringify(updatedProduct.attachments || []),
         updatedProduct.inStock !== undefined ? updatedProduct.inStock : true,
+        updatedProduct.videoUrl || updatedProduct.youtubeVideoUrl || '',
+        JSON.stringify(updatedProduct.customTabs || []),
         req.params.id
       ]);
       return res.json(updatedProduct);

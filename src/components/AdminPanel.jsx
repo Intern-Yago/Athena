@@ -36,9 +36,12 @@ import {
   ChevronsRight,
   AlertTriangle,
   HelpCircle,
-  ArrowUpDown
+  ArrowUpDown,
+  Film,
+  Play,
+  ExternalLink
 } from 'lucide-react';
-import { formatAttachmentLabel, encodeDraftToShareableUrl } from '../pages/ProductDetailPage';
+import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
 import RichTextEditor from './RichTextEditor';
 import FormattedDescription from './FormattedDescription';
@@ -173,7 +176,7 @@ export default function AdminPanel({
       brandId: brands[0]?.id || '',
       price: '',
       priceNegotiable: true,
-      badge: 'Disponível',
+      badge: '',
       status: 'published',
       isFeatured: false,
       image: '',
@@ -181,9 +184,18 @@ export default function AdminPanel({
       altText: '',
       description: '',
       specs: ['Elevada resistência e durabilidade', 'Manual e certificado inclusos', 'Garantia de fábrica'],
-      attachments: []
+      attachments: [],
+      videoUrl: '',
+      customTabs: []
     }
   );
+
+  // Attachment Form State (Upload vs Direct URL)
+  const [newAttachmentForm, setNewAttachmentForm] = useState({
+    title: '',
+    url: '',
+    mode: 'url' // 'url' | 'upload'
+  });
 
   // Quick Category Modal State
   const [isQuickCatModalOpen, setIsQuickCatModalOpen] = useState(false);
@@ -297,7 +309,7 @@ export default function AdminPanel({
       brandId: brands[0]?.id || '',
       price: '',
       priceNegotiable: true,
-      badge: 'Disponível',
+      badge: '',
       status: 'published',
       isFeatured: false,
       image: '',
@@ -305,8 +317,11 @@ export default function AdminPanel({
       altText: '',
       description: '',
       specs: [],
-      attachments: []
+      attachments: [],
+      videoUrl: '',
+      customTabs: []
     });
+    setNewAttachmentForm({ title: '', url: '', mode: 'url' });
     setIsProductModalOpen(true);
   };
 
@@ -317,9 +332,386 @@ export default function AdminPanel({
       isFeatured: !!product.isFeatured,
       images: Array.isArray(product.images) ? [...product.images] : [],
       specs: Array.isArray(product.specs) ? [...product.specs] : [],
-      attachments: product.attachments ? [...product.attachments] : []
+      attachments: Array.isArray(product.attachments) ? [...product.attachments] : [],
+      videoUrl: product.videoUrl || product.youtubeVideoUrl || '',
+      customTabs: Array.isArray(product.customTabs) ? [...product.customTabs] : []
     });
+    setNewAttachmentForm({ title: '', url: '', mode: 'url' });
     setIsProductModalOpen(true);
+  };
+
+  // Smart Section Extractor from Description
+  const extractSectionFromDescription = (rawDescription = '', tabTitle = '') => {
+    if (!rawDescription || !rawDescription.trim() || !tabTitle || !tabTitle.trim()) {
+      return { extractedContent: '', updatedDescription: rawDescription, found: false };
+    }
+
+    const normalizedTitle = tabTitle.trim().toLowerCase();
+    
+    // Keyword Aliases mapping for common technical equipment sections
+    const aliasesMap = {
+      'diferenciais': ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'],
+      'aplicações': ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação', 'indicacao', 'indicado para', 'onde usar', 'utilização', 'utilizacao', 'veículos atendidos', 'veiculos atendidos', 'compatibilidade', 'aplicabilidade'],
+      'funções & recursos': ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'],
+      'itens inclusos': ['itens inclusos', 'item incluso', 'acessórios inclusos', 'acessorios inclusos', 'o que acompanha', 'conteúdo da embalagem', 'conteudo da embalagem', 'composição', 'composicao', 'acompanha', 'inclusos'],
+      'requisitos de instalação': ['requisitos de instalação', 'requisitos de instalacao', 'requisitos', 'instalação', 'instalacao', 'infraestrutura', 'exigências', 'exigencias', 'espaço necessário', 'especificações de instalação', 'preparação'],
+      'garantia & suporte': ['garantia e suporte', 'garantia & suporte', 'garantia', 'suporte', 'assistência técnica', 'assistencia tecnica', 'certificação', 'certificacao', 'homologação', 'homologacao']
+    };
+
+    let keywords = [normalizedTitle];
+    for (const [key, list] of Object.entries(aliasesMap)) {
+      if (normalizedTitle.includes(key) || list.some(alias => normalizedTitle.includes(alias))) {
+        keywords = Array.from(new Set([...keywords, ...list]));
+      }
+    }
+
+    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const keywordsPattern = keywords.map(escapeRegExp).join('|');
+    const nextHeaderPattern = `(?:\\r?\\n|^)\\s*(?:#{1,6}\\s*|\\*{1,2}|_{1,2}|[-•–—]\\s*)?(?:especifica[çc][õo]es|ficha\\s*t[ée]cnica|dados\\s*t[ée]cnicos|dimens[õo]es|descri[çc][ãa]o|caracter[íi]sticas|itens\\s*inclusos|aplica[çc][õo]es|diferenciais|vantagens|recursos|fun[çc][õo]es|garantia|requisitos|informa[çc][õo]es|importante|obs(?:erva[çc][ãa]o)?)\\b`;
+
+    // 1. Try Section Heading Block match
+    const sectionRegex = new RegExp(
+      `((?:^|\\r?\\n)\\s*(?:#{1,6}\\s*|\\*{1,2}|_{1,2}|[-•–—]\\s*)?(?:${keywordsPattern})\\s*[:\\-–—]?\\s*\\*{0,2}(?:\\r?\\n|$))([\\s\\S]*?)(?=${nextHeaderPattern}|$)`,
+      'i'
+    );
+
+    const match = rawDescription.match(sectionRegex);
+
+    if (match) {
+      const fullMatch = match[0];
+      const headerPart = match[1];
+      let contentPart = (match[2] || '').trim();
+
+      if (!contentPart) {
+        const colonIndex = headerPart.indexOf(':');
+        if (colonIndex !== -1) {
+          contentPart = headerPart.slice(colonIndex + 1).trim();
+        }
+      }
+
+      if (contentPart) {
+        let updatedDesc = rawDescription.replace(fullMatch, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        return {
+          extractedContent: contentPart,
+          updatedDescription: updatedDesc,
+          found: true
+        };
+      }
+    }
+
+    // 2. Try Line-by-line / bullet point keyword matching
+    const lines = rawDescription.split(/\r?\n/);
+    const matchedLines = [];
+    const remainingLines = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        remainingLines.push(line);
+        continue;
+      }
+      const lowerLine = trimmed.toLowerCase();
+      const isKeywordMatch = keywords.some(k => lowerLine.startsWith(k) || (lowerLine.includes(':') && lowerLine.split(':')[0].trim() === k));
+      if (isKeywordMatch) {
+        matchedLines.push(trimmed);
+      } else {
+        remainingLines.push(line);
+      }
+    }
+
+    if (matchedLines.length > 0) {
+      const extractedContent = matchedLines.join('\n');
+      const updatedDesc = remainingLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+      return {
+        extractedContent,
+        updatedDescription: updatedDesc,
+        found: true
+      };
+    }
+
+    return { extractedContent: '', updatedDescription: rawDescription, found: false };
+  };
+
+  // Detect all sections present in the description text
+  const detectAllSectionsInDescription = (rawDescription = '', currentCustomTabs = []) => {
+    if (!rawDescription || !rawDescription.trim()) return [];
+
+    const text = rawDescription.trim();
+    const knownCategories = [
+      { canonical: 'Diferenciais', keywords: ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'] },
+      { canonical: 'Aplicações', keywords: ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação', 'indicacao', 'indicado para', 'onde usar', 'utilização', 'utilizacao', 'veículos atendidos', 'veiculos atendidos', 'compatibilidade', 'aplicabilidade'] },
+      { canonical: 'Funções & Recursos', keywords: ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'] },
+      { canonical: 'Itens Inclusos', keywords: ['itens inclusos', 'item incluso', 'acessórios inclusos', 'acessorios inclusos', 'o que acompanha', 'conteúdo da embalagem', 'conteudo da embalagem', 'composição', 'composicao', 'acompanha', 'inclusos'] },
+      { canonical: 'Requisitos de Instalação', keywords: ['requisitos de instalação', 'requisitos de instalacao', 'requisitos', 'instalação', 'instalacao', 'infraestrutura', 'exigências', 'exigencias', 'espaço necessário', 'especificações de instalação', 'preparação'] },
+      { canonical: 'Garantia & Suporte', keywords: ['garantia e suporte', 'garantia & suporte', 'garantia', 'suporte', 'assistência técnica', 'assistencia tecnica', 'certificação', 'certificacao', 'homologação', 'homologacao'] }
+    ];
+
+    const headerRegex = /(?:^|\r?\n)\s*(?:#{1,6}\s*|\*{1,2}|_{1,2}|[-•–—]\s*)?([A-Za-zÀ-ÿ0-9\s&/\-]{2,45})\s*[:\-–—]?\s*\*{0,2}(?:\r?\n|$)/gi;
+
+    const allHeaders = [];
+    let match;
+    while ((match = headerRegex.exec(text)) !== null) {
+      const rawHeader = match[1].trim();
+      const lowerHeader = rawHeader.toLowerCase();
+
+      let matchedCategory = null;
+      for (const cat of knownCategories) {
+        if (cat.keywords.some(k => lowerHeader === k || lowerHeader.startsWith(k) || k.startsWith(lowerHeader))) {
+          matchedCategory = cat.canonical;
+          break;
+        }
+      }
+
+      if (matchedCategory || match[0].includes(':')) {
+        const canonicalTitle = matchedCategory || (rawHeader.charAt(0).toUpperCase() + rawHeader.slice(1));
+        if (!['especificações', 'especificacoes', 'especificação', 'descrição', 'descricao', 'foto', 'fotos', 'preço', 'preco', 'observação', 'obs'].includes(lowerHeader)) {
+          allHeaders.push({
+            rawHeader: match[0],
+            cleanTitle: canonicalTitle,
+            startIndex: match.index,
+            headerLength: match[0].length
+          });
+        }
+      }
+    }
+
+    const uniqueHeaders = [];
+    for (let i = 0; i < allHeaders.length; i++) {
+      const curr = allHeaders[i];
+      const prev = uniqueHeaders[uniqueHeaders.length - 1];
+      if (!prev || curr.startIndex >= prev.startIndex + prev.headerLength) {
+        uniqueHeaders.push(curr);
+      }
+    }
+
+    const detectedSections = [];
+    for (let i = 0; i < uniqueHeaders.length; i++) {
+      const curr = uniqueHeaders[i];
+      const next = uniqueHeaders[i + 1];
+      const contentStart = curr.startIndex + curr.headerLength;
+      const contentEnd = next ? next.startIndex : text.length;
+
+      const segmentContent = text.slice(contentStart, contentEnd).trim();
+      if (segmentContent.length > 0) {
+        const lines = segmentContent.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const formattedLines = lines.map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`);
+        const cleanContent = formattedLines.join('\n');
+
+        const isAlreadyAdded = (currentCustomTabs || []).some(
+          t => t.title && t.title.toLowerCase().trim() === curr.cleanTitle.toLowerCase().trim()
+        );
+
+        detectedSections.push({
+          title: curr.cleanTitle,
+          fullSegment: text.slice(curr.startIndex, contentEnd),
+          content: cleanContent,
+          lineCount: lines.length,
+          isAlreadyAdded
+        });
+      }
+    }
+
+    return detectedSections;
+  };
+
+  const handleExtractAllDetectedTabs = () => {
+    const detected = detectAllSectionsInDescription(productForm.description, productForm.customTabs);
+    const unadded = detected.filter(d => !d.isAlreadyAdded);
+    if (unadded.length === 0) {
+      showNotification('Nenhuma nova seção estruturada encontrada na descrição.', 'info');
+      return;
+    }
+
+    let workingDesc = productForm.description;
+    const newTabs = [...(productForm.customTabs || [])];
+
+    for (const item of unadded) {
+      const res = extractSectionFromDescription(workingDesc, item.title);
+      if (res.found && res.extractedContent) {
+        const formattedContent = res.extractedContent
+          .split(/\r?\n/)
+          .map(l => l.trim())
+          .filter(Boolean)
+          .map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`)
+          .join('\n');
+
+        newTabs.push({
+          id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          title: item.title,
+          content: formattedContent
+        });
+        workingDesc = res.updatedDescription;
+      } else {
+        newTabs.push({
+          id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          title: item.title,
+          content: item.content
+        });
+        if (item.fullSegment) {
+          workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        }
+      }
+    }
+
+    setProductForm(prev => ({
+      ...prev,
+      description: workingDesc,
+      customTabs: newTabs
+    }));
+
+    showNotification(`✨ ${unadded.length} abas criadas e extraídas da descrição com sucesso!`, 'success');
+  };
+
+  // Custom Tabs Helpers
+  const handleAddCustomTab = (title = 'Nova Seção', tryAutoExtract = true) => {
+    let initialContent = '';
+    let updatedDesc = productForm.description;
+
+    if (tryAutoExtract && productForm.description && productForm.description.trim()) {
+      const result = extractSectionFromDescription(productForm.description, title);
+      if (result.found && result.extractedContent) {
+        initialContent = result.extractedContent;
+        updatedDesc = result.updatedDescription;
+        showNotification(`✨ Aba "${title}" criada com conteúdo extraído da descrição!`, 'success');
+      }
+    }
+
+    const newTab = {
+      id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      title: title,
+      content: initialContent
+    };
+
+    setProductForm(prev => ({
+      ...prev,
+      description: updatedDesc,
+      customTabs: [...(prev.customTabs || []), newTab]
+    }));
+  };
+
+  const handleExtractTabContentFromDescription = (tabId, tabTitle) => {
+    if (!productForm.description || !productForm.description.trim()) {
+      showNotification('A descrição principal do produto está vazia.', 'info');
+      return;
+    }
+
+    const result = extractSectionFromDescription(productForm.description, tabTitle);
+
+    if (result.found && result.extractedContent) {
+      setProductForm(prev => {
+        const updatedTabs = (prev.customTabs || []).map(t => {
+          if (t.id === tabId) {
+            const newContent = t.content && t.content.trim() 
+              ? `${t.content.trim()}\n\n${result.extractedContent}` 
+              : result.extractedContent;
+            return { ...t, content: newContent };
+          }
+          return t;
+        });
+
+        return {
+          ...prev,
+          description: result.updatedDescription,
+          customTabs: updatedTabs
+        };
+      });
+
+      showNotification(`✨ Conteúdo de "${tabTitle}" extraído e removido da descrição!`, 'success');
+    } else {
+      showNotification(`Não encontramos um bloco com o tema "${tabTitle}" na descrição. Você pode digitar ou colar diretamente.`, 'info');
+    }
+  };
+
+  const handleUpdateCustomTab = (id, field, value) => {
+    setProductForm(prev => ({
+      ...prev,
+      customTabs: (prev.customTabs || []).map(t => t.id === id ? { ...t, [field]: value } : t)
+    }));
+  };
+
+  const handleRemoveCustomTab = (id) => {
+    setProductForm(prev => ({
+      ...prev,
+      customTabs: (prev.customTabs || []).filter(t => t.id !== id)
+    }));
+  };
+
+  // Attachments & PDFs Helpers (Upload + Direct Link with Custom Name)
+  const handleAddAttachmentSubmit = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!newAttachmentForm.url.trim()) {
+      showNotification('Insira a URL do arquivo PDF ou faça o upload.', 'error');
+      return;
+    }
+    const cleanUrl = newAttachmentForm.url.trim();
+    const extractedFileName = cleanUrl.split('/').pop().split('?')[0] || 'documento.pdf';
+    const displayTitle = newAttachmentForm.title.trim() || formatAttachmentLabel(extractedFileName);
+
+    const newAtt = {
+      id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      title: displayTitle,
+      name: displayTitle,
+      fileName: extractedFileName,
+      url: cleanUrl,
+      fileSize: newAttachmentForm.fileSize || 'PDF'
+    };
+
+    setProductForm(prev => ({
+      ...prev,
+      attachments: [...(prev.attachments || []), newAtt]
+    }));
+
+    setNewAttachmentForm({ title: '', url: '', mode: 'url' });
+    showNotification(`PDF "${displayTitle}" adicionado com sucesso!`, 'success');
+  };
+
+  const handleAttachmentFileUpload = (file) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      showNotification('Por favor, selecione um arquivo no formato PDF.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Url = event.target.result;
+      const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+      const sizeStr = sizeInMB > 0 ? `${sizeInMB} MB` : `${Math.round(file.size / 1024)} KB`;
+      const autoTitle = formatAttachmentLabel(file.name);
+      const displayTitle = newAttachmentForm.title.trim() || autoTitle;
+
+      const newAtt = {
+        id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        title: displayTitle,
+        name: displayTitle,
+        fileName: file.name,
+        url: base64Url,
+        fileSize: sizeStr
+      };
+
+      setProductForm(prev => ({
+        ...prev,
+        attachments: [...(prev.attachments || []), newAtt]
+      }));
+
+      setNewAttachmentForm({ title: '', url: '', mode: 'upload' });
+      showNotification(`PDF "${displayTitle}" anexado com sucesso!`, 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAttachment = (attId) => {
+    setProductForm(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter(a => a.id !== attId)
+    }));
+  };
+
+  const handleUpdateAttachmentTitle = (attId, newTitle) => {
+    setProductForm(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).map(a => a.id === attId ? { ...a, title: newTitle, name: newTitle } : a)
+    }));
   };
 
   const handleAddSpec = (specText = '') => {
@@ -953,6 +1345,7 @@ export default function AdminPanel({
       showNotification(`Marca "${newBrandObj.name}" atualizada!`, 'success');
     } else {
       onAddBrand(newBrandObj);
+      setProductForm(prev => ({ ...prev, brandId: newBrandObj.id }));
       showNotification(`Marca "${newBrandObj.name}" criada com sucesso!`, 'success');
     }
 
@@ -960,61 +1353,62 @@ export default function AdminPanel({
     setEditingBrand(null);
   };
 
-      const openNewCategoryModal = () => {
-        setEditingCategory(null);
-        setCategoryForm({
-          name: '',
-          description: '',
-          slug: '',
-          icon: 'Layers'
-        });
-        setIsCategoryModalOpen(true);
-      };
+  const openNewCategoryModal = () => {
+    setEditingCategory(null);
+    setCategoryForm({
+      name: '',
+      description: '',
+      slug: '',
+      icon: 'Layers'
+    });
+    setIsCategoryModalOpen(true);
+  };
 
-      const openEditCategoryModal = (cat) => {
-        setEditingCategory(cat);
-        setCategoryForm({
-          name: cat.name || '',
-          description: cat.description || '',
-          slug: cat.slug || '',
-          icon: cat.icon || 'Layers'
-        });
-        setIsCategoryModalOpen(true);
-      };
+  const openEditCategoryModal = (cat) => {
+    setEditingCategory(cat);
+    setCategoryForm({
+      name: cat.name || '',
+      description: cat.description || '',
+      slug: cat.slug || '',
+      icon: cat.icon || 'Layers'
+    });
+    setIsCategoryModalOpen(true);
+  };
 
-      const handleCategorySubmit = (e) => {
-        e.preventDefault();
-        if (!categoryForm.name.trim()) {
-          showNotification('Informe o nome da categoria.', 'error');
-          return;
-        }
+  const handleCategorySubmit = (e) => {
+    e.preventDefault();
+    if (!categoryForm.name.trim()) {
+      showNotification('Informe o nome da categoria.', 'error');
+      return;
+    }
 
-        const catSlug = categoryForm.slug.trim() || generateSlug(categoryForm.name);
-        const categoryObj = {
-          id: editingCategory ? editingCategory.id : `cat_${Date.now()}`,
-          name: categoryForm.name.trim(),
-          slug: catSlug,
-          description: categoryForm.description.trim() || 'Equipamentos e soluções para oficina automotiva.',
-          icon: categoryForm.icon || 'Layers',
-          order: editingCategory ? editingCategory.order : categories.length + 1
-        };
+    const catSlug = categoryForm.slug.trim() || generateSlug(categoryForm.name);
+    const categoryObj = {
+      id: editingCategory ? editingCategory.id : `cat_${Date.now()}`,
+      name: categoryForm.name.trim(),
+      slug: catSlug,
+      description: categoryForm.description.trim() || 'Equipamentos e soluções para oficina automotiva.',
+      icon: categoryForm.icon || 'Layers',
+      order: editingCategory ? editingCategory.order : categories.length + 1
+    };
 
-        if (editingCategory) {
-          if (onUpdateCategory) {
-            onUpdateCategory(categoryObj);
-          } else {
-            const updated = categories.map(c => c.id === editingCategory.id ? categoryObj : c);
-            safeStorageSet('athena_categories', updated);
-          }
-          showNotification(`Categoria "${categoryObj.name}" atualizada com sucesso!`, 'success');
-        } else {
-          onAddCategory(categoryObj);
-          showNotification(`Categoria "${categoryObj.name}" criada com sucesso!`, 'success');
-        }
+    if (editingCategory) {
+      if (onUpdateCategory) {
+        onUpdateCategory(categoryObj);
+      } else {
+        const updated = categories.map(c => c.id === editingCategory.id ? categoryObj : c);
+        safeStorageSet('athena_categories', updated);
+      }
+      showNotification(`Categoria "${categoryObj.name}" atualizada com sucesso!`, 'success');
+    } else {
+      onAddCategory(categoryObj);
+      setProductForm(prev => ({ ...prev, categoryId: categoryObj.id }));
+      showNotification(`Categoria "${categoryObj.name}" criada com sucesso!`, 'success');
+    }
 
-        setIsCategoryModalOpen(false);
-        setEditingCategory(null);
-      };
+    setIsCategoryModalOpen(false);
+    setEditingCategory(null);
+  };
 
   const handleQuickCategoryCreate = (e) => {
     e.preventDefault();
@@ -1031,6 +1425,7 @@ export default function AdminPanel({
     };
 
     onAddCategory(newCat);
+    setProductForm(prev => ({ ...prev, categoryId: newCat.id }));
     setQuickCatName('');
     setIsQuickCatModalOpen(false);
     showNotification(`Categoria "${newCat.name}" criada!`, 'success');
@@ -1051,8 +1446,11 @@ export default function AdminPanel({
       ...productForm,
       slug: finalSlug,
       price: productForm.priceNegotiable ? 0 : parseFloat(productForm.price) || 0,
+      badge: (productForm.badge || '').trim(),
       specs: cleanedSpecs,
       attachments: productForm.attachments || [],
+      videoUrl: (productForm.videoUrl || '').trim(),
+      customTabs: (productForm.customTabs || []).filter(t => t.title && t.title.trim() !== ''),
       image: productForm.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80',
       altText: productForm.altText || productForm.name
     };
@@ -2270,11 +2668,11 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* FULL PRODUCT FORM MODAL - SHOPIFY-STYLE EXPANDED LAYOUT */}
+        {/* FULL PRODUCT FORM MODAL - BALANCED WIDE 2-COLUMN LAYOUT */}
         {isProductModalOpen && canEditContent && (
           <div className="modal-backdrop !p-2 sm:!p-4 md:!p-6" onClick={() => setIsProductModalOpen(false)}>
             <div 
-              className="modal-content !max-w-6xl !w-full !max-h-[94vh] !p-0 bg-slate-100/95 border border-slate-300 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden" 
+              className="modal-content !max-w-[1440px] !w-[96vw] !max-h-[94vh] !p-0 bg-slate-100/95 border border-slate-300 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden" 
               onClick={(e) => e.stopPropagation()}
             >
               {/* Sticky Top Header */}
@@ -2288,7 +2686,7 @@ export default function AdminPanel({
                       {editingProduct ? 'Editar Equipamento' : 'Cadastrar Novo Equipamento'}
                     </h3>
                     <p className="text-xs text-slate-500">
-                      {productForm.name || 'Preencha as informações comerciais, fotos e especificações técnicas'}
+                      {productForm.name || 'Preencha as informações comerciais, fotos, vídeos, documentos e especificações'}
                     </p>
                   </div>
                 </div>
@@ -2308,8 +2706,8 @@ export default function AdminPanel({
                 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   
-                  {/* MAIN COLUMN (8 cols): Title, Description, Media, Specs, Attachments */}
-                  <div className="lg:col-span-8 space-y-6">
+                  {/* LEFT COLUMN (6 cols): Title, Description, Media, Video, PDFs */}
+                  <div className="lg:col-span-6 space-y-6">
                     
                     {/* CARD 1: Informações Gerais (Nome, Slug, Descrição Rica) */}
                     <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
@@ -2349,7 +2747,6 @@ export default function AdminPanel({
                         />
                       </div>
 
-                      {/* Rich Text Editor for Description with generous height */}
                       <div>
                         <label className="text-xs font-bold text-slate-700 block mb-1.5">
                           Descrição Comercial do Equipamento
@@ -2361,6 +2758,48 @@ export default function AdminPanel({
                           placeholder="Descreva o produto, recursos, diferenciais e materiais..."
                         />
                       </div>
+
+                      {/* Smart Detected Custom Tabs in Description */}
+                      {(() => {
+                        const detected = detectAllSectionsInDescription(productForm.description, productForm.customTabs);
+                        const unadded = detected.filter(d => !d.isAlreadyAdded);
+                        if (unadded.length === 0) return null;
+
+                        return (
+                          <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-300/80 space-y-2.5 shadow-2xs">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+                                <Sparkles className="w-4 h-4 text-amber-700" />
+                                <span>Detectamos seções estruturadas no texto que podem virar abas:</span>
+                              </div>
+                              {unadded.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={handleExtractAllDetectedTabs}
+                                  className="text-[11px] font-black text-amber-900 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg transition-all shadow-2xs border border-amber-400 flex items-center gap-1"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" /> Extrair Todas as {unadded.length} Abas de Uma Vez
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5">
+                              {unadded.map((item, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => handleAddCustomTab(item.title, true)}
+                                  className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:border-amber-500 text-amber-950 hover:bg-amber-100 text-[11px] font-bold transition-all shadow-2xs flex items-center gap-1"
+                                  title={`Criar aba "${item.title}" com ${item.lineCount} itens e limpar da descrição`}
+                                >
+                                  <Plus className="w-3 h-3 text-amber-600" />
+                                  <span>Criar Aba <strong>"{item.title}"</strong> ({item.lineCount} {item.lineCount === 1 ? 'item' : 'itens'})</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* CARD 2: Mídia / Fotos do Produto */}
@@ -2369,27 +2808,6 @@ export default function AdminPanel({
                         <div>
                           <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Fotos do Produto (Galeria & Capa)</h4>
                           <p className="text-[11px] text-slate-500">Adicione imagens em alta qualidade para carrossel e zoom de detalhes.</p>
-                        </div>
-
-                        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                          <button
-                            type="button"
-                            onClick={() => setImageSourceMode('upload')}
-                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
-                              imageSourceMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
-                            }`}
-                          >
-                            Upload de Fotos
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setImageSourceMode('url')}
-                            className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
-                              imageSourceMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
-                            }`}
-                          >
-                            Adicionar por URL
-                          </button>
                         </div>
                       </div>
 
@@ -2458,45 +2876,37 @@ export default function AdminPanel({
                       {/* Visual Gallery Grid Preview */}
                       {(() => {
                         const allImages = Array.from(
-                          new Set([
-                            ...(productForm.image ? [productForm.image] : []),
-                            ...(Array.isArray(productForm.images) ? productForm.images : [])
-                          ].filter(Boolean))
+                          new Set([productForm.image, ...(productForm.images || [])].filter(Boolean))
                         );
 
                         if (allImages.length === 0) return null;
 
                         return (
-                          <div className="space-y-2 pt-2">
-                            <span className="text-[11px] font-bold text-slate-600 block">
-                              Galeria ({allImages.length} foto{allImages.length > 1 ? 's' : ''}):
-                            </span>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                              {allImages.map((imgUrl, i) => {
-                                const isCover = productForm.image === imgUrl;
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
+                              <span>Galeria do Produto ({allImages.length} fotos):</span>
+                              <span className="text-[10px] text-slate-400">Primeira foto é a capa principal</span>
+                            </div>
+
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                              {allImages.map((imgUrl, index) => {
+                                const isCover = (productForm.image || allImages[0]) === imgUrl;
                                 return (
-                                  <div 
-                                    key={i} 
-                                    className={`relative rounded-xl border p-1 bg-white flex flex-col justify-between overflow-hidden group shadow-xs ${
-                                      isCover ? 'border-amber-500 ring-2 ring-amber-400/40' : 'border-slate-200'
+                                  <div
+                                    key={index}
+                                    className={`group relative rounded-xl border p-1 bg-white transition-all ${
+                                      isCover ? 'border-amber-500 ring-2 ring-amber-400/40 shadow-xs' : 'border-slate-200 hover:border-slate-300'
                                     }`}
                                   >
-                                    <div 
-                                      className="aspect-square rounded-lg overflow-hidden bg-slate-50 flex items-center justify-center p-1 relative cursor-pointer group/thumb"
-                                      onClick={() => setPreviewingImage(imgUrl)}
-                                      title="Clique para ampliar e ver a imagem em detalhes"
-                                    >
-                                      <img src={imgUrl} alt={`Foto ${i + 1}`} className="max-h-full max-w-full object-contain group-hover/thumb:scale-105 transition-transform" />
-                                      
-                                      {/* Hover Zoom Overlay */}
-                                      <div className="absolute inset-0 bg-slate-950/25 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                        <span className="p-1.5 rounded-full bg-white/95 text-slate-900 shadow-md transform group-hover/thumb:scale-110 transition-transform">
-                                          <Eye className="w-3.5 h-3.5" />
-                                        </span>
-                                      </div>
+                                    <div className="aspect-square rounded-lg overflow-hidden bg-slate-50 relative">
+                                      <img
+                                        src={imgUrl}
+                                        alt={`Foto ${index + 1}`}
+                                        className="w-full h-full object-contain p-1"
+                                      />
 
                                       {isCover && (
-                                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-black text-[9px] shadow-xs flex items-center gap-0.5 z-10">
+                                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-wider shadow-xs">
                                           Capa
                                         </span>
                                       )}
@@ -2531,7 +2941,6 @@ export default function AdminPanel({
                                                 images: remainingImages
                                               });
 
-                                              // Exclui automaticamente a imagem do Cloudflare R2 / Storage em segundo plano
                                               if (imgUrl && (imgUrl.includes('.r2.dev') || imgUrl.includes('.r2.cloudflarestorage.com') || imgUrl.includes('cloudinary.com'))) {
                                                 try {
                                                   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -2540,9 +2949,7 @@ export default function AdminPanel({
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({ url: imgUrl })
                                                   }).catch(() => {});
-                                                } catch (err) {
-                                                  // Ignora falha de rede sem travar a interface
-                                                }
+                                                } catch (err) {}
                                               }
                                               showNotification('Foto removida da galeria.', 'info');
                                             }
@@ -2583,229 +2990,170 @@ export default function AdminPanel({
                       </div>
                     </div>
 
-                    {/* CARD 3: Especificações Técnicas (Smart Manager) */}
+                    {/* CARD 3: Vídeo de Entrega Técnica & Treinamento (YouTube / iframe) */}
                     <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div>
                           <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                            <Layers className="w-4 h-4 text-amber-600" />
-                            Especificações Técnicas
+                            <Film className="w-4 h-4 text-red-600" />
+                            Vídeo de Entrega Técnica / Treinamento
                           </h4>
-                          <p className="text-[11px] text-slate-500">Itens tabulados no formato "Rótulo: Valor" exibidos na página e no comparador.</p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={handleExtractSpecsFromDescription}
-                            className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100 inline-flex items-center"
-                            title="Extrair dados técnicos da descrição automaticamente"
-                          >
-                            <FileText className="w-3.5 h-3.5 text-amber-700" />
-                            <span>Extrair da Descrição</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleAddSpec('')}
-                            className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 inline-flex items-center"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-slate-600" />
-                            <span>Nova Linha</span>
-                          </button>
+                          <p className="text-[11px] text-slate-500">
+                            Cole o código <strong>&lt;iframe&gt;...&lt;/iframe&gt;</strong> copiado do YouTube ou o link direto.
+                          </p>
                         </div>
                       </div>
 
-                      {/* Live Dynamic Specs Detected */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder='Cole o código <iframe> completo ou link do YouTube...'
+                          value={productForm.videoUrl || ''}
+                          onChange={(e) => setProductForm({ ...productForm, videoUrl: e.target.value })}
+                          className="form-input text-xs !pl-10 font-mono text-slate-700"
+                        />
+                        <Film className="w-3.5 h-3.5 text-red-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      </div>
+
                       {(() => {
-                        const detected = parseSpecsFromText(productForm.description, productForm.name);
-                        const currentSpecsLower = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
-                        const unaddedDetected = detected.filter(s => !currentSpecsLower.has(s.toLowerCase().trim()));
+                        const embedUrl = getYouTubeEmbedUrl(productForm.videoUrl);
+                        if (!embedUrl) return null;
 
                         return (
-                          <div className="space-y-1.5 bg-amber-50/70 p-3.5 rounded-xl border border-amber-200">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-extrabold text-amber-900 flex items-center gap-1.5">
-                                <FileText className="w-3.5 h-3.5 text-amber-700" />
-                                {unaddedDetected.length > 0 ? (
-                                  <span>Sugestões Encontradas na sua Descrição ({unaddedDetected.length}):</span>
-                                ) : (
-                                  <span>Análise da Descrição em Tempo Real:</span>
-                                )}
+                          <div className="space-y-2 pt-1">
+                            <div className="flex items-center justify-between text-[11px] text-slate-600 font-bold">
+                              <span className="flex items-center gap-1 text-slate-800">
+                                <Play className="w-3 h-3 text-red-600 fill-current" />
+                                Pré-visualização do Vídeo:
                               </span>
-
-                              {unaddedDetected.length > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setProductForm(prev => ({
-                                      ...prev,
-                                      specs: [...(prev.specs || []), ...unaddedDetected]
-                                    }));
-                                    showNotification(`${unaddedDetected.length} especificações adicionadas.`, 'success');
-                                  }}
-                                  className="text-[10px] font-extrabold text-amber-800 hover:text-amber-950 underline"
-                                >
-                                  + Adicionar Todas ({unaddedDetected.length})
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => setProductForm({ ...productForm, videoUrl: '' })}
+                                className="text-red-600 hover:underline text-[10px] font-bold"
+                              >
+                                Remover Vídeo
+                              </button>
                             </div>
-
-                            {unaddedDetected.length > 0 ? (
-                              <div className="flex flex-wrap gap-1.5 pt-1">
-                                {unaddedDetected.map((item, idx) => (
-                                  <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => handleAddSpec(item)}
-                                    className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:border-amber-500 text-amber-950 hover:bg-amber-100/60 text-[11px] font-bold transition-all shadow-2xs text-left"
-                                    title="Clique para adicionar à lista"
-                                  >
-                                    + {item}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-[11px] text-amber-800/80 leading-tight">
-                                {productForm.description && productForm.description.trim().length > 5 ? (
-                                  <span>Todas as especificações encontradas na descrição já foram adicionadas à lista abaixo.</span>
-                                ) : (
-                                  <span>Cole ou digite a descrição com dados técnicos acima para extrair automaticamente as especificações deste produto.</span>
-                                )}
-                              </p>
-                            )}
+                            <div className="aspect-video w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-black">
+                              <iframe
+                                src={embedUrl}
+                                title="Prévia do Vídeo de Entrega Técnica"
+                                className="w-full h-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            </div>
                           </div>
                         );
                       })()}
-
-                      {/* Active Specs List */}
-                      {productForm.specs && productForm.specs.length > 0 ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
-                            <span>Itens Cadastrados ({productForm.specs.length}):</span>
-                            <button
-                              type="button"
-                              onClick={() => setProductForm(prev => ({ ...prev, specs: [] }))}
-                              className="text-red-600 hover:underline text-[10px]"
-                            >
-                              Limpar Todos
-                            </button>
-                          </div>
-
-                          <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                            {productForm.specs.map((specItem, idx) => (
-                              <div key={idx} className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
-                                <span className="w-5 text-center text-[10px] font-bold text-slate-400 shrink-0">
-                                  {idx + 1}
-                                </span>
-                                <input
-                                  type="text"
-                                  placeholder="Ex: Capacidade de Carga: 4.000 kg"
-                                  value={specItem}
-                                  onChange={(e) => handleUpdateSpec(idx, e.target.value)}
-                                  className="form-input text-xs flex-1 !py-1.5 !px-2.5 border-none focus:ring-1 focus:ring-amber-500 bg-white rounded-lg font-medium text-slate-800"
-                                />
-                                
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveSpec(idx, 'up')}
-                                  disabled={idx === 0}
-                                  className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
-                                  title="Mover para cima"
-                                >
-                                  <ArrowUp className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveSpec(idx, 'down')}
-                                  disabled={idx === productForm.specs.length - 1}
-                                  className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
-                                  title="Mover para baixo"
-                                >
-                                  <ArrowDown className="w-3.5 h-3.5" />
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveSpec(idx)}
-                                  className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"
-                                  title="Remover especificação"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-5 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400 bg-slate-50/50">
-                          Nenhuma especificação adicionada ainda. Digite a descrição e clique em <strong>Extrair da Descrição</strong> ou adicione manualmente.
-                        </div>
-                      )}
                     </div>
 
-                    {/* CARD 4: Anexos e Manuais em PDF */}
-                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between">
+                    {/* CARD 4: Anexos, Fichas Técnicas & Manuais em PDF (Upload ou Link Direto) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                         <div>
                           <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                            <Paperclip className="w-4 h-4 text-amber-600" />
-                            Anexos & Documentos (Manuais, Fichas Técnicas em PDF)
+                            <FileText className="w-4 h-4 text-amber-600" />
+                            Fichas Técnicas & Manuais
                           </h4>
-                          <p className="text-[11px] text-slate-500">Arquivos para download na página dedicada do produto.</p>
                         </div>
-
-                        <input
-                          type="file"
-                          id="attachmentFileInput"
-                          className="hidden"
-                          onChange={(e) => e.target.files && handleAttachmentUpload(e.target.files[0])}
-                        />
-                        <label
-                          htmlFor="attachmentFileInput"
-                          className="btn-secondary text-xs py-1.5 px-3 gap-1.5 cursor-pointer inline-flex items-center font-bold"
-                        >
-                          <Plus className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Adicionar PDF</span>
-                        </label>
                       </div>
 
-                      {productForm.attachments && productForm.attachments.length > 0 ? (
-                        <div className="space-y-1.5 pt-1">
-                          {productForm.attachments.map((att) => (
-                            <div key={att.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
-                              <div className="flex items-center gap-2 overflow-hidden">
-                                <FileText className="w-4 h-4 text-amber-600 shrink-0" />
-                                <span className="font-bold text-amber-900 truncate">
-                                  {formatAttachmentLabel(att.fileName)}
-                                </span>
-                                <span className="text-[10px] text-slate-400 shrink-0">({att.fileName})</span>
-                              </div>
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-slate-700">Adicionar Documento:</span>
+                          <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={() => setNewAttachmentForm(f => ({ ...f, mode: 'url' }))}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                newAttachmentForm.mode === 'url' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              <LinkIcon className="w-3 h-3 inline mr-1" /> Link
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setNewAttachmentForm(f => ({ ...f, mode: 'upload' }))}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                newAttachmentForm.mode === 'upload' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              <Upload className="w-3 h-3 inline mr-1" /> PDF
+                            </button>
+                          </div>
+                        </div>
 
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                          <div className="sm:col-span-5">
+                            <input
+                              type="text"
+                              placeholder="Nome (Opcional)"
+                              value={newAttachmentForm.title}
+                              onChange={(e) => setNewAttachmentForm({ ...newAttachmentForm, title: e.target.value })}
+                              className="form-input text-xs"
+                            />
+                          </div>
+
+                          {newAttachmentForm.mode === 'url' ? (
+                            <div className="sm:col-span-7 flex gap-2">
+                              <div className="relative flex-1">
+                                <input
+                                  type="url"
+                                  placeholder="https://exemplo.com/manual.pdf"
+                                  value={newAttachmentForm.url}
+                                  onChange={(e) => setNewAttachmentForm({ ...newAttachmentForm, url: e.target.value })}
+                                  className="form-input text-xs !pl-8"
+                                />
+                                <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                              </div>
                               <button
                                 type="button"
-                                onClick={() => removeAttachment(att.id)}
-                                className="p-1 rounded text-red-600 hover:bg-red-50"
-                                title="Remover anexo"
+                                onClick={handleAddAttachmentSubmit}
+                                className="btn-gold text-xs font-bold py-1.5 px-3 shrink-0 flex items-center gap-1"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Plus className="w-3.5 h-3.5" /> Adicionar
                               </button>
+                            </div>
+                          ) : (
+                            <div className="sm:col-span-7">
+                              <input
+                                type="file"
+                                id="pdfUploadInput"
+                                accept="application/pdf,.pdf"
+                                className="hidden"
+                                onChange={(e) => e.target.files && handleAttachmentFileUpload(e.target.files[0])}
+                              />
+                              <label
+                                htmlFor="pdfUploadInput"
+                                className="btn-secondary text-xs py-2 px-3 gap-1.5 cursor-pointer w-full flex items-center justify-center font-bold border-dashed border-amber-400 bg-amber-50/50 hover:bg-amber-100/60 text-amber-900"
+                              >
+                                <Upload className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Selecionar PDF</span>
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {productForm.attachments && productForm.attachments.length > 0 && (
+                        <div className="max-h-56 overflow-y-auto space-y-2">
+                          {productForm.attachments.map((att) => (
+                            <div key={att.id} className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2 text-xs">
+                              <FileText className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span className="truncate flex-1 font-bold">{att.title || att.fileName}</span>
+                              <button type="button" onClick={() => handleRemoveAttachment(att.id)} className="text-red-500 hover:text-red-700">Excluir</button>
                             </div>
                           ))}
                         </div>
-                      ) : (
-                        <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400 bg-slate-50/50">
-                          Nenhum documento anexado. Clique em "Adicionar PDF" para enviar manuais ou catálogos.
-                        </div>
                       )}
                     </div>
-
                   </div>
 
-                  {/* SIDEBAR COLUMN (4 cols): Destaque, Organization, Pricing, Status */}
-                  <div className="lg:col-span-4 space-y-6">
+                  {/* RIGHT COLUMN (6 cols): Destaque, Organization, Pricing, Specs, Custom Tabs */}
+                  <div className="lg:col-span-6 space-y-6">
                     
-                    {/* SIDEBAR CARD 1: Destaque Athena */}
+                    {/* CARD 5: Destaque Athena */}
                     <div 
                       onClick={() => setProductForm(p => ({ ...p, isFeatured: !p.isFeatured }))}
                       className={`p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
@@ -2851,111 +3199,191 @@ export default function AdminPanel({
                       </p>
                     </div>
 
-                    {/* SIDEBAR CARD 2: Organização & Classificação */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Organização</h4>
+                    {/* CARD 6: Organização & Classificação */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Organização & Condições Comerciais</h4>
 
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-bold text-slate-700">Categoria *</label>
-                          <button
-                            type="button"
-                            onClick={() => setIsQuickCatModalOpen(true)}
-                            className="text-[11px] text-amber-700 font-bold hover:underline flex items-center gap-0.5"
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs font-bold text-slate-700">Categoria *</label>
+                            <button
+                              type="button"
+                              onClick={openNewCategoryModal}
+                              className="text-[11px] text-amber-700 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <Plus className="w-3 h-3" /> Nova
+                            </button>
+                          </div>
+                          <select
+                            value={productForm.categoryId}
+                            onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
+                            className="form-select text-xs font-medium"
+                            required
                           >
-                            <Plus className="w-3 h-3" /> Nova
-                          </button>
+                            {categories.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
                         </div>
-                        <select
-                          value={productForm.categoryId}
-                          onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
-                          className="form-select text-xs font-medium"
-                          required
-                        >
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                      </div>
 
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-bold text-slate-700">Marca / Fabricante *</label>
-                          <button
-                            type="button"
-                            onClick={openNewBrandModal}
-                            className="text-[11px] text-sky-700 font-bold hover:underline flex items-center gap-0.5"
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs font-bold text-slate-700">Marca / Fabricante *</label>
+                            <button
+                              type="button"
+                              onClick={openNewBrandModal}
+                              className="text-[11px] text-sky-700 font-bold hover:underline flex items-center gap-0.5"
+                            >
+                              <Plus className="w-3 h-3" /> Nova
+                            </button>
+                          </div>
+                          <select
+                            value={productForm.brandId}
+                            onChange={(e) => setProductForm({ ...productForm, brandId: e.target.value })}
+                            className="form-select text-xs font-medium"
+                            required
                           >
-                            <Plus className="w-3 h-3" /> Nova
-                          </button>
+                            {brands.map((b) => (
+                              <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                          </select>
                         </div>
-                        <select
-                          value={productForm.brandId}
-                          onChange={(e) => setProductForm({ ...productForm, brandId: e.target.value })}
-                          className="form-select text-xs font-medium"
-                          required
-                        >
-                          {brands.map((b) => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                          ))}
-                        </select>
                       </div>
 
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 block mb-1">
-                          Selo Promocional / Badge
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Ex: Lançamento, Linha Pesada, Top de Linha"
-                          value={productForm.badge}
-                          onChange={(e) => setProductForm({ ...productForm, badge: e.target.value })}
-                          className="form-input text-xs"
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Status de Publicação</label>
+                          <select
+                            value={productForm.status}
+                            onChange={(e) => setProductForm({ ...productForm, status: e.target.value })}
+                            className="form-select text-xs font-bold"
+                          >
+                            <option value="published">Publicado (Visível no Catálogo)</option>
+                            <option value="draft">Rascunho (Oculto)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Selo Promocional / Badge (Opcional)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Lançamento, Linha Pesada"
+                            value={productForm.badge}
+                            onChange={(e) => setProductForm({ ...productForm, badge: e.target.value })}
+                            className="form-input text-xs"
+                          />
+                        </div>
                       </div>
 
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 block mb-1">Status de Publicação</label>
-                        <select
-                          value={productForm.status}
-                          onChange={(e) => setProductForm({ ...productForm, status: e.target.value })}
-                          className="form-select text-xs font-bold"
-                        >
-                          <option value="published">Publicado (Visível no Catálogo)</option>
-                          <option value="draft">Rascunho (Oculto)</option>
-                        </select>
+                      <div className="pt-2 border-t border-slate-100 space-y-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Preço Base (R$)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="18900.00"
+                            disabled={productForm.priceNegotiable}
+                            value={productForm.price}
+                            onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                            className="form-input text-xs disabled:opacity-40 font-mono"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                          <input
+                            type="checkbox"
+                            id="priceNegotiable"
+                            checked={productForm.priceNegotiable}
+                            onChange={(e) => setProductForm({ ...productForm, priceNegotiable: e.target.checked })}
+                            className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                          />
+                          <label htmlFor="priceNegotiable" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                            Preço Sob Consulta (Negociável)
+                          </label>
+                        </div>
                       </div>
                     </div>
 
-                    {/* SIDEBAR CARD 3: Preços & Condições Comerciais */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Preços & Condições</h4>
+                    {/* CARD 7: Especificações Técnicas (Smart Manager) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <Layers className="w-4 h-4 text-amber-600" />
+                            Especificações Técnicas
+                          </h4>
+                          <p className="text-[11px] text-slate-500">Itens tabulados no formato "Rótulo: Valor".</p>
+                        </div>
 
-                      <div>
-                        <label className="text-xs font-bold text-slate-700 block mb-1">Preço Base (R$)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="18900.00"
-                          disabled={productForm.priceNegotiable}
-                          value={productForm.price}
-                          onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                          className="form-input text-xs disabled:opacity-40 font-mono"
-                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddSpec('')}
+                          className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 inline-flex items-center"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Nova Linha</span>
+                        </button>
                       </div>
 
-                      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                        <input
-                          type="checkbox"
-                          id="priceNegotiable"
-                          checked={productForm.priceNegotiable}
-                          onChange={(e) => setProductForm({ ...productForm, priceNegotiable: e.target.checked })}
-                          className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
-                        />
-                        <label htmlFor="priceNegotiable" className="text-xs font-semibold text-slate-700 cursor-pointer">
-                          Preço Sob Consulta (Negociável)
-                        </label>
+                      {productForm.specs && productForm.specs.length > 0 && (
+                        <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                          {productForm.specs.map((specItem, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                              <input
+                                type="text"
+                                placeholder="Ex: Capacidade: 4.000 kg"
+                                value={specItem}
+                                onChange={(e) => handleUpdateSpec(idx, e.target.value)}
+                                className="form-input text-xs flex-1 border-none focus:ring-1 focus:ring-amber-500 bg-white rounded-lg font-medium"
+                              />
+                              <button type="button" onClick={() => handleRemoveSpec(idx)} className="text-red-500">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* CARD 8: Abas & Seções Extras Personalizadas (Aplicações, Funções, etc.) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <Layers className="w-4 h-4 text-amber-600" />
+                            Abas Personalizadas
+                          </h4>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddCustomTab('Nova Seção')}
+                          className="btn-secondary text-xs py-1.5 px-3 gap-1.5 inline-flex items-center font-bold text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-amber-700" />
+                          <span>+ Nova Aba</span>
+                        </button>
                       </div>
+
+                      {productForm.customTabs && productForm.customTabs.map((tab, idx) => (
+                        <div key={tab.id || idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                          <input
+                            type="text"
+                            value={tab.title}
+                            onChange={(e) => handleUpdateCustomTab(tab.id, 'title', e.target.value)}
+                            className="form-input text-xs font-bold w-full"
+                          />
+                          <textarea
+                            value={tab.content || ''}
+                            onChange={(e) => handleUpdateCustomTab(tab.id, 'content', e.target.value)}
+                            className="form-textarea text-xs h-16 w-full"
+                          />
+                          <button type="button" onClick={() => handleRemoveCustomTab(tab.id)} className="text-red-500 text-[10px] font-bold">Remover Aba</button>
+                        </div>
+                      ))}
                     </div>
 
                   </div>
@@ -3009,7 +3437,7 @@ export default function AdminPanel({
 
         {/* BRAND MODAL */}
         {isBrandModalOpen && canEditContent && (
-          <div className="modal-backdrop" onClick={() => setIsBrandModalOpen(false)}>
+          <div className="modal-backdrop !z-[110]" onClick={() => setIsBrandModalOpen(false)}>
             <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
               <button 
                 onClick={() => setIsBrandModalOpen(false)}
@@ -3072,7 +3500,7 @@ export default function AdminPanel({
                     >
                       <input 
                         type="file" 
-                        accept="image/*"
+                        accept="image/*" 
                         onChange={(e) => e.target.files && handleBrandLogoFileUpload(e.target.files[0])}
                         className="hidden" 
                         id="brandLogoFileInput"
@@ -3148,7 +3576,7 @@ export default function AdminPanel({
 
         {/* CATEGORY MODAL (CREATE / EDIT) */}
         {isCategoryModalOpen && canEditContent && (
-          <div className="modal-backdrop" onClick={() => setIsCategoryModalOpen(false)}>
+          <div className="modal-backdrop !z-[110]" onClick={() => setIsCategoryModalOpen(false)}>
             <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
                 <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
