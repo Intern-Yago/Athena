@@ -227,6 +227,17 @@ export default function AdminPanel({
   const [isDraggingBrandLogo, setIsDraggingBrandLogo] = useState(false);
   const [previewingImage, setPreviewingImage] = useState(null);
 
+  // Custom Confirmation Modal Popup State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Sim, Confirmar',
+    cancelText: 'Cancelar',
+    type: 'danger',
+    onConfirm: null
+  });
+
   const isAnyModalOpen = isProductModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage;
 
   // Background body scroll lock while any modal is open
@@ -254,17 +265,6 @@ export default function AdminPanel({
       } catch (e) {}
     }
   }, []);
-
-  // Custom Confirmation Modal Popup State
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    title: '',
-    message: '',
-    confirmText: 'Sim, Confirmar',
-    cancelText: 'Cancelar',
-    type: 'danger',
-    onConfirm: null
-  });
 
   const askConfirmation = ({
     title,
