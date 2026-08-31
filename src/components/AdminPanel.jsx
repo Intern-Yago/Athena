@@ -507,10 +507,17 @@ export default function AdminPanel({
   const [uploadingImages, setUploadingImages] = useState([]);
   const isUploadingImages = uploadingImages.length > 0;
   const gallerySectionRef = React.useRef(null);
+  const specsSectionRef = React.useRef(null);
 
   const scrollToGallery = () => {
     if (gallerySectionRef.current) {
       gallerySectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const scrollToSpecs = () => {
+    if (specsSectionRef.current) {
+      specsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
@@ -980,6 +987,27 @@ export default function AdminPanel({
     }));
   };
 
+  // Helper to detect if a custom tab contains technical specifications
+  const isSpecsCustomTab = (tab) => {
+    if (!tab) return false;
+    const title = (tab.title || '').toLowerCase().trim();
+    const keywords = [
+      'especif', 'dados tecnic', 'dados técnic', 'ficha tecnic', 'ficha técnic', 
+      'caracteristicas tecnic', 'características técnic', 'detalhes tecnic', 'detalhes técnic'
+    ];
+    if (keywords.some(k => title.includes(k))) return true;
+
+    // Check if majority of non-empty lines follow 'Label: Value' pattern
+    if (tab.content && typeof tab.content === 'string') {
+      const lines = tab.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const withColon = lines.filter(l => l.includes(':'));
+      if (lines.length >= 2 && withColon.length >= Math.ceil(lines.length * 0.5)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   // Convert an existing generic custom tab into structured key-value Specs
   const handleConvertTabToSpecs = (tabId) => {
     const tab = (productForm.customTabs || []).find(t => t.id === tabId);
@@ -987,20 +1015,26 @@ export default function AdminPanel({
 
     const lines = tab.content
       .split(/\r?\n/)
-      .map(l => l.replace(/^[•\-\*]\s*/, '').trim())
+      .map(l => l.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim())
       .filter(Boolean);
 
-    setProductForm(prev => {
-      const existingSpecs = Array.isArray(prev.specs) ? [...prev.specs] : [];
-      const updatedSpecs = [...existingSpecs, ...lines.filter(l => !existingSpecs.includes(l))];
-      return {
-        ...prev,
-        specs: updatedSpecs,
-        customTabs: (prev.customTabs || []).filter(t => t.id !== tabId)
-      };
-    });
+    if (lines.length === 0) {
+      showNotification('A aba selecionada não contém linhas de texto para cadastrar.', 'info');
+      return;
+    }
 
-    showNotification(`✨ Aba "${tab.title}" convertida com sucesso em ${lines.length} especificações técnicas tabuladas!`, 'success');
+    setProductForm(prev => ({
+      ...prev,
+      specs: lines, // Registers all lines cleanly in the structured specs
+      customTabs: (prev.customTabs || []).filter(t => t.id !== tabId)
+    }));
+
+    showNotification(`✨ ${lines.length} especificações técnicas cadastradas no local correto e aba removida com sucesso!`, 'success');
+
+    // Smoothly focus/scroll to the Specifications Card
+    setTimeout(() => {
+      scrollToSpecs();
+    }, 80);
   };
 
   const handleExtractTabContentFromDescription = (tabId, tabTitle) => {
@@ -4281,7 +4315,7 @@ export default function AdminPanel({
                     </div>
 
                     {/* CARD 7: Especificações Técnicas (Smart Manager) */}
-                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                    <div ref={specsSectionRef} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div>
                           <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
@@ -4300,6 +4334,34 @@ export default function AdminPanel({
                           <span>Nova Linha</span>
                         </button>
                       </div>
+
+                      {/* Smart Callout when a Custom Tab has Specs data */}
+                      {(() => {
+                        const specsTabs = (productForm.customTabs || []).filter(isSpecsCustomTab);
+                        if (specsTabs.length === 0) return null;
+
+                        return (
+                          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300/80 space-y-2 shadow-2xs">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950">
+                                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>Detectamos dados de especificações na aba personalizada <strong>"{specsTabs[0].title}"</strong>:</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleConvertTabToSpecs(specsTabs[0].id)}
+                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Layers className="w-3.5 h-3.5 text-emerald-200" />
+                                <span>Cadastrar Especificações</span>
+                              </button>
+                            </div>
+                            <p className="text-[11px] text-emerald-800 leading-snug">
+                              Clique no botão para migrar todo o texto dessa aba para a lista tabulada oficial e excluir a aba duplicada automaticamente.
+                            </p>
+                          </div>
+                        );
+                      })()}
 
                       {productForm.specs && productForm.specs.length > 0 && (
                         <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
@@ -4370,7 +4432,7 @@ export default function AdminPanel({
                       {productForm.customTabs && productForm.customTabs.length > 0 ? (
                         <div className="space-y-3">
                           {productForm.customTabs.map((tab, idx) => {
-                            const isSpecsName = tab.title && tab.title.toLowerCase().includes('especif');
+                            const isSpecs = isSpecsCustomTab(tab);
                             return (
                               <div key={tab.id || idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 shadow-2xs">
                                 {/* Tab Header Bar with Order & Reordering Controls */}
@@ -4402,15 +4464,15 @@ export default function AdminPanel({
                                   </div>
 
                                   <div className="flex items-center gap-2">
-                                    {isSpecsName && (
+                                    {isSpecs && (
                                       <button
                                         type="button"
                                         onClick={() => handleConvertTabToSpecs(tab.id)}
-                                        className="text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
-                                        title="Converter o conteúdo desta aba em linhas tabuladas na seção de Especificações Técnicas"
+                                        className="text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 px-3 py-1 rounded-lg transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                        title="Migrar o texto desta aba para a tabela de Especificações Técnicas e excluir a aba"
                                       >
-                                        <Layers className="w-3 h-3 text-emerald-600" />
-                                        <span>Converter p/ Especificações Tabuladas</span>
+                                        <Layers className="w-3.5 h-3.5 text-emerald-200" />
+                                        <span>Cadastrar Especificações</span>
                                       </button>
                                     )}
 
