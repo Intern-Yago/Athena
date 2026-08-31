@@ -750,11 +750,20 @@ export default function AdminPanel({
   };
 
   // Detect all sections present in the description text
-  const detectAllSectionsInDescription = (rawDescription = '', currentCustomTabs = []) => {
+  const detectAllSectionsInDescription = (rawDescription = '', currentCustomTabs = [], currentSpecs = []) => {
     if (!rawDescription || !rawDescription.trim()) return [];
 
     const text = rawDescription.trim();
     const knownCategories = [
+      { 
+        canonical: 'Especificações Técnicas', 
+        isSpecs: true,
+        keywords: [
+          'especificações técnicas', 'especificacoes tecnicas', 'especificações', 'especificacoes', 
+          'especificação', 'especificacao', 'dados técnicos', 'dados tecnicos', 'ficha técnica', 
+          'ficha tecnica', 'características técnicas', 'caracteristicas tecnicas', 'especificações do produto'
+        ] 
+      },
       { canonical: 'Diferenciais', keywords: ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'] },
       { canonical: 'Aplicações', keywords: ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação', 'indicacao', 'indicado para', 'onde usar', 'utilização', 'utilizacao', 'veículos atendidos', 'veiculos atendidos', 'compatibilidade', 'aplicabilidade'] },
       { canonical: 'Funções & Recursos', keywords: ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'] },
@@ -772,19 +781,22 @@ export default function AdminPanel({
       const lowerHeader = rawHeader.toLowerCase();
 
       let matchedCategory = null;
+      let isSpecsCategory = false;
       for (const cat of knownCategories) {
         if (cat.keywords.some(k => lowerHeader === k || lowerHeader.startsWith(k) || k.startsWith(lowerHeader))) {
           matchedCategory = cat.canonical;
+          isSpecsCategory = !!cat.isSpecs;
           break;
         }
       }
 
       if (matchedCategory || match[0].includes(':')) {
         const canonicalTitle = matchedCategory || (rawHeader.charAt(0).toUpperCase() + rawHeader.slice(1));
-        if (!['especificações', 'especificacoes', 'especificação', 'descrição', 'descricao', 'foto', 'fotos', 'preço', 'preco', 'observação', 'obs'].includes(lowerHeader)) {
+        if (!['descrição', 'descricao', 'foto', 'fotos', 'preço', 'preco', 'observação', 'obs'].includes(lowerHeader)) {
           allHeaders.push({
             rawHeader: match[0],
             cleanTitle: canonicalTitle,
+            isSpecsSection: isSpecsCategory || canonicalTitle.toLowerCase().includes('especif'),
             startIndex: match.index,
             headerLength: match[0].length
           });
@@ -814,14 +826,18 @@ export default function AdminPanel({
         const formattedLines = lines.map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`);
         const cleanContent = formattedLines.join('\n');
 
-        const isAlreadyAdded = (currentCustomTabs || []).some(
-          t => t.title && t.title.toLowerCase().trim() === curr.cleanTitle.toLowerCase().trim()
-        );
+        const isAlreadyAdded = curr.isSpecsSection
+          ? (currentSpecs || []).length > 0
+          : (currentCustomTabs || []).some(
+              t => t.title && t.title.toLowerCase().trim() === curr.cleanTitle.toLowerCase().trim()
+            );
 
         detectedSections.push({
           title: curr.cleanTitle,
+          isSpecsSection: curr.isSpecsSection,
           fullSegment: text.slice(curr.startIndex, contentEnd),
           content: cleanContent,
+          rawLines: lines,
           lineCount: lines.length,
           isAlreadyAdded
         });
@@ -831,8 +847,32 @@ export default function AdminPanel({
     return detectedSections;
   };
 
+  // Extract structured specs directly to productForm.specs
+  const handleExtractToSpecs = (item) => {
+    if (!item) return;
+    const rawLines = item.rawLines || item.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const cleaned = rawLines.map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+
+    let workingDesc = productForm.description;
+    if (item.fullSegment) {
+      workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    setProductForm(prev => {
+      const existingSpecs = Array.isArray(prev.specs) ? [...prev.specs] : [];
+      const updatedSpecs = [...existingSpecs, ...cleaned.filter(c => !existingSpecs.includes(c))];
+      return {
+        ...prev,
+        description: workingDesc,
+        specs: updatedSpecs
+      };
+    });
+
+    showNotification(`✨ ${cleaned.length} especificações técnicas extraídas para a tabela de especificações!`, 'success');
+  };
+
   const handleExtractAllDetectedTabs = () => {
-    const detected = detectAllSectionsInDescription(productForm.description, productForm.customTabs);
+    const detected = detectAllSectionsInDescription(productForm.description, productForm.customTabs, productForm.specs);
     const unadded = detected.filter(d => !d.isAlreadyAdded);
     if (unadded.length === 0) {
       showNotification('Nenhuma nova seção estruturada encontrada na descrição.', 'info');
@@ -841,31 +881,46 @@ export default function AdminPanel({
 
     let workingDesc = productForm.description;
     const newTabs = [...(productForm.customTabs || [])];
+    let newSpecs = Array.isArray(productForm.specs) ? [...productForm.specs] : [];
+    let specsAddedCount = 0;
+    let tabsAddedCount = 0;
 
     for (const item of unadded) {
-      const res = extractSectionFromDescription(workingDesc, item.title);
-      if (res.found && res.extractedContent) {
-        const formattedContent = res.extractedContent
-          .split(/\r?\n/)
-          .map(l => l.trim())
-          .filter(Boolean)
-          .map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`)
-          .join('\n');
-
-        newTabs.push({
-          id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-          title: item.title,
-          content: formattedContent
-        });
-        workingDesc = res.updatedDescription;
-      } else {
-        newTabs.push({
-          id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-          title: item.title,
-          content: item.content
-        });
+      if (item.isSpecsSection) {
+        const rawLines = item.rawLines || item.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const cleaned = rawLines.map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+        newSpecs = [...newSpecs, ...cleaned.filter(c => !newSpecs.includes(c))];
+        specsAddedCount += cleaned.length;
         if (item.fullSegment) {
           workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
+        }
+      } else {
+        const res = extractSectionFromDescription(workingDesc, item.title);
+        if (res.found && res.extractedContent) {
+          const formattedContent = res.extractedContent
+            .split(/\r?\n/)
+            .map(l => l.trim())
+            .filter(Boolean)
+            .map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`)
+            .join('\n');
+
+          newTabs.push({
+            id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+            title: item.title,
+            content: formattedContent
+          });
+          tabsAddedCount++;
+          workingDesc = res.updatedDescription;
+        } else {
+          newTabs.push({
+            id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+            title: item.title,
+            content: item.content
+          });
+          tabsAddedCount++;
+          if (item.fullSegment) {
+            workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
+          }
         }
       }
     }
@@ -873,13 +928,17 @@ export default function AdminPanel({
     setProductForm(prev => ({
       ...prev,
       description: workingDesc,
+      specs: newSpecs,
       customTabs: newTabs
     }));
 
-    showNotification(`✨ ${unadded.length} abas criadas e extraídas da descrição com sucesso!`, 'success');
+    showNotification(
+      `✨ Inteligência aplicada: ${specsAddedCount > 0 ? `${specsAddedCount} especificações tabuladas e ` : ''}${tabsAddedCount} abas criadas com sucesso!`,
+      'success'
+    );
   };
 
-  // Custom Tabs Helpers
+  // Custom Tabs Helpers & Reordering
   const handleAddCustomTab = (title = 'Nova Seção', tryAutoExtract = true) => {
     let initialContent = '';
     let updatedDesc = productForm.description;
@@ -904,6 +963,44 @@ export default function AdminPanel({
       description: updatedDesc,
       customTabs: [...(prev.customTabs || []), newTab]
     }));
+  };
+
+  // Reorder Custom Tabs (Move Up / Down)
+  const handleMoveCustomTab = (index, direction) => {
+    const currentTabs = Array.isArray(productForm.customTabs) ? [...productForm.customTabs] : [];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= currentTabs.length) return;
+
+    const [moved] = currentTabs.splice(index, 1);
+    currentTabs.splice(targetIndex, 0, moved);
+
+    setProductForm(prev => ({
+      ...prev,
+      customTabs: currentTabs
+    }));
+  };
+
+  // Convert an existing generic custom tab into structured key-value Specs
+  const handleConvertTabToSpecs = (tabId) => {
+    const tab = (productForm.customTabs || []).find(t => t.id === tabId);
+    if (!tab || !tab.content) return;
+
+    const lines = tab.content
+      .split(/\r?\n/)
+      .map(l => l.replace(/^[•\-\*]\s*/, '').trim())
+      .filter(Boolean);
+
+    setProductForm(prev => {
+      const existingSpecs = Array.isArray(prev.specs) ? [...prev.specs] : [];
+      const updatedSpecs = [...existingSpecs, ...lines.filter(l => !existingSpecs.includes(l))];
+      return {
+        ...prev,
+        specs: updatedSpecs,
+        customTabs: (prev.customTabs || []).filter(t => t.id !== tabId)
+      };
+    });
+
+    showNotification(`✨ Aba "${tab.title}" convertida com sucesso em ${lines.length} especificações técnicas tabuladas!`, 'success');
   };
 
   const handleExtractTabContentFromDescription = (tabId, tabTitle) => {
@@ -3374,9 +3471,9 @@ export default function AdminPanel({
                         />
                       </div>
 
-                      {/* Smart Detected Custom Tabs in Description */}
+                      {/* Smart Detected Custom Tabs & Specs in Description */}
                       {(() => {
-                        const detected = detectAllSectionsInDescription(productForm.description, productForm.customTabs);
+                        const detected = detectAllSectionsInDescription(productForm.description, productForm.customTabs, productForm.specs);
                         const unadded = detected.filter(d => !d.isAlreadyAdded);
                         if (unadded.length === 0) return null;
 
@@ -3385,32 +3482,49 @@ export default function AdminPanel({
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
                                 <Sparkles className="w-4 h-4 text-amber-700" />
-                                <span>Detectamos seções estruturadas no texto que podem virar abas:</span>
+                                <span>Detectamos seções estruturadas no texto que podem ser extraídas:</span>
                               </div>
                               {unadded.length > 1 && (
                                 <button
                                   type="button"
                                   onClick={handleExtractAllDetectedTabs}
-                                  className="text-[11px] font-black text-amber-900 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg transition-all shadow-2xs border border-amber-400 flex items-center gap-1"
+                                  className="text-[11px] font-black text-amber-900 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg transition-all shadow-2xs border border-amber-400 flex items-center gap-1 cursor-pointer"
                                 >
-                                  <Sparkles className="w-3.5 h-3.5" /> Extrair Todas as {unadded.length} Abas de Uma Vez
+                                  <Sparkles className="w-3.5 h-3.5" /> Extrair Todas as {unadded.length} Seções de Uma Vez
                                 </button>
                               )}
                             </div>
 
                             <div className="flex flex-wrap gap-1.5">
-                              {unadded.map((item, idx) => (
-                                <button
-                                  key={idx}
-                                  type="button"
-                                  onClick={() => handleAddCustomTab(item.title, true)}
-                                  className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:border-amber-500 text-amber-950 hover:bg-amber-100 text-[11px] font-bold transition-all shadow-2xs flex items-center gap-1"
-                                  title={`Criar aba "${item.title}" com ${item.lineCount} itens e limpar da descrição`}
-                                >
-                                  <Plus className="w-3 h-3 text-amber-600" />
-                                  <span>Criar Aba <strong>"{item.title}"</strong> ({item.lineCount} {item.lineCount === 1 ? 'item' : 'itens'})</span>
-                                </button>
-                              ))}
+                              {unadded.map((item, idx) => {
+                                if (item.isSpecsSection) {
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => handleExtractToSpecs(item)}
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                                      title={`Preencher a tabela de Especificações Técnicas com ${item.lineCount} itens e limpar da descrição`}
+                                    >
+                                      <Layers className="w-3.5 h-3.5 text-emerald-200" />
+                                      <span>Preencher <strong>Especificações Técnicas</strong> ({item.lineCount} {item.lineCount === 1 ? 'item' : 'itens'})</span>
+                                    </button>
+                                  );
+                                }
+
+                                return (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => handleAddCustomTab(item.title, true)}
+                                    className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:border-amber-500 text-amber-950 hover:bg-amber-100 text-[11px] font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                                    title={`Criar aba "${item.title}" com ${item.lineCount} itens e limpar da descrição`}
+                                  >
+                                    <Plus className="w-3 h-3 text-amber-600" />
+                                    <span>Criar Aba <strong>"{item.title}"</strong> ({item.lineCount} {item.lineCount === 1 ? 'item' : 'itens'})</span>
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         );
@@ -4198,9 +4312,34 @@ export default function AdminPanel({
                                 onChange={(e) => handleUpdateSpec(idx, e.target.value)}
                                 className="form-input text-xs flex-1 border-none focus:ring-1 focus:ring-amber-500 bg-white rounded-lg font-medium"
                               />
-                              <button type="button" onClick={() => handleRemoveSpec(idx)} className="text-red-500">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSpec(idx, 'up')}
+                                  disabled={idx === 0}
+                                  title="Mover Linha para Cima"
+                                  className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  <ArrowUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSpec(idx, 'down')}
+                                  disabled={idx === productForm.specs.length - 1}
+                                  title="Mover Linha para Baixo"
+                                  className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  <ArrowDown className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSpec(idx)}
+                                  className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer ml-0.5"
+                                  title="Excluir Linha"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -4215,34 +4354,109 @@ export default function AdminPanel({
                             <Layers className="w-4 h-4 text-amber-600" />
                             Abas Personalizadas
                           </h4>
+                          <p className="text-[11px] text-slate-500">Defina abas exclusivas (Diferenciais, Aplicações, etc.) e controle a ordem de exibição.</p>
                         </div>
 
                         <button
                           type="button"
                           onClick={() => handleAddCustomTab('Nova Seção')}
-                          className="btn-secondary text-xs py-1.5 px-3 gap-1.5 inline-flex items-center font-bold text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100"
+                          className="btn-secondary text-xs py-1.5 px-3 gap-1.5 inline-flex items-center font-bold text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100 cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5 text-amber-700" />
                           <span>+ Nova Aba</span>
                         </button>
                       </div>
 
-                      {productForm.customTabs && productForm.customTabs.map((tab, idx) => (
-                        <div key={tab.id || idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                          <input
-                            type="text"
-                            value={tab.title}
-                            onChange={(e) => handleUpdateCustomTab(tab.id, 'title', e.target.value)}
-                            className="form-input text-xs font-bold w-full"
-                          />
-                          <textarea
-                            value={tab.content || ''}
-                            onChange={(e) => handleUpdateCustomTab(tab.id, 'content', e.target.value)}
-                            className="form-textarea text-xs h-16 w-full"
-                          />
-                          <button type="button" onClick={() => handleRemoveCustomTab(tab.id)} className="text-red-500 text-[10px] font-bold">Remover Aba</button>
+                      {productForm.customTabs && productForm.customTabs.length > 0 ? (
+                        <div className="space-y-3">
+                          {productForm.customTabs.map((tab, idx) => {
+                            const isSpecsName = tab.title && tab.title.toLowerCase().includes('especif');
+                            return (
+                              <div key={tab.id || idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 shadow-2xs">
+                                {/* Tab Header Bar with Order & Reordering Controls */}
+                                <div className="flex items-center justify-between flex-wrap gap-2 pb-1 border-b border-slate-200/60">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-900 font-extrabold text-[10px] uppercase tracking-wider border border-amber-400/40">
+                                      Aba #{idx + 1}
+                                    </span>
+                                    <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5 shadow-2xs">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveCustomTab(idx, 'up')}
+                                        disabled={idx === 0}
+                                        title="Mover Aba para Cima (Exibir antes)"
+                                        className="p-1 rounded hover:bg-slate-100 disabled:opacity-20 text-slate-700 cursor-pointer disabled:cursor-not-allowed"
+                                      >
+                                        <ArrowUp className="w-3 h-3" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveCustomTab(idx, 'down')}
+                                        disabled={idx === productForm.customTabs.length - 1}
+                                        title="Mover Aba para Baixo (Exibir depois)"
+                                        className="p-1 rounded hover:bg-slate-100 disabled:opacity-20 text-slate-700 cursor-pointer disabled:cursor-not-allowed"
+                                      >
+                                        <ArrowDown className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    {isSpecsName && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleConvertTabToSpecs(tab.id)}
+                                        className="text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                                        title="Converter o conteúdo desta aba em linhas tabuladas na seção de Especificações Técnicas"
+                                      >
+                                        <Layers className="w-3 h-3 text-emerald-600" />
+                                        <span>Converter p/ Especificações Tabuladas</span>
+                                      </button>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveCustomTab(tab.id)}
+                                      className="text-red-500 hover:text-red-700 text-[10px] font-bold hover:underline flex items-center gap-0.5 cursor-pointer ml-auto"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> Remover Aba
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                    Título da Aba
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ex: Diferenciais, Aplicações, Requisitos..."
+                                    value={tab.title}
+                                    onChange={(e) => handleUpdateCustomTab(tab.id, 'title', e.target.value)}
+                                    className="form-input text-xs font-bold w-full bg-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                    Conteúdo da Aba (Texto ou Tópicos)
+                                  </label>
+                                  <textarea
+                                    placeholder="Descreva os tópicos ou detalhes desta aba..."
+                                    value={tab.content || ''}
+                                    onChange={(e) => handleUpdateCustomTab(tab.id, 'content', e.target.value)}
+                                    className="form-textarea text-xs h-20 w-full bg-white leading-relaxed font-mono"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
+                      ) : (
+                        <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-center">
+                          Nenhuma aba personalizada criada. As abas ajudam a organizar tópicos como "Diferenciais" e "Aplicações" na página do produto.
+                        </p>
+                      )}
                     </div>
 
                   </div>
