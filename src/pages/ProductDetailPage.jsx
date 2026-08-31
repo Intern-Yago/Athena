@@ -516,12 +516,12 @@ export default function ProductDetailPage({
                   <button
                     type="button"
                     onClick={() => {
-                      document.getElementById('entrega-tecnica-video')?.scrollIntoView({ behavior: 'smooth' });
+                      document.getElementById('video-demonstrativo')?.scrollIntoView({ behavior: 'smooth' });
                     }}
                     className="badge badge-red hover:bg-red-100 cursor-pointer text-red-700 bg-red-50 border border-red-200 flex items-center gap-1"
                   >
                     <Play className="w-3 h-3 fill-current text-red-600" />
-                    <span>Vídeo de Entrega Técnica</span>
+                    <span>Vídeo Demonstrativo</span>
                   </button>
                 )}
               </div>
@@ -588,26 +588,26 @@ export default function ProductDetailPage({
               if (!embedUrl) return null;
 
               return (
-                <div id="entrega-tecnica-video" className="space-y-3 pt-4 border-t border-slate-100">
+                <div id="video-demonstrativo" className="space-y-3 pt-4 border-t border-slate-100">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                         <Film className="w-4 h-4 text-red-600" />
-                        Entrega Técnica & Treinamento Oficial
+                        Vídeo & Apresentação do Equipamento
                       </h4>
                       <p className="text-[11px] text-slate-500">
-                        Vídeo com montagem, calibração e orientações técnicas de uso deste equipamento.
+                        Demonstração de funcionamento, recursos e orientações de uso deste equipamento.
                       </p>
                     </div>
                     <span className="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200 text-[10px] font-extrabold flex items-center gap-1.5">
-                      <Play className="w-3 h-3 fill-current" /> Vídeo Exclusivo Athena
+                      <Play className="w-3 h-3 fill-current" /> Vídeo Demonstrativo
                     </span>
                   </div>
 
                   <div className="aspect-video w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-950">
                     <iframe
                       src={embedUrl}
-                      title={`Entrega Técnica - ${product.name}`}
+                      title={`Vídeo - ${product.name}`}
                       className="w-full h-full"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen

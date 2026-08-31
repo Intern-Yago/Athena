@@ -3845,16 +3845,16 @@ export default function AdminPanel({
                       </div>
                     </div>
 
-                    {/* CARD 3: Vídeo de Entrega Técnica & Treinamento (YouTube / iframe) */}
+                    {/* CARD 3: Vídeo do Equipamento (YouTube / iframe) */}
                     <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div>
                           <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                             <Film className="w-4 h-4 text-red-600" />
-                            Vídeo de Entrega Técnica / Treinamento
+                            Vídeo do Equipamento (YouTube / Demonstração)
                           </h4>
                           <p className="text-[11px] text-slate-500">
-                            Cole o código <strong>&lt;iframe&gt;...&lt;/iframe&gt;</strong> copiado do YouTube ou o link direto.
+                            Cole o código <strong>&lt;iframe&gt;...&lt;/iframe&gt;</strong> copiado do YouTube ou o link direto do vídeo.
                           </p>
                         </div>
                       </div>
@@ -3862,7 +3862,7 @@ export default function AdminPanel({
                       <div className="relative">
                         <input
                           type="text"
-                          placeholder='Cole o código <iframe> completo ou link do YouTube...'
+                          placeholder='Cole o link do YouTube ou código <iframe>...'
                           value={productForm.videoUrl || ''}
                           onChange={(e) => setProductForm({ ...productForm, videoUrl: e.target.value })}
                           className="form-input text-xs !pl-10 font-mono text-slate-700"
@@ -3892,7 +3892,7 @@ export default function AdminPanel({
                             <div className="aspect-video w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-black">
                               <iframe
                                 src={embedUrl}
-                                title="Prévia do Vídeo de Entrega Técnica"
+                                title="Prévia do Vídeo Demonstrativo"
                                 className="w-full h-full"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
