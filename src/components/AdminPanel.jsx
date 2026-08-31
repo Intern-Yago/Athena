@@ -40,7 +40,8 @@ import {
   ArrowUpDown,
   Film,
   Play,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
@@ -268,6 +269,48 @@ function SearchableSelect({
   );
 }
 
+/**
+ * Radial / Circular Progress Indicator (Shopify-style live upload spinner)
+ */
+function RadialProgressCircle({ progress = 0, size = 48, strokeWidth = 4 }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const validProgress = Math.min(100, Math.max(0, progress));
+  const strokeDashoffset = circumference - (validProgress / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg className="w-full h-full -rotate-90 transform" viewBox={`0 0 ${size} ${size}`}>
+        {/* Background track circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(255, 255, 255, 0.25)"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        {/* Animated fill circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#f59e0b"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className="transition-all duration-200 ease-out"
+        />
+      </svg>
+      <span className="absolute text-[11px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+        {Math.round(validProgress)}%
+      </span>
+    </div>
+  );
+}
+
 export default function AdminPanel({
   products,
   categories,
@@ -459,6 +502,17 @@ export default function AdminPanel({
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isDraggingBrandLogo, setIsDraggingBrandLogo] = useState(false);
   const [previewingImage, setPreviewingImage] = useState(null);
+
+  // Shopify-style image upload queue & progress state
+  const [uploadingImages, setUploadingImages] = useState([]);
+  const isUploadingImages = uploadingImages.length > 0;
+  const gallerySectionRef = React.useRef(null);
+
+  const scrollToGallery = () => {
+    if (gallerySectionRef.current) {
+      gallerySectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   // Custom Confirmation Modal Popup State
   const [confirmModal, setConfirmModal] = useState({
@@ -1316,23 +1370,66 @@ export default function AdminPanel({
       return;
     }
 
-    showNotification(`Processando ${fileList.length} imagem(ns)...`, 'info');
+    // 1. Create immediate local preview placeholder tasks
+    const newTasks = fileList.map((file, idx) => ({
+      id: `up_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+      file,
+      fileName: file.name,
+      tempUrl: URL.createObjectURL(file),
+      progress: 12,
+      status: 'uploading' // 'uploading' | 'done' | 'error'
+    }));
 
-    for (const file of fileList) {
+    setUploadingImages((prev) => [...prev, ...newTasks]);
+    showNotification(`Enviando ${newTasks.length} imagem(ns)...`, 'info');
+
+    // Smoothly center the gallery in view so user sees progress immediately
+    setTimeout(() => {
+      scrollToGallery();
+    }, 60);
+
+    // 2. Upload each file concurrently with progressive radial feedback
+    for (const task of newTasks) {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64Data = e.target.result;
+
+        // Progressive smooth radial animation
+        const progressTimer = setInterval(() => {
+          setUploadingImages((prev) =>
+            prev.map((t) => {
+              if (t.id === task.id && t.status === 'uploading') {
+                const next = t.progress + Math.floor(Math.random() * 18 + 8);
+                return { ...t, progress: Math.min(next, 94) };
+              }
+              return t;
+            })
+          );
+        }, 220);
+
         try {
           const res = await fetch(`${API_BASE_URL}/upload`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ file: base64Data, folder: 'athena_produtos' })
           });
+
+          clearInterval(progressTimer);
+
           if (res.status === 401 || res.status === 403) {
             onLogout && onLogout('Sua sessão expirou.');
+            setUploadingImages((prev) => prev.filter((t) => t.id !== task.id));
             return;
           }
+
           const uploadedUrl = res.ok ? (await res.json()).url : base64Data;
+
+          // Mark complete 100%
+          setUploadingImages((prev) =>
+            prev.map((t) => (t.id === task.id ? { ...t, progress: 100, status: 'done' } : t))
+          );
+
+          // Add to productForm images
           setProductForm((prev) => {
             const currentImages = Array.isArray(prev.images) ? [...prev.images] : [];
             const newImages = currentImages.includes(uploadedUrl) ? currentImages : [...currentImages, uploadedUrl];
@@ -1342,19 +1439,24 @@ export default function AdminPanel({
               images: newImages
             };
           });
-          showNotification('Foto adicionada com sucesso!', 'success');
+
+          // Graceful transition cleanup
+          setTimeout(() => {
+            setUploadingImages((prev) => prev.filter((t) => t.id !== task.id));
+            try {
+              URL.revokeObjectURL(task.tempUrl);
+            } catch (err) {}
+          }, 450);
+
         } catch (err) {
-          setProductForm((prev) => {
-            const currentImages = Array.isArray(prev.images) ? [...prev.images] : [];
-            return {
-              ...prev,
-              image: prev.image || base64Data,
-              images: [...currentImages, base64Data]
-            };
-          });
+          clearInterval(progressTimer);
+          setUploadingImages((prev) =>
+            prev.map((t) => (t.id === task.id ? { ...t, status: 'error', error: 'Falha no upload' } : t))
+          );
+          showNotification(`Erro ao enviar foto "${task.fileName}".`, 'error');
         }
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(task.file);
     }
   };
 
@@ -1780,6 +1882,12 @@ export default function AdminPanel({
   const handleProductSubmit = (e) => {
     e.preventDefault();
 
+    if (isUploadingImages) {
+      showNotification('Aguarde o término do envio das fotos para salvar o equipamento.', 'error');
+      scrollToGallery();
+      return;
+    }
+
     if (!productForm.name.trim()) {
       showNotification('Por favor, informe o nome do produto.', 'error');
       return;
@@ -1818,6 +1926,14 @@ export default function AdminPanel({
 
   const handleProductFormKeyDown = (e) => {
     if (e.key === 'Enter') {
+      if (isUploadingImages) {
+        e.preventDefault();
+        e.stopPropagation();
+        showNotification('Aguarde o término do envio das fotos para salvar o equipamento.', 'error');
+        scrollToGallery();
+        return;
+      }
+
       const target = e.target;
       const tagName = target?.tagName?.toLowerCase();
 
@@ -3302,10 +3418,18 @@ export default function AdminPanel({
                     </div>
 
                     {/* CARD 2: Mídia / Fotos do Produto */}
-                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                    <div ref={gallerySectionRef} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div>
-                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Fotos do Produto (Galeria & Capa)</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Fotos do Produto (Galeria & Capa)</h4>
+                            {isUploadingImages && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 text-[10px] font-extrabold border border-amber-400/40 animate-pulse">
+                                <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                                Enviando {uploadingImages.length} foto(s)...
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[11px] text-slate-500">Adicione imagens em alta qualidade para carrossel e zoom de detalhes.</p>
                         </div>
                       </div>
@@ -3372,27 +3496,34 @@ export default function AdminPanel({
                         </div>
                       )}
 
-                      {/* Visual Gallery Grid Preview */}
+                      {/* Visual Gallery Grid Preview (Shopify Style with Real-time Radial Progress) */}
                       {(() => {
                         const allImages = Array.from(
                           new Set([productForm.image, ...(productForm.images || [])].filter(Boolean))
                         );
 
-                        if (allImages.length === 0) return null;
+                        if (allImages.length === 0 && uploadingImages.length === 0) return null;
+
+                        const totalCount = allImages.length + uploadingImages.length;
 
                         return (
                           <div className="space-y-2 pt-2 border-t border-slate-100">
                             <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
-                              <span>Galeria do Produto ({allImages.length} fotos):</span>
-                              <span className="text-[10px] text-slate-400">Primeira foto é a capa principal</span>
+                              <span>
+                                Galeria do Produto ({totalCount} {totalCount === 1 ? 'foto' : 'fotos'}):
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {isUploadingImages ? 'Aguarde o envio das fotos para salvar' : 'Primeira foto é a capa principal'}
+                              </span>
                             </div>
 
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                              {/* 1. Completed / Saved Images */}
                               {allImages.map((imgUrl, index) => {
                                 const isCover = (productForm.image || allImages[0]) === imgUrl;
                                 return (
                                   <div
-                                    key={index}
+                                    key={`saved_${index}`}
                                     className={`group relative rounded-xl border p-1 bg-white transition-all ${
                                       isCover ? 'border-amber-500 ring-2 ring-amber-400/40 shadow-xs' : 'border-slate-200 hover:border-slate-300'
                                     }`}
@@ -3467,6 +3598,69 @@ export default function AdminPanel({
                                   </div>
                                 );
                               })}
+
+                              {/* 2. Uploading Live Cards with Shopify-style Radial Progress Ring */}
+                              {uploadingImages.map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="relative rounded-xl border-2 border-amber-400 p-1 bg-slate-900 shadow-md overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                                >
+                                  <div className="aspect-square rounded-lg overflow-hidden relative bg-slate-950 flex items-center justify-center">
+                                    {/* Local preview thumbnail */}
+                                    <img
+                                      src={task.tempUrl}
+                                      alt={task.fileName}
+                                      className="w-full h-full object-cover opacity-40 blur-[1px]"
+                                    />
+
+                                    {/* Centered Dark Overlay with Radial Progress */}
+                                    <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[1px] flex flex-col items-center justify-center p-2 text-center">
+                                      {task.status === 'uploading' && (
+                                        <>
+                                          <RadialProgressCircle progress={task.progress} />
+                                          <span className="text-[10px] font-extrabold text-amber-300 mt-1 tracking-tight drop-shadow-xs">
+                                            Enviando...
+                                          </span>
+                                        </>
+                                      )}
+                                      {task.status === 'done' && (
+                                        <div className="flex flex-col items-center animate-in zoom-in-75 duration-150">
+                                          <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg">
+                                            <Check className="w-5 h-5 stroke-[3]" />
+                                          </div>
+                                          <span className="text-[9px] font-black text-emerald-300 mt-1">
+                                            Pronto!
+                                          </span>
+                                        </div>
+                                      )}
+                                      {task.status === 'error' && (
+                                        <div className="flex flex-col items-center text-red-400 p-1">
+                                          <AlertTriangle className="w-6 h-6 text-red-400" />
+                                          <span className="text-[9px] font-bold mt-1 text-center leading-tight">
+                                            Falha
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => setUploadingImages(prev => prev.filter(t => t.id !== task.id))}
+                                            className="text-[9px] text-white underline mt-1 font-bold hover:text-red-200 cursor-pointer"
+                                          >
+                                            Cancelar
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="pt-1 px-1 flex items-center justify-between text-[10px] text-slate-300">
+                                    <span className="truncate max-w-[70px] text-[9px] font-medium" title={task.fileName}>
+                                      {task.fileName}
+                                    </span>
+                                    <span className="text-[9px] font-black text-amber-400">
+                                      {task.status === 'done' ? '100%' : `${Math.round(task.progress)}%`}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         );
@@ -4089,9 +4283,29 @@ export default function AdminPanel({
                   <button 
                     type="submit" 
                     form="productMainForm"
-                    className="btn-gold text-xs font-extrabold py-2.5 px-6 shadow-md"
+                    disabled={isUploadingImages}
+                    onClick={(e) => {
+                      if (isUploadingImages) {
+                        e.preventDefault();
+                        showNotification('Aguarde o término do envio das fotos para salvar o equipamento.', 'error');
+                        scrollToGallery();
+                      }
+                    }}
+                    className={`btn-gold text-xs font-extrabold py-2.5 px-6 shadow-md transition-all flex items-center gap-2 ${
+                      isUploadingImages ? 'opacity-60 cursor-not-allowed grayscale-[25%]' : ''
+                    }`}
                   >
-                    <Check className="w-4 h-4" /> Salvar Equipamento
+                    {isUploadingImages ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-950" />
+                        <span>Enviando Fotos ({uploadingImages.length})...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Salvar Equipamento</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
