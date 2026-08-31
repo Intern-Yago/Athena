@@ -6,7 +6,7 @@ export default function AboutPage() {
   const whatsappUrl = "https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+conhecer+mais+sobre+a+empresa.";
   const instagramUrl = "https://www.instagram.com/athena.solucoes.automotivas/";
 
-  const mapsUrl = "https://www.google.com/maps/search/?api=1&query=ST+SHA+CONJUNTO+6+CHACARA+517+Loja+05+Setor+Habitacional+Arniqueira+Brasilia+DF+71996-413";
+  const mapsUrl = "https://www.google.com/maps/place/Sh+Arniqueiras%2FCol%C3%B4nia+Agr%C3%ADcola+Vereda+da+Cruz+Chac+517+-+Col.+Agr%C3%ADcola+Vereda+da+Cruz+-+St.+Hab.+Arniqueira,+Bras%C3%ADlia+-+DF/@-15.8485476,-48.0273207,18z/data=!3m1!4b1!4m6!3m5!1s0x935a3276830b9d97:0x8d02e1421cc9ab49!8m2!3d-15.8485502!4d-48.0260306!16s%2Fg%2F11c5jw91kp?entry=ttu";
 
   return (
     <div className="py-12 space-y-20">
@@ -170,7 +170,7 @@ export default function AboutPage() {
               className="btn-secondary py-3 px-5 text-xs font-bold inline-flex items-center gap-2 hover:border-amber-500 hover:text-amber-700 transition-all self-start md:self-auto shadow-xs"
             >
               <MapPin className="w-4 h-4 text-amber-600" />
-              <span>Abrir no Google Maps 📍</span>
+              <span>Abrir no Google Maps</span>
             </a>
           </div>
 
