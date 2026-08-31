@@ -834,7 +834,7 @@ export default function AdminPanel({
         const cleanContent = formattedLines.join('\n');
 
         const isAlreadyAdded = curr.isSpecsSection
-          ? (currentSpecs || []).length > 0
+          ? false // Always show specs extraction button when section is found in description text!
           : (currentCustomTabs || []).some(
               t => t.title && t.title.toLowerCase().trim() === curr.cleanTitle.toLowerCase().trim()
             );
@@ -858,24 +858,34 @@ export default function AdminPanel({
   const handleExtractToSpecs = (item) => {
     if (!item) return;
     const rawLines = item.rawLines || item.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const cleaned = rawLines.map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+    const cleaned = rawLines.map(l => l.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim()).filter(Boolean);
+
+    if (cleaned.length === 0) {
+      showNotification('Nenhuma linha de especificação válida foi identificada no texto.', 'info');
+      return;
+    }
 
     let workingDesc = productForm.description;
     if (item.fullSegment) {
       workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    } else {
+      const res = extractSectionFromDescription(workingDesc, item.title);
+      if (res.found) {
+        workingDesc = res.updatedDescription;
+      }
     }
 
-    setProductForm(prev => {
-      const existingSpecs = Array.isArray(prev.specs) ? [...prev.specs] : [];
-      const updatedSpecs = [...existingSpecs, ...cleaned.filter(c => !existingSpecs.includes(c))];
-      return {
-        ...prev,
-        description: workingDesc,
-        specs: updatedSpecs
-      };
-    });
+    setProductForm(prev => ({
+      ...prev,
+      description: workingDesc,
+      specs: cleaned // registers the clean lines directly in specifications
+    }));
 
-    showNotification(`✨ ${cleaned.length} especificações técnicas extraídas para a tabela de especificações!`, 'success');
+    showNotification(`✨ ${cleaned.length} especificações técnicas cadastradas no local correto e removidas da descrição!`, 'success');
+
+    setTimeout(() => {
+      scrollToSpecs();
+    }, 80);
   };
 
   const handleExtractAllDetectedTabs = () => {
@@ -895,9 +905,9 @@ export default function AdminPanel({
     for (const item of unadded) {
       if (item.isSpecsSection) {
         const rawLines = item.rawLines || item.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const cleaned = rawLines.map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
-        newSpecs = [...newSpecs, ...cleaned.filter(c => !newSpecs.includes(c))];
-        specsAddedCount += cleaned.length;
+        const cleaned = rawLines.map(l => l.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim()).filter(Boolean);
+        newSpecs = cleaned;
+        specsAddedCount = cleaned.length;
         if (item.fullSegment) {
           workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
         }
