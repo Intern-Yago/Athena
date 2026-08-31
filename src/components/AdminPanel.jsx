@@ -2737,13 +2737,15 @@ export default function AdminPanel({
 
                               <td className="py-3 px-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
-                                  <button
-                                    onClick={() => onNavigate(`produto/${prod.slug || prod.id}`)}
-                                    className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                                    title="Visualizar no Site"
+                                  <a
+                                    href={`/produto/${prod.slug || prod.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center justify-center cursor-pointer"
+                                    title="Visualizar Produto no Site (Abrir em Nova Aba)"
                                   >
                                     <Eye className="w-3.5 h-3.5" />
-                                  </button>
+                                  </a>
 
                                   {canEditContent && (
                                     <>
@@ -2925,7 +2927,16 @@ export default function AdminPanel({
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] font-mono text-slate-400">/categoria/{cat.slug || cat.id}</span>
+                      <a
+                        href={`/categoria/${cat.slug || cat.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-mono text-slate-400 hover:text-amber-700 hover:underline inline-flex items-center gap-0.5"
+                        title="Ver Categoria no Site (Nova Aba)"
+                      >
+                        <span>/categoria/{cat.slug || cat.id}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
                     </div>
                   </div>
 
@@ -3058,7 +3069,16 @@ export default function AdminPanel({
                           </a>
                         )}
                       </div>
-                      <span className="text-[10px] font-mono text-slate-400">/marca/{b.slug || b.id}</span>
+                      <a
+                        href={`/marca/${b.slug || b.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-mono text-slate-400 hover:text-sky-700 hover:underline inline-flex items-center gap-0.5"
+                        title="Ver Marca no Site (Nova Aba)"
+                      >
+                        <span>/marca/{b.slug || b.id}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
                     </div>
                   </div>
 
@@ -4549,13 +4569,15 @@ export default function AdminPanel({
                     };
                     sessionStorage.setItem('athena_preview_draft_product', JSON.stringify(draftPayload));
                     const token = encodeDraftToShareableUrl ? encodeDraftToShareableUrl(draftPayload) : '';
-                    setIsProductModalOpen(false);
-                    onNavigate(`produto/preview${token ? `?d=${token}` : ''}`);
+                    const previewUrl = `/produto/preview${token ? `?d=${token}` : ''}`;
+                    window.open(previewUrl, '_blank', 'noopener,noreferrer');
                   }}
-                  className="btn-secondary text-xs py-2.5 px-4 font-bold flex items-center gap-1.5"
+                  className="btn-secondary text-xs py-2.5 px-4 font-bold flex items-center gap-1.5 cursor-pointer hover:border-emerald-500 hover:text-emerald-800"
+                  title="Abrir prévia do produto em uma nova aba sem fechar o formulário"
                 >
                   <Eye className="w-4 h-4 text-emerald-600" />
-                  <span>Pré-visualizar Página (Link de Prévia)</span>
+                  <span>Pré-visualizar Página (Nova Aba)</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
                 </button>
 
                 <div className="flex items-center gap-3">
