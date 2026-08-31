@@ -1,4 +1,6 @@
 import React from 'react';
+import { ExternalLink } from 'lucide-react';
+import ProductHoverCard from './ProductHoverCard';
 
 /**
  * Strips rich text formatting tags for plain text contexts (e.g. search, cards line-clamp, meta tags).
@@ -13,6 +15,7 @@ export function stripFormattingTags(text = '') {
     .replace(/\[highlight\](.*?)\[\/highlight\]/gi, '$1')
     .replace(/<color:[^>]+>(.*?)<\/color>/gi, '$1')
     .replace(/<mark>(.*?)<\/mark>/gi, '$1')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
     .replace(/<\/?(b|i|u|strong|em|p|span)>/gi, '')
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
@@ -23,16 +26,16 @@ export function stripFormattingTags(text = '') {
 }
 
 /**
- * Parses inline rich text formatting (bold, italic, underline, custom colors, highlights, font sizes).
+ * Parses inline rich text formatting (bold, italic, underline, custom colors, highlights, font sizes, markdown links).
  */
-export function parseInlineFormatting(text = '') {
+export function parseInlineFormatting(text = '', products = [], onSelectProduct = null) {
   if (!text) return null;
 
   const parts = [];
   let remaining = text;
   let keyIndex = 0;
 
-  const tokenRegex = /(\[(?:tamanho|size)=(p|pequeno|sm|m|medio|md|g|grande|lg|gg|extra|xl|titulo)\](.*?)\[\/(?:tamanho|size)\]|\[cor=(ambar|azul|verde|vermelho|gold|dourado|sky|blue|emerald|green|red)\](.*?)\[\/cor\]|\[color=([^\]]+)\](.*?)\[\/color\]|\[destaque\](.*?)\[\/destaque\]|\[highlight\](.*?)\[\/highlight\]|<mark>(.*?)<\/mark>|\*\*(.*?)\*\*|<b>(.*?)<\/b>|<strong>(.*?)<\/strong>|\*(.*?)\*|<i>(.*?)<\/i>|<em>(.*?)<\/em>|<u>(.*?)<\/u>)/i;
+  const tokenRegex = /(\[(?:tamanho|size)=(p|pequeno|sm|m|medio|md|g|grande|lg|gg|extra|xl|titulo)\](.*?)\[\/(?:tamanho|size)\]|\[cor=(ambar|azul|verde|vermelho|gold|dourado|sky|blue|emerald|green|red)\](.*?)\[\/cor\]|\[color=([^\]]+)\](.*?)\[\/color\]|\[destaque\](.*?)\[\/destaque\]|\[highlight\](.*?)\[\/highlight\]|<mark>(.*?)<\/mark>|\*\*(.*?)\*\*|<b>(.*?)<\/b>|<strong>(.*?)<\/strong>|\*(.*?)\*|<i>(.*?)<\/i>|<em>(.*?)<\/em>|<u>(.*?)<\/u>|\[([^\]]+)\]\(([^)]+)\))/i;
 
   while (remaining) {
     const match = remaining.match(tokenRegex);
@@ -67,7 +70,7 @@ export function parseInlineFormatting(text = '') {
       
       parts.push(
         <span key={`size-${keyIndex++}`} className={sizeClass}>
-          {parseInlineFormatting(content)}
+          {parseInlineFormatting(content, products, onSelectProduct)}
         </span>
       );
     }
@@ -82,7 +85,7 @@ export function parseInlineFormatting(text = '') {
       
       parts.push(
         <span key={`color-${keyIndex++}`} className={colorClass}>
-          {parseInlineFormatting(content)}
+          {parseInlineFormatting(content, products, onSelectProduct)}
         </span>
       );
     }
@@ -90,7 +93,7 @@ export function parseInlineFormatting(text = '') {
     else if (match[6] && match[7] !== undefined) {
       parts.push(
         <span key={`custom-color-${keyIndex++}`} style={{ color: match[6] }} className="font-bold">
-          {parseInlineFormatting(match[7])}
+          {parseInlineFormatting(match[7], products, onSelectProduct)}
         </span>
       );
     }
@@ -99,7 +102,7 @@ export function parseInlineFormatting(text = '') {
       const content = match[8] || match[9] || match[10];
       parts.push(
         <mark key={`mark-${keyIndex++}`} className="bg-amber-100/90 text-amber-950 px-1 py-0.5 rounded font-medium border border-amber-200/60">
-          {parseInlineFormatting(content)}
+          {parseInlineFormatting(content, products, onSelectProduct)}
         </mark>
       );
     }
@@ -108,7 +111,7 @@ export function parseInlineFormatting(text = '') {
       const content = match[11] || match[12] || match[13];
       parts.push(
         <strong key={`bold-${keyIndex++}`} className="font-extrabold text-slate-900">
-          {parseInlineFormatting(content)}
+          {parseInlineFormatting(content, products, onSelectProduct)}
         </strong>
       );
     }
@@ -117,7 +120,7 @@ export function parseInlineFormatting(text = '') {
       const content = match[14] || match[15] || match[16];
       parts.push(
         <em key={`italic-${keyIndex++}`} className="italic">
-          {parseInlineFormatting(content)}
+          {parseInlineFormatting(content, products, onSelectProduct)}
         </em>
       );
     }
@@ -126,9 +129,50 @@ export function parseInlineFormatting(text = '') {
       const content = match[17];
       parts.push(
         <u key={`u-${keyIndex++}`} className="underline decoration-amber-500 decoration-1.5 underline-offset-2">
-          {parseInlineFormatting(content)}
+          {parseInlineFormatting(content, products, onSelectProduct)}
         </u>
       );
+    }
+    // [label](url) Markdown Link
+    else if (match[18] !== undefined && match[19] !== undefined) {
+      const linkLabel = match[18];
+      const linkUrl = match[19];
+
+      let matchedProduct = null;
+      if (Array.isArray(products) && products.length > 0) {
+        if (linkUrl.includes('/produto/')) {
+          const slugOrId = linkUrl.split('/produto/')[1]?.split('?')[0]?.replace(/\/$/, '');
+          matchedProduct = products.find(p => p.slug === slugOrId || p.id === slugOrId);
+        } else {
+          matchedProduct = products.find(p => p.name.toLowerCase().trim() === linkLabel.toLowerCase().trim() || p.slug === linkLabel.toLowerCase().trim());
+        }
+      }
+
+      if (matchedProduct) {
+        parts.push(
+          <ProductHoverCard
+            key={`prod-chip-${keyIndex++}`}
+            product={matchedProduct}
+            onSelectProduct={onSelectProduct}
+          >
+            {linkLabel}
+          </ProductHoverCard>
+        );
+      } else {
+        const isExternal = linkUrl.startsWith('http://') || linkUrl.startsWith('https://') || linkUrl.startsWith('mailto:') || linkUrl.startsWith('tel:');
+        parts.push(
+          <a
+            key={`link-${keyIndex++}`}
+            href={linkUrl}
+            target={isExternal ? '_blank' : undefined}
+            rel={isExternal ? 'noopener noreferrer' : undefined}
+            className="text-amber-800 hover:text-amber-950 font-bold underline decoration-amber-400/80 inline-flex items-center gap-0.5"
+          >
+            <span>{linkLabel}</span>
+            {isExternal && <ExternalLink className="w-3 h-3 inline text-amber-600 ml-0.5" />}
+          </a>
+        );
+      }
     }
 
     remaining = remaining.substring(matchIndex + fullMatch.length);
@@ -141,7 +185,12 @@ export function parseInlineFormatting(text = '') {
  * FormattedDescription Component
  * Renders rich text description supporting bold, italic, underline, colors, highlight, nested bullet lists, and nested numbered lists.
  */
-export default function FormattedDescription({ text = '', className = '' }) {
+export default function FormattedDescription({ 
+  text = '', 
+  className = '',
+  products = [],
+  onSelectProduct = null
+}) {
   if (!text || !text.trim()) {
     return null;
   }
@@ -171,7 +220,7 @@ export default function FormattedDescription({ text = '', className = '' }) {
                 ) : (
                   <span className="w-1.5 h-1.5 rounded-2xs bg-slate-500 mt-2 shrink-0" />
                 )}
-                <span className="flex-1">{parseInlineFormatting(item.content)}</span>
+                <span className="flex-1">{parseInlineFormatting(item.content, products, onSelectProduct)}</span>
               </li>
             );
           })}
@@ -220,7 +269,7 @@ export default function FormattedDescription({ text = '', className = '' }) {
                     {label}
                   </span>
                 )}
-                <span className="flex-1">{parseInlineFormatting(item.content)}</span>
+                <span className="flex-1">{parseInlineFormatting(item.content, products, onSelectProduct)}</span>
               </li>
             );
           })}
@@ -277,7 +326,7 @@ export default function FormattedDescription({ text = '', className = '' }) {
     flushList();
     elements.push(
       <p key={`p-${elements.length}`} className="leading-relaxed my-1.5 text-slate-700">
-        {parseInlineFormatting(trimmed)}
+        {parseInlineFormatting(trimmed, products, onSelectProduct)}
       </p>
     );
   }

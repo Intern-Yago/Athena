@@ -1,9 +1,21 @@
 import React from 'react';
 import FormattedDescription from './FormattedDescription';
-import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles, Play } from 'lucide-react';
+import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles, Play, ExternalLink } from 'lucide-react';
 
-export default function ProductModal({ product, category, brand, onClose }) {
+export default function ProductModal({ 
+  product, 
+  category: propCategory, 
+  brand: propBrand, 
+  categories = [], 
+  brands = [], 
+  products = [], 
+  onClose,
+  onSelectProduct 
+}) {
   if (!product) return null;
+
+  const category = propCategory || (categories && categories.find(c => c.id === product.categoryId));
+  const brand = propBrand || (brands && brands.find(b => b.id === product.brandId));
 
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
@@ -13,16 +25,19 @@ export default function ProductModal({ product, category, brand, onClose }) {
     `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação para o equipamento:\n📌 *${product.name}*\n🏷️ Marca: ${brand?.name || 'N/A'}\n📁 Categoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre prazo de entrega, frete e formas de pagamento.`
   );
 
+  const productUrl = `/produto/${product.slug || product.id}`;
+
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop z-50 !p-2 sm:!p-4" onClick={onClose}>
       <div 
-        className="modal-content max-w-3xl relative overflow-hidden bg-white border-slate-200" 
+        className="modal-content max-w-3xl w-full relative overflow-hidden bg-white border-slate-200 rounded-3xl shadow-2xl" 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Close Button */}
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 z-20 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors border border-slate-200"
+          title="Fechar"
         >
           <X className="w-5 h-5" />
         </button>
@@ -33,9 +48,9 @@ export default function ProductModal({ product, category, brand, onClose }) {
           <div className="relative bg-slate-50 p-6 flex flex-col justify-between items-center border-b md:border-b-0 md:border-r border-slate-200">
             <div className="w-full aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-white flex items-center justify-center shadow-sm">
               <img 
-                src={product.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
+                src={product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
                 alt={product.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain p-2"
                 onError={(e) => {
                   e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
                 }}
@@ -114,7 +129,11 @@ export default function ProductModal({ product, category, brand, onClose }) {
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Descrição do Equipamento</h4>
                 <div className="text-xs text-slate-600 leading-relaxed max-h-48 overflow-y-auto">
-                  <FormattedDescription text={product.description} />
+                  <FormattedDescription 
+                    text={product.description} 
+                    products={products}
+                    onSelectProduct={onSelectProduct}
+                  />
                 </div>
               </div>
 
@@ -144,6 +163,16 @@ export default function ProductModal({ product, category, brand, onClose }) {
               >
                 <MessageCircle className="w-5 h-5 fill-current" />
                 <span>Solicitar Cotação Oficial no WhatsApp</span>
+              </a>
+
+              <a
+                href={productUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full btn-secondary text-xs py-2 justify-center font-bold flex items-center gap-1.5 text-slate-700 hover:text-amber-900 hover:border-amber-400"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-amber-600" />
+                <span>Abrir Página Completa do Equipamento (Nova Aba)</span>
               </a>
 
               <p className="text-[11px] text-center text-slate-500">

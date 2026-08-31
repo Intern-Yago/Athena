@@ -19,6 +19,8 @@ import {
   Paperclip,
   ArrowUp,
   ArrowDown,
+  ArrowLeft,
+  ArrowRight,
   Globe,
   Users,
   Printer,
@@ -462,9 +464,49 @@ export default function AdminPanel({
       specs: ['Elevada resistência e durabilidade', 'Manual e certificado inclusos', 'Garantia de fábrica'],
       attachments: [],
       videoUrl: '',
-      customTabs: []
+      customTabs: [],
+      compatibleProductIds: []
     }
   );
+
+  // Modal History Stack for navigating between related products
+  const [productModalHistory, setProductModalHistory] = useState([]);
+
+  const navigateToProductInModal = (targetProduct) => {
+    if (!targetProduct) return;
+    setProductModalHistory(prev => [...prev, { form: { ...productForm }, editing: editingProduct }]);
+    setEditingProduct(targetProduct);
+    setProductForm({
+      ...targetProduct,
+      isFeatured: !!targetProduct.isFeatured,
+      images: Array.isArray(targetProduct.images) ? [...targetProduct.images] : (targetProduct.image ? [targetProduct.image] : []),
+      specs: Array.isArray(targetProduct.specs) ? [...targetProduct.specs] : [],
+      attachments: Array.isArray(targetProduct.attachments) ? [...targetProduct.attachments] : [],
+      videoUrl: targetProduct.videoUrl || targetProduct.youtubeVideoUrl || '',
+      customTabs: Array.isArray(targetProduct.customTabs) ? [...targetProduct.customTabs] : [],
+      compatibleProductIds: Array.isArray(targetProduct.compatibleProductIds) ? [...targetProduct.compatibleProductIds] : []
+    });
+
+    const modalForm = document.getElementById('productMainForm');
+    if (modalForm) {
+      modalForm.scrollTop = 0;
+    }
+    showNotification(`Abrindo "${targetProduct.name}" no modal de edição.`, 'info');
+  };
+
+  const navigateBackInProductModal = () => {
+    if (productModalHistory.length === 0) return;
+    const prevEntry = productModalHistory[productModalHistory.length - 1];
+    setProductModalHistory(prev => prev.slice(0, -1));
+    setEditingProduct(prevEntry.editing || null);
+    setProductForm(prevEntry.form);
+
+    const modalForm = document.getElementById('productMainForm');
+    if (modalForm) {
+      modalForm.scrollTop = 0;
+    }
+    showNotification(`Retornando para "${prevEntry.form?.name || 'Equipamento Anterior'}".`, 'info');
+  };
 
   // Attachment Form State (Upload vs Direct URL)
   const [newAttachmentForm, setNewAttachmentForm] = useState({
@@ -625,6 +667,7 @@ export default function AdminPanel({
   };
 
   const openNewProductModal = () => {
+    setProductModalHistory([]);
     setEditingProduct(null);
     setProductForm({
       name: '',
@@ -643,22 +686,25 @@ export default function AdminPanel({
       specs: [],
       attachments: [],
       videoUrl: '',
-      customTabs: []
+      customTabs: [],
+      compatibleProductIds: []
     });
     setNewAttachmentForm({ title: '', url: '', mode: 'url' });
     setIsProductModalOpen(true);
   };
 
   const openEditProductModal = (product) => {
+    setProductModalHistory([]);
     setEditingProduct(product);
     setProductForm({
       ...product,
       isFeatured: !!product.isFeatured,
-      images: Array.isArray(product.images) ? [...product.images] : [],
+      images: Array.isArray(product.images) ? [...product.images] : (product.image ? [product.image] : []),
       specs: Array.isArray(product.specs) ? [...product.specs] : [],
       attachments: Array.isArray(product.attachments) ? [...product.attachments] : [],
       videoUrl: product.videoUrl || product.youtubeVideoUrl || '',
-      customTabs: Array.isArray(product.customTabs) ? [...product.customTabs] : []
+      customTabs: Array.isArray(product.customTabs) ? [...product.customTabs] : [],
+      compatibleProductIds: Array.isArray(product.compatibleProductIds) ? [...product.compatibleProductIds] : []
     });
     setNewAttachmentForm({ title: '', url: '', mode: 'url' });
     setIsProductModalOpen(true);
@@ -674,8 +720,18 @@ export default function AdminPanel({
     
     // Keyword Aliases mapping for common technical equipment sections
     const aliasesMap = {
+      'acessórios & itens compatíveis': [
+        'acessórios & itens compatíveis', 'acessorios & itens compativeis', 
+        'acessórios e itens compatíveis', 'acessorios e itens compativeis', 
+        'compatibilidade', 'compatibilidades', 'compatível com', 'compativel com', 
+        'compatíveis com', 'compativeis com', 'máquinas compatíveis', 'maquinas compativeis', 
+        'equipamentos compatíveis', 'equipamentos compativeis', 'acessórios compatíveis', 
+        'acessorios compativeis', 'acessório para', 'acessorio para', 'compatível como as', 
+        'compativel como as', 'compatível com as', 'compativel com as', 'compatível com os', 
+        'compativel com os'
+      ],
       'diferenciais': ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'],
-      'aplicações': ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação', 'indicacao', 'indicado para', 'onde usar', 'utilização', 'utilizacao', 'veículos atendidos', 'veiculos atendidos', 'compatibilidade', 'aplicabilidade'],
+      'aplicações': ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação', 'indicacao', 'indicado para', 'onde usar', 'utilização', 'utilizacao', 'veículos atendidos', 'veiculos atendidos', 'aplicabilidade'],
       'funções & recursos': ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'],
       'itens inclusos': ['itens inclusos', 'item incluso', 'acessórios inclusos', 'acessorios inclusos', 'o que acompanha', 'conteúdo da embalagem', 'conteudo da embalagem', 'composição', 'composicao', 'acompanha', 'inclusos'],
       'requisitos de instalação': ['requisitos de instalação', 'requisitos de instalacao', 'requisitos', 'instalação', 'instalacao', 'infraestrutura', 'exigências', 'exigencias', 'espaço necessário', 'especificações de instalação', 'preparação'],
@@ -691,7 +747,7 @@ export default function AdminPanel({
 
     const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const keywordsPattern = keywords.map(escapeRegExp).join('|');
-    const nextHeaderPattern = `(?:\\r?\\n|^)\\s*(?:#{1,6}\\s*|\\*{1,2}|_{1,2}|[-•–—]\\s*)?(?:especifica[çc][õo]es|ficha\\s*t[ée]cnica|dados\\s*t[ée]cnicos|dimens[õo]es|descri[çc][ãa]o|caracter[íi]sticas|itens\\s*inclusos|aplica[çc][õo]es|diferenciais|vantagens|recursos|fun[çc][õo]es|garantia|requisitos|informa[çc][õo]es|importante|obs(?:erva[çc][ãa]o)?)\\b`;
+    const nextHeaderPattern = `(?:\\r?\\n|^)\\s*(?:#{1,6}\\s*|\\*{1,2}|_{1,2}|[-•–—]\\s*)?(?:especifica[çc][õo]es|ficha\\s*t[ée]cnica|dados\\s*t[ée]cnicos|dimens[õo]es|descri[çc][ãa]o|caracter[íi]sticas|itens\\s*inclusos|aplica[çc][õo]es|diferenciais|vantagens|recursos|fun[çc][õo]es|garantia|requisitos|compatib|acess[óo]rios|informa[çc][õo]es|importante|obs(?:erva[çc][ãa]o)?)\\b`;
 
     // 1. Try Section Heading Block match
     const sectionRegex = new RegExp(
@@ -735,7 +791,12 @@ export default function AdminPanel({
         continue;
       }
       const lowerLine = trimmed.toLowerCase();
-      const isKeywordMatch = keywords.some(k => lowerLine.startsWith(k) || (lowerLine.includes(':') && lowerLine.split(':')[0].trim() === k));
+      const cleanLowerLine = lowerLine.replace(/^[•\-\*–—\s\d+\.\)]+/, '').trim();
+      const isKeywordMatch = keywords.some(k => 
+        lowerLine.startsWith(k) || 
+        cleanLowerLine.startsWith(k) || 
+        (lowerLine.includes(':') && lowerLine.split(':')[0].trim() === k)
+      );
       if (isKeywordMatch) {
         matchedLines.push(trimmed);
       } else {
@@ -756,6 +817,37 @@ export default function AdminPanel({
     return { extractedContent: '', updatedDescription: rawDescription, found: false };
   };
 
+  // Helper to automatically turn mentions of catalog equipment into markdown links and collect IDs
+  const autoLinkCompatibleProductsInContent = (rawText, catalogProducts = []) => {
+    if (!rawText || !Array.isArray(catalogProducts) || catalogProducts.length === 0) {
+      return { text: rawText, matchedIds: [] };
+    }
+
+    const matchedIds = [];
+    let updatedText = rawText;
+
+    for (const prod of catalogProducts) {
+      if (prod.id === productForm.id || (editingProduct && prod.id === editingProduct.id)) continue;
+
+      const name = (prod.name || '').trim();
+      const codeMatches = name.match(/([A-Za-z0-9]{2,8}(?:-[A-Za-z0-9]{2,8})?)/gi) || [];
+      const candidates = [name, ...codeMatches.filter(c => c.length >= 3 && !['COM', 'PARA', 'MAIS', 'PRO'].includes(c.toUpperCase()))];
+
+      for (const candidate of candidates) {
+        const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(?<!\\[|\\/produto\\/)\\b(${escaped})\\b(?!\\]|\\))`, 'gi');
+        
+        if (regex.test(updatedText)) {
+          if (!matchedIds.includes(prod.id)) matchedIds.push(prod.id);
+          updatedText = updatedText.replace(regex, `[${prod.name}](/produto/${prod.slug || prod.id})`);
+          break;
+        }
+      }
+    }
+
+    return { text: updatedText, matchedIds };
+  };
+
   // Detect all sections present in the description text
   const detectAllSectionsInDescription = (rawDescription = '', currentCustomTabs = [], currentSpecs = []) => {
     if (!rawDescription || !rawDescription.trim()) return [];
@@ -771,8 +863,22 @@ export default function AdminPanel({
           'ficha tecnica', 'características técnicas', 'caracteristicas tecnicas', 'especificações do produto'
         ] 
       },
+      { 
+        canonical: 'Acessórios & Itens Compatíveis', 
+        isCompatibility: true,
+        keywords: [
+          'acessórios & itens compatíveis', 'acessorios & itens compativeis', 
+          'acessórios e itens compatíveis', 'acessorios e itens compativeis', 
+          'compatibilidade', 'compatibilidades', 'compatível com', 'compativel com', 
+          'compatíveis com', 'compativeis com', 'máquinas compatíveis', 'maquinas compativeis', 
+          'equipamentos compatíveis', 'equipamentos compativeis', 'acessórios compatíveis', 
+          'acessorios compativeis', 'acessório para', 'acessorio para', 'compatível como as', 
+          'compativel como as', 'compatível com as', 'compativel com as', 'compatível com os', 
+          'compativel com os'
+        ] 
+      },
       { canonical: 'Diferenciais', keywords: ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'] },
-      { canonical: 'Aplicações', keywords: ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação', 'indicacao', 'indicado para', 'onde usar', 'utilização', 'utilizacao', 'veículos atendidos', 'veiculos atendidos', 'compatibilidade', 'aplicabilidade'] },
+      { canonical: 'Aplicações', keywords: ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação', 'indicacao', 'indicado para', 'onde usar', 'utilização', 'utilizacao', 'veículos atendidos', 'veiculos atendidos', 'aplicabilidade'] },
       { canonical: 'Funções & Recursos', keywords: ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'] },
       { canonical: 'Itens Inclusos', keywords: ['itens inclusos', 'item incluso', 'acessórios inclusos', 'acessorios inclusos', 'o que acompanha', 'conteúdo da embalagem', 'conteudo da embalagem', 'composição', 'composicao', 'acompanha', 'inclusos'] },
       { canonical: 'Requisitos de Instalação', keywords: ['requisitos de instalação', 'requisitos de instalacao', 'requisitos', 'instalação', 'instalacao', 'infraestrutura', 'exigências', 'exigencias', 'espaço necessário', 'especificações de instalação', 'preparação'] },
@@ -834,7 +940,7 @@ export default function AdminPanel({
         const cleanContent = formattedLines.join('\n');
 
         const isAlreadyAdded = curr.isSpecsSection
-          ? false // Always show specs extraction button when section is found in description text!
+          ? false
           : (currentCustomTabs || []).some(
               t => t.title && t.title.toLowerCase().trim() === curr.cleanTitle.toLowerCase().trim()
             );
@@ -844,6 +950,27 @@ export default function AdminPanel({
           isSpecsSection: curr.isSpecsSection,
           fullSegment: text.slice(curr.startIndex, contentEnd),
           content: cleanContent,
+          rawLines: lines,
+          lineCount: lines.length,
+          isAlreadyAdded
+        });
+      }
+    }
+
+    // Also check for free-standing compatibility bullet lines if no explicit compatibility header was caught
+    const hasCompatHeader = detectedSections.some(d => d.title === 'Acessórios & Itens Compatíveis');
+    if (!hasCompatHeader) {
+      const compatRes = extractSectionFromDescription(text, 'Acessórios & Itens Compatíveis');
+      if (compatRes.found && compatRes.extractedContent) {
+        const lines = compatRes.extractedContent.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const formattedLines = lines.map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`);
+        const isAlreadyAdded = (currentCustomTabs || []).some(
+          t => t.title && t.title.toLowerCase().trim() === 'acessórios & itens compatíveis'
+        );
+        detectedSections.push({
+          title: 'Acessórios & Itens Compatíveis',
+          isSpecsSection: false,
+          content: formattedLines.join('\n'),
           rawLines: lines,
           lineCount: lines.length,
           isAlreadyAdded
@@ -878,7 +1005,7 @@ export default function AdminPanel({
     setProductForm(prev => ({
       ...prev,
       description: workingDesc,
-      specs: cleaned // registers the clean lines directly in specifications
+      specs: cleaned
     }));
 
     showNotification(`✨ ${cleaned.length} especificações técnicas cadastradas no local correto e removidas da descrição!`, 'success');
@@ -899,6 +1026,7 @@ export default function AdminPanel({
     let workingDesc = productForm.description;
     const newTabs = [...(productForm.customTabs || [])];
     let newSpecs = Array.isArray(productForm.specs) ? [...productForm.specs] : [];
+    let newCompatibleIds = Array.isArray(productForm.compatibleProductIds) ? [...productForm.compatibleProductIds] : [];
     let specsAddedCount = 0;
     let tabsAddedCount = 0;
 
@@ -913,32 +1041,33 @@ export default function AdminPanel({
         }
       } else {
         const res = extractSectionFromDescription(workingDesc, item.title);
+        let contentToUse = item.content;
+
         if (res.found && res.extractedContent) {
-          const formattedContent = res.extractedContent
+          contentToUse = res.extractedContent
             .split(/\r?\n/)
             .map(l => l.trim())
             .filter(Boolean)
             .map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`)
             .join('\n');
-
-          newTabs.push({
-            id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-            title: item.title,
-            content: formattedContent
-          });
-          tabsAddedCount++;
           workingDesc = res.updatedDescription;
-        } else {
-          newTabs.push({
-            id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-            title: item.title,
-            content: item.content
-          });
-          tabsAddedCount++;
-          if (item.fullSegment) {
-            workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
-          }
+        } else if (item.fullSegment) {
+          workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
         }
+
+        // If compatibility tab, auto-link catalog equipment!
+        if (item.title === 'Acessórios & Itens Compatíveis') {
+          const linkResult = autoLinkCompatibleProductsInContent(contentToUse, products);
+          contentToUse = linkResult.text;
+          newCompatibleIds = Array.from(new Set([...newCompatibleIds, ...linkResult.matchedIds]));
+        }
+
+        newTabs.push({
+          id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          title: item.title,
+          content: contentToUse
+        });
+        tabsAddedCount++;
       }
     }
 
@@ -946,7 +1075,8 @@ export default function AdminPanel({
       ...prev,
       description: workingDesc,
       specs: newSpecs,
-      customTabs: newTabs
+      customTabs: newTabs,
+      compatibleProductIds: newCompatibleIds
     }));
 
     showNotification(
@@ -959,12 +1089,20 @@ export default function AdminPanel({
   const handleAddCustomTab = (title = 'Nova Seção', tryAutoExtract = true) => {
     let initialContent = '';
     let updatedDesc = productForm.description;
+    let newCompatibleIds = Array.isArray(productForm.compatibleProductIds) ? [...productForm.compatibleProductIds] : [];
 
     if (tryAutoExtract && productForm.description && productForm.description.trim()) {
       const result = extractSectionFromDescription(productForm.description, title);
       if (result.found && result.extractedContent) {
         initialContent = result.extractedContent;
         updatedDesc = result.updatedDescription;
+        
+        if (title === 'Acessórios & Itens Compatíveis') {
+          const linkResult = autoLinkCompatibleProductsInContent(initialContent, products);
+          initialContent = linkResult.text;
+          newCompatibleIds = Array.from(new Set([...newCompatibleIds, ...linkResult.matchedIds]));
+        }
+
         showNotification(`✨ Aba "${title}" criada com conteúdo extraído da descrição!`, 'success');
       }
     }
@@ -978,7 +1116,8 @@ export default function AdminPanel({
     setProductForm(prev => ({
       ...prev,
       description: updatedDesc,
-      customTabs: [...(prev.customTabs || []), newTab]
+      customTabs: [...(prev.customTabs || []), newTab],
+      compatibleProductIds: newCompatibleIds
     }));
   };
 
@@ -3477,6 +3616,28 @@ export default function AdminPanel({
                 </button>
               </div>
 
+              {/* Back History Navigation Banner when navigating across related products */}
+              {productModalHistory.length > 0 && (
+                <div className="bg-amber-500/15 border-b border-amber-400/40 px-5 sm:px-8 py-2.5 flex items-center justify-between gap-3 text-xs shrink-0">
+                  <div className="flex items-center gap-2 text-amber-950 font-bold min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping shrink-0" />
+                    <span className="truncate">Navegando entre equipamentos vinculados:</span>
+                    <span className="font-extrabold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded truncate">
+                      {productForm.name || 'Produto Atual'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={navigateBackInProductModal}
+                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer shrink-0"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Voltar para {productModalHistory[productModalHistory.length - 1]?.form?.name || 'Equipamento Anterior'}</span>
+                  </button>
+                </div>
+              )}
+
               {/* Scrollable Form Content */}
               <form id="productMainForm" onSubmit={handleProductSubmit} onKeyDown={handleProductFormKeyDown} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
                 
@@ -3531,6 +3692,13 @@ export default function AdminPanel({
                           value={productForm.description}
                           onChange={(val) => setProductForm({ ...productForm, description: val })}
                           onOptimize={handleOptimizeDescriptionAndSpecs}
+                          products={products}
+                          onAddCompatibleProduct={(compatId) => {
+                            setProductForm(prev => ({
+                              ...prev,
+                              compatibleProductIds: Array.from(new Set([...(prev.compatibleProductIds || []), compatId]))
+                            }));
+                          }}
                           placeholder="Descreva o produto, recursos, diferenciais e materiais..."
                         />
                       </div>
@@ -4549,6 +4717,184 @@ export default function AdminPanel({
                           Nenhuma aba personalizada criada. As abas ajudam a organizar tópicos como "Diferenciais" e "Aplicações" na página do produto.
                         </p>
                       )}
+                    </div>
+
+                    {/* CARD 9: ACESSÓRIOS & ITENS COMPATÍVEIS */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs flex items-center justify-center">
+                            9
+                          </span>
+                          <div>
+                            <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">
+                              Acessórios & Itens Compatíveis (Marcações Cruzadas)
+                            </h4>
+                            <p className="text-[11px] text-slate-500">
+                              Vincule máquinas e acessórios compatíveis. Os clientes verão esses equipamentos com prévia rápida e links cruzados.
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                          {(productForm.compatibleProductIds || []).length} selecionado(s)
+                        </span>
+                      </div>
+
+                      {/* Search & Add Compatible Products Combobox */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                          Adicionar Equipamento Compatível do Catálogo
+                        </label>
+                        
+                        <SearchableSelect
+                          options={products
+                            .filter(p => p.id !== (productForm.id || editingProduct?.id) && !(productForm.compatibleProductIds || []).includes(p.id))
+                            .map(p => ({
+                              value: p.id,
+                              label: `${p.name} (${brands.find(b => b.id === p.brandId)?.name || 'Athena'})`
+                            }))}
+                          value=""
+                          onChange={(val) => {
+                            if (val) {
+                              setProductForm(prev => ({
+                                ...prev,
+                                compatibleProductIds: Array.from(new Set([...(prev.compatibleProductIds || []), val]))
+                              }));
+                              const addedProd = products.find(p => p.id === val);
+                              showNotification(`Equipamento "${addedProd?.name || 'Item'}" vinculado como compatível!`, 'success');
+                            }
+                          }}
+                          placeholder="Digite para buscar e selecionar um equipamento..."
+                        />
+                      </div>
+
+                      {/* List of currently selected compatible products */}
+                      {productForm.compatibleProductIds && productForm.compatibleProductIds.length > 0 ? (
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Equipamentos Vinculados ({productForm.compatibleProductIds.length})
+                          </label>
+                          <div className="grid grid-cols-1 gap-2">
+                            {productForm.compatibleProductIds.map(compatId => {
+                              const compatProd = products.find(p => p.id === compatId);
+                              if (!compatProd) return null;
+                              const compatBrand = brands.find(b => b.id === compatProd.brandId);
+
+                              return (
+                                <div
+                                  key={compatId}
+                                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 p-0.5 overflow-hidden shrink-0 flex items-center justify-center">
+                                      <img
+                                        src={compatProd.image || (compatProd.images && compatProd.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=100'}
+                                        alt={compatProd.name}
+                                        className="w-full h-full object-contain"
+                                      />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="font-bold text-slate-900 block truncate">
+                                        {compatProd.name}
+                                      </span>
+                                      <span className="text-[10px] text-slate-500 font-medium block">
+                                        {compatBrand?.name || 'Athena'} • /produto/{compatProd.slug || compatProd.id}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => navigateToProductInModal(compatProd)}
+                                      className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-amber-900 font-bold text-[11px] flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                                      title="Editar este produto agora no modal"
+                                    >
+                                      <Edit3 className="w-3 h-3 text-amber-600" />
+                                      <span>Editar</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setProductForm(prev => ({
+                                          ...prev,
+                                          compatibleProductIds: (prev.compatibleProductIds || []).filter(id => id !== compatId)
+                                        }));
+                                        showNotification('Vínculo de compatibilidade removido.', 'info');
+                                      }}
+                                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                      title="Remover compatibilidade"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-center">
+                          Nenhum equipamento vinculado manualmente. Você pode vincular máquinas ou adicionar links pelo editor de texto.
+                        </p>
+                      )}
+
+                      {/* Inbound Cross-References: Products that mark THIS product as compatible */}
+                      {(() => {
+                        const currentId = productForm.id || editingProduct?.id;
+                        const currentSlug = productForm.slug;
+                        if (!currentId && !currentSlug) return null;
+
+                        const referencingProducts = products.filter(p => {
+                          if (p.id === currentId) return false;
+                          const hasDirectId = Array.isArray(p.compatibleProductIds) && p.compatibleProductIds.includes(currentId);
+                          const hasSlugLink = currentSlug && Array.isArray(p.customTabs) && p.customTabs.some(t => t.content && t.content.includes(currentSlug));
+                          return hasDirectId || hasSlugLink;
+                        });
+
+                        if (referencingProducts.length === 0) return null;
+
+                        return (
+                          <div className="pt-3 border-t border-slate-200/80 space-y-2">
+                            <div className="flex items-center gap-1.5 text-slate-700">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800">
+                                Marcado como Compatível nestes Equipamentos ({referencingProducts.length}):
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-1.5">
+                              {referencingProducts.map(refProd => {
+                                const refBrand = brands.find(b => b.id === refProd.brandId);
+                                return (
+                                  <div
+                                    key={refProd.id}
+                                    className="p-2 rounded-xl bg-amber-50/60 border border-amber-200/70 flex items-center justify-between gap-3 text-xs"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0" />
+                                      <span className="font-bold text-slate-900 truncate">{refProd.name}</span>
+                                      <span className="text-[10px] text-slate-500 font-medium shrink-0">({refBrand?.name || 'Athena'})</span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => navigateToProductInModal(refProd)}
+                                      className="px-2 py-0.5 rounded-md bg-white border border-amber-300 hover:border-amber-500 text-amber-900 font-bold text-[10px] flex items-center gap-1 shadow-2xs cursor-pointer shrink-0"
+                                      title="Abrir este equipamento no modal para editar"
+                                    >
+                                      <span>Abrir</span>
+                                      <ArrowRight className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                   </div>
