@@ -19,7 +19,17 @@ import ProductComparisonModal from './components/ProductComparisonModal';
 
 import { INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
-import { safeStorageGet, safeStorageSet, safeStorageRemove, idbGet } from './utils/storage';
+import { 
+  safeStorageGet, 
+  safeStorageSet, 
+  safeStorageRemove, 
+  idbGet, 
+  saveSession, 
+  getSession, 
+  touchSession, 
+  clearSession, 
+  isSessionExpired 
+} from './utils/storage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
 
@@ -60,9 +70,9 @@ export default function App() {
 
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
-  // Authenticated User State (Employee Login & Roles)
+  // Authenticated User State (OWASP Secure Session with Inactivity Timeout & Expiration)
   const [currentUser, setCurrentUser] = useState(() => {
-    return safeStorageGet('athena_user', null);
+    return getSession();
   });
 
   // Clean HTML5 Router (Zero "#" symbols, beautiful URLs like /admin, /produto/elevador)
@@ -134,20 +144,98 @@ export default function App() {
     showNotification('Comparador limpo.', 'info');
   };
 
-  // Auth Handlers
+  // Auth Handlers (OWASP Session Management)
   const handleLoginSuccess = (userObj) => {
-    setCurrentUser(userObj);
-    safeStorageSet('athena_user', userObj);
+    const saved = saveSession(userObj);
+    setCurrentUser(saved);
     showNotification(`Bem-vindo, ${userObj.name}!`, 'success');
     navigateTo('admin');
   };
 
-  const handleLogout = () => {
+  const handleLogout = (msg = 'Sessão encerrada.') => {
+    clearSession();
     setCurrentUser(null);
-    safeStorageRemove('athena_user');
-    showNotification('Sessão encerrada.', 'info');
+    showNotification(msg, 'info');
     navigateTo('catalog');
   };
+
+  const handleSessionExpired = (msg = 'Sua sessão expirou por inatividade para sua segurança. Faça login novamente.') => {
+    clearSession();
+    setCurrentUser(null);
+    showNotification(msg, 'error');
+  };
+
+  // Helper for Authorization Headers
+  const getAuthHeaders = () => {
+    const session = getSession();
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.token ? { 'Authorization': `Bearer ${session.token}` } : {})
+    };
+  };
+
+  const handleApiUnauthorized = (res) => {
+    if (res && (res.status === 401 || res.status === 403)) {
+      handleSessionExpired('Sua sessão expirou no servidor. Por favor, faça login novamente.');
+      return true;
+    }
+    return false;
+  };
+
+  // Active Session Lifetime, Inactivity Auto-Logout (30 min) and Cross-Tab Synchronization
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let lastTouch = Date.now();
+    const handleUserActivity = () => {
+      const now = Date.now();
+      // Throttle activity updates to once every 15 seconds
+      if (now - lastTouch > 15000) {
+        lastTouch = now;
+        touchSession();
+      }
+    };
+
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach((ev) => window.addEventListener(ev, handleUserActivity, { passive: true }));
+
+    // Check session validity periodically every 15 seconds
+    const intervalId = setInterval(() => {
+      const validSession = getSession();
+      if (!validSession && currentUser) {
+        handleSessionExpired('Sua sessão expirou por inatividade (30 minutos). Faça login novamente.');
+      }
+    }, 15000);
+
+    // Cross-tab synchronization via storage event
+    const handleStorageChange = (e) => {
+      if (e.key === 'athena_user') {
+        if (!e.newValue) {
+          setCurrentUser(null);
+          if (currentRoute === 'admin') {
+            showNotification('Sessão encerrada em outra aba.', 'info');
+          }
+        } else {
+          try {
+            const updated = JSON.parse(e.newValue);
+            if (isSessionExpired(updated)) {
+              clearSession();
+              setCurrentUser(null);
+            } else {
+              setCurrentUser(updated);
+            }
+          } catch (err) {}
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      activityEvents.forEach((ev) => window.removeEventListener(ev, handleUserActivity));
+      clearInterval(intervalId);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [currentUser, currentRoute]);
 
   // Navigation helper using HTML5 PushState (Clean URLs without hashtags)
   const navigateTo = (routePath) => {
@@ -262,11 +350,12 @@ export default function App() {
 
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/products`, {
+        const res = await fetch(`${API_BASE_URL}/products`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(newProduct)
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend:', e);
       }
@@ -278,11 +367,12 @@ export default function App() {
 
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/products/${updatedProduct.id}`, {
+        const res = await fetch(`${API_BASE_URL}/products/${updatedProduct.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(updatedProduct)
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend:', e);
       }
@@ -294,9 +384,11 @@ export default function App() {
 
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/products/${productId}`, {
-          method: 'DELETE'
+        const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend:', e);
       }
@@ -308,11 +400,12 @@ export default function App() {
 
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/categories`, {
+        const res = await fetch(`${API_BASE_URL}/categories`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(newCat)
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend:', e);
       }
@@ -324,11 +417,12 @@ export default function App() {
 
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/categories/${updatedCat.id}`, {
+        const res = await fetch(`${API_BASE_URL}/categories/${updatedCat.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(updatedCat)
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend ao atualizar categoria:', e);
       }
@@ -343,9 +437,11 @@ export default function App() {
 
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/categories/${catId}`, {
-          method: 'DELETE'
+        const res = await fetch(`${API_BASE_URL}/categories/${catId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend:', e);
       }
@@ -357,11 +453,12 @@ export default function App() {
 
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/brands`, {
+        const res = await fetch(`${API_BASE_URL}/brands`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(newBrand)
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend:', e);
       }
@@ -373,11 +470,12 @@ export default function App() {
 
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/brands/${updatedBrand.id}`, {
+        const res = await fetch(`${API_BASE_URL}/brands/${updatedBrand.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(updatedBrand)
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend:', e);
       }
@@ -389,11 +487,12 @@ export default function App() {
     safeStorageSet('athena_categories', newCategories);
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/categories/reorder`, {
+        const res = await fetch(`${API_BASE_URL}/categories/reorder`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ categories: newCategories })
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend ao reordenar categorias:', e);
       }
@@ -405,11 +504,12 @@ export default function App() {
     safeStorageSet('athena_brands', newBrands);
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/brands/reorder`, {
+        const res = await fetch(`${API_BASE_URL}/brands/reorder`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ brands: newBrands })
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend ao reordenar marcas:', e);
       }
@@ -421,11 +521,12 @@ export default function App() {
     safeStorageSet('athena_products', newProducts);
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/products/reorder`, {
+        const res = await fetch(`${API_BASE_URL}/products/reorder`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ products: newProducts })
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend ao reordenar produtos:', e);
       }
@@ -440,9 +541,11 @@ export default function App() {
 
     if (isBackendConnected) {
       try {
-        await fetch(`${API_BASE_URL}/brands/${brandId}`, {
-          method: 'DELETE'
+        const res = await fetch(`${API_BASE_URL}/brands/${brandId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
         });
+        handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend:', e);
       }

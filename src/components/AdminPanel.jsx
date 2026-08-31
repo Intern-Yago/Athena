@@ -34,6 +34,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ChevronDown,
   AlertTriangle,
   HelpCircle,
   ArrowUpDown,
@@ -45,7 +46,227 @@ import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl } 
 import PdfCatalogGenerator from './PdfCatalogGenerator';
 import RichTextEditor from './RichTextEditor';
 import FormattedDescription from './FormattedDescription';
-import { safeStorageSet } from '../utils/storage';
+import { safeStorageSet, saveSession } from '../utils/storage';
+
+/**
+ * Searchable Combobox Component (Filtragem em tempo real com busca e fallback completo)
+ */
+function SearchableSelect({
+  label,
+  value,
+  onChange,
+  options = [],
+  placeholder = 'Selecione uma opção...',
+  onAddNew,
+  addNewLabel = 'Nova',
+  colorTheme = 'amber',
+  required = false
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const containerRef = React.useRef(null);
+  const inputRef = React.useRef(null);
+
+  const selectedOption = options.find((opt) => opt.id === value);
+
+  // Close on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isOpen]);
+
+  // Focus input automatically when dropdown opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  // Normalize string to ignore accents and uppercase/lowercase
+  const normalize = (str) =>
+    (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  const filteredOptions = searchTerm.trim() === ''
+    ? options
+    : options.filter((opt) => normalize(opt.name).includes(normalize(searchTerm)));
+
+  const isAmber = colorTheme === 'amber';
+  const themeText = isAmber ? 'text-amber-700 hover:text-amber-900' : 'text-sky-700 hover:text-sky-900';
+  const themeActiveBg = isAmber ? 'bg-amber-50 text-amber-900 font-bold' : 'bg-sky-50 text-sky-900 font-bold';
+  const themeBorderFocus = isAmber ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-sky-500 ring-2 ring-sky-500/20';
+
+  return (
+    <div className="relative" ref={containerRef}>
+      {/* Header Label and Quick Creation Trigger */}
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-xs font-bold text-slate-700">{label}</label>
+        {onAddNew && (
+          <button
+            type="button"
+            onClick={onAddNew}
+            className={`text-[11px] ${themeText} font-bold hover:underline flex items-center gap-0.5 cursor-pointer`}
+          >
+            <Plus className="w-3 h-3" /> {addNewLabel}
+          </button>
+        )}
+      </div>
+
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full min-h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs flex items-center justify-between gap-2 text-left cursor-pointer transition-all hover:bg-white hover:border-slate-300 ${
+          isOpen ? `bg-white ${themeBorderFocus} shadow-xs` : ''
+        }`}
+      >
+        <div className="flex items-center gap-2 truncate">
+          {selectedOption ? (
+            <span className="font-semibold text-slate-900 truncate">
+              {selectedOption.name}
+            </span>
+          ) : (
+            <span className="text-slate-400 font-medium">{placeholder}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0 text-slate-400">
+          <ChevronDown
+            className={`w-4 h-4 transition-transform duration-200 ${
+              isOpen ? (isAmber ? 'rotate-180 text-amber-600' : 'rotate-180 text-sky-600') : ''
+            }`}
+          />
+        </div>
+      </button>
+
+      {/* Hidden input for HTML5 form validation */}
+      {required && (
+        <input
+          type="text"
+          value={value || ''}
+          required
+          onChange={() => {}}
+          className="sr-only"
+          tabIndex={-1}
+        />
+      )}
+
+      {/* Floating Options Dropdown with Real-time Filtering */}
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+          {/* Search Input Filter Bar */}
+          <div className="p-2 border-b border-slate-100 bg-slate-50/90">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Digitar para filtrar opções..."
+                className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  } else if (e.key === 'Enter' && filteredOptions.length === 1) {
+                    e.preventDefault();
+                    onChange(filteredOptions[0].id);
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }
+                }}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchTerm('');
+                    if (inputRef.current) inputRef.current.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-52 overflow-y-auto p-1 divide-y divide-slate-50">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => {
+                const isSelected = opt.id === value;
+                return (
+                  <div
+                    key={opt.id}
+                    onClick={() => {
+                      onChange(opt.id);
+                      setIsOpen(false);
+                      setSearchTerm('');
+                    }}
+                    className={`px-3 py-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                      isSelected
+                        ? themeActiveBg
+                        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <span className="truncate">{opt.name}</span>
+                    {isSelected && (
+                      <Check
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          isAmber ? 'text-amber-600' : 'text-sky-600'
+                        }`}
+                      />
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-4 text-center space-y-2">
+                <p className="text-xs text-slate-500">
+                  Nenhum item encontrado para "<strong>{searchTerm}</strong>"
+                </p>
+                {onAddNew && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(false);
+                      onAddNew();
+                    }}
+                    className={`inline-flex items-center gap-1 text-xs font-bold ${themeText} hover:underline`}
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Criar nova opção
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer with options count */}
+          <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between">
+            <span>
+              {filteredOptions.length} de {options.length} {options.length === 1 ? 'opção' : 'opções'}
+            </span>
+            {searchTerm && (
+              <span className={isAmber ? 'text-amber-600 font-medium' : 'text-sky-600 font-medium'}>
+                Filtrado por: "{searchTerm}"
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminPanel({
   products,
@@ -91,6 +312,12 @@ export default function AdminPanel({
   const isAdminRole = userRole === 'admin';
   const canEditContent = userRole === 'admin' || userRole === 'editor' || userRole === 'edicao';
 
+  // Authorization Headers helper
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(currentUser?.token ? { 'Authorization': `Bearer ${currentUser.token}` } : {})
+  });
+
   // Employees Management State
   const [usersList, setUsersList] = useState([]);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
@@ -104,7 +331,13 @@ export default function AdminPanel({
   // Fetch Users List
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/users`);
+      const res = await fetch(`${API_BASE_URL}/users`, {
+        headers: getAuthHeaders()
+      });
+      if (res.status === 401 || res.status === 403) {
+        onLogout && onLogout('Sua sessão expirou no servidor.');
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setUsersList(data);
@@ -298,7 +531,14 @@ export default function AdminPanel({
       type: 'danger',
       onConfirm: async () => {
         try {
-          const res = await fetch(`${API_BASE_URL}/users/${userId}`, { method: 'DELETE' });
+          const res = await fetch(`${API_BASE_URL}/users/${userId}`, { 
+            method: 'DELETE',
+            headers: getAuthHeaders()
+          });
+          if (res.status === 401 || res.status === 403) {
+            onLogout && onLogout('Sua sessão expirou.');
+            return;
+          }
           if (res.ok) {
             showNotification(`Acesso de ${userName} revogado com sucesso.`, 'success');
             setUsersList(prev => prev.filter(u => u.id !== userId));
@@ -1085,9 +1325,13 @@ export default function AdminPanel({
         try {
           const res = await fetch(`${API_BASE_URL}/upload`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ file: base64Data, folder: 'athena_produtos' })
           });
+          if (res.status === 401 || res.status === 403) {
+            onLogout && onLogout('Sua sessão expirou.');
+            return;
+          }
           const uploadedUrl = res.ok ? (await res.json()).url : base64Data;
           setProductForm((prev) => {
             const currentImages = Array.isArray(prev.images) ? [...prev.images] : [];
@@ -1136,18 +1380,22 @@ export default function AdminPanel({
     reader.onload = async (e) => {
       const base64Data = e.target.result;
       setBrandForm((prev) => ({ ...prev, logo: base64Data }));
-      showNotification('Enviando logo para a nuvem Cloudinary...', 'info');
+      showNotification('Enviando logo para a nuvem...', 'info');
 
       try {
         const res = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ file: base64Data, folder: 'athena_marcas' })
         });
+        if (res.status === 401 || res.status === 403) {
+          onLogout && onLogout('Sua sessão expirou.');
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           setBrandForm((prev) => ({ ...prev, logo: data.url }));
-          showNotification('Logo enviada para o Cloudinary com sucesso! ☁️', 'success');
+          showNotification('Logo enviada com sucesso! ☁️', 'success');
         }
       } catch (err) {
         showNotification('Logo salva localmente.', 'info');
@@ -1178,15 +1426,19 @@ export default function AdminPanel({
       try {
         const res = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ file: base64Data, folder: 'athena_anexos' })
         });
+        if (res.status === 401 || res.status === 403) {
+          onLogout && onLogout('Sua sessão expirou.');
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           finalUrl = data.url;
         }
       } catch (err) {
-        console.error('Cloudinary fallback:', err);
+        console.error('Upload fallback:', err);
       }
 
       const newAtt = {
@@ -1705,9 +1957,14 @@ export default function AdminPanel({
     try {
       const res = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(userForm)
       });
+
+      if (res.status === 401 || res.status === 403) {
+        onLogout && onLogout('Sua sessão expirou.');
+        return;
+      }
 
       if (res.ok) {
         showNotification(`Funcionário "${userForm.name}" cadastrado com sucesso!`, 'success');
@@ -1730,8 +1987,8 @@ export default function AdminPanel({
       showNotification('Informe sua senha atual.', 'error');
       return;
     }
-    if (!passwordForm.newPassword || passwordForm.newPassword.length < 4) {
-      showNotification('A nova senha deve ter no mínimo 4 caracteres.', 'error');
+    if (!passwordForm.newPassword || passwordForm.newPassword.length < 6) {
+      showNotification('A nova senha deve ter no mínimo 6 caracteres.', 'error');
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -1743,12 +2000,17 @@ export default function AdminPanel({
     try {
       const res = await fetch(`${API_BASE_URL}/users/${currentUser?.id || 'user_admin_default'}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword
         })
       });
+
+      if (res.status === 401 || res.status === 403) {
+        onLogout && onLogout('Sua sessão expirou.');
+        return;
+      }
 
       const data = await res.json();
       if (res.ok) {
@@ -1770,12 +2032,17 @@ export default function AdminPanel({
     try {
       const res = await fetch(`${API_BASE_URL}/users/${currentUser?.id || 'user_admin_default'}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           name: profileForm.name,
           email: profileForm.email
         })
       });
+
+      if (res.status === 401 || res.status === 403) {
+        onLogout && onLogout('Sua sessão expirou.');
+        return;
+      }
 
       const data = await res.json();
       if (res.ok) {
@@ -1787,7 +2054,7 @@ export default function AdminPanel({
           email: profileForm.email,
           role: currentUser?.role || 'admin'
         };
-        safeStorageSet('athena_user', updatedUser);
+        saveSession(updatedUser);
       } else {
         showNotification(data.error || 'Erro ao atualizar dados do perfil.', 'error');
       }
@@ -1809,10 +2076,16 @@ export default function AdminPanel({
                   <Shield className="w-3.5 h-3.5" /> PAINEL ADMINISTRATIVO ATHENA
                 </div>
                 {currentUser && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800 text-slate-200 text-xs font-bold border border-slate-700">
-                    <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>{currentUser.name} ({userRole.toUpperCase()})</span>
-                  </span>
+                  <>
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800 text-slate-200 text-xs font-bold border border-slate-700">
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{currentUser.name} ({userRole.toUpperCase()})</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/80 text-emerald-300 text-[11px] font-medium border border-emerald-500/40" title="Sessão protegida: encerramento automático após 30 minutos de inatividade">
+                      <Lock className="w-3 h-3 text-emerald-400" />
+                      <span>Sessão Protegida (30m)</span>
+                    </span>
+                  </>
                 )}
               </div>
 
@@ -3173,10 +3446,10 @@ export default function AdminPanel({
 
                                               if (imgUrl && (imgUrl.includes('.r2.dev') || imgUrl.includes('.r2.cloudflarestorage.com') || imgUrl.includes('cloudinary.com'))) {
                                                 try {
-                                                  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+                                                  const apiUrl = API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
                                                   fetch(`${apiUrl}/upload/delete`, {
                                                     method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
+                                                    headers: getAuthHeaders(),
                                                     body: JSON.stringify({ url: imgUrl })
                                                   }).catch(() => {});
                                                 } catch (err) {}
@@ -3618,51 +3891,29 @@ export default function AdminPanel({
                       <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Organização & Condições Comerciais</h4>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-xs font-bold text-slate-700">Categoria *</label>
-                            <button
-                              type="button"
-                              onClick={openNewCategoryModal}
-                              className="text-[11px] text-amber-700 font-bold hover:underline flex items-center gap-0.5 cursor-pointer"
-                            >
-                              <Plus className="w-3 h-3" /> Nova
-                            </button>
-                          </div>
-                          <select
-                            value={productForm.categoryId}
-                            onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
-                            className="form-select text-xs font-medium"
-                            required
-                          >
-                            {categories.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        </div>
+                        <SearchableSelect
+                          label="Categoria *"
+                          value={productForm.categoryId}
+                          onChange={(newId) => setProductForm({ ...productForm, categoryId: newId })}
+                          options={categories}
+                          placeholder="Selecione ou busque uma categoria..."
+                          onAddNew={openNewCategoryModal}
+                          addNewLabel="Nova"
+                          colorTheme="amber"
+                          required={true}
+                        />
 
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-xs font-bold text-slate-700">Marca / Fabricante *</label>
-                            <button
-                              type="button"
-                              onClick={openNewBrandModal}
-                              className="text-[11px] text-sky-700 font-bold hover:underline flex items-center gap-0.5"
-                            >
-                              <Plus className="w-3 h-3" /> Nova
-                            </button>
-                          </div>
-                          <select
-                            value={productForm.brandId}
-                            onChange={(e) => setProductForm({ ...productForm, brandId: e.target.value })}
-                            className="form-select text-xs font-medium"
-                            required
-                          >
-                            {brands.map((b) => (
-                              <option key={b.id} value={b.id}>{b.name}</option>
-                            ))}
-                          </select>
-                        </div>
+                        <SearchableSelect
+                          label="Marca / Fabricante *"
+                          value={productForm.brandId}
+                          onChange={(newId) => setProductForm({ ...productForm, brandId: newId })}
+                          options={brands}
+                          placeholder="Selecione ou busque uma marca..."
+                          onAddNew={openNewBrandModal}
+                          addNewLabel="Nova"
+                          colorTheme="sky"
+                          required={true}
+                        />
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">

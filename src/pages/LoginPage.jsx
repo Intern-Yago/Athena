@@ -28,22 +28,7 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
         setErrorMsg(errData.error || 'E-mail ou senha incorretos.');
       }
     } catch (err) {
-      // Local fallback for offline mode
-      const lowerEmail = email.trim().toLowerCase();
-      const isAdminEmail = lowerEmail === 'administracao@athenaconsultoria.com.br' || lowerEmail === 'admin@athena.com.br';
-      const isValidAdminPass = password === 'Athena16/10*' || password === 'admin123' || password === 'admin' || password === 'AthenaAdmin2026!';
-
-      if (isAdminEmail && isValidAdminPass) {
-        onLoginSuccess({
-          id: 'user_admin_local',
-          name: 'Administrador Geral',
-          email: lowerEmail,
-          role: 'admin',
-          token: 'token_local'
-        });
-      } else {
-        setErrorMsg('Servidor de autenticação indisponível ou credenciais inválidas.');
-      }
+      setErrorMsg('Não foi possível conectar ao servidor de autenticação. Verifique sua conexão.');
     } finally {
       setLoading(false);
     }

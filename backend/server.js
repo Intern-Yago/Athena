@@ -12,10 +12,98 @@ const { isR2Configured, uploadToR2, deleteFromR2 } = require('./r2Service');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'data', 'athena-db.json');
+
+// -------------------------------------------------------------
+// JWT CRYPTOGRAPHIC SIGNING & SESSION SECURITY (OWASP A07:2021)
+// -------------------------------------------------------------
+const JWT_SECRET = process.env.JWT_SECRET || 'athena_jwt_secret_key_prod_2026_@#!_secure_auth';
+const TOKEN_EXPIRY_SECONDS = 12 * 3600; // 12 hours max session token
+
+function base64UrlEncode(str) {
+  return Buffer.from(str).toString('base64url');
+}
+
+function base64UrlDecode(str) {
+  return Buffer.from(str, 'base64url').toString('utf8');
+}
+
+function generateToken(payload, expiresInSeconds = TOKEN_EXPIRY_SECONDS) {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const fullPayload = {
+    ...payload,
+    iat: now,
+    exp: now + expiresInSeconds
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(fullPayload));
+  const data = `${encodedHeader}.${encodedPayload}`;
+  const signature = crypto.createHmac('sha256', JWT_SECRET).update(data).digest('base64url');
+
+  return {
+    token: `${data}.${signature}`,
+    expiresAt: (now + expiresInSeconds) * 1000
+  };
+}
+
+function verifyToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const [encodedHeader, encodedPayload, signature] = parts;
+  const data = `${encodedHeader}.${encodedPayload}`;
+  const expectedSignature = crypto.createHmac('sha256', JWT_SECRET).update(data).digest('base64url');
+
+  try {
+    const sigBuffer = Buffer.from(signature);
+    const expBuffer = Buffer.from(expectedSignature);
+    if (sigBuffer.length !== expBuffer.length || !crypto.timingSafeEqual(sigBuffer, expBuffer)) {
+      return null;
+    }
+
+    const payload = JSON.parse(base64UrlDecode(encodedPayload));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) {
+      return null; // Expired
+    }
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Authentication Middleware
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : null;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Acesso não autorizado. Token de sessão não fornecido.' });
+  }
+
+  const user = verifyToken(token);
+  if (!user) {
+    return res.status(401).json({ error: 'Sessão inválida ou expirada. Por favor, faça login novamente.' });
+  }
+
+  req.user = user;
+  next();
+}
+
+// Require Administrator Role Middleware
+function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Permissão negada. Apenas administradores podem executar esta ação.' });
+  }
+  next();
+}
 
 // Enable trust proxy for Render / Cloudflare / Heroku load balancers
 app.set('trust proxy', 1);
@@ -495,8 +583,7 @@ app.use('/api-docs', swaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerDocume
 // -------------------------------------------------------------
 // POSTGRESQL POOL SETUP & USERS TABLE (IPV4 COMPLIANT POOLER)
 // -------------------------------------------------------------
-const SUPABASE_DB_URL = 'postgresql://postgres.cjtqfkedqqjuhraeesmg:XIdMCm8CWoO31qiz@aws-0-us-east-1.pooler.supabase.com:5432/postgres';
-const dbConnectionString = process.env.DATABASE_URL || SUPABASE_DB_URL;
+const dbConnectionString = process.env.DATABASE_URL;
 
 let pool = null;
 if (dbConnectionString) {
@@ -504,7 +591,7 @@ if (dbConnectionString) {
     connectionString: dbConnectionString,
     ssl: { rejectUnauthorized: false }
   });
-  console.log('🐘 PostgreSQL athena-db conectado via DATABASE_URL / Supabase');
+  console.log('🐘 PostgreSQL athena-db conectado via DATABASE_URL');
 }
 
 // Helper for safe password comparison (handles plain text and bcrypt hashes safely)
@@ -541,10 +628,11 @@ async function initDb() {
       const userCheck = await pool.query('SELECT id FROM users LIMIT 1');
       if (userCheck.rows.length === 0) {
         console.log(`👤 Criando usuário Administrador inicial (${adminEmail})...`);
+        const adminHash = bcrypt.hashSync(adminPassword, 10);
         await pool.query(`
           INSERT INTO users (id, name, email, password_hash, role) 
           VALUES ($1, $2, $3, $4, $5)
-        `, ['user_admin_default', adminName, adminEmail, adminPassword, 'admin']);
+        `, ['user_admin_default', adminName, adminEmail, adminHash, 'admin']);
       }
 
       await pool.query(`
@@ -709,7 +797,7 @@ initDb();
 // -------------------------------------------------------------
 // CLOUDFLARE R2 / CLOUDINARY UPLOAD ENDPOINT (AUTO-WEBP)
 // -------------------------------------------------------------
-app.post('/api/upload', async (req, res) => {
+app.post('/api/upload', authenticateToken, async (req, res) => {
   try {
     const { file, folder, filename } = req.body;
     if (!file) {
@@ -757,7 +845,7 @@ app.post('/api/upload', async (req, res) => {
 });
 
 // Endpoint para excluir imagem do Cloudflare R2
-app.post('/api/upload/delete', async (req, res) => {
+app.post('/api/upload/delete', authenticateToken, async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) {
@@ -790,7 +878,7 @@ app.post('/api/upload/delete', async (req, res) => {
 });
 
 // Endpoint para disparar a migração em lote de imagens do Cloudinary para o Cloudflare R2
-app.post('/api/admin/migrate-r2', async (req, res) => {
+app.post('/api/admin/migrate-r2', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { runMigration } = require('./migrateCloudinaryToR2');
     // Executa em segundo plano para não travar a requisição HTTP
@@ -819,19 +907,15 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     const envAdminPassword = process.env.ADMIN_PASSWORD || 'Athena16/10*';
     const envAdminName = process.env.ADMIN_NAME || 'Administrador Geral';
 
-    // 1. Direct Master Admin check (Supports requested credentials and fallbacks)
+    // 1. Direct Master Admin check (Environment based master credentials)
     const isMasterAdmin = (
       inputEmail === envAdminEmail ||
       inputEmail === 'administracao@athenaconsultoria.com.br' ||
       inputEmail === 'admin@athena.com.br'
-    ) && (
-      checkPassword(password, envAdminPassword) ||
-      checkPassword(password, 'Athena16/10*') ||
-      checkPassword(password, 'admin123') ||
-      checkPassword(password, 'AthenaAdmin2026!')
-    );
+    ) && checkPassword(password, envAdminPassword);
 
     if (isMasterAdmin) {
+      const hashedAdminPass = bcrypt.hashSync(envAdminPassword, 10);
       if (pool) {
         try {
           await pool.query(`
@@ -839,17 +923,26 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
             VALUES ($1, $2, $3, $4, $5) 
             ON CONFLICT (email) 
             DO UPDATE SET password_hash = $4, name = $2, role = 'admin'
-          `, ['user_admin_default', envAdminName, envAdminEmail, envAdminPassword, 'admin']);
+          `, ['user_admin_default', envAdminName, envAdminEmail, hashedAdminPass, 'admin']);
         } catch (e) {
           console.error('Erro ao auto-sync admin:', e.message);
         }
       }
+
+      const { token, expiresAt } = generateToken({
+        id: 'user_admin_default',
+        name: envAdminName,
+        email: envAdminEmail,
+        role: 'admin'
+      });
+
       return res.json({
         id: 'user_admin_default',
         name: envAdminName,
         email: envAdminEmail,
         role: 'admin',
-        token: `token_user_admin_default_${Date.now()}`
+        token,
+        expiresAt
       });
     }
 
@@ -883,12 +976,36 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
     // 4. Validate found user's credentials
     if (foundUser && checkPassword(password, foundUser.passwordHash)) {
+      // Auto-upgrade legacy plaintext password to secure bcrypt hash
+      if (foundUser.passwordHash === password) {
+        const upgradedHash = bcrypt.hashSync(password, 10);
+        if (pool) {
+          try {
+            await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [upgradedHash, foundUser.id]);
+          } catch (e) {}
+        }
+        const db = readDbJson();
+        const uIdx = (db.users || []).findIndex(u => u.id === foundUser.id);
+        if (uIdx !== -1) {
+          db.users[uIdx].passwordHash = upgradedHash;
+          writeDbJson(db);
+        }
+      }
+
+      const { token, expiresAt } = generateToken({
+        id: foundUser.id,
+        name: foundUser.name,
+        email: foundUser.email,
+        role: foundUser.role || 'vendedor'
+      });
+
       return res.json({
         id: foundUser.id,
         name: foundUser.name,
         email: foundUser.email,
         role: foundUser.role || 'vendedor',
-        token: `token_${foundUser.id}_${Date.now()}`
+        token,
+        expiresAt
       });
     }
 
@@ -899,8 +1016,16 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   }
 });
 
-// List Users
-app.get('/api/users', async (req, res) => {
+// Verify active session & token endpoint
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  return res.json({
+    user: req.user,
+    valid: true
+  });
+});
+
+// List Users (Restricted to Administrator)
+app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   if (pool) {
     try {
       const result = await pool.query('SELECT id, name, email, role, created_at as "createdAt" FROM users ORDER BY created_at DESC');
@@ -916,18 +1041,23 @@ app.get('/api/users', async (req, res) => {
   res.json(cleanUsers);
 });
 
-// Create Employee User
-app.post('/api/users', async (req, res) => {
+// Create Employee User (Restricted to Administrator)
+app.post('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   const { name, email, password, role } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Nome, E-mail e Senha são obrigatórios.' });
   }
 
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres.' });
+  }
+
+  const hashedPassword = bcrypt.hashSync(password, 10);
   const newUser = {
     id: `user_${Date.now()}`,
     name: name.trim(),
     email: email.trim().toLowerCase(),
-    passwordHash: password,
+    passwordHash: hashedPassword,
     role: role || 'vendedor'
   };
 
@@ -957,10 +1087,15 @@ app.post('/api/users', async (req, res) => {
   res.status(201).json({ id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role });
 });
 
-// Update User Profile & Password
-app.put('/api/users/:id', async (req, res) => {
+// Update User Profile & Password (Authenticated: Admin or Account Owner)
+app.put('/api/users/:id', authenticateToken, async (req, res) => {
   const { name, email, currentPassword, newPassword, role } = req.body;
   const userId = req.params.id;
+
+  // Authorization: Only admin or the user themselves can update their profile
+  if (req.user.role !== 'admin' && req.user.id !== userId) {
+    return res.status(403).json({ error: 'Permissão negada para atualizar este perfil.' });
+  }
 
   const db = readDbJson();
   const userIdx = (db.users || []).findIndex(u => u.id === userId);
@@ -972,8 +1107,10 @@ app.put('/api/users/:id', async (req, res) => {
 
   const updatedName = name ? name.trim() : (existingUser?.name || 'Usuário');
   const updatedEmail = email ? email.trim().toLowerCase() : (existingUser?.email || '');
-  const updatedPassword = newPassword ? newPassword : (existingUser?.passwordHash || 'admin123');
-  const updatedRole = role ? role : (existingUser?.role || 'admin');
+  const updatedPassword = newPassword ? bcrypt.hashSync(newPassword, 10) : (existingUser?.passwordHash || existingUser?.password_hash);
+  
+  // Non-admins cannot elevate their own role
+  const updatedRole = (req.user.role === 'admin' && role) ? role : (existingUser?.role || 'vendedor');
 
   if (existingUser) {
     db.users[userIdx] = {
@@ -1006,8 +1143,8 @@ app.put('/api/users/:id', async (req, res) => {
   });
 });
 
-// Delete / Revoke Employee Access
-app.delete('/api/users/:id', async (req, res) => {
+// Delete / Revoke Employee Access (Restricted to Administrator)
+app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   if (pool) {
     try {
       await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
@@ -1039,7 +1176,7 @@ app.get('/api/categories', async (req, res) => {
   res.json(db.categories || []);
 });
 
-app.post('/api/categories', async (req, res) => {
+app.post('/api/categories', authenticateToken, async (req, res) => {
   const newCat = { id: req.body.id || `cat_${Date.now()}`, ...req.body };
   if (pool) {
     try {
@@ -1058,7 +1195,7 @@ app.post('/api/categories', async (req, res) => {
   res.status(201).json(newCat);
 });
 
-app.put('/api/categories/reorder', async (req, res) => {
+app.put('/api/categories/reorder', authenticateToken, async (req, res) => {
   const { categories: orderedCats } = req.body;
   if (!Array.isArray(orderedCats)) {
     return res.status(400).json({ error: 'Array de categorias obrigatório.' });
@@ -1088,7 +1225,7 @@ app.put('/api/categories/reorder', async (req, res) => {
   res.json({ success: true, count: orderedCats.length });
 });
 
-app.put('/api/categories/:id', async (req, res) => {
+app.put('/api/categories/:id', authenticateToken, async (req, res) => {
   const updatedCat = { id: req.params.id, ...req.body };
   if (pool) {
     try {
@@ -1111,7 +1248,7 @@ app.put('/api/categories/:id', async (req, res) => {
   res.status(404).json({ error: 'Categoria não encontrada' });
 });
 
-app.delete('/api/categories/:id', async (req, res) => {
+app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
   if (pool) {
     try {
       await pool.query('DELETE FROM categories WHERE id = $1', [req.params.id]);
@@ -1140,7 +1277,7 @@ app.get('/api/brands', async (req, res) => {
   res.json(db.brands || []);
 });
 
-app.post('/api/brands', async (req, res) => {
+app.post('/api/brands', authenticateToken, async (req, res) => {
   const newBrand = { id: req.body.id || `brand_${Date.now()}`, ...req.body };
   if (pool) {
     try {
@@ -1159,7 +1296,7 @@ app.post('/api/brands', async (req, res) => {
   res.status(201).json(newBrand);
 });
 
-app.put('/api/brands/reorder', async (req, res) => {
+app.put('/api/brands/reorder', authenticateToken, async (req, res) => {
   const { brands: orderedBrands } = req.body;
   if (!Array.isArray(orderedBrands)) {
     return res.status(400).json({ error: 'Array de marcas obrigatório.' });
@@ -1189,7 +1326,7 @@ app.put('/api/brands/reorder', async (req, res) => {
   res.json({ success: true, count: orderedBrands.length });
 });
 
-app.put('/api/brands/:id', async (req, res) => {
+app.put('/api/brands/:id', authenticateToken, async (req, res) => {
   const updatedBrand = { id: req.params.id, ...req.body };
   if (pool) {
     try {
@@ -1212,7 +1349,7 @@ app.put('/api/brands/:id', async (req, res) => {
   res.status(404).json({ error: 'Marca não encontrada' });
 });
 
-app.delete('/api/brands/:id', async (req, res) => {
+app.delete('/api/brands/:id', authenticateToken, async (req, res) => {
   if (pool) {
     try {
       await pool.query('DELETE FROM brands WHERE id = $1', [req.params.id]);
@@ -1245,7 +1382,7 @@ app.get('/api/products', async (req, res) => {
   res.json(db.products || []);
 });
 
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', authenticateToken, async (req, res) => {
   const newProduct = { id: req.body.id || `prod_${Date.now()}`, ...req.body };
   if (pool) {
     try {
@@ -1286,7 +1423,7 @@ app.post('/api/products', async (req, res) => {
   res.status(201).json(newProduct);
 });
 
-app.put('/api/products/reorder', async (req, res) => {
+app.put('/api/products/reorder', authenticateToken, async (req, res) => {
   const { products: orderedProducts } = req.body;
   if (!Array.isArray(orderedProducts)) {
     return res.status(400).json({ error: 'Array de produtos obrigatório.' });
@@ -1305,7 +1442,7 @@ app.put('/api/products/reorder', async (req, res) => {
   res.json({ success: true, count: orderedProducts.length });
 });
 
-app.put('/api/products/:id', async (req, res) => {
+app.put('/api/products/:id', authenticateToken, async (req, res) => {
   const updatedProduct = { id: req.params.id, ...req.body };
   if (pool) {
     try {
@@ -1349,7 +1486,7 @@ app.put('/api/products/:id', async (req, res) => {
   res.status(404).json({ error: 'Produto não encontrado' });
 });
 
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   const productId = req.params.id;
   let productToDelete = null;
 

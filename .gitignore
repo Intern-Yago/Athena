@@ -1,11 +1,78 @@
-*.DS_Store
-*node_modules
-*npm-debug.log
-*coverage
-*.nyc_output
-*dist
-*build
-*.vscode
+# ==========================================================================
+# Athena Catalogo - Git Ignore Configuration
+# ==========================================================================
+
+# 1. Environment & Secrets
+.env
+.env.*
+!.env.example
 *.env
-*package-lock.json
+backend/.env
+backend/.env.*
+*.pem
+*.key
+*.cert
+
+# 2. Node & Dependencies
+node_modules/
+**/node_modules/
+package-lock.json
+**/package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 3. Build & Distribution
+dist/
+dist-ssr/
+build/
+*.local
+out/
+
+# 4. Local Database & State Files
+backend/data/
+**/data/*.json
+*.sqlite
+*.sqlite3
+*.db
+
+# 5. Extraction & One-off Database Migration Scripts
+backend/enableRls.js
+backend/syncSupabaseR2.js
+backend/migrateCloudinaryToR2.js
+migrate_to_supabase.cjs
+scripts/merge_and_sync_all_products.js
+scripts/merge_and_sync_all_products.cjs
+scripts/*.json
+
+# 6. Python Bytecode & Virtual Environments
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# 7. IDE & OS Junk
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# 8. Temporary & Log Files
+*.log
+logs/
+*.coverage
+.nyc_output/
 catalogos/

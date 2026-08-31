@@ -130,3 +130,109 @@ export function safeStorageRemove(key) {
     } catch (e) {}
   });
 }
+
+// -------------------------------------------------------------
+// SECURE SESSION MANAGEMENT (OWASP SESSION LIFECYCLE COMPLIANT)
+// -------------------------------------------------------------
+export const SESSION_STORAGE_KEY = 'athena_user';
+export const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of inactivity
+export const SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;  // 12 hours absolute maximum session lifetime
+
+/**
+ * Checks whether a given session object has expired either via idle timeout or absolute max-age.
+ */
+export function isSessionExpired(session) {
+  if (!session || typeof session !== 'object') return true;
+
+  const now = Date.now();
+
+  // 1. Absolute expiration check (TTL)
+  if (session.expiresAt && now > Number(session.expiresAt)) {
+    return true;
+  }
+
+  // 2. Inactivity / Idle timeout check
+  if (session.lastActivityAt && (now - Number(session.lastActivityAt)) > SESSION_IDLE_TIMEOUT_MS) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Saves authenticated user session with security timestamps (savedAt, lastActivityAt, expiresAt).
+ */
+export function saveSession(userData) {
+  if (!userData) return null;
+
+  const now = Date.now();
+  const sessionData = {
+    ...userData,
+    savedAt: now,
+    lastActivityAt: now,
+    expiresAt: userData.expiresAt ? Number(userData.expiresAt) : (now + SESSION_MAX_AGE_MS)
+  };
+
+  try {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionData));
+  } catch (e) {
+    console.warn('[Athena Security] Falha ao gravar sessão no localStorage:', e);
+  }
+
+  return sessionData;
+}
+
+/**
+ * Retrieves the current session if valid and unexpired; otherwise clears and returns null.
+ */
+export function getSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+
+    const session = JSON.parse(raw);
+    if (isSessionExpired(session)) {
+      clearSession();
+      return null;
+    }
+
+    return session;
+  } catch (err) {
+    clearSession();
+    return null;
+  }
+}
+
+/**
+ * Refreshes the lastActivityAt timestamp of the active session.
+ */
+export function touchSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return false;
+
+    const session = JSON.parse(raw);
+    if (isSessionExpired(session)) {
+      clearSession();
+      return false;
+    }
+
+    session.lastActivityAt = Date.now();
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Destroys the active session completely across all browser storage.
+ */
+export function clearSession() {
+  try {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch (e) {}
+
+  safeStorageRemove(SESSION_STORAGE_KEY);
+}
+
