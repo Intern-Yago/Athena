@@ -712,113 +712,176 @@ export default function AdminPanel({
   };
 
   // Smart Section Extractor from Description
-  const extractSectionFromDescription = (rawDescription = '', tabTitle = '') => {
-    if (!rawDescription || !rawDescription.trim() || !tabTitle || !tabTitle.trim()) {
-      return { extractedContent: '', updatedDescription: rawDescription, found: false };
+  // Known Section Categories & Canonical Titles
+  const KNOWN_SECTION_CATEGORIES = [
+    {
+      canonical: 'Especificações Técnicas',
+      isSpecs: true,
+      keywords: [
+        'especificações técnicas', 'especificacoes tecnicas', 'especificações', 'especificacoes',
+        'especificação', 'especificacao', 'dados técnicos', 'dados tecnicos', 'ficha técnica',
+        'ficha tecnica', 'características técnicas', 'caracteristicas tecnicas', 'especificações do produto'
+      ]
+    },
+    {
+      canonical: 'Acessórios & Itens Compatíveis',
+      isCompatibility: true,
+      keywords: [
+        'acessórios & itens compatíveis', 'acessorios & itens compativeis',
+        'acessórios e itens compatíveis', 'acessorios e itens compativeis',
+        'compatibilidade', 'compatibilidades', 'máquinas compatíveis', 'maquinas compativeis',
+        'equipamentos compatíveis', 'equipamentos compativeis', 'acessórios compatíveis',
+        'acessorios compativeis', 'montadoras e sistemas compatíveis', 'montadoras e sistemas compativeis',
+        'montadoras compatíveis', 'montadoras compativeis', 'veículos compatíveis', 'veiculos compativeis',
+        'veículos atendidos', 'veiculos atendidos', 'modelos compatíveis', 'modelos compativeis'
+      ]
+    },
+    { canonical: 'Diferenciais', keywords: ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'] },
+    { canonical: 'Aplicações', keywords: ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação de uso', 'indicacao de uso', 'onde usar', 'utilização', 'utilizacao', 'aplicabilidade'] },
+    { canonical: 'Funções & Recursos', keywords: ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'] },
+    { canonical: 'Itens Inclusos', keywords: ['itens inclusos', 'item incluso', 'acessórios inclusos', 'acessorios inclusos', 'o que acompanha', 'conteúdo da embalagem', 'conteudo da embalagem', 'composição', 'composicao', 'acompanha', 'inclusos'] },
+    { canonical: 'Requisitos de Instalação', keywords: ['requisitos de instalação', 'requisitos de instalacao', 'requisitos', 'instalação', 'instalacao', 'infraestrutura', 'exigências', 'exigencias', 'espaço necessário', 'especificações de instalação', 'preparação'] },
+    { canonical: 'Garantia & Suporte', keywords: ['garantia e suporte', 'garantia & suporte', 'garantia', 'suporte e garantia', 'assistência técnica', 'assistencia tecnica', 'certificação', 'certificacao', 'homologação', 'homologacao'] },
+    { canonical: 'Importante', keywords: ['importante', 'observações', 'observacoes', 'observação', 'observacao', 'atenção', 'atencao', 'aviso', 'avisos', 'requisitos e avisos', 'nota', 'notas', 'informações importantes', 'informacoes importantes'] }
+  ];
+
+  // Helper to determine if a line is a section header (100% linear, zero regex catastrophic backtracking)
+  const isLineASectionHeader = (line) => {
+    if (!line) return null;
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length > 80) return null;
+
+    // Never treat a bullet point or numbered item as a section header
+    if (/^[•\-\*\+]\s+/.test(trimmed) || /^\d+[\.\)]\s+/.test(trimmed)) {
+      return null;
     }
 
-    const normalizedTitle = tabTitle.trim().toLowerCase();
-    
-    // Keyword Aliases mapping for common technical equipment sections
-    const aliasesMap = {
-      'acessórios & itens compatíveis': [
-        'acessórios & itens compatíveis', 'acessorios & itens compativeis', 
-        'acessórios e itens compatíveis', 'acessorios e itens compativeis', 
-        'compatibilidade', 'compatibilidades', 'compatível com', 'compativel com', 
-        'compatíveis com', 'compativeis com', 'máquinas compatíveis', 'maquinas compativeis', 
-        'equipamentos compatíveis', 'equipamentos compativeis', 'acessórios compatíveis', 
-        'acessorios compativeis', 'acessório para', 'acessorio para', 'compatível como as', 
-        'compativel como as', 'compatível com as', 'compativel com as', 'compatível com os', 
-        'compativel com os'
-      ],
-      'diferenciais': ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'],
-      'aplicações': ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação', 'indicacao', 'indicado para', 'onde usar', 'utilização', 'utilizacao', 'veículos atendidos', 'veiculos atendidos', 'aplicabilidade'],
-      'funções & recursos': ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'],
-      'itens inclusos': ['itens inclusos', 'item incluso', 'acessórios inclusos', 'acessorios inclusos', 'o que acompanha', 'conteúdo da embalagem', 'conteudo da embalagem', 'composição', 'composicao', 'acompanha', 'inclusos'],
-      'requisitos de instalação': ['requisitos de instalação', 'requisitos de instalacao', 'requisitos', 'instalação', 'instalacao', 'infraestrutura', 'exigências', 'exigencias', 'espaço necessário', 'especificações de instalação', 'preparação'],
-      'garantia & suporte': ['garantia e suporte', 'garantia & suporte', 'garantia', 'suporte', 'assistência técnica', 'assistencia tecnica', 'certificação', 'certificacao', 'homologação', 'homologacao']
-    };
+    const isMdHeading = /^#{1,6}\s+/.test(trimmed);
+    const clean = trimmed
+      .replace(/^#{1,6}\s*/, '')
+      .replace(/^\*{1,2}/, '')
+      .replace(/\*{1,2}$/, '')
+      .trim();
 
-    let keywords = [normalizedTitle];
-    for (const [key, list] of Object.entries(aliasesMap)) {
-      if (normalizedTitle.includes(key) || list.some(alias => normalizedTitle.includes(alias))) {
-        keywords = Array.from(new Set([...keywords, ...list]));
-      }
+    const cleanNoColon = clean.replace(/[:\-–—]+$/, '').trim();
+    if (!cleanNoColon || cleanNoColon.length < 2) return null;
+
+    const lower = cleanNoColon.toLowerCase();
+    if (['descrição', 'descricao', 'foto', 'fotos', 'preço', 'preco'].includes(lower)) {
+      return null;
     }
 
-    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const keywordsPattern = keywords.map(escapeRegExp).join('|');
-    const nextHeaderPattern = `(?:\\r?\\n|^)\\s*(?:#{1,6}\\s*|\\*{1,2}|_{1,2}|[-•–—]\\s*)?(?:especifica[çc][õo]es|ficha\\s*t[ée]cnica|dados\\s*t[ée]cnicos|dimens[õo]es|descri[çc][ãa]o|caracter[íi]sticas|itens\\s*inclusos|aplica[çc][õo]es|diferenciais|vantagens|recursos|fun[çc][õo]es|garantia|requisitos|compatib|acess[óo]rios|informa[çc][õo]es|importante|obs(?:erva[çc][ãa]o)?)\\b`;
-
-    // 1. Try Section Heading Block match
-    const sectionRegex = new RegExp(
-      `((?:^|\\r?\\n)\\s*(?:#{1,6}\\s*|\\*{1,2}|_{1,2}|[-•–—]\\s*)?(?:${keywordsPattern})\\s*[:\\-–—]?\\s*\\*{0,2}(?:\\r?\\n|$))([\\s\\S]*?)(?=${nextHeaderPattern}|$)`,
-      'i'
-    );
-
-    const match = rawDescription.match(sectionRegex);
-
-    if (match) {
-      const fullMatch = match[0];
-      const headerPart = match[1];
-      let contentPart = (match[2] || '').trim();
-
-      if (!contentPart) {
-        const colonIndex = headerPart.indexOf(':');
-        if (colonIndex !== -1) {
-          contentPart = headerPart.slice(colonIndex + 1).trim();
-        }
-      }
-
-      if (contentPart) {
-        let updatedDesc = rawDescription.replace(fullMatch, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    // Match known category keywords
+    for (const cat of KNOWN_SECTION_CATEGORIES) {
+      if (cat.keywords.some(k => lower === k || lower.startsWith(k) || (k.length > 4 && lower.includes(k)))) {
         return {
-          extractedContent: contentPart,
-          updatedDescription: updatedDesc,
-          found: true
+          title: cat.canonical,
+          isSpecs: !!cat.isSpecs,
+          isCompatibility: !!cat.isCompatibility,
+          rawHeader: line
         };
       }
     }
 
-    // 2. Try Line-by-line / bullet point keyword matching
-    const lines = rawDescription.split(/\r?\n/);
-    const matchedLines = [];
-    const remainingLines = [];
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        remainingLines.push(line);
-        continue;
-      }
-      const lowerLine = trimmed.toLowerCase();
-      const cleanLowerLine = lowerLine.replace(/^[•\-\*–—\s\d+\.\)]+/, '').trim();
-      const isKeywordMatch = keywords.some(k => 
-        lowerLine.startsWith(k) || 
-        cleanLowerLine.startsWith(k) || 
-        (lowerLine.includes(':') && lowerLine.split(':')[0].trim() === k)
-      );
-      if (isKeywordMatch) {
-        matchedLines.push(trimmed);
-      } else {
-        remainingLines.push(line);
+    // Custom headers ending with colon or starting with markdown hash
+    if (isMdHeading || trimmed.endsWith(':')) {
+      if (cleanNoColon.length <= 50 && !cleanNoColon.includes('.')) {
+        const formatted = cleanNoColon.charAt(0).toUpperCase() + cleanNoColon.slice(1);
+        return {
+          title: formatted,
+          isSpecs: formatted.toLowerCase().includes('especif'),
+          isCompatibility: formatted.toLowerCase().includes('compatib'),
+          rawHeader: line
+        };
       }
     }
 
-    if (matchedLines.length > 0) {
-      const extractedContent = matchedLines.join('\n');
-      const updatedDesc = remainingLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-      return {
-        extractedContent,
-        updatedDescription: updatedDesc,
-        found: true
-      };
-    }
-
-    return { extractedContent: '', updatedDescription: rawDescription, found: false };
+    return null;
   };
 
-  // Helper to automatically turn mentions of catalog equipment into markdown links and collect IDs
+  // Linear line-by-line parser for structured descriptions
+  const parseDescriptionSections = (rawDescription = '') => {
+    if (!rawDescription || !rawDescription.trim()) return { intro: '', sections: [] };
+
+    const lines = rawDescription.split(/\r?\n/);
+    const sections = [];
+    let currentSection = null;
+    const introLines = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const headerInfo = isLineASectionHeader(line);
+
+      if (headerInfo) {
+        if (currentSection) {
+          sections.push(currentSection);
+        }
+        currentSection = {
+          title: headerInfo.title,
+          isSpecsSection: headerInfo.isSpecs,
+          isCompatibility: headerInfo.isCompatibility,
+          rawHeader: headerInfo.rawHeader,
+          lines: []
+        };
+      } else {
+        if (currentSection) {
+          currentSection.lines.push(line);
+        } else {
+          introLines.push(line);
+        }
+      }
+    }
+
+    if (currentSection) {
+      sections.push(currentSection);
+    }
+
+    const formattedSections = sections.map(sec => {
+      const cleanLines = sec.lines.map(l => l.trim()).filter(Boolean);
+      const formattedLines = cleanLines.map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`);
+      return {
+        title: sec.title,
+        isSpecsSection: sec.isSpecsSection,
+        isCompatibility: sec.isCompatibility,
+        content: formattedLines.join('\n'),
+        rawLines: cleanLines,
+        lineCount: cleanLines.length
+      };
+    }).filter(s => s.lineCount > 0);
+
+    return {
+      intro: introLines.join('\n').trim(),
+      sections: formattedSections
+    };
+  };
+
+  const extractSectionFromDescription = (rawDescription = '', targetSectionTitle = '') => {
+    if (!rawDescription || !targetSectionTitle) {
+      return { extractedContent: '', updatedDescription: rawDescription, found: false };
+    }
+
+    const parsed = parseDescriptionSections(rawDescription);
+    const targetLower = targetSectionTitle.toLowerCase().trim();
+    const matched = parsed.sections.find(s => s.title.toLowerCase().trim() === targetLower);
+
+    if (!matched) {
+      return { extractedContent: '', updatedDescription: rawDescription, found: false };
+    }
+
+    const remainingSections = parsed.sections.filter(s => s !== matched);
+    let updatedDesc = parsed.intro;
+
+    for (const s of remainingSections) {
+      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => (l.startsWith('•') || l.startsWith('-') ? l : `• ${l}`)).join('\n');
+    }
+
+    return {
+      extractedContent: matched.content,
+      updatedDescription: updatedDesc.trim(),
+      found: true
+    };
+  };
+
   const autoLinkCompatibleProductsInContent = (rawText, catalogProducts = []) => {
     if (!rawText || !Array.isArray(catalogProducts) || catalogProducts.length === 0) {
       return { text: rawText, matchedIds: [] };
@@ -828,19 +891,23 @@ export default function AdminPanel({
     let updatedText = rawText;
 
     for (const prod of catalogProducts) {
+      if (!prod || !prod.name) continue;
       if (prod.id === productForm.id || (editingProduct && prod.id === editingProduct.id)) continue;
 
-      const name = (prod.name || '').trim();
-      const codeMatches = name.match(/([A-Za-z0-9]{2,8}(?:-[A-Za-z0-9]{2,8})?)/gi) || [];
-      const candidates = [name, ...codeMatches.filter(c => c.length >= 3 && !['COM', 'PARA', 'MAIS', 'PRO'].includes(c.toUpperCase()))];
+      const name = prod.name.trim();
+      const codeMatches = (name.match(/\b([A-Za-z0-9]{2,6}-[A-Za-z0-9]{2,6})\b/g) || []);
+      const candidates = [name, ...codeMatches];
 
       for (const candidate of candidates) {
+        if (!candidate || candidate.length < 4) continue;
         const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`(?<!\\[|\\/produto\\/)\\b(${escaped})\\b(?!\\]|\\))`, 'gi');
+        const regex = new RegExp(`\\b(${escaped})\\b`, 'i');
         
         if (regex.test(updatedText)) {
           if (!matchedIds.includes(prod.id)) matchedIds.push(prod.id);
-          updatedText = updatedText.replace(regex, `[${prod.name}](/produto/${prod.slug || prod.id})`);
+          if (!updatedText.includes(`/produto/${prod.slug || prod.id}`)) {
+            updatedText = updatedText.replace(regex, `[${prod.name}](/produto/${prod.slug || prod.id})`);
+          }
           break;
         }
       }
@@ -849,140 +916,24 @@ export default function AdminPanel({
     return { text: updatedText, matchedIds };
   };
 
-  // Detect all sections present in the description text
   const detectAllSectionsInDescription = (rawDescription = '', currentCustomTabs = [], currentSpecs = []) => {
     if (!rawDescription || !rawDescription.trim()) return [];
 
-    const text = rawDescription.trim();
-    const knownCategories = [
-      { 
-        canonical: 'Especificações Técnicas', 
-        isSpecs: true,
-        keywords: [
-          'especificações técnicas', 'especificacoes tecnicas', 'especificações', 'especificacoes', 
-          'especificação', 'especificacao', 'dados técnicos', 'dados tecnicos', 'ficha técnica', 
-          'ficha tecnica', 'características técnicas', 'caracteristicas tecnicas', 'especificações do produto'
-        ] 
-      },
-      { 
-        canonical: 'Acessórios & Itens Compatíveis', 
-        isCompatibility: true,
-        keywords: [
-          'acessórios & itens compatíveis', 'acessorios & itens compativeis', 
-          'acessórios e itens compatíveis', 'acessorios e itens compativeis', 
-          'compatibilidade', 'compatibilidades', 'compatível com', 'compativel com', 
-          'compatíveis com', 'compativeis com', 'máquinas compatíveis', 'maquinas compativeis', 
-          'equipamentos compatíveis', 'equipamentos compativeis', 'acessórios compatíveis', 
-          'acessorios compativeis', 'acessório para', 'acessorio para', 'compatível como as', 
-          'compativel como as', 'compatível com as', 'compativel com as', 'compatível com os', 
-          'compativel com os'
-        ] 
-      },
-      { canonical: 'Diferenciais', keywords: ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'] },
-      { canonical: 'Aplicações', keywords: ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação', 'indicacao', 'indicado para', 'onde usar', 'utilização', 'utilizacao', 'veículos atendidos', 'veiculos atendidos', 'aplicabilidade'] },
-      { canonical: 'Funções & Recursos', keywords: ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'] },
-      { canonical: 'Itens Inclusos', keywords: ['itens inclusos', 'item incluso', 'acessórios inclusos', 'acessorios inclusos', 'o que acompanha', 'conteúdo da embalagem', 'conteudo da embalagem', 'composição', 'composicao', 'acompanha', 'inclusos'] },
-      { canonical: 'Requisitos de Instalação', keywords: ['requisitos de instalação', 'requisitos de instalacao', 'requisitos', 'instalação', 'instalacao', 'infraestrutura', 'exigências', 'exigencias', 'espaço necessário', 'especificações de instalação', 'preparação'] },
-      { canonical: 'Garantia & Suporte', keywords: ['garantia e suporte', 'garantia & suporte', 'garantia', 'suporte', 'assistência técnica', 'assistencia tecnica', 'certificação', 'certificacao', 'homologação', 'homologacao'] }
-    ];
+    const parsed = parseDescriptionSections(rawDescription);
+    return parsed.sections.map(sec => {
+      const isAlreadyAdded = sec.isSpecsSection
+        ? (Array.isArray(currentSpecs) && currentSpecs.length > 0)
+        : (currentCustomTabs || []).some(
+            t => t.title && t.title.toLowerCase().trim() === sec.title.toLowerCase().trim()
+          );
 
-    const headerRegex = /(?:^|\r?\n)\s*(?:#{1,6}\s*|\*{1,2}|_{1,2}|[-•–—]\s*)?([A-Za-zÀ-ÿ0-9\s&/\-]{2,45})\s*[:\-–—]?\s*\*{0,2}(?:\r?\n|$)/gi;
-
-    const allHeaders = [];
-    let match;
-    while ((match = headerRegex.exec(text)) !== null) {
-      const rawHeader = match[1].trim();
-      const lowerHeader = rawHeader.toLowerCase();
-
-      let matchedCategory = null;
-      let isSpecsCategory = false;
-      for (const cat of knownCategories) {
-        if (cat.keywords.some(k => lowerHeader === k || lowerHeader.startsWith(k) || k.startsWith(lowerHeader))) {
-          matchedCategory = cat.canonical;
-          isSpecsCategory = !!cat.isSpecs;
-          break;
-        }
-      }
-
-      if (matchedCategory || match[0].includes(':')) {
-        const canonicalTitle = matchedCategory || (rawHeader.charAt(0).toUpperCase() + rawHeader.slice(1));
-        if (!['descrição', 'descricao', 'foto', 'fotos', 'preço', 'preco', 'observação', 'obs'].includes(lowerHeader)) {
-          allHeaders.push({
-            rawHeader: match[0],
-            cleanTitle: canonicalTitle,
-            isSpecsSection: isSpecsCategory || canonicalTitle.toLowerCase().includes('especif'),
-            startIndex: match.index,
-            headerLength: match[0].length
-          });
-        }
-      }
-    }
-
-    const uniqueHeaders = [];
-    for (let i = 0; i < allHeaders.length; i++) {
-      const curr = allHeaders[i];
-      const prev = uniqueHeaders[uniqueHeaders.length - 1];
-      if (!prev || curr.startIndex >= prev.startIndex + prev.headerLength) {
-        uniqueHeaders.push(curr);
-      }
-    }
-
-    const detectedSections = [];
-    for (let i = 0; i < uniqueHeaders.length; i++) {
-      const curr = uniqueHeaders[i];
-      const next = uniqueHeaders[i + 1];
-      const contentStart = curr.startIndex + curr.headerLength;
-      const contentEnd = next ? next.startIndex : text.length;
-
-      const segmentContent = text.slice(contentStart, contentEnd).trim();
-      if (segmentContent.length > 0) {
-        const lines = segmentContent.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const formattedLines = lines.map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`);
-        const cleanContent = formattedLines.join('\n');
-
-        const isAlreadyAdded = curr.isSpecsSection
-          ? false
-          : (currentCustomTabs || []).some(
-              t => t.title && t.title.toLowerCase().trim() === curr.cleanTitle.toLowerCase().trim()
-            );
-
-        detectedSections.push({
-          title: curr.cleanTitle,
-          isSpecsSection: curr.isSpecsSection,
-          fullSegment: text.slice(curr.startIndex, contentEnd),
-          content: cleanContent,
-          rawLines: lines,
-          lineCount: lines.length,
-          isAlreadyAdded
-        });
-      }
-    }
-
-    // Also check for free-standing compatibility bullet lines if no explicit compatibility header was caught
-    const hasCompatHeader = detectedSections.some(d => d.title === 'Acessórios & Itens Compatíveis');
-    if (!hasCompatHeader) {
-      const compatRes = extractSectionFromDescription(text, 'Acessórios & Itens Compatíveis');
-      if (compatRes.found && compatRes.extractedContent) {
-        const lines = compatRes.extractedContent.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const formattedLines = lines.map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`);
-        const isAlreadyAdded = (currentCustomTabs || []).some(
-          t => t.title && t.title.toLowerCase().trim() === 'acessórios & itens compatíveis'
-        );
-        detectedSections.push({
-          title: 'Acessórios & Itens Compatíveis',
-          isSpecsSection: false,
-          content: formattedLines.join('\n'),
-          rawLines: lines,
-          lineCount: lines.length,
-          isAlreadyAdded
-        });
-      }
-    }
-
-    return detectedSections;
+      return {
+        ...sec,
+        isAlreadyAdded
+      };
+    });
   };
 
-  // Extract structured specs directly to productForm.specs
   const handleExtractToSpecs = (item) => {
     if (!item) return;
     const rawLines = item.rawLines || item.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -993,15 +944,8 @@ export default function AdminPanel({
       return;
     }
 
-    let workingDesc = productForm.description;
-    if (item.fullSegment) {
-      workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
-    } else {
-      const res = extractSectionFromDescription(workingDesc, item.title);
-      if (res.found) {
-        workingDesc = res.updatedDescription;
-      }
-    }
+    const res = extractSectionFromDescription(productForm.description, item.title);
+    const workingDesc = res.found ? res.updatedDescription : productForm.description;
 
     setProductForm(prev => ({
       ...prev,
@@ -1024,7 +968,7 @@ export default function AdminPanel({
       return;
     }
 
-    let workingDesc = productForm.description;
+    const parsed = parseDescriptionSections(productForm.description);
     const newTabs = [...(productForm.customTabs || [])];
     let newSpecs = Array.isArray(productForm.specs) ? [...productForm.specs] : [];
     let newCompatibleIds = Array.isArray(productForm.compatibleProductIds) ? [...productForm.compatibleProductIds] : [];
@@ -1033,31 +977,12 @@ export default function AdminPanel({
 
     for (const item of unadded) {
       if (item.isSpecsSection) {
-        const rawLines = item.rawLines || item.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const cleaned = rawLines.map(l => l.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim()).filter(Boolean);
+        const cleaned = item.rawLines.map(l => l.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim()).filter(Boolean);
         newSpecs = cleaned;
         specsAddedCount = cleaned.length;
-        if (item.fullSegment) {
-          workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
-        }
       } else {
-        const res = extractSectionFromDescription(workingDesc, item.title);
         let contentToUse = item.content;
-
-        if (res.found && res.extractedContent) {
-          contentToUse = res.extractedContent
-            .split(/\r?\n/)
-            .map(l => l.trim())
-            .filter(Boolean)
-            .map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`)
-            .join('\n');
-          workingDesc = res.updatedDescription;
-        } else if (item.fullSegment) {
-          workingDesc = workingDesc.replace(item.fullSegment, '\n').replace(/\n{3,}/g, '\n\n').trim();
-        }
-
-        // If compatibility tab, auto-link catalog equipment!
-        if (item.title === 'Acessórios & Itens Compatíveis') {
+        if (item.isCompatibility || item.title === 'Acessórios & Itens Compatíveis') {
           const linkResult = autoLinkCompatibleProductsInContent(contentToUse, products);
           contentToUse = linkResult.text;
           newCompatibleIds = Array.from(new Set([...newCompatibleIds, ...linkResult.matchedIds]));
@@ -1072,9 +997,17 @@ export default function AdminPanel({
       }
     }
 
+    const extractedTitles = unadded.map(u => u.title.toLowerCase().trim());
+    const remainingSections = parsed.sections.filter(s => !extractedTitles.includes(s.title.toLowerCase().trim()));
+
+    let updatedDesc = parsed.intro;
+    for (const s of remainingSections) {
+      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => (l.startsWith('•') || l.startsWith('-') ? l : `• ${l}`)).join('\n');
+    }
+
     setProductForm(prev => ({
       ...prev,
-      description: workingDesc,
+      description: updatedDesc.trim(),
       specs: newSpecs,
       customTabs: newTabs,
       compatibleProductIds: newCompatibleIds
