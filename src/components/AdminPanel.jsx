@@ -143,6 +143,9 @@ function SearchableSelect({
         );
       });
 
+  const MAX_DISPLAY_ITEMS = 30;
+  const displayedOptions = filteredOptions.slice(0, MAX_DISPLAY_ITEMS);
+
   const isAmber = colorTheme === 'amber';
   const themeText = isAmber ? 'text-amber-700 hover:text-amber-900' : 'text-sky-700 hover:text-sky-900';
   const themeActiveBg = isAmber ? 'bg-amber-50 text-amber-900 font-bold' : 'bg-sky-50 text-sky-900 font-bold';
@@ -249,8 +252,8 @@ function SearchableSelect({
 
           {/* Options List */}
           <div className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((opt) => {
+            {displayedOptions.length > 0 ? (
+              displayedOptions.map((opt) => {
                 const optId = getOptId(opt);
                 const optName = getOptName(opt);
                 const isSelected = optId === value;
@@ -317,11 +320,14 @@ function SearchableSelect({
           {/* Footer with options count */}
           <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between">
             <span>
-              {filteredOptions.length} de {options.length} {options.length === 1 ? 'opção' : 'opções'}
+              {filteredOptions.length > MAX_DISPLAY_ITEMS 
+                ? `Exibindo 30 de ${filteredOptions.length} itens (digite para filtrar)`
+                : `${filteredOptions.length} de ${options.length} ${options.length === 1 ? 'opção' : 'opções'}`
+              }
             </span>
             {searchTerm && (
               <span className={isAmber ? 'text-amber-600 font-medium' : 'text-sky-600 font-medium'}>
-                Filtrado por: "{searchTerm}"
+                Filtro: "{searchTerm}"
               </span>
             )}
           </div>
