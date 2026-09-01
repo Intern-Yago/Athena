@@ -60,6 +60,9 @@ import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../u
 /**
  * Searchable Combobox Component (Filtragem em tempo real com busca e fallback completo)
  */
+/**
+ * Searchable Combobox Component (Filtragem em tempo real com busca flexível e suporte a imagens)
+ */
 function SearchableSelect({
   label,
   value,
@@ -76,7 +79,10 @@ function SearchableSelect({
   const containerRef = React.useRef(null);
   const inputRef = React.useRef(null);
 
-  const selectedOption = options.find((opt) => opt.id === value);
+  const getOptId = (opt) => (opt?.id !== undefined ? opt.id : (opt?.value !== undefined ? opt.value : ''));
+  const getOptName = (opt) => (opt?.name !== undefined ? opt.name : (opt?.label !== undefined ? opt.label : String(opt || '')));
+
+  const selectedOption = options.find((opt) => getOptId(opt) === value);
 
   // Close on outside click
   useEffect(() => {
@@ -103,9 +109,39 @@ function SearchableSelect({
   const normalize = (str) =>
     (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+  const cleanAlphanumeric = (str) =>
+    (str || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+
   const filteredOptions = searchTerm.trim() === ''
     ? options
-    : options.filter((opt) => normalize(opt.name).includes(normalize(searchTerm)));
+    : options.filter((opt) => {
+        const query = normalize(searchTerm);
+        const cleanQuery = cleanAlphanumeric(searchTerm);
+
+        const name = normalize(getOptName(opt));
+        const cleanName = cleanAlphanumeric(getOptName(opt));
+        const sku = normalize(opt.sku || '');
+        const cleanSku = cleanAlphanumeric(opt.sku || '');
+        const brand = normalize(opt.brand || '');
+        const category = normalize(opt.category || '');
+        const slug = normalize(opt.slug || '');
+        const id = normalize(String(getOptId(opt)));
+
+        return (
+          name.includes(query) ||
+          cleanName.includes(cleanQuery) ||
+          sku.includes(query) ||
+          cleanSku.includes(cleanQuery) ||
+          brand.includes(query) ||
+          category.includes(query) ||
+          slug.includes(query) ||
+          id.includes(query)
+        );
+      });
 
   const isAmber = colorTheme === 'amber';
   const themeText = isAmber ? 'text-amber-700 hover:text-amber-900' : 'text-sky-700 hover:text-sky-900';
@@ -115,18 +151,20 @@ function SearchableSelect({
   return (
     <div className="relative" ref={containerRef}>
       {/* Header Label and Quick Creation Trigger */}
-      <div className="flex items-center justify-between mb-1">
-        <label className="text-xs font-bold text-slate-700">{label}</label>
-        {onAddNew && (
-          <button
-            type="button"
-            onClick={onAddNew}
-            className={`text-[11px] ${themeText} font-bold hover:underline flex items-center gap-0.5 cursor-pointer`}
-          >
-            <Plus className="w-3 h-3" /> {addNewLabel}
-          </button>
-        )}
-      </div>
+      {label && (
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs font-bold text-slate-700">{label}</label>
+          {onAddNew && (
+            <button
+              type="button"
+              onClick={onAddNew}
+              className={`text-[11px] ${themeText} font-bold hover:underline flex items-center gap-0.5 cursor-pointer`}
+            >
+              <Plus className="w-3 h-3" /> {addNewLabel}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Trigger Button */}
       <button
@@ -139,7 +177,7 @@ function SearchableSelect({
         <div className="flex items-center gap-2 truncate">
           {selectedOption ? (
             <span className="font-semibold text-slate-900 truncate">
-              {selectedOption.name}
+              {getOptName(selectedOption)}
             </span>
           ) : (
             <span className="text-slate-400 font-medium">{placeholder}</span>
@@ -187,7 +225,7 @@ function SearchableSelect({
                     setSearchTerm('');
                   } else if (e.key === 'Enter' && filteredOptions.length === 1) {
                     e.preventDefault();
-                    onChange(filteredOptions[0].id);
+                    onChange(getOptId(filteredOptions[0]));
                     setIsOpen(false);
                     setSearchTerm('');
                   }
@@ -210,25 +248,41 @@ function SearchableSelect({
           </div>
 
           {/* Options List */}
-          <div className="max-h-52 overflow-y-auto p-1 divide-y divide-slate-50">
+          <div className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt) => {
-                const isSelected = opt.id === value;
+                const optId = getOptId(opt);
+                const optName = getOptName(opt);
+                const isSelected = optId === value;
                 return (
                   <div
-                    key={opt.id}
+                    key={optId}
                     onClick={() => {
-                      onChange(opt.id);
+                      onChange(optId);
                       setIsOpen(false);
                       setSearchTerm('');
                     }}
-                    className={`px-3 py-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                    className={`px-3 py-2.5 rounded-xl text-xs flex items-center justify-between gap-2 cursor-pointer transition-colors ${
                       isSelected
                         ? themeActiveBg
                         : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-medium'
                     }`}
                   >
-                    <span className="truncate">{opt.name}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {opt.image && (
+                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
+                          <img src={opt.image} alt="" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="truncate font-bold block text-slate-900">{optName}</span>
+                        {(opt.brand || opt.category || opt.sku) && (
+                          <span className="text-[10px] text-slate-500 truncate block font-normal">
+                            {[opt.brand, opt.category, opt.sku ? `SKU: ${opt.sku}` : null].filter(Boolean).join(' • ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     {isSelected && (
                       <Check
                         className={`w-3.5 h-3.5 shrink-0 ${
@@ -4897,10 +4951,19 @@ export default function AdminPanel({
                         <SearchableSelect
                           options={products
                             .filter(p => p.id !== (productForm.id || editingProduct?.id) && !(productForm.compatibleProductIds || []).includes(p.id))
-                            .map(p => ({
-                              value: p.id,
-                              label: `${p.name} (${brands.find(b => b.id === p.brandId)?.name || 'Athena'})`
-                            }))}
+                            .map(p => {
+                              const bName = brands.find(b => b.id === p.brandId)?.name || 'Athena';
+                              const cName = categories.find(c => c.id === p.categoryId)?.name || '';
+                              return {
+                                id: p.id,
+                                name: p.name,
+                                brand: bName,
+                                category: cName,
+                                sku: p.sku || '',
+                                slug: p.slug || '',
+                                image: p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=100'
+                              };
+                            })}
                           value=""
                           onChange={(val) => {
                             if (val) {
