@@ -613,7 +613,7 @@ export default function ProductDetailPage({
                     onClick={() => setIsInstallmentModalOpen(true)}
                     className="text-amber-900 hover:text-amber-950 font-black underline cursor-pointer text-[11px] flex items-center gap-1"
                   >
-                    <span>Ver opções de pagamento (Cartão, PIX, Débito e Boleto)</span>
+                    <span>Opções de parcelamento e pagamento</span>
                   </button>
                 </div>
               </div>
@@ -643,7 +643,7 @@ export default function ProductDetailPage({
                     className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-black flex items-center gap-2 cursor-pointer"
                   >
                     <CreditCard className="w-4 h-4" />
-                    <span>Comprar Agora (PIX / Cartão)</span>
+                    <span>Comprar Agora</span>
                   </button>
 
                   <a

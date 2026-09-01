@@ -196,7 +196,7 @@ export default function ProductModal({
                 }`}
               >
                 {hasPrice ? <CreditCard className="w-5 h-5 shrink-0" /> : <MessageCircle className="w-5 h-5 fill-current" />}
-                <span>{hasPrice ? 'Comprar Agora (PIX / Cartão)' : 'Solicitar Cotação Oficial no WhatsApp'}</span>
+                <span>{hasPrice ? 'Comprar Agora' : 'Solicitar Cotação Oficial no WhatsApp'}</span>
               </a>
 
               <a
