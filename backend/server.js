@@ -798,8 +798,38 @@ async function initDb() {
           user_name VARCHAR(255),
           items JSONB NOT NULL,
           total_amount NUMERIC(12,2) DEFAULT 0,
+          discount_amount NUMERIC(12,2) DEFAULT 0,
+          coupon_code VARCHAR(100),
           status VARCHAR(50) DEFAULT 'em_analise',
           notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Create Coupons Table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS coupons (
+          id VARCHAR(100) PRIMARY KEY,
+          code VARCHAR(100) UNIQUE NOT NULL,
+          description TEXT,
+          discount_type VARCHAR(20) DEFAULT 'percentage',
+          discount_value NUMERIC(12,2) NOT NULL,
+          max_discount NUMERIC(12,2),
+          scope_type VARCHAR(20) DEFAULT 'all',
+          target_product_ids JSONB DEFAULT '[]',
+          target_category_ids JSONB DEFAULT '[]',
+          target_brand_ids JSONB DEFAULT '[]',
+          min_order_amount NUMERIC(12,2) DEFAULT 0,
+          min_item_quantity INTEGER DEFAULT 0,
+          customer_type VARCHAR(30) DEFAULT 'all',
+          specific_email VARCHAR(255),
+          max_usage_total INTEGER DEFAULT 0,
+          max_usage_per_customer INTEGER DEFAULT 1,
+          used_count INTEGER DEFAULT 0,
+          used_by JSONB DEFAULT '[]',
+          expires_at TIMESTAMP,
+          status VARCHAR(20) DEFAULT 'active',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -892,9 +922,17 @@ async function initDb() {
 }
 
 function readDbJson() {
-  if (!fs.existsSync(DB_PATH)) return { users: [], categories: [], brands: [], products: [] };
+  if (!fs.existsSync(DB_PATH)) return { users: [], categories: [], brands: [], products: [], coupons: [], orders: [] };
   const raw = fs.readFileSync(DB_PATH, 'utf-8');
-  return JSON.parse(raw);
+  try {
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data.coupons)) data.coupons = [];
+    if (!Array.isArray(data.orders)) data.orders = [];
+    if (!Array.isArray(data.users)) data.users = [];
+    return data;
+  } catch (e) {
+    return { users: [], categories: [], brands: [], products: [], coupons: [], orders: [] };
+  }
 }
 
 function writeDbJson(data) {
@@ -1598,7 +1636,436 @@ async function pingAsaasKeepAlive() {
 setTimeout(pingAsaasKeepAlive, 10000);
 setInterval(pingAsaasKeepAlive, 5 * 24 * 60 * 60 * 1000);
 
-// 1. Create Payment Charge on Asaas (PIX, BOLETO, CREDIT_CARD)
+// -------------------------------------------------------------
+// COUPONS & DISCOUNT ENGINE (WITH STRICT R$ 5,00 GATEWAY RULE)
+// -------------------------------------------------------------
+
+function evaluateCoupon(coupon, items = [], customerEmail = '', customerCpfCnpj = '') {
+  if (!coupon) return { valid: false, error: 'Cupom de desconto não encontrado.' };
+  if (coupon.status !== 'active') return { valid: false, error: 'Este cupom está pausado ou inativo.' };
+
+  // 1. Expiration check
+  if (coupon.expiresAt || coupon.expires_at) {
+    const expDate = new Date(coupon.expiresAt || coupon.expires_at);
+    if (expDate < new Date()) {
+      return { valid: false, error: 'Este cupom de desconto expirou em ' + expDate.toLocaleDateString('pt-BR') + '.' };
+    }
+  }
+
+  // 2. Total global usage limit
+  const maxTotal = Number(coupon.maxUsageTotal || coupon.max_usage_total || 0);
+  const usedCount = Number(coupon.usedCount || coupon.used_count || 0);
+  if (maxTotal > 0 && usedCount >= maxTotal) {
+    return { valid: false, error: 'Este cupom atingiu o limite máximo de utilizações.' };
+  }
+
+  // 3. Customer usage limit
+  const maxPerCustomer = Number(coupon.maxUsagePerCustomer || coupon.max_usage_per_customer || 1);
+  const usedBy = coupon.usedBy || coupon.used_by || [];
+  const cleanEmail = (customerEmail || '').toLowerCase().trim();
+  const cleanDoc = (customerCpfCnpj || '').replace(/\D/g, '');
+
+  if (maxPerCustomer > 0 && (cleanEmail || cleanDoc)) {
+    const customerUsageCount = usedBy.filter(u => 
+      (cleanEmail && (u.email || '').toLowerCase().trim() === cleanEmail) ||
+      (cleanDoc && (u.document || '').replace(/\D/g, '') === cleanDoc)
+    ).length;
+
+    if (customerUsageCount >= maxPerCustomer) {
+      return { valid: false, error: 'Você já utilizou este cupom de desconto o número máximo de vezes permitido.' };
+    }
+  }
+
+  // 4. Target specific customer email restriction
+  const customerType = coupon.customerType || coupon.customer_type || 'all';
+  const specificEmail = (coupon.specificEmail || coupon.specific_email || '').toLowerCase().trim();
+  if (customerType === 'specific_email' && specificEmail) {
+    if (!cleanEmail) {
+      return { valid: false, error: 'Informe seu e-mail para validar este cupom exclusivo.', requiresEmail: true };
+    }
+    if (cleanEmail !== specificEmail) {
+      return { valid: false, error: 'Este cupom é exclusivo e intransferível para o e-mail ' + specificEmail + '.' };
+    }
+  }
+
+  // 5. Items eligibility check (only products with price > 0 and not negotiable)
+  const validItems = items.filter(it => (Number(it.price) || 0) > 0 && !it.priceNegotiable);
+  if (validItems.length === 0) {
+    return { valid: false, error: 'Cupons só podem ser aplicados em produtos com preço de compra direta cadastrado.' };
+  }
+
+  const scopeType = coupon.scopeType || coupon.scope_type || 'all';
+  const targetProductIds = coupon.targetProductIds || coupon.target_product_ids || [];
+  const targetCategoryIds = coupon.targetCategoryIds || coupon.target_category_ids || [];
+  const targetBrandIds = coupon.targetBrandIds || coupon.target_brand_ids || [];
+
+  const eligibleItems = validItems.filter(it => {
+    if (scopeType === 'all') return true;
+    if (scopeType === 'products') return targetProductIds.includes(it.productId || it.id);
+    if (scopeType === 'categories') return targetCategoryIds.includes(it.categoryId);
+    if (scopeType === 'brands') return targetBrandIds.includes(it.brandId);
+    return false;
+  });
+
+  if (eligibleItems.length === 0) {
+    return { valid: false, error: 'Este cupom não é aplicável aos produtos selecionados no pedido.' };
+  }
+
+  // 6. Minimum purchase amount & minimum item quantity
+  const eligibleSubtotal = eligibleItems.reduce((sum, it) => sum + (Number(it.price) * (Number(it.quantity) || 1)), 0);
+  const totalQuantity = eligibleItems.reduce((sum, it) => sum + (Number(it.quantity) || 1), 0);
+
+  const minOrderAmount = Number(coupon.minOrderAmount || coupon.min_order_amount || 0);
+  if (minOrderAmount > 0 && eligibleSubtotal < minOrderAmount) {
+    return { valid: false, error: `Este cupom exige um valor mínimo de compra de R$ ${minOrderAmount.toFixed(2).replace('.', ',')}. Subtotal atual: R$ ${eligibleSubtotal.toFixed(2).replace('.', ',')}.` };
+  }
+
+  const minItemQuantity = Number(coupon.minItemQuantity || coupon.min_item_quantity || 0);
+  if (minItemQuantity > 0 && totalQuantity < minItemQuantity) {
+    return { valid: false, error: `Este cupom exige uma quantidade mínima de ${minItemQuantity} itens elegíveis no carrinho.` };
+  }
+
+  // 7. Calculate Discount Amount
+  const discountType = coupon.discountType || coupon.discount_type || 'percentage';
+  const discountVal = Number(coupon.discountValue || coupon.discount_value || 0);
+  const maxDiscount = Number(coupon.maxDiscount || coupon.max_discount || 0);
+
+  let rawDiscount = 0;
+  if (discountType === 'percentage') {
+    rawDiscount = (eligibleSubtotal * discountVal) / 100;
+    if (maxDiscount > 0 && rawDiscount > maxDiscount) {
+      rawDiscount = maxDiscount;
+    }
+  } else {
+    // Fixed amount (R$)
+    rawDiscount = discountVal;
+  }
+
+  // Full cart subtotal
+  const totalCartSubtotal = validItems.reduce((sum, it) => sum + (Number(it.price) * (Number(it.quantity) || 1)), 0);
+  const discountAmount = Math.min(rawDiscount, totalCartSubtotal);
+  const finalPayable = Math.max(0, Math.round((totalCartSubtotal - discountAmount) * 100) / 100);
+
+  // 8. STRICT R$ 5,00 GATEWAY RULE
+  // If not 100% free (finalPayable === 0), it MUST be at least R$ 5,00!
+  if (finalPayable > 0 && finalPayable < 5.00) {
+    return {
+      valid: false,
+      error: `O desconto deste cupom deixaria o valor final a pagar em R$ ${finalPayable.toFixed(2).replace('.', ',')}, que fica abaixo do mínimo permitido pelo sistema (R$ 5,00). Adicione mais produtos ou utilize um cupom de 100%.`
+    };
+  }
+
+  return {
+    valid: true,
+    coupon: {
+      id: coupon.id,
+      code: coupon.code,
+      description: coupon.description,
+      discountType,
+      discountValue: discountVal,
+      maxDiscount
+    },
+    discountAmount,
+    subtotal: totalCartSubtotal,
+    finalPayable,
+    isFreeOrder: finalPayable === 0
+  };
+}
+
+// -------------------------------------------------------------
+// COUPON CRUD & VALIDATION ENDPOINTS
+// -------------------------------------------------------------
+
+// List All Coupons (Admin or active overview)
+app.get('/api/coupons', async (req, res) => {
+  try {
+    if (pool) {
+      const result = await pool.query(`
+        SELECT 
+          id, code, description, 
+          discount_type as "discountType", 
+          discount_value as "discountValue", 
+          max_discount as "maxDiscount", 
+          scope_type as "scopeType", 
+          target_product_ids as "targetProductIds", 
+          target_category_ids as "targetCategoryIds", 
+          target_brand_ids as "targetBrandIds", 
+          min_order_amount as "minOrderAmount", 
+          min_item_quantity as "minItemQuantity", 
+          customer_type as "customerType", 
+          specific_email as "specificEmail", 
+          max_usage_total as "maxUsageTotal", 
+          max_usage_per_customer as "maxUsagePerCustomer", 
+          used_count as "usedCount", 
+          used_by as "usedBy", 
+          expires_at as "expiresAt", 
+          status, 
+          created_at as "createdAt", 
+          updated_at as "updatedAt"
+        FROM coupons 
+        ORDER BY created_at DESC
+      `);
+      return res.json(result.rows || []);
+    }
+
+    const db = readDbJson();
+    return res.json(db.coupons || []);
+  } catch (err) {
+    console.error('Erro ao listar cupons:', err);
+    return res.status(500).json({ error: 'Erro ao carregar cupons.' });
+  }
+});
+
+// Create New Coupon (Admin Only)
+app.post('/api/coupons', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const {
+      code,
+      description,
+      discountType = 'percentage',
+      discountValue,
+      maxDiscount,
+      scopeType = 'all',
+      targetProductIds = [],
+      targetCategoryIds = [],
+      targetBrandIds = [],
+      minOrderAmount = 0,
+      minItemQuantity = 0,
+      customerType = 'all',
+      specificEmail = '',
+      maxUsageTotal = 0,
+      maxUsagePerCustomer = 1,
+      expiresAt = null,
+      status = 'active'
+    } = req.body;
+
+    if (!code || !code.trim()) {
+      return res.status(400).json({ error: 'O código do cupom é obrigatório.' });
+    }
+
+    const cleanCode = code.trim().toUpperCase().replace(/\s+/g, '');
+    const numDiscountValue = Number(discountValue);
+
+    if (isNaN(numDiscountValue) || numDiscountValue <= 0) {
+      return res.status(400).json({ error: 'Informe um valor de desconto válido e positivo.' });
+    }
+
+    if (discountType === 'percentage' && numDiscountValue > 100) {
+      return res.status(400).json({ error: 'Desconto em porcentagem não pode exceder 100%.' });
+    }
+
+    const couponId = `coupon_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString();
+
+    const newCoupon = {
+      id: couponId,
+      code: cleanCode,
+      description: description || '',
+      discountType,
+      discountValue: numDiscountValue,
+      maxDiscount: maxDiscount ? Number(maxDiscount) : null,
+      scopeType,
+      targetProductIds: Array.isArray(targetProductIds) ? targetProductIds : [],
+      targetCategoryIds: Array.isArray(targetCategoryIds) ? targetCategoryIds : [],
+      targetBrandIds: Array.isArray(targetBrandIds) ? targetBrandIds : [],
+      minOrderAmount: Number(minOrderAmount) || 0,
+      minItemQuantity: Number(minItemQuantity) || 0,
+      customerType,
+      specificEmail: specificEmail ? specificEmail.toLowerCase().trim() : null,
+      maxUsageTotal: Number(maxUsageTotal) || 0,
+      maxUsagePerCustomer: Number(maxUsagePerCustomer) || 1,
+      usedCount: 0,
+      usedBy: [],
+      expiresAt: expiresAt || null,
+      status: status || 'active',
+      createdAt: now,
+      updatedAt: now
+    };
+
+    if (pool) {
+      try {
+        await pool.query(`
+          INSERT INTO coupons (
+            id, code, description, discount_type, discount_value, max_discount,
+            scope_type, target_product_ids, target_category_ids, target_brand_ids,
+            min_order_amount, min_item_quantity, customer_type, specific_email,
+            max_usage_total, max_usage_per_customer, used_count, used_by,
+            expires_at, status, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+        `, [
+          newCoupon.id, newCoupon.code, newCoupon.description, newCoupon.discountType, newCoupon.discountValue, newCoupon.maxDiscount,
+          newCoupon.scopeType, JSON.stringify(newCoupon.targetProductIds), JSON.stringify(newCoupon.targetCategoryIds), JSON.stringify(newCoupon.targetBrandIds),
+          newCoupon.minOrderAmount, newCoupon.minItemQuantity, newCoupon.customerType, newCoupon.specificEmail,
+          newCoupon.maxUsageTotal, newCoupon.maxUsagePerCustomer, 0, JSON.stringify([]),
+          newCoupon.expiresAt, newCoupon.status, now, now
+        ]);
+      } catch (pgErr) {
+        if (pgErr.code === '23505') {
+          return res.status(400).json({ error: `Já existe um cupom com o código "${cleanCode}".` });
+        }
+        throw pgErr;
+      }
+    }
+
+    const db = readDbJson();
+    if ((db.coupons || []).some(c => c.code === cleanCode)) {
+      return res.status(400).json({ error: `Já existe um cupom com o código "${cleanCode}".` });
+    }
+    db.coupons = [newCoupon, ...(db.coupons || [])];
+    writeDbJson(db);
+
+    return res.status(201).json(newCoupon);
+  } catch (err) {
+    console.error('Erro ao criar cupom:', err);
+    return res.status(500).json({ error: 'Erro ao cadastrar cupom no sistema.' });
+  }
+});
+
+// Update Coupon / Toggle Pause (Admin Only)
+app.put('/api/coupons/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const couponId = req.params.id;
+    const updates = req.body;
+    const now = new Date().toISOString();
+
+    let existing = null;
+    const db = readDbJson();
+    const idx = (db.coupons || []).findIndex(c => c.id === couponId);
+    if (idx !== -1) {
+      existing = db.coupons[idx];
+    }
+
+    if (pool) {
+      const resPg = await pool.query('SELECT * FROM coupons WHERE id = $1', [couponId]);
+      if (resPg.rows && resPg.rows.length > 0) {
+        existing = existing || resPg.rows[0];
+      }
+    }
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Cupom não encontrado.' });
+    }
+
+    const updatedCoupon = {
+      ...existing,
+      ...updates,
+      code: updates.code ? updates.code.trim().toUpperCase().replace(/\s+/g, '') : existing.code,
+      updatedAt: now
+    };
+
+    if (pool) {
+      await pool.query(`
+        UPDATE coupons SET
+          code = $1, description = $2, discount_type = $3, discount_value = $4, max_discount = $5,
+          scope_type = $6, target_product_ids = $7, target_category_ids = $8, target_brand_ids = $9,
+          min_order_amount = $10, min_item_quantity = $11, customer_type = $12, specific_email = $13,
+          max_usage_total = $14, max_usage_per_customer = $15, status = $16, expires_at = $17, updated_at = $18
+        WHERE id = $19
+      `, [
+        updatedCoupon.code, updatedCoupon.description, updatedCoupon.discountType, updatedCoupon.discountValue, updatedCoupon.maxDiscount,
+        updatedCoupon.scopeType, JSON.stringify(updatedCoupon.targetProductIds), JSON.stringify(updatedCoupon.targetCategoryIds), JSON.stringify(updatedCoupon.targetBrandIds),
+        updatedCoupon.minOrderAmount, updatedCoupon.minItemQuantity, updatedCoupon.customerType, updatedCoupon.specificEmail,
+        updatedCoupon.maxUsageTotal, updatedCoupon.maxUsagePerCustomer, updatedCoupon.status, updatedCoupon.expiresAt, now, couponId
+      ]);
+    }
+
+    if (idx !== -1) {
+      db.coupons[idx] = updatedCoupon;
+      writeDbJson(db);
+    }
+
+    return res.json(updatedCoupon);
+  } catch (err) {
+    console.error('Erro ao atualizar cupom:', err);
+    return res.status(500).json({ error: 'Erro ao atualizar cupom.' });
+  }
+});
+
+// Delete Coupon (Admin Only)
+app.delete('/api/coupons/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const couponId = req.params.id;
+
+    if (pool) {
+      await pool.query('DELETE FROM coupons WHERE id = $1', [couponId]);
+    }
+
+    const db = readDbJson();
+    db.coupons = (db.coupons || []).filter(c => c.id !== couponId);
+    writeDbJson(db);
+
+    return res.json({ success: true, message: 'Cupom removido com sucesso.' });
+  } catch (err) {
+    console.error('Erro ao excluir cupom:', err);
+    return res.status(500).json({ error: 'Erro ao excluir cupom.' });
+  }
+});
+
+// Validate Coupon in Checkout / Cart (Public)
+app.post('/api/coupons/validate', async (req, res) => {
+  try {
+    const { code, items = [], customerEmail = '', customerCpfCnpj = '' } = req.body;
+
+    if (!code || !code.trim()) {
+      return res.status(400).json({ valid: false, error: 'Digite o código do cupom.' });
+    }
+
+    const cleanCode = code.trim().toUpperCase().replace(/\s+/g, '');
+    let coupon = null;
+
+    if (pool) {
+      const result = await pool.query(`
+        SELECT 
+          id, code, description, 
+          discount_type as "discountType", 
+          discount_value as "discountValue", 
+          max_discount as "maxDiscount", 
+          scope_type as "scopeType", 
+          target_product_ids as "targetProductIds", 
+          target_category_ids as "targetCategoryIds", 
+          target_brand_ids as "targetBrandIds", 
+          min_order_amount as "minOrderAmount", 
+          min_item_quantity as "minItemQuantity", 
+          customer_type as "customerType", 
+          specific_email as "specificEmail", 
+          max_usage_total as "maxUsageTotal", 
+          max_usage_per_customer as "maxUsagePerCustomer", 
+          used_count as "usedCount", 
+          used_by as "usedBy", 
+          expires_at as "expiresAt", 
+          status
+        FROM coupons 
+        WHERE UPPER(code) = $1
+      `, [cleanCode]);
+
+      if (result.rows && result.rows.length > 0) {
+        coupon = result.rows[0];
+      }
+    }
+
+    if (!coupon) {
+      const db = readDbJson();
+      coupon = (db.coupons || []).find(c => (c.code || '').toUpperCase() === cleanCode);
+    }
+
+    if (!coupon) {
+      return res.status(404).json({ valid: false, error: `Cupom "${cleanCode}" não encontrado.` });
+    }
+
+    const evaluation = evaluateCoupon(coupon, items, customerEmail, customerCpfCnpj);
+    return res.json(evaluation);
+
+  } catch (err) {
+    console.error('Erro na validação do cupom:', err);
+    return res.status(500).json({ valid: false, error: 'Erro ao validar cupom.' });
+  }
+});
+
+// -------------------------------------------------------------
+// PAYMENT CHARGE, CART CHECKOUT & CRM CUSTOMER SYNC
+// -------------------------------------------------------------
+
+// 1. Create Payment Charge on Asaas or Free Order (PIX, BOLETO, CREDIT_CARD, FREE)
 app.post('/api/payments/charge', async (req, res) => {
   try {
     const { 
@@ -1606,28 +2073,188 @@ app.post('/api/payments/charge', async (req, res) => {
       customerEmail, 
       customerCpfCnpj, 
       customerPhone, 
-      billingType, // 'PIX' | 'BOLETO' | 'CREDIT_CARD'
+      customerPassword,
+      billingType, // 'PIX' | 'BOLETO' | 'CREDIT_CARD' | 'FREE'
       value, 
+      items = [],
+      couponCode,
       description,
-      orderId,
+      orderId: clientOrderId,
       creditCard, 
       creditCardHolderInfo
     } = req.body;
+
+    if (!customerEmail || !customerCpfCnpj) {
+      return res.status(400).json({ error: 'E-mail e CPF/CNPJ são obrigatórios para finalizar o pedido.' });
+    }
+
+    const cleanEmail = customerEmail.toLowerCase().trim();
+    const cleanDoc = (customerCpfCnpj || '').replace(/\D/g, '');
+    const cleanPhone = (customerPhone || '').replace(/\D/g, '');
+    const orderId = clientOrderId || `athena_ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+    // ---------------------------------------------------------
+    // A. CRM & USER ACCOUNT AUTO-SYNC
+    // ---------------------------------------------------------
+    let userId = null;
+    const db = readDbJson();
+
+    if (pool) {
+      try {
+        const userRes = await pool.query('SELECT id, password_hash FROM users WHERE email = $1', [cleanEmail]);
+        if (userRes.rows && userRes.rows.length > 0) {
+          userId = userRes.rows[0].id;
+          await pool.query(`
+            UPDATE users SET 
+              name = COALESCE(NULLIF($1, ''), name),
+              phone = COALESCE(NULLIF($2, ''), phone),
+              document = COALESCE(NULLIF($3, ''), document),
+              updated_at = NOW()
+            WHERE id = $4
+          `, [customerName, cleanPhone, cleanDoc, userId]);
+        } else {
+          userId = `user_cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+          const initialPass = customerPassword || 'ClienteAthena2026!';
+          const passHash = bcrypt.hashSync(initialPass, 10);
+          await pool.query(`
+            INSERT INTO users (id, name, email, password_hash, role, phone, document, created_at)
+            VALUES ($1, $2, $3, $4, 'cliente', $5, $6, NOW())
+          `, [userId, customerName || 'Cliente Athena', cleanEmail, passHash, cleanPhone, cleanDoc]);
+        }
+      } catch (userErr) {
+        console.warn('Aviso no sync de usuário PG:', userErr.message);
+      }
+    }
+
+    // Local JSON user sync fallback
+    let localUser = (db.users || []).find(u => (u.email || '').toLowerCase() === cleanEmail);
+    if (!localUser) {
+      userId = userId || `user_cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const initialPass = customerPassword || 'ClienteAthena2026!';
+      const passHash = bcrypt.hashSync(initialPass, 10);
+      localUser = {
+        id: userId,
+        name: customerName || 'Cliente Athena',
+        email: cleanEmail,
+        passwordHash: passHash,
+        role: 'cliente',
+        phone: cleanPhone,
+        document: cleanDoc,
+        createdAt: new Date().toISOString()
+      };
+      db.users.push(localUser);
+      writeDbJson(db);
+    }
+
+    // ---------------------------------------------------------
+    // B. COUPON EVALUATION & DISCOUNT CALCULATION
+    // ---------------------------------------------------------
+    let appliedCoupon = null;
+    let discountAmount = 0;
+    let finalPayable = Number(value);
+
+    if (couponCode && couponCode.trim()) {
+      const cleanCouponCode = couponCode.trim().toUpperCase().replace(/\s+/g, '');
+      let foundCoupon = (db.coupons || []).find(c => (c.code || '').toUpperCase() === cleanCouponCode);
+
+      if (pool) {
+        const cRes = await pool.query('SELECT * FROM coupons WHERE UPPER(code) = $1', [cleanCouponCode]);
+        if (cRes.rows && cRes.rows.length > 0) foundCoupon = cRes.rows[0];
+      }
+
+      if (foundCoupon) {
+        const evalRes = evaluateCoupon(foundCoupon, items.length > 0 ? items : [{ price: Number(value), quantity: 1 }], cleanEmail, cleanDoc);
+        if (evalRes.valid) {
+          appliedCoupon = foundCoupon;
+          discountAmount = evalRes.discountAmount;
+          finalPayable = evalRes.finalPayable;
+        } else {
+          return res.status(400).json({ error: evalRes.error });
+        }
+      }
+    }
+
+    // ---------------------------------------------------------
+    // C. FREE ORDER (100% OFF / CORTESIA)
+    // ---------------------------------------------------------
+    if (finalPayable === 0) {
+      // Record Free Order directly
+      const freeOrderRecord = {
+        id: orderId,
+        user_id: userId,
+        user_email: cleanEmail,
+        user_name: customerName,
+        items: items.length > 0 ? items : [{ description: description || 'Equipamento Cortesia', price: 0, quantity: 1 }],
+        total_amount: 0,
+        discount_amount: discountAmount,
+        coupon_code: appliedCoupon ? appliedCoupon.code : null,
+        status: 'faturado',
+        notes: 'Pedido Gratuito 100% OFF com Cupom ' + (appliedCoupon ? appliedCoupon.code : ''),
+        created_at: new Date().toISOString()
+      };
+
+      if (pool) {
+        try {
+          await pool.query(`
+            INSERT INTO orders (id, user_id, user_email, user_name, items, total_amount, discount_amount, coupon_code, status, notes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `, [
+            freeOrderRecord.id, freeOrderRecord.user_id, freeOrderRecord.user_email, freeOrderRecord.user_name,
+            JSON.stringify(freeOrderRecord.items), 0, discountAmount, appliedCoupon ? appliedCoupon.code : null, 'faturado', freeOrderRecord.notes
+          ]);
+        } catch (e) {}
+      }
+
+      db.orders = [freeOrderRecord, ...(db.orders || [])];
+
+      // Increment coupon usage
+      if (appliedCoupon) {
+        const usageLog = { email: cleanEmail, document: cleanDoc, orderId, usedAt: new Date().toISOString(), discountAmount };
+        if (pool) {
+          try {
+            await pool.query(`
+              UPDATE coupons 
+              SET used_count = used_count + 1, used_by = used_by || $1::jsonb, updated_at = NOW() 
+              WHERE id = $2
+            `, [JSON.stringify([usageLog]), appliedCoupon.id]);
+          } catch (e) {}
+        }
+        const cIdx = (db.coupons || []).findIndex(c => c.id === appliedCoupon.id);
+        if (cIdx !== -1) {
+          db.coupons[cIdx].usedCount = (db.coupons[cIdx].usedCount || 0) + 1;
+          db.coupons[cIdx].usedBy = [...(db.coupons[cIdx].usedBy || []), usageLog];
+        }
+      }
+      writeDbJson(db);
+
+      return res.status(201).json({
+        id: orderId,
+        status: 'CONFIRMED',
+        value: 0,
+        discountAmount,
+        billingType: 'FREE',
+        isFreeOrder: true,
+        message: 'Pedido 100% Gratuito confirmado e faturado com sucesso!'
+      });
+    }
+
+    // ---------------------------------------------------------
+    // D. PAID CHARGE (ASAAS GATEWAY - STRICT R$ 5,00 RULE)
+    // ---------------------------------------------------------
+    if (finalPayable < 5.00) {
+      return res.status(400).json({ error: `O valor final da cobrança (R$ ${finalPayable.toFixed(2).replace('.', ',')}) é inferior ao valor mínimo de R$ 5,00 exigido para processamento.` });
+    }
 
     if (!ASAAS_API_KEY) {
       return res.status(500).json({ error: 'Chave de API do Asaas não configurada no servidor.' });
     }
 
-    if (!customerEmail || !customerCpfCnpj || !value) {
-      return res.status(400).json({ error: 'E-mail, CPF/CNPJ e Valor são obrigatórios para gerar cobrança.' });
-    }
-
-    // Step 1: Find or Create Customer on Asaas
+    // Find or Create Customer on Asaas
     let asaasCustomerId = null;
     const axios = require('axios');
 
     try {
-      const searchRes = await axios.get(`${ASAAS_BASE_URL}/customers?email=${encodeURIComponent(customerEmail)}`, {
+      const searchRes = await axios.get(`${ASAAS_BASE_URL}/customers?email=${encodeURIComponent(cleanEmail)}`, {
         headers: { 'access_token': ASAAS_API_KEY }
       });
       if (searchRes.data?.data && searchRes.data.data.length > 0) {
@@ -1638,9 +2265,9 @@ app.post('/api/payments/charge', async (req, res) => {
     if (!asaasCustomerId) {
       const createCustRes = await axios.post(`${ASAAS_BASE_URL}/customers`, {
         name: customerName || 'Cliente Athena',
-        email: customerEmail,
-        cpfCnpj: (customerCpfCnpj || '').replace(/\D/g, ''),
-        phone: customerPhone ? customerPhone.replace(/\D/g, '') : undefined,
+        email: cleanEmail,
+        cpfCnpj: cleanDoc,
+        phone: cleanPhone || undefined,
         notificationDisabled: false
       }, {
         headers: { 'access_token': ASAAS_API_KEY }
@@ -1648,15 +2275,15 @@ app.post('/api/payments/charge', async (req, res) => {
       asaasCustomerId = createCustRes.data.id;
     }
 
-    // Step 2: Create Payment on Asaas
+    // Create Payment on Asaas
     const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 3 days due
     const paymentPayload = {
       customer: asaasCustomerId,
       billingType: billingType || 'PIX',
-      value: Number(value),
+      value: finalPayable,
       dueDate,
-      description: description || `Equipamento Athena - Pedido #${orderId || 'Online'}`,
-      externalReference: orderId || `athena_${Date.now()}`
+      description: description || `Athena Soluções Automotivas - Pedido #${orderId}`,
+      externalReference: orderId
     };
 
     if (billingType === 'CREDIT_CARD' && creditCard) {
@@ -1683,10 +2310,61 @@ app.post('/api/payments/charge', async (req, res) => {
       }
     }
 
+    // Save Order in Database
+    const orderRecord = {
+      id: orderId,
+      user_id: userId,
+      user_email: cleanEmail,
+      user_name: customerName,
+      items: items.length > 0 ? items : [{ description: description || 'Equipamento Athena', price: finalPayable, quantity: 1 }],
+      total_amount: finalPayable,
+      discount_amount: discountAmount,
+      coupon_code: appliedCoupon ? appliedCoupon.code : null,
+      status: 'em_analise',
+      notes: `Cobrança Asaas ID: ${paymentData.id} (${billingType})`,
+      created_at: new Date().toISOString()
+    };
+
+    if (pool) {
+      try {
+        await pool.query(`
+          INSERT INTO orders (id, user_id, user_email, user_name, items, total_amount, discount_amount, coupon_code, status, notes)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `, [
+          orderRecord.id, orderRecord.user_id, orderRecord.user_email, orderRecord.user_name,
+          JSON.stringify(orderRecord.items), finalPayable, discountAmount, appliedCoupon ? appliedCoupon.code : null, 'em_analise', orderRecord.notes
+        ]);
+      } catch (e) {}
+    }
+
+    db.orders = [orderRecord, ...(db.orders || [])];
+
+    // Increment coupon usage
+    if (appliedCoupon) {
+      const usageLog = { email: cleanEmail, document: cleanDoc, orderId, usedAt: new Date().toISOString(), discountAmount };
+      if (pool) {
+        try {
+          await pool.query(`
+            UPDATE coupons 
+            SET used_count = used_count + 1, used_by = used_by || $1::jsonb, updated_at = NOW() 
+            WHERE id = $2
+          `, [JSON.stringify([usageLog]), appliedCoupon.id]);
+        } catch (e) {}
+      }
+      const cIdx = (db.coupons || []).findIndex(c => c.id === appliedCoupon.id);
+      if (cIdx !== -1) {
+        db.coupons[cIdx].usedCount = (db.coupons[cIdx].usedCount || 0) + 1;
+        db.coupons[cIdx].usedBy = [...(db.coupons[cIdx].usedBy || []), usageLog];
+      }
+    }
+    writeDbJson(db);
+
     return res.status(201).json({
       id: paymentData.id,
+      orderId,
       status: paymentData.status,
       value: paymentData.value,
+      discountAmount,
       billingType: paymentData.billingType,
       invoiceUrl: paymentData.invoiceUrl,
       bankSlipUrl: paymentData.bankSlipUrl,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Layers, Tag, PackageCheck, PhoneCall, Menu, ChevronDown, Info, X, User, LogOut, Shield } from 'lucide-react';
+import { Search, Layers, Tag, PackageCheck, PhoneCall, Menu, ChevronDown, Info, X, User, LogOut, Shield, ShoppingBag } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 import MegaMenu from './MegaMenu';
 import MobileDrawer from './MobileDrawer';
 
@@ -17,6 +18,7 @@ export default function Header({
   currentUser,
   onLogout
 }) {
+  const { totalItemCount, setIsCartOpen } = useCart();
   const [activeMegaMenu, setActiveMegaMenu] = useState(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
@@ -204,6 +206,22 @@ export default function Header({
                 </button>
               )}
 
+              {/* Cart Drawer Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsCartOpen(true)}
+                className="relative flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-extrabold text-slate-800 bg-amber-500/10 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-colors shadow-xs shrink-0 cursor-pointer"
+                title="Abrir Carrinho de Compras"
+              >
+                <ShoppingBag className="w-4 h-4 text-amber-700" />
+                <span className="hidden lg:inline">Carrinho</span>
+                {totalItemCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] flex items-center justify-center shadow-xs animate-in zoom-in-50">
+                    {totalItemCount}
+                  </span>
+                )}
+              </button>
+
               <a
                 href={whatsappUrl}
                 target="_blank"
@@ -215,9 +233,9 @@ export default function Header({
               </a>
             </div>
 
-            {/* Mobile Header: Search Input + Hamburger (Locked on Screen) */}
+            {/* Mobile Header: Search Input + Cart + Hamburger (Locked on Screen) */}
             <div className="flex md:hidden items-center gap-1.5 min-w-0 shrink">
-              <form onSubmit={handleSearchSubmit} className="relative min-w-0 flex-1 max-w-[140px] min-[380px]:max-w-[190px]">
+              <form onSubmit={handleSearchSubmit} className="relative min-w-0 flex-1 max-w-[130px] min-[380px]:max-w-[170px]">
                 <input
                   type="text"
                   placeholder="Buscar..."
@@ -248,6 +266,21 @@ export default function Header({
                   </button>
                 )}
               </form>
+
+              {/* Mobile Cart Button */}
+              <button
+                type="button"
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 shadow-xs shrink-0 cursor-pointer"
+                title="Abrir Carrinho"
+              >
+                <ShoppingBag className="w-4 h-4 text-amber-700" />
+                {totalItemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] flex items-center justify-center shadow-xs">
+                    {totalItemCount}
+                  </span>
+                )}
+              </button>
 
               <button
                 onClick={() => setIsMobileDrawerOpen(true)}

@@ -17,6 +17,9 @@ import ErrorBoundary from './components/ErrorBoundary';
 import BottomNavBar from './components/BottomNavBar';
 import ComparisonFloatingBar from './components/ComparisonFloatingBar';
 import ProductComparisonModal from './components/ProductComparisonModal';
+import CartDrawer from './components/CartDrawer';
+import InstallmentModal from './components/InstallmentModal';
+import { CartProvider, useCart } from './context/CartContext';
 
 import { INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
@@ -33,6 +36,25 @@ import {
 } from './utils/storage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
+
+// Helper component to connect global cart checkout modal with CartContext
+function GlobalCartCheckout({ currentUser }) {
+  const { isCheckoutOpen, checkoutTarget, closeCheckout, clearCart } = useCart();
+
+  if (!isCheckoutOpen || !checkoutTarget) return null;
+
+  return (
+    <InstallmentModal
+      isOpen={isCheckoutOpen}
+      onClose={closeCheckout}
+      items={checkoutTarget.items || []}
+      currentUser={currentUser}
+      onOrderCompleted={() => {
+        clearCart();
+      }}
+    />
+  );
+}
 
 export default function App() {
   const [products, setProducts] = useState(() => {
@@ -912,75 +934,83 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-amber-500 selection:text-white">
-        
-        {/* Header */}
-        <Header
-          activeTab={currentRoute}
-          onNavigate={navigateTo}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          productsCount={publicProducts.length}
-          categoriesCount={categories.length}
-          brandsCount={brands.length}
-          categories={categories}
-          brands={brands}
-          products={publicProducts}
-          currentUser={currentUser}
-          onLogout={handleLogout}
-        />
+      <CartProvider showNotification={showNotification} brands={brands} categories={categories}>
+        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-amber-500 selection:text-white">
+          
+          {/* Header */}
+          <Header
+            activeTab={currentRoute}
+            onNavigate={navigateTo}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            productsCount={publicProducts.length}
+            categoriesCount={categories.length}
+            brandsCount={brands.length}
+            categories={categories}
+            brands={brands}
+            products={publicProducts}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+          />
 
-        {/* Main Page Content */}
-        <main className="flex-1 pt-16 sm:pt-20">
-          {renderCurrentPage()}
-        </main>
+          {/* Main Page Content */}
+          <main className="flex-1 pt-16 sm:pt-20">
+            {renderCurrentPage()}
+          </main>
 
-      {/* Floating WhatsApp Action Button (Desktop Only) */}
-      <a
-        href="https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento."
-        target="_blank"
-        rel="noopener noreferrer"
-        className="hidden md:flex fixed bottom-6 right-6 z-40 p-3.5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-500 hover:scale-110 active:scale-95 transition-all items-center gap-2 group text-xs font-extrabold"
-        title="Falar no WhatsApp (61) 98348-5671"
-      >
-        <MessageCircle className="w-6 h-6 fill-current text-white shrink-0" />
-        <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 text-white font-bold">
-          (61) 98348-5671
-        </span>
-      </a>
+          {/* Floating WhatsApp Action Button (Desktop Only) */}
+          <a
+            href="https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden md:flex fixed bottom-6 right-6 z-40 p-3.5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-500 hover:scale-110 active:scale-95 transition-all items-center gap-2 group text-xs font-extrabold"
+            title="Falar no WhatsApp (61) 98348-5671"
+          >
+            <MessageCircle className="w-6 h-6 fill-current text-white shrink-0" />
+            <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 text-white font-bold">
+              (61) 98348-5671
+            </span>
+          </a>
 
-      {/* Comparison Floating Action Bar */}
-      <ComparisonFloatingBar
-        comparisonList={comparisonList}
-        onOpenModal={() => setIsComparisonModalOpen(true)}
-        onRemoveItem={handleRemoveComparisonItem}
-        onClearComparison={handleClearComparison}
-      />
+          {/* Comparison Floating Action Bar */}
+          <ComparisonFloatingBar
+            comparisonList={comparisonList}
+            onOpenModal={() => setIsComparisonModalOpen(true)}
+            onRemoveItem={handleRemoveComparisonItem}
+            onClearComparison={handleClearComparison}
+          />
 
-      {/* Side-by-Side Product Comparison Modal */}
-      <ProductComparisonModal
-        isOpen={isComparisonModalOpen}
-        onClose={() => setIsComparisonModalOpen(false)}
-        comparisonList={comparisonList}
-        categories={categories}
-        brands={brands}
-        onRemoveItem={handleRemoveComparisonItem}
-        onClearComparison={handleClearComparison}
-        onNavigate={navigateTo}
-      />
+          {/* Side-by-Side Product Comparison Modal */}
+          <ProductComparisonModal
+            isOpen={isComparisonModalOpen}
+            onClose={() => setIsComparisonModalOpen(false)}
+            comparisonList={comparisonList}
+            categories={categories}
+            brands={brands}
+            onRemoveItem={handleRemoveComparisonItem}
+            onClearComparison={handleClearComparison}
+            onNavigate={navigateTo}
+          />
 
-      {/* App-style Bottom Navigation Bar for Mobile */}
-      <BottomNavBar activeTab={currentRoute} onNavigate={navigateTo} currentUser={currentUser} />
+          {/* App-style Bottom Navigation Bar for Mobile */}
+          <BottomNavBar activeTab={currentRoute} onNavigate={navigateTo} currentUser={currentUser} />
 
-      {/* Toast Notification */}
-      <Toast toast={toast} onClose={() => setToast(null)} />
+          {/* Cart Drawer */}
+          <CartDrawer />
 
-      {/* Footer */}
-      <div className="pb-14 md:pb-0">
-        <Footer setActiveTab={navigateTo} currentUser={currentUser} />
-      </div>
+          {/* Global Checkout Modal */}
+          <GlobalCartCheckout currentUser={currentUser} />
 
-    </div>
+          {/* Toast Notification */}
+          <Toast toast={toast} onClose={() => setToast(null)} />
+
+          {/* Footer */}
+          <div className="pb-14 md:pb-0">
+            <Footer setActiveTab={navigateTo} currentUser={currentUser} />
+          </div>
+
+        </div>
+      </CartProvider>
     </ErrorBoundary>
   );
 }

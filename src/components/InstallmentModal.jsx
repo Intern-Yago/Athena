@@ -17,20 +17,62 @@ import {
   Lock,
   MessageCircle,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  ShoppingBag,
+  Tag,
+  Gift,
+  Trash2
 } from 'lucide-react';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 
-export default function InstallmentModal({ isOpen, onClose, productName, cashPrice, maxInstallments = 12 }) {
+export default function InstallmentModal({ 
+  isOpen, 
+  onClose, 
+  productName, 
+  cashPrice, 
+  maxInstallments = 12,
+  items = [],
+  currentUser = null,
+  onOrderCompleted
+}) {
   const [selectedTab, setSelectedTab] = useState('pix');
   
-  // Customer Form
+  // Normalize items array
+  const activeItems = items && items.length > 0 
+    ? items 
+    : (productName && cashPrice ? [{
+        name: productName,
+        price: Number(cashPrice),
+        quantity: 1
+      }] : []);
+
+  const rawSubtotal = activeItems.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
+
+  // Customer Form with pre-fill from currentUser
   const [customer, setCustomer] = useState({
-    name: '',
-    email: '',
-    cpfCnpj: '',
-    phone: ''
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    cpfCnpj: currentUser?.document || '',
+    phone: currentUser?.phone || ''
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      setCustomer(prev => ({
+        name: prev.name || currentUser.name || '',
+        email: prev.email || currentUser.email || '',
+        cpfCnpj: prev.cpfCnpj || currentUser.document || '',
+        phone: prev.phone || currentUser.phone || ''
+      }));
+    }
+  }, [currentUser]);
+
+  // Coupon Engine State
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponError, setCouponError] = useState(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
   // Credit Card Form
   const [card, setCard] = useState({
@@ -47,6 +89,7 @@ export default function InstallmentModal({ isOpen, onClose, productName, cashPri
   const [paymentResult, setPaymentResult] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState('pending'); // 'pending' | 'confirmed' | 'failed'
   const [copied, setCopied] = useState(false);
+  const [showItemsList, setShowItemsList] = useState(false);
 
   // Polling ref
   const pollingRef = useRef(null);
@@ -58,13 +101,14 @@ export default function InstallmentModal({ isOpen, onClose, productName, cashPri
       setPaymentStatus('pending');
       setErrorMessage(null);
       setIsSubmitting(false);
+      setCouponError(null);
       if (pollingRef.current) clearInterval(pollingRef.current);
     }
   }, [isOpen]);
 
   // Polling for PIX / Payment confirmation
   useEffect(() => {
-    if (paymentResult?.id && paymentStatus === 'pending') {
+    if (paymentResult?.id && paymentStatus === 'pending' && !paymentResult.isFreeOrder) {
       pollingRef.current = setInterval(async () => {
         try {
           const res = await fetch(`/api/payments/charge/${paymentResult.id}/status`);
@@ -73,6 +117,7 @@ export default function InstallmentModal({ isOpen, onClose, productName, cashPri
             if (data.status === 'RECEIVED' || data.status === 'CONFIRMED') {
               setPaymentStatus('confirmed');
               if (pollingRef.current) clearInterval(pollingRef.current);
+              if (onOrderCompleted) onOrderCompleted(data);
             }
           }
         } catch (e) {
@@ -84,14 +129,16 @@ export default function InstallmentModal({ isOpen, onClose, productName, cashPri
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, [paymentResult, paymentStatus]);
+  }, [paymentResult, paymentStatus, onOrderCompleted]);
 
   if (!isOpen) return null;
 
-  const installments = calculateInstallments(cashPrice, maxInstallments);
-  const formattedCash = formatBRL(cashPrice);
-  const gateways = calculatePaymentGateways(cashPrice);
+  // Final Payable Calculation
+  const discountedSubtotal = Math.max(0, rawSubtotal - couponDiscount);
+  const isFreeOrder = discountedSubtotal === 0 && appliedCoupon !== null;
 
+  const installments = calculateInstallments(discountedSubtotal, maxInstallments);
+  const gateways = calculatePaymentGateways(discountedSubtotal);
   const selectedInstallmentData = installments.find(i => i.installments === Number(card.installments)) || installments[0];
 
   // Mask Helpers
@@ -121,265 +168,413 @@ export default function InstallmentModal({ isOpen, onClose, productName, cashPri
   const handleCardNumberChange = (e) => {
     let v = e.target.value.replace(/\D/g, '').slice(0, 16);
     v = v.replace(/(\d{4})(?=\d)/g, '$1 ');
-    setCard(cd => ({ ...cd, number: v }));
+    setCard(c => ({ ...c, number: v }));
   };
 
   const handleExpiryChange = (e) => {
     let v = e.target.value.replace(/\D/g, '').slice(0, 4);
-    if (v.length >= 2) v = `${v.slice(0, 2)}/${v.slice(2)}`;
-    setCard(cd => ({ ...cd, expiry: v }));
+    if (v.length > 2) v = `${v.slice(0, 2)}/${v.slice(2)}`;
+    setCard(c => ({ ...c, expiry: v }));
   };
 
   const handleCopyPix = () => {
-    const code = paymentResult?.pix?.payload || paymentResult?.pix?.encodedImage;
+    const code = paymentResult?.pix?.payload;
     if (code) {
-      navigator.clipboard.writeText(paymentResult?.pix?.payload || '');
+      navigator.clipboard.writeText(code);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      setTimeout(() => setCopied(false), 3000);
     }
   };
 
-  // Submit Payment
-  const handleSubmitPayment = async (e) => {
+  // COUPON APPLICATION
+  const handleApplyCoupon = async (e) => {
     if (e) e.preventDefault();
+    if (!couponCodeInput.trim()) {
+      setCouponError('Digite um código de cupom.');
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    setCouponError(null);
+
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponCodeInput.trim(),
+          items: activeItems,
+          customerEmail: customer.email,
+          customerCpfCnpj: customer.cpfCnpj
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.valid) {
+        setCouponError(data.error || 'Cupom inválido ou não aplicável.');
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+      } else {
+        setAppliedCoupon(data.coupon);
+        setCouponDiscount(data.discountAmount);
+        setCouponError(null);
+      }
+    } catch (err) {
+      setCouponError('Erro ao consultar cupom. Tente novamente.');
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setCouponCodeInput('');
+    setCouponError(null);
+  };
+
+  // CHECKOUT SUBMISSION
+  const handleSubmitPayment = async (method = 'PIX') => {
     setErrorMessage(null);
 
-    // Basic Validation
+    // Form Validations
     if (!customer.name.trim()) {
-      setErrorMessage('Por favor, informe seu Nome Completo.');
+      setErrorMessage('Por favor, preencha seu Nome Completo.');
+      return;
+    }
+    const cleanCpf = customer.cpfCnpj.replace(/\D/g, '');
+    if (cleanCpf.length !== 11 && cleanCpf.length !== 14) {
+      setErrorMessage('Por favor, informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.');
       return;
     }
     if (!customer.email.trim() || !customer.email.includes('@')) {
-      setErrorMessage('Por favor, informe um E-mail válido para envio do comprovante.');
-      return;
-    }
-    if (!customer.cpfCnpj.trim() || customer.cpfCnpj.replace(/\D/g, '').length < 11) {
-      setErrorMessage('Por favor, informe um CPF ou CNPJ válido.');
+      setErrorMessage('Por favor, informe um e-mail válido para envio do comprovante e nota fiscal.');
       return;
     }
 
-    let billingType = 'PIX';
-    let chargeValue = gateways?.pix?.customerAmount || cashPrice;
-    let cardPayload = null;
-
-    if (selectedTab === 'pix') {
-      billingType = 'PIX';
-      chargeValue = gateways?.pix?.customerAmount || cashPrice;
-    } else if (selectedTab === 'boleto') {
-      billingType = 'BOLETO';
-      chargeValue = gateways?.boleto?.customerAmount || cashPrice;
-    } else if (selectedTab === 'debit') {
-      billingType = 'DEBIT_CARD';
-      chargeValue = gateways?.debit?.customerAmount || cashPrice;
-    } else if (selectedTab === 'credit') {
-      billingType = 'CREDIT_CARD';
-      chargeValue = selectedInstallmentData.total;
-
-      if (!card.number.replace(/\s/g, '') || card.number.replace(/\s/g, '').length < 15) {
-        setErrorMessage('Por favor, informe um número de cartão de crédito válido.');
+    // Card Specific Validations
+    if (method === 'CREDIT_CARD' && !isFreeOrder) {
+      if (!card.holderName.trim()) {
+        setErrorMessage('Informe o nome impresso no cartão.');
         return;
       }
-      if (!card.expiry || !card.expiry.includes('/')) {
-        setErrorMessage('Por favor, informe a validade do cartão (MM/AA).');
+      const cleanCardNum = card.number.replace(/\D/g, '');
+      if (cleanCardNum.length < 13 || cleanCardNum.length > 16) {
+        setErrorMessage('Número do cartão inválido.');
         return;
       }
-      if (!card.ccv || card.ccv.length < 3) {
-        setErrorMessage('Por favor, informe o código de segurança (CVV).');
+      if (!card.expiry.includes('/') || card.expiry.length !== 5) {
+        setErrorMessage('Data de validade inválida (formato MM/AA).');
         return;
       }
-
-      const [expiryMonth, expiryYear] = card.expiry.split('/');
-      const fullYear = expiryYear.length === 2 ? `20${expiryYear}` : expiryYear;
-
-      cardPayload = {
-        creditCard: {
-          holderName: card.holderName || customer.name,
-          number: card.number.replace(/\s/g, ''),
-          expiryMonth,
-          expiryYear: fullYear,
-          ccv: card.ccv
-        },
-        creditCardHolderInfo: {
-          name: card.holderName || customer.name,
-          email: customer.email,
-          cpfCnpj: customer.cpfCnpj.replace(/\D/g, ''),
-          phone: customer.phone ? customer.phone.replace(/\D/g, '') : undefined
-        }
-      };
+      if (card.ccv.length < 3) {
+        setErrorMessage('Código de segurança (CVV) inválido.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/payments/charge', {
+      const orderDescription = activeItems.length === 1 
+        ? `${activeItems[0].name} - Athena Automotiva`
+        : `Pedido Athena (${activeItems.length} itens) - #${Date.now().toString().slice(-6)}`;
+
+      let payload = {
+        customerName: customer.name.trim(),
+        customerEmail: customer.email.trim().toLowerCase(),
+        customerCpfCnpj: customer.cpfCnpj.trim(),
+        customerPhone: customer.phone.trim(),
+        billingType: isFreeOrder ? 'FREE' : method,
+        value: isFreeOrder ? 0 : (
+          method === 'PIX' ? gateways.pix.customerAmount :
+          method === 'CREDIT_CARD' ? selectedInstallmentData.total :
+          method === 'DEBIT_CARD' ? gateways.debit.customerAmount :
+          gateways.boleto.customerAmount
+        ),
+        items: activeItems,
+        couponCode: appliedCoupon ? appliedCoupon.code : undefined,
+        description: orderDescription
+      };
+
+      if (method === 'CREDIT_CARD' && !isFreeOrder) {
+        const [expMonth, expYear] = card.expiry.split('/');
+        payload.creditCard = {
+          holderName: card.holderName.trim(),
+          number: card.number.replace(/\D/g, ''),
+          expiryMonth: expMonth,
+          expiryYear: `20${expYear}`,
+          ccv: card.ccv
+        };
+        payload.creditCardHolderInfo = {
+          name: customer.name.trim(),
+          email: customer.email.trim(),
+          cpfCnpj: customer.cpfCnpj.replace(/\D/g, ''),
+          phone: customer.phone.replace(/\D/g, '')
+        };
+      }
+
+      const res = await fetch('/api/payments/charge', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          customerName: customer.name,
-          customerEmail: customer.email,
-          customerCpfCnpj: customer.cpfCnpj,
-          customerPhone: customer.phone,
-          billingType: billingType === 'DEBIT_CARD' ? 'BOLETO' : billingType, // fallback for debit
-          value: chargeValue,
-          description: `Equipamento: ${productName || 'Athena'}`,
-          ...(cardPayload || {})
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Erro ao processar o pagamento com o gateway.');
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao processar pagamento.');
       }
 
       setPaymentResult(data);
-      if (data.status === 'RECEIVED' || data.status === 'CONFIRMED') {
+
+      if (data.isFreeOrder || data.status === 'CONFIRMED' || data.status === 'RECEIVED') {
         setPaymentStatus('confirmed');
+        if (onOrderCompleted) onOrderCompleted(data);
+      } else {
+        setPaymentStatus('pending');
       }
 
     } catch (err) {
-      setErrorMessage(err.message || 'Falha ao conectar com o serviço de pagamento.');
+      setErrorMessage(err.message || 'Erro inesperado ao conectar ao gateway Asaas.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div 
-        className="bg-white rounded-3xl border border-slate-200 shadow-2xl p-5 sm:p-7 max-w-xl w-full my-auto flex flex-col space-y-4 animate-in zoom-in-95 duration-200 max-h-[95vh] overflow-y-auto"
+        className="relative bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 font-black flex items-center justify-center shadow-xs shrink-0">
-              <Lock className="w-5 h-5" />
+        {/* MODAL HEADER */}
+        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0 border-b border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+              <ShieldCheck className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+            <div className="min-w-0">
+              <h3 className="font-extrabold text-sm sm:text-base leading-tight truncate">
                 Finalizar Compra Segura
               </h3>
-              <p className="text-xs text-slate-500 line-clamp-1 max-w-[260px] sm:max-w-[340px]">
-                {productName || 'Equipamento Athena'}
+              <p className="text-xs text-slate-400 truncate">
+                {activeItems.length === 1 
+                  ? activeItems[0].name 
+                  : `${activeItems.length} equipamentos no carrinho`}
               </p>
             </div>
           </div>
+
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-2"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* ============================================================ */}
-        {/* SUCCESS CONFIRMED STATE */}
-        {/* ============================================================ */}
-        {paymentStatus === 'confirmed' ? (
-          <div className="py-8 px-4 text-center space-y-4 bg-emerald-50/60 rounded-3xl border border-emerald-200 animate-in zoom-in-95">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-600/30">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
-            <div className="space-y-1">
-              <h4 className="text-xl font-black text-emerald-950">Pagamento Confirmado!</h4>
-              <p className="text-xs text-emerald-800 max-w-md mx-auto">
-                Seu pedido para <strong>{productName}</strong> foi aprovado com sucesso pelo sistema bancário.
-              </p>
-            </div>
-            <div className="p-3 bg-white rounded-2xl border border-emerald-200 text-xs text-slate-600 max-w-sm mx-auto space-y-1 text-left">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Status:</span>
-                <span className="font-bold text-emerald-700">Faturado / Aprovado</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">ID da Transação:</span>
-                <span className="font-mono text-[11px] text-slate-700">{paymentResult?.id}</span>
-              </div>
-            </div>
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
-              <a
-                href={`https://wa.me/5561983485671?text=${encodeURIComponent(`Olá Athena! Acabei de realizar o pagamento do pedido ${paymentResult?.id} para o equipamento "${productName}". Gostaria de confirmar os detalhes do envio.`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto btn-gold text-xs py-2.5 px-5 font-bold flex items-center justify-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4 fill-current" />
-                <span>Avisar no WhatsApp</span>
-              </a>
-              <button
-                onClick={onClose}
-                className="w-full sm:w-auto py-2.5 px-5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 cursor-pointer"
-              >
-                Concluir
-              </button>
-            </div>
-          </div>
-        ) : paymentResult?.pix ? (
-          /* ============================================================ */
-          /* PIX QR CODE & COPIA E COLA DISPLAY */
-          /* ============================================================ */
-          <div className="space-y-4 py-2">
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider block">
-                  Valor a Pagar no PIX
-                </span>
-                <span className="text-2xl font-black text-emerald-950">
-                  {gateways?.pix?.formattedCustomerAmount || formattedCash}
+        {/* MODAL BODY */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+
+          {/* 1. ORDER SUMMARY & MULTI-ITEM DRAWER */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-amber-600" />
+                <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">
+                  Resumo do Pedido ({activeItems.length} {activeItems.length === 1 ? 'item' : 'itens'})
                 </span>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-emerald-200/90 text-emerald-900 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
-                <Zap className="w-3 h-3 text-emerald-700" /> Aprovação Imediata
-              </span>
+              {activeItems.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setShowItemsList(!showItemsList)}
+                  className="text-xs text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1"
+                >
+                  <span>{showItemsList ? 'Ocultar Itens' : 'Ver Todos os Itens'}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showItemsList ? 'rotate-180' : ''}`} />
+                </button>
+              )}
             </div>
 
-            {/* QR Code Container */}
-            <div className="flex flex-col items-center justify-center p-5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-              {paymentResult.pix.encodedImage ? (
-                <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200">
-                  <img 
-                    src={`data:image/png;base64,${paymentResult.pix.encodedImage}`} 
-                    alt="PIX QR Code" 
-                    className="w-48 h-48 object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="w-48 h-48 bg-white rounded-2xl border flex items-center justify-center text-slate-400">
-                  <QrCode className="w-16 h-16" />
+            {/* Expandable items list */}
+            {(showItemsList || activeItems.length === 1) && (
+              <div className="space-y-2 pt-2 border-t border-slate-200/80 max-h-48 overflow-y-auto pr-1 divide-y divide-slate-100">
+                {activeItems.map((item, idx) => (
+                  <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {item.image && (
+                        <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
+                          <img src={item.image} alt="" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-900 block truncate">{item.name}</span>
+                        <span className="text-[10px] text-slate-500 block">Qtd: {item.quantity || 1} • {formatBRL(item.price)} un.</span>
+                      </div>
+                    </div>
+                    <span className="font-extrabold text-slate-900 shrink-0">
+                      {formatBRL(Number(item.price) * (Number(item.quantity) || 1))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Totals Breakdown */}
+            <div className="pt-2 border-t border-slate-200 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-slate-600">
+                <span>Subtotal dos Produtos:</span>
+                <span className="font-bold text-slate-900">{formatBRL(rawSubtotal)}</span>
+              </div>
+
+              {appliedCoupon && (
+                <div className="flex items-center justify-between text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                  <span className="flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5" /> Cupom {appliedCoupon.code} aplicado:
+                  </span>
+                  <span>- {formatBRL(couponDiscount)}</span>
                 </div>
               )}
 
-              {/* Status Pulse */}
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full animate-pulse">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Aguardando confirmação do pagamento...</span>
+              <div className="flex items-center justify-between text-slate-900 pt-1 border-t border-slate-200/60 font-black text-sm sm:text-base">
+                <span>Total a Pagar:</span>
+                <span className={isFreeOrder ? 'text-emerald-600' : 'text-amber-900'}>
+                  {isFreeOrder ? 'GRÁTIS (100% OFF)' : formatBRL(discountedSubtotal)}
+                </span>
               </div>
             </div>
+          </div>
 
-            {/* Copia e Cola */}
-            {paymentResult.pix.payload && (
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-                  Pix Copia e Cola
+          {/* 2. COUPON INPUT SECTION */}
+          {!paymentResult && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Gift className="w-4 h-4 text-amber-600" />
+                  <span>Possui um Cupom de Desconto?</span>
                 </label>
-                <div className="flex items-center gap-2">
+                {appliedCoupon && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    className="text-[11px] font-bold text-red-600 hover:text-red-800 flex items-center gap-0.5"
+                  >
+                    <Trash2 className="w-3 h-3" /> Remover
+                  </button>
+                )}
+              </div>
+
+              {!appliedCoupon ? (
+                <form onSubmit={handleApplyCoupon} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                    placeholder="Ex: BEMVINDO10"
+                    className="form-input text-xs uppercase font-mono tracking-wider flex-1 bg-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isValidatingCoupon || !couponCodeInput.trim()}
+                    className="btn-gold text-xs font-bold py-2 px-4 rounded-xl shadow-xs shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    {isValidatingCoupon ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Aplicar'}
+                  </button>
+                </form>
+              ) : (
+                <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-semibold">
+                  <span>Cupom <strong>{appliedCoupon.code}</strong> ativado com sucesso!</span>
+                  <Check className="w-4 h-4 text-emerald-600" />
+                </div>
+              )}
+
+              {couponError && (
+                <p className="text-[11px] text-red-600 font-semibold flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  <span>{couponError}</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* 3. PAYMENT STATUS SUCCESS VIEW */}
+          {paymentStatus === 'confirmed' ? (
+            <div className="p-6 rounded-2xl bg-emerald-50 border-2 border-emerald-500 text-center space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                <CheckCircle2 className="w-9 h-9" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-lg font-black text-emerald-950">
+                  {isFreeOrder ? 'Pedido Gratuito Concluído!' : 'Pagamento Confirmado com Sucesso!'}
+                </h4>
+                <p className="text-xs text-emerald-800 max-w-md mx-auto">
+                  {isFreeOrder 
+                    ? 'Seu pedido cortesia foi faturado e registrado no seu perfil. Em instantes você receberá os detalhes no e-mail cadastrado.' 
+                    : 'Recebemos a confirmação da sua transação. A nota fiscal e o comprovante foram encaminhados para o seu e-mail.'}
+                </p>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-emerald-200 text-xs text-slate-700 inline-block text-left font-mono">
+                <div><strong>Pedido:</strong> #{paymentResult?.orderId || paymentResult?.id}</div>
+                <div><strong>Status:</strong> FATURADO / APROVADO</div>
+                <div><strong>Cliente:</strong> {customer.name}</div>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="btn-gold font-extrabold text-xs py-2.5 px-6 rounded-xl shadow-md cursor-pointer"
+                >
+                  Concluir e Fechar
+                </button>
+              </div>
+            </div>
+          ) : paymentResult?.billingType === 'PIX' && paymentResult?.pix?.encodedImage ? (
+            /* PIX QR CODE & COPY/PASTE DISPLAY */
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-4 animate-in fade-in">
+              <div className="space-y-1">
+                <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs inline-block">
+                  ⚡ Aguardando Pagamento via PIX
+                </span>
+                <p className="text-xs text-slate-500">
+                  Abra o aplicativo do seu banco e escaneie o QR Code abaixo ou utilize o Pix Copia e Cola:
+                </p>
+              </div>
+
+              {/* QR Code Image */}
+              <div className="w-48 h-48 sm:w-56 sm:h-56 mx-auto bg-white p-2.5 rounded-2xl border border-slate-300 shadow-md flex items-center justify-center">
+                <img
+                  src={`data:image/png;base64,${paymentResult.pix.encodedImage}`}
+                  alt="QR Code PIX Asaas"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+
+              {/* Value Indicator */}
+              <div className="text-slate-900 font-black text-xl">
+                {gateways.pix.formattedCustomerAmount}
+              </div>
+
+              {/* Copy Paste Input */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 max-w-md mx-auto">
                   <input
                     type="text"
                     readOnly
                     value={paymentResult.pix.payload}
-                    className="flex-1 text-xs font-mono p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 focus:outline-hidden"
+                    className="form-input text-xs font-mono text-slate-600 bg-white truncate"
                   />
                   <button
                     type="button"
                     onClick={handleCopyPix}
-                    className={`py-2.5 px-4 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
-                      copied 
-                        ? 'bg-emerald-600 text-white' 
-                        : 'bg-slate-900 text-white hover:bg-slate-800'
+                    className={`btn-gold text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs shrink-0 flex items-center gap-1.5 ${
+                      copied ? 'bg-emerald-600 text-white' : ''
                     }`}
                   >
                     {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -387,380 +582,368 @@ export default function InstallmentModal({ isOpen, onClose, productName, cashPri
                   </button>
                 </div>
               </div>
-            )}
 
-            <div className="pt-2 flex items-center justify-between text-xs">
-              <button
-                type="button"
-                onClick={() => setPaymentResult(null)}
-                className="text-slate-500 hover:text-slate-800 text-[11px] underline cursor-pointer"
-              >
-                Voltar e alterar dados
-              </button>
-              <span className="text-[11px] text-slate-400">Expira em 3 dias úteis</span>
-            </div>
-          </div>
-        ) : paymentResult?.bankSlipUrl ? (
-          /* ============================================================ */
-          /* BOLETO DISPLAY */
-          /* ============================================================ */
-          <div className="space-y-4 py-2">
-            <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider block">
-                  Boleto Gerado com Sucesso
-                </span>
-                <span className="text-2xl font-black text-amber-950">
-                  {gateways?.boleto?.formattedCustomerAmount || formattedCash}
-                </span>
-              </div>
-              <span className="px-2.5 py-1 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black uppercase tracking-wider">
-                Vencimento em 3 dias
-              </span>
-            </div>
-
-            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center mx-auto">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-sm font-black text-slate-900">Seu boleto bancário está pronto!</h4>
-                <p className="text-xs text-slate-500">
-                  Pague pelo internet banking do seu banco ou imprima para pagar na lotérica/agência.
-                </p>
-              </div>
-
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
-                <a
-                  href={paymentResult.bankSlipUrl || paymentResult.invoiceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:w-auto btn-gold text-xs py-2.5 px-5 font-bold flex items-center justify-center gap-2"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span>Visualizar / Imprimir Boleto PDF</span>
-                </a>
+              {/* Real-time Polling Status Radar */}
+              <div className="flex items-center justify-center gap-2 text-xs text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                <span>Identificando pagamento em tempo real... Não feche esta janela.</span>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setPaymentResult(null)}
-              className="text-slate-500 hover:text-slate-800 text-[11px] underline cursor-pointer"
-            >
-              Voltar e gerar outra forma
-            </button>
-          </div>
-        ) : (
-          /* ============================================================ */
-          /* FORM / SELECTION STEP */
-          /* ============================================================ */
-          <form onSubmit={handleSubmitPayment} className="space-y-4">
-            
-            {/* Payment Method Selector Tabs */}
-            <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-100/90 rounded-2xl shrink-0 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => { setSelectedTab('pix'); setErrorMessage(null); }}
-                className={`py-2 px-1 rounded-xl flex flex-col sm:flex-row items-center justify-center gap-1 transition-all cursor-pointer ${
-                  selectedTab === 'pix'
-                    ? 'bg-white text-emerald-950 shadow-xs border border-slate-200 font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <QrCode className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="text-[11px]">PIX</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSelectedTab('credit'); setErrorMessage(null); }}
-                className={`py-2 px-1 rounded-xl flex flex-col sm:flex-row items-center justify-center gap-1 transition-all cursor-pointer ${
-                  selectedTab === 'credit'
-                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200 font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <CreditCard className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-[11px]">Crédito</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSelectedTab('debit'); setErrorMessage(null); }}
-                className={`py-2 px-1 rounded-xl flex flex-col sm:flex-row items-center justify-center gap-1 transition-all cursor-pointer ${
-                  selectedTab === 'debit'
-                    ? 'bg-white text-sky-950 shadow-xs border border-slate-200 font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Landmark className="w-3.5 h-3.5 text-sky-600" />
-                <span className="text-[11px]">Débito</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setSelectedTab('boleto'); setErrorMessage(null); }}
-                className={`py-2 px-1 rounded-xl flex flex-col sm:flex-row items-center justify-center gap-1 transition-all cursor-pointer ${
-                  selectedTab === 'boleto'
-                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200 font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5 text-amber-700" />
-                <span className="text-[11px]">Boleto</span>
-              </button>
-            </div>
-
-            {/* Error Message */}
-            {errorMessage && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2 animate-in fade-in">
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            {/* TAB-SPECIFIC PRICE SUMMARY */}
-            {selectedTab === 'pix' && (
-              <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider block">
-                    Total no PIX à Vista
-                  </span>
-                  <span className="text-xl sm:text-2xl font-black text-emerald-950">
-                    {gateways?.pix?.formattedCustomerAmount || formattedCash}
-                  </span>
+          ) : (
+            /* PAYMENT CHECKOUT FORM & METHOD TABS */
+            <div className="space-y-4">
+              
+              {/* If Free Order (100% OFF) */}
+              {isFreeOrder ? (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3 text-center">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto">
+                    <Gift className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="font-extrabold text-sm text-emerald-950">Pedido Cortesia (100% de Desconto)</h4>
+                    <p className="text-xs text-emerald-800">
+                      Preencha seus dados abaixo para faturar o pedido e receber o acesso no seu e-mail.
+                    </p>
+                  </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-200/80 text-emerald-900 text-[10px] font-black uppercase tracking-wider">
-                  ⚡ Imediato
-                </span>
-              </div>
-            )}
-
-            {selectedTab === 'debit' && (
-              <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-200 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-black text-sky-800 uppercase tracking-wider block">
-                    Total no Débito Online
-                  </span>
-                  <span className="text-xl sm:text-2xl font-black text-sky-950">
-                    {gateways?.debit?.formattedCustomerAmount || formattedCash}
-                  </span>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-sky-200/80 text-sky-900 text-[10px] font-black uppercase tracking-wider">
-                  À Vista
-                </span>
-              </div>
-            )}
-
-            {selectedTab === 'boleto' && (
-              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider block">
-                    Total no Boleto Bancário
-                  </span>
-                  <span className="text-xl sm:text-2xl font-black text-amber-950">
-                    {gateways?.boleto?.formattedCustomerAmount || formattedCash}
-                  </span>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black uppercase tracking-wider">
-                  3 Dias Úteis
-                </span>
-              </div>
-            )}
-
-            {/* TAB-SPECIFIC CREDIT CARD INSTALLMENTS PICKER */}
-            {selectedTab === 'credit' && (
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-700 block">
-                  Escolha o Parcelamento:
-                </label>
-                <div className="relative">
-                  <select
-                    value={card.installments}
-                    onChange={(e) => setCard(cd => ({ ...cd, installments: Number(e.target.value) }))}
-                    className="w-full text-xs font-bold p-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 appearance-none focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+              ) : (
+                /* Payment Method Switcher Tabs */
+                <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold select-none">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTab('pix')}
+                    className={`py-2 px-1 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      selectedTab === 'pix'
+                        ? 'bg-white text-amber-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   >
-                    {installments.map((inst) => (
-                      <option key={inst.installments} value={inst.installments}>
-                        {inst.installments}x de {inst.formattedInstallment} (Total: {inst.formattedTotal})
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+                    <Zap className={`w-3.5 h-3.5 ${selectedTab === 'pix' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span>PIX</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTab('credit')}
+                    className={`py-2 px-1 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      selectedTab === 'credit'
+                        ? 'bg-white text-amber-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <CreditCard className={`w-3.5 h-3.5 ${selectedTab === 'credit' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span>Crédito</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTab('debit')}
+                    className={`py-2 px-1 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      selectedTab === 'debit'
+                        ? 'bg-white text-amber-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Landmark className={`w-3.5 h-3.5 ${selectedTab === 'debit' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span>Débito</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTab('boleto')}
+                    className={`py-2 px-1 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      selectedTab === 'boleto'
+                        ? 'bg-white text-amber-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <FileText className={`w-3.5 h-3.5 ${selectedTab === 'boleto' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span>Boleto</span>
+                  </button>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* CUSTOMER CONTACT & FISCAL INFO */}
-            <div className="space-y-2.5 pt-1">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <span>Dados para Faturamento & Entrega</span>
-              </div>
+              {/* CUSTOMER BILLING DATA (LEAD CAPTURE FOR CRM) */}
+              <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Dados para Faturamento & Entrega</span>
+                </h4>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-600 block mb-1">Nome Completo *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: João da Silva"
-                    value={customer.name}
-                    onChange={(e) => setCustomer(c => ({ ...c, name: e.target.value }))}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-600 block mb-1">CPF ou CNPJ *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="000.000.000-00"
-                    value={customer.cpfCnpj}
-                    onChange={handleCpfChange}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-600 block mb-1">E-mail (para envio da NF) *</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="seu@email.com"
-                    value={customer.email}
-                    onChange={(e) => setCustomer(c => ({ ...c, email: e.target.value }))}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-600 block mb-1">Celular / WhatsApp *</label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="(61) 98888-8888"
-                    value={customer.phone}
-                    onChange={handlePhoneChange}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* CREDIT CARD FIELDS */}
-            {selectedTab === 'credit' && (
-              <div className="space-y-2.5 pt-2 border-t border-slate-100">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  Dados do Cartão de Crédito
-                </div>
-
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-600 block mb-1">Nome Impresso no Cartão *</label>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Nome Completo *
+                    </label>
                     <input
                       type="text"
-                      placeholder="Como está gravado no cartão"
-                      value={card.holderName}
-                      onChange={(e) => setCard(cd => ({ ...cd, holderName: e.target.value.toUpperCase() }))}
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white uppercase focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                      placeholder="Ex: João da Silva"
+                      value={customer.name}
+                      onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                      className="form-input text-xs"
+                      required
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div className="sm:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-600 block mb-1">Número do Cartão *</label>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      CPF ou CNPJ *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="000.000.000-00"
+                      value={customer.cpfCnpj}
+                      onChange={handleCpfChange}
+                      className="form-input text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      E-mail (para envio da NF) *
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="seuemail@empresa.com.br"
+                      value={customer.email}
+                      onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+                      className="form-input text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Celular / WhatsApp *
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="(61) 98888-8888"
+                      value={customer.phone}
+                      onChange={handlePhoneChange}
+                      className="form-input text-xs"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD DETAILS FORM IF CREDIT CARD */}
+              {!isFreeOrder && selectedTab === 'credit' && (
+                <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Dados do Cartão de Crédito
+                    </h4>
+                    <span className="text-[10px] text-slate-400 font-mono">Processamento Seguro</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Parcelamento Desejado
+                      </label>
+                      <select
+                        value={card.installments}
+                        onChange={(e) => setCard({ ...card, installments: Number(e.target.value) })}
+                        className="form-input text-xs font-semibold"
+                      >
+                        {installments.map((inst) => (
+                          <option key={inst.installments} value={inst.installments}>
+                            {inst.installments}x de {inst.formattedMonthly} (Total: {inst.formattedTotal})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Nome Impresso no Cartão *
+                      </label>
                       <input
                         type="text"
-                        placeholder="0000 0000 0000 0000"
-                        value={card.number}
-                        onChange={handleCardNumberChange}
-                        className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white font-mono focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                        placeholder="NOME COMO NO CARTAO"
+                        value={card.holderName}
+                        onChange={(e) => setCard({ ...card, holderName: e.target.value.toUpperCase() })}
+                        className="form-input text-xs uppercase"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-600 block mb-1">Validade *</label>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          Número do Cartão *
+                        </label>
                         <input
                           type="text"
-                          placeholder="MM/AA"
-                          value={card.expiry}
-                          onChange={handleExpiryChange}
-                          className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white text-center font-mono focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                          placeholder="0000 0000 0000 0000"
+                          value={card.number}
+                          onChange={handleCardNumberChange}
+                          className="form-input text-xs font-mono"
                         />
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 block mb-1">CVV *</label>
-                        <input
-                          type="password"
-                          maxLength={4}
-                          placeholder="123"
-                          value={card.ccv}
-                          onChange={(e) => setCard(cd => ({ ...cd, ccv: e.target.value.replace(/\D/g, '') }))}
-                          className="w-full text-xs p-2.5 rounded-xl border border-slate-300 bg-white text-center font-mono focus:outline-hidden focus:ring-2 focus:ring-amber-500"
-                        />
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Validade *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="MM/AA"
+                            value={card.expiry}
+                            onChange={handleExpiryChange}
+                            className="form-input text-xs font-mono text-center"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            CVV *
+                          </label>
+                          <input
+                            type="password"
+                            maxLength={4}
+                            placeholder="123"
+                            value={card.ccv}
+                            onChange={(e) => setCard({ ...card, ccv: e.target.value.replace(/\D/g, '') })}
+                            className="form-input text-xs font-mono text-center"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ACTION SUBMIT BUTTON */}
-            <div className="pt-2 space-y-2">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full btn-gold text-sm py-3.5 justify-center font-black shadow-md rounded-2xl flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Processando Pagamento...</span>
-                  </>
-                ) : selectedTab === 'pix' ? (
-                  <>
-                    <Zap className="w-4 h-4 fill-current" />
-                    <span>Gerar PIX para Pagamento ({gateways?.pix?.formattedCustomerAmount || formattedCash})</span>
-                  </>
-                ) : selectedTab === 'credit' ? (
-                  <>
-                    <CreditCard className="w-4 h-4" />
-                    <span>Pagar {selectedInstallmentData.formattedTotal} no Cartão</span>
-                  </>
-                ) : selectedTab === 'boleto' ? (
-                  <>
-                    <FileText className="w-4 h-4" />
-                    <span>Gerar Boleto Bancário ({gateways?.boleto?.formattedCustomerAmount || formattedCash})</span>
-                  </>
-                ) : (
-                  <>
-                    <Landmark className="w-4 h-4" />
-                    <span>Pagar no Débito ({gateways?.debit?.formattedCustomerAmount || formattedCash})</span>
-                  </>
-                )}
-              </button>
-
-              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                <div className="flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Ambiente Seguro & Criptografia 256-bit</span>
+              {/* ERROR MESSAGE DISPLAY */}
+              {errorMessage && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{errorMessage}</span>
                 </div>
-                <a
-                  href={`https://wa.me/5561983485671?text=${encodeURIComponent(`Olá Athena! Estou na tela de pagamento do equipamento "${productName}" e gostaria de suporte.`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-amber-900 hover:text-amber-950 font-bold underline"
-                >
-                  Ajuda no WhatsApp
-                </a>
+              )}
+
+              {/* ACTION SUBMIT BUTTON */}
+              <div className="pt-2 space-y-2">
+                {isFreeOrder ? (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('FREE')}
+                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Faturando Pedido Cortesia...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Gift className="w-4 h-4" />
+                        <span>Resgatar Pedido Gratuito (100% OFF)</span>
+                      </>
+                    )}
+                  </button>
+                ) : selectedTab === 'pix' ? (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('PIX')}
+                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Gerando QR Code PIX Asaas...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4" />
+                        <span>Gerar PIX para Pagamento ({gateways.pix.formattedCustomerAmount})</span>
+                      </>
+                    )}
+                  </button>
+                ) : selectedTab === 'credit' ? (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('CREDIT_CARD')}
+                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Processando no Cartão...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4" />
+                        <span>Pagar {selectedInstallmentData.installments}x de {selectedInstallmentData.formattedMonthly}</span>
+                      </>
+                    )}
+                  </button>
+                ) : selectedTab === 'debit' ? (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('DEBIT_CARD')}
+                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Processando Débito...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Landmark className="w-4 h-4" />
+                        <span>Pagar no Débito Online ({gateways.debit.formattedCustomerAmount})</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('BOLETO')}
+                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Emitindo Boleto Bancário...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4" />
+                        <span>Gerar Boleto Bancário ({gateways.boleto.formattedCustomerAmount})</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
+          )}
+        </div>
 
-          </form>
-        )}
+        {/* MODAL FOOTER */}
+        <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 shrink-0">
+          <div className="flex items-center gap-2">
+            <Lock className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Pagamento Seguro via Gateway Asaas</span>
+          </div>
+
+          <a
+            href="https://wa.me/5561983485671?text=Olá!+Preciso+de+ajuda+com+minha+compra+no+site+Athena."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1 transition-colors"
+          >
+            <MessageCircle className="w-3.5 h-3.5 text-amber-600" />
+            <span>Suporte no WhatsApp</span>
+          </a>
+        </div>
 
       </div>
     </div>

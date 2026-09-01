@@ -1,6 +1,7 @@
 import React from 'react';
 import { stripFormattingTags } from './FormattedDescription';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart } from 'lucide-react';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, ShoppingBag } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 
 export default function ProductCard({ 
@@ -15,6 +16,7 @@ export default function ProductCard({
   onToggleComparison,
   viewMode = 'grid'
 }) {
+  const { addToCart, openDirectCheckout } = useCart();
   const hasPrice = product.price > 0 && !product.priceNegotiable;
   const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
   const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
@@ -169,26 +171,47 @@ export default function ProductCard({
               )}
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => onSelectProduct(product)}
-                className="btn-secondary text-xs py-2 px-4 font-bold flex items-center gap-1.5 cursor-pointer"
+                className="btn-secondary text-xs py-2 px-3.5 font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <FileText className="w-4 h-4 text-slate-600" />
-                <span>Ver Ficha Técnica</span>
+                <FileText className="w-3.5 h-3.5 text-slate-600" />
+                <span>Ver Ficha</span>
               </button>
 
-              <a
-                href={`https://wa.me/5561983485671?text=${whatsappText}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`py-2 px-4 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1.5 shadow-xs transition-colors ${
-                  hasPrice ? 'bg-amber-500 hover:bg-amber-600 !text-slate-950 font-extrabold' : 'bg-emerald-600 hover:bg-emerald-700'
-                }`}
-              >
-                {hasPrice ? <CreditCard className="w-4 h-4 shrink-0" /> : <MessageCircle className="w-4 h-4 fill-current shrink-0" />}
-                <span>{hasPrice ? 'Comprar Agora' : 'Solicitar Cotação'}</span>
-              </a>
+              {hasPrice ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => addToCart(product)}
+                    className="py-2 px-3 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    title="Adicionar ao Carrinho"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5 text-amber-700" />
+                    <span>+ Carrinho</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => openDirectCheckout(product)}
+                    className="py-2 px-4 rounded-xl text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-600 shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>Comprar Agora</span>
+                  </button>
+                </>
+              ) : (
+                <a
+                  href={`https://wa.me/5561983485671?text=${whatsappText}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
+                  <span>Solicitar Cotação</span>
+                </a>
+              )}
             </div>
           </div>
 
@@ -344,27 +367,56 @@ export default function ProductCard({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => onSelectProduct(product)}
-              className="btn-secondary text-xs py-2.5 px-2 w-full justify-center font-bold cursor-pointer"
-            >
-              <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-              <span>Detalhes</span>
-            </button>
+          {hasPrice ? (
+            <div className="grid grid-cols-12 gap-1.5">
+              <button
+                onClick={() => onSelectProduct(product)}
+                className="col-span-5 btn-secondary text-xs py-2.5 px-1.5 w-full justify-center font-bold cursor-pointer truncate"
+              >
+                <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                <span>Detalhes</span>
+              </button>
 
-            <a
-              href={`https://wa.me/5561983485671?text=${whatsappText}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`py-2.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors text-decoration-none ${
-                hasPrice ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold' : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              }`}
-            >
-              {hasPrice ? <CreditCard className="w-3.5 h-3.5 shrink-0" /> : <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />}
-              <span>{hasPrice ? 'Comprar' : 'Cotar'}</span>
-            </a>
-          </div>
+              <button
+                type="button"
+                onClick={() => addToCart(product)}
+                className="col-span-3 py-2.5 px-1 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                title="Adicionar ao Carrinho"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 text-amber-700" />
+                <span className="hidden min-[400px]:inline">+</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => openDirectCheckout(product)}
+                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-600 shadow-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              >
+                <CreditCard className="w-3.5 h-3.5 shrink-0" />
+                <span>Comprar</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => onSelectProduct(product)}
+                className="btn-secondary text-xs py-2.5 px-2 w-full justify-center font-bold cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                <span>Detalhes</span>
+              </button>
+
+              <a
+                href={`https://wa.me/5561983485671?text=${whatsappText}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
+                <span>Cotar</span>
+              </a>
+            </div>
+          )}
         </div>
 
       </div>

@@ -30,8 +30,10 @@ import {
   Film,
   ExternalLink,
   CreditCard,
-  QrCode
+  QrCode,
+  ShoppingBag
 } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 
 export function getYouTubeEmbedUrl(url) {
   if (!url || typeof url !== 'string') return null;
@@ -204,6 +206,7 @@ export default function ProductDetailPage({
 
   const category = categories.find((c) => c.id === product.categoryId);
   const brand = brands.find((b) => b.id === product.brandId);
+  const { addToCart } = useCart();
 
   const hasPrice = product.price > 0 && !product.priceNegotiable;
   const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
@@ -650,6 +653,15 @@ export default function ProductDetailPage({
                   >
                     <CreditCard className="w-4 h-4" />
                     <span>Comprar Agora</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => addToCart(product)}
+                    className="py-2.5 px-4 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    <ShoppingBag className="w-4 h-4 text-amber-700" />
+                    <span>+ Carrinho</span>
                   </button>
 
                   <a

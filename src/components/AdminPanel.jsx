@@ -48,12 +48,14 @@ import {
   Film,
   Play,
   ExternalLink,
-  Loader2
+  Loader2,
+  Gift
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
 import RichTextEditor from './RichTextEditor';
 import FormattedDescription from './FormattedDescription';
+import CouponManager from './CouponManager';
 import { safeStorageSet, saveSession } from '../utils/storage';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 
@@ -2569,6 +2571,19 @@ export default function AdminPanel({
             <span>Marcas ({brands.length})</span>
           </button>
 
+          {/* Cupons & Vouchers Tab */}
+          <button
+            onClick={() => setActiveAdminTab('coupons')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
+              activeAdminTab === 'coupons'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Gift className="w-4 h-4" />
+            <span>Cupons & Vouchers</span>
+          </button>
+
           {/* ADMIN ONLY: Employees & Access Management Tab */}
           {isAdminRole && (
             <button
@@ -3508,6 +3523,18 @@ export default function AdminPanel({
               </form>
             </div>
           </div>
+        )}
+
+        {/* COUPONS & VOUCHERS MANAGEMENT TAB */}
+        {activeAdminTab === 'coupons' && (
+          <CouponManager
+            products={products}
+            categories={categories}
+            brands={brands}
+            API_BASE_URL={API_BASE_URL}
+            getAuthHeaders={getAuthHeaders}
+            showNotification={showNotification}
+          />
         )}
 
         {/* NEW EMPLOYEE MODAL (ADMIN ONLY) */}
