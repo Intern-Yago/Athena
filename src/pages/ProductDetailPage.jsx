@@ -189,11 +189,15 @@ export default function ProductDetailPage({
 
   const product = draftProduct || products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId);
 
-  if (!product) {
+  const isAdminUser = Boolean(currentUser && (currentUser.role === 'admin' || currentUser.isAdmin));
+  const canAccessDraft = isPreviewMode || isAdminUser;
+
+  // Block public direct access to draft products
+  if (!product || (product.status === 'draft' && !canAccessDraft)) {
     return (
       <NotFoundPage
         onNavigate={onNavigate}
-        message={`O equipamento "${productSlugOrId}" não foi encontrado em nosso catálogo ou foi descontinuado.`}
+        message={`O equipamento "${productSlugOrId}" não está disponível publicamente ou encontra-se em modo de rascunho.`}
       />
     );
   }
@@ -364,11 +368,13 @@ export default function ProductDetailPage({
   const textContent = `${product?.description || ''} ${(product?.customTabs || []).map(t => t.content || '').join(' ')}`;
   const linkMatches = textContent.match(/\/produto\/([a-zA-Z0-9_-]+)/g) || [];
   const linkedSlugs = linkMatches.map(m => m.replace('/produto/', ''));
-  const linkedProductIds = products.filter(p => linkedSlugs.includes(p.slug) || linkedSlugs.includes(p.id)).map(p => p.id);
+  const linkedProductIds = products
+    .filter(p => (canAccessDraft || p.status !== 'draft') && (linkedSlugs.includes(p.slug) || linkedSlugs.includes(p.id)))
+    .map(p => p.id);
 
   // Inbound references (products in catalog that mark this equipment as compatible)
   const incomingProductIds = products
-    .filter(p => p.id !== product?.id && (
+    .filter(p => (canAccessDraft || p.status !== 'draft') && p.id !== product?.id && (
       (Array.isArray(p.compatibleProductIds) && p.compatibleProductIds.includes(product?.id)) ||
       (product?.slug && Array.isArray(p.customTabs) && p.customTabs.some(t => t.content && t.content.includes(product.slug)))
     ))
@@ -377,7 +383,7 @@ export default function ProductDetailPage({
   const allCompatProductIds = Array.from(new Set([...directCompatIds, ...linkedProductIds, ...incomingProductIds]));
   const compatibleProductsList = allCompatProductIds
     .map(id => products.find(p => p.id === id && p.id !== product?.id))
-    .filter(Boolean);
+    .filter(p => Boolean(p) && (canAccessDraft || p.status !== 'draft'));
 
   const hasCompatibles = compatibleProductsList.length > 0;
 

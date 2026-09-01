@@ -148,7 +148,7 @@ export function parseInlineFormatting(text = '', products = [], onSelectProduct 
         }
       }
 
-      if (matchedProduct) {
+      if (matchedProduct && matchedProduct.status !== 'draft') {
         parts.push(
           <ProductHoverCard
             key={`prod-chip-${keyIndex++}`}
@@ -157,6 +157,13 @@ export function parseInlineFormatting(text = '', products = [], onSelectProduct 
           >
             {linkLabel}
           </ProductHoverCard>
+        );
+      } else if (matchedProduct && matchedProduct.status === 'draft') {
+        // Draft product: render clean non-clickable text for public safety
+        parts.push(
+          <span key={`draft-label-${keyIndex++}`} className="font-semibold text-slate-700">
+            {linkLabel}
+          </span>
         );
       } else {
         const isExternal = linkUrl.startsWith('http://') || linkUrl.startsWith('https://') || linkUrl.startsWith('mailto:') || linkUrl.startsWith('tel:');

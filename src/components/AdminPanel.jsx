@@ -4956,7 +4956,7 @@ export default function AdminPanel({
                         
                         <SearchableSelect
                           options={products
-                            .filter(p => p.id !== (productForm.id || editingProduct?.id) && !(productForm.compatibleProductIds || []).includes(p.id))
+                            .filter(p => p.status !== 'draft' && p.id !== (productForm.id || editingProduct?.id) && !(productForm.compatibleProductIds || []).includes(p.id))
                             .map(p => {
                               const bName = brands.find(b => b.id === p.brandId)?.name || 'Athena';
                               const cName = categories.find(c => c.id === p.categoryId)?.name || '';
