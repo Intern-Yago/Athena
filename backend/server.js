@@ -1582,6 +1582,22 @@ const ASAAS_BASE_URL = ASAAS_IS_SANDBOX
   : 'https://api.asaas.com/v3';
 const ASAAS_WEBHOOK_SECRET = process.env.ASAAS_WEBHOOK_SECRET || process.env.VITE_ASAAS_WEBHOOK_SECRET || '';
 
+// Keep-Alive routine: Runs every 5 days to ensure the API key never expires due to inactivity
+async function pingAsaasKeepAlive() {
+  if (!ASAAS_API_KEY) return;
+  try {
+    const axios = require('axios');
+    const res = await axios.get(`${ASAAS_BASE_URL}/finance/balance`, {
+      headers: { 'access_token': ASAAS_API_KEY }
+    });
+    console.log(`🛡️ [Asaas Keep-Alive] Conexão ativa! Saldo: R$ ${res.data?.totalBalance || 0} (Chave de API validada)`);
+  } catch (err) {
+    console.warn(`⚠️ [Asaas Keep-Alive] Aviso ao consultar Asaas:`, err.response?.data?.errors?.[0]?.description || err.message);
+  }
+}
+setTimeout(pingAsaasKeepAlive, 10000);
+setInterval(pingAsaasKeepAlive, 5 * 24 * 60 * 60 * 1000);
+
 // 1. Create Payment Charge on Asaas (PIX, BOLETO, CREDIT_CARD)
 app.post('/api/payments/charge', async (req, res) => {
   try {

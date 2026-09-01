@@ -50,6 +50,7 @@ import PdfCatalogGenerator from './PdfCatalogGenerator';
 import RichTextEditor from './RichTextEditor';
 import FormattedDescription from './FormattedDescription';
 import { safeStorageSet, saveSession } from '../utils/storage';
+import { calculateInstallments, formatBRL } from '../utils/installmentCalculator';
 
 /**
  * Searchable Combobox Component (Filtragem em tempo real com busca e fallback completo)
@@ -4485,11 +4486,11 @@ export default function AdminPanel({
 
                       <div className="pt-2 border-t border-slate-100 space-y-3">
                         <div>
-                          <label className="text-xs font-bold text-slate-700 block mb-1">Preço Base (R$)</label>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Preço Base à Vista / PIX (R$)</label>
                           <input
                             type="number"
                             step="0.01"
-                            placeholder="18900.00"
+                            placeholder="600.00"
                             disabled={productForm.priceNegotiable}
                             value={productForm.price}
                             onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
@@ -4509,6 +4510,42 @@ export default function AdminPanel({
                             Preço Sob Consulta (Negociável)
                           </label>
                         </div>
+
+                        {/* LIVE ASAAS INSTALLMENT PREVIEW */}
+                        {!productForm.priceNegotiable && Number(productForm.price) > 0 && (() => {
+                          const previewInstallments = calculateInstallments(productForm.price, 12);
+                          return (
+                            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-300/80 space-y-2 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-extrabold text-amber-950 flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                  Simulação Automática no Cartão (Asaas):
+                                </span>
+                                <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                                  Líquido: {formatBRL(productForm.price)}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 text-[11px]">
+                                {[1, 3, 6, 12].map((n) => {
+                                  const inst = previewInstallments.find(p => p.installments === n);
+                                  if (!inst) return null;
+                                  return (
+                                    <div key={n} className="bg-white p-2 rounded-lg border border-amber-200 text-center">
+                                      <span className="font-bold text-slate-500 block text-[10px]">{n}x de</span>
+                                      <span className="font-black text-slate-900 block">{inst.formattedInstallment}</span>
+                                      <span className="text-[9px] text-slate-400 font-mono">Total: {inst.formattedTotal}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              <p className="text-[10px] text-slate-500 leading-tight pt-1">
+                                ℹ️ Os juros de antecipação são embutidos automaticamente para o cliente e você recebe o valor líquido à vista.
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 

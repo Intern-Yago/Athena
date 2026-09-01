@@ -3,6 +3,8 @@ import ProductCard from '../components/ProductCard';
 import ProductImageGallery from '../components/ProductImageGallery';
 import FormattedDescription, { stripFormattingTags } from '../components/FormattedDescription';
 import ProductModal from '../components/ProductModal';
+import InstallmentModal from '../components/InstallmentModal';
+import { getBestInstallmentText, formatBRL } from '../utils/installmentCalculator';
 import NotFoundPage from './NotFoundPage';
 import { 
   ArrowLeft, 
@@ -26,7 +28,9 @@ import {
   Check,
   Play,
   Film,
-  ExternalLink
+  ExternalLink,
+  CreditCard,
+  QrCode
 } from 'lucide-react';
 
 export function getYouTubeEmbedUrl(url) {
@@ -153,6 +157,7 @@ export default function ProductDetailPage({
   const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState('specs');
   const [selectedQuickViewProduct, setSelectedQuickViewProduct] = useState(null);
+  const [isInstallmentModalOpen, setIsInstallmentModalOpen] = useState(false);
 
   // 1. Check for shareable encoded draft in URL search params (?d=... or ?token=...)
   const urlDraft = (() => {
@@ -563,20 +568,47 @@ export default function ProductDetailPage({
                 {product.name}
               </h1>
 
-              {/* Modest / Subtle Commercial Condition Banner */}
-              <div className="flex flex-wrap items-baseline gap-2 pt-0.5">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {product.price > 0 ? (product.priceNegotiable ? 'Preço Estimado:' : 'Valor Comercial:') : 'Condição Comercial:'}
-                </span>
-                <span className="text-xl sm:text-2xl font-extrabold text-amber-800 font-display">
-                  {formattedPrice}
-                </span>
-                {product.priceNegotiable && (
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    (Consulte condições)
+              {/* Commercial Condition / Price Banner with PIX & Installments */}
+              {product.price > 0 && !product.priceNegotiable ? (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/80 space-y-2">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider bg-amber-200/80 px-2 py-0.5 rounded">
+                      À Vista no PIX
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-black text-amber-950 font-display">
+                      {formattedPrice}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-200/60 text-xs">
+                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-amber-700" />
+                      {getBestInstallmentText(product.price, 12)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsInstallmentModalOpen(true)}
+                      className="text-amber-800 hover:text-amber-950 font-black underline cursor-pointer text-[11px]"
+                    >
+                      Ver todas as parcelas
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-baseline gap-2 pt-0.5">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    {product.price > 0 ? 'Preço Estimado:' : 'Condição Comercial:'}
                   </span>
-                )}
-              </div>
+                  <span className="text-xl sm:text-2xl font-extrabold text-amber-800 font-display">
+                    {formattedPrice}
+                  </span>
+                  {product.priceNegotiable && (
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      (Consulte condições)
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Clean Description on Normal White Background */}
@@ -1011,22 +1043,14 @@ export default function ProductDetailPage({
         />
       )}
 
-      {/* DISCREET FLOATING ADMIN QUICK-EDIT BUTTON FOR LOGGED-IN USERS */}
-      {!isPreviewMode && currentUser && onEditProduct && (
-        <div className="fixed bottom-6 right-6 z-40">
-          <button
-            type="button"
-            onClick={() => {
-              onEditProduct(product);
-            }}
-            className="px-4 py-2.5 rounded-2xl bg-slate-900 text-amber-400 hover:bg-slate-800 shadow-2xl border border-amber-500/40 text-xs font-black flex items-center gap-2 transition transform hover:scale-105"
-            title="Editar este equipamento no Painel Admin"
-          >
-            <Edit3 className="w-4 h-4 text-amber-400" />
-            <span>Editar Equipamento</span>
-          </button>
-        </div>
-      )}
+      {/* FULL INSTALLMENT BREAKDOWN MODAL */}
+      <InstallmentModal
+        isOpen={isInstallmentModalOpen}
+        onClose={() => setIsInstallmentModalOpen(false)}
+        productName={product.name}
+        cashPrice={product.price}
+        maxInstallments={12}
+      />
 
     </div>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { stripFormattingTags } from './FormattedDescription';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText } from 'lucide-react';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard } from 'lucide-react';
+import { getBestInstallmentText } from '../utils/installmentCalculator';
 
 export default function ProductCard({ 
   product, 
@@ -150,12 +151,17 @@ export default function ProductCard({
           {/* Bottom Bar: Action & Quote */}
           <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block">
-                {product.price > 0 ? (product.priceNegotiable ? 'Preço Estimado' : 'Valor') : 'Condição Comercial'}
+              <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide block">
+                {product.price > 0 && !product.priceNegotiable ? 'À Vista no PIX' : (product.price > 0 ? 'Preço Estimado' : 'Condição Comercial')}
               </span>
               <span className="text-sm font-extrabold text-amber-800 font-display bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 inline-block mt-0.5">
                 {formattedPrice}
               </span>
+              {product.price > 0 && !product.priceNegotiable && (
+                <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+                  {getBestInstallmentText(product.price, 12)}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2.5">
@@ -320,13 +326,20 @@ export default function ProductCard({
 
         {/* Price & Action Buttons */}
         <div className="pt-3 border-t border-slate-200/80 space-y-3">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-              {product.price > 0 ? (product.priceNegotiable ? 'Preço Estimado' : 'Valor') : 'Condição Comercial'}
-            </span>
-            <span className="text-xs font-extrabold text-amber-800 font-display bg-amber-100/70 px-3 py-0.5 rounded-lg border border-amber-300">
-              {formattedPrice}
-            </span>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide">
+                {product.price > 0 && !product.priceNegotiable ? 'À Vista no PIX' : (product.price > 0 ? 'Preço Estimado' : 'Condição Comercial')}
+              </span>
+              <span className="text-xs font-extrabold text-amber-800 font-display bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-300">
+                {formattedPrice}
+              </span>
+            </div>
+            {product.price > 0 && !product.priceNegotiable && (
+              <span className="text-[10px] text-slate-500 font-medium block text-right">
+                {getBestInstallmentText(product.price, 12)}
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
