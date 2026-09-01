@@ -25,7 +25,7 @@ const DB_PATH = path.join(__dirname, 'data', 'athena-db.json');
 const SMTP_USER = process.env.SMTP_USER || process.env.GMAIL_USER || 'athena.consultoria.automotiva@gmail.com';
 const rawSmtpPass = process.env.SMTP_PASS || process.env.GMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '';
 const SMTP_PASS = rawSmtpPass ? rawSmtpPass.replace(/\s+/g, '') : '';
-const SMTP_FROM = process.env.SMTP_FROM || `"Athena Soluções Automotivas" <${SMTP_USER}>`;
+const SMTP_FROM = process.env.SMTP_FROM || '"Athena Soluções Automotivas" <no-reply@athenaconsultoria.com.br>';
 
 let mailTransporter = null;
 if (SMTP_PASS) {
@@ -36,7 +36,7 @@ if (SMTP_PASS) {
       pass: SMTP_PASS
     }
   });
-  console.log('📧 Google SMTP (Gmail) configurado com sucesso para:', SMTP_USER);
+  console.log('📧 Google SMTP (Gmail) configurado com sucesso para:', SMTP_USER, '| Remetente:', SMTP_FROM);
 } else {
   console.log('ℹ️ Google SMTP em modo log (Defina GMAIL_APP_PASSWORD no .env para envio real).');
 }
@@ -72,6 +72,7 @@ async function sendPasswordResetEmail(toEmail, resetCode, userName = 'Cliente') 
       await mailTransporter.sendMail({
         from: SMTP_FROM,
         to: toEmail,
+        replyTo: 'contato@athenaconsultoria.com.br',
         subject: 'Código de Recuperação de Senha — Athena Soluções Automotivas',
         html: htmlContent
       });
