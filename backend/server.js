@@ -23,7 +23,8 @@ const DB_PATH = path.join(__dirname, 'data', 'athena-db.json');
 // GOOGLE SMTP & NODEMAILER CONFIGURATION (GMAIL EMAIL SERVICE)
 // -------------------------------------------------------------
 const SMTP_USER = process.env.SMTP_USER || process.env.GMAIL_USER || 'athena.consultoria.automotiva@gmail.com';
-const SMTP_PASS = process.env.SMTP_PASS || process.env.GMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '';
+const rawSmtpPass = process.env.SMTP_PASS || process.env.GMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '';
+const SMTP_PASS = rawSmtpPass ? rawSmtpPass.replace(/\s+/g, '') : '';
 const SMTP_FROM = process.env.SMTP_FROM || `"Athena Soluções Automotivas" <${SMTP_USER}>`;
 
 let mailTransporter = null;
@@ -1567,6 +1568,186 @@ app.post('/api/customer/orders', async (req, res) => {
   } catch (err) {
     console.error('Erro ao criar pedido:', err);
     return res.status(500).json({ error: 'Erro interno ao criar pedido.' });
+  }
+});
+
+// -------------------------------------------------------------
+// ASAAS PAYMENT GATEWAY INTEGRATION (PIX, BOLETO & CARTÃO)
+// -------------------------------------------------------------
+const ASAAS_API_KEY = process.env.ASAAS_API_KEY || process.env.VITE_ASAAS_API_KEY || '';
+const ASAAS_IS_SANDBOX = process.env.ASAAS_SANDBOX === 'true' || process.env.VITE_ASAAS_SANDBOX === 'true';
+const ASAAS_BASE_URL = ASAAS_IS_SANDBOX 
+  ? 'https://sandbox.asaas.com/api/v3' 
+  : 'https://api.asaas.com/v3';
+const ASAAS_WEBHOOK_SECRET = process.env.ASAAS_WEBHOOK_SECRET || process.env.VITE_ASAAS_WEBHOOK_SECRET || '';
+
+// 1. Create Payment Charge on Asaas (PIX, BOLETO, CREDIT_CARD)
+app.post('/api/payments/charge', async (req, res) => {
+  try {
+    const { 
+      customerName, 
+      customerEmail, 
+      customerCpfCnpj, 
+      customerPhone, 
+      billingType, // 'PIX' | 'BOLETO' | 'CREDIT_CARD'
+      value, 
+      description,
+      orderId,
+      creditCard, 
+      creditCardHolderInfo
+    } = req.body;
+
+    if (!ASAAS_API_KEY) {
+      return res.status(500).json({ error: 'Chave de API do Asaas não configurada no servidor.' });
+    }
+
+    if (!customerEmail || !customerCpfCnpj || !value) {
+      return res.status(400).json({ error: 'E-mail, CPF/CNPJ e Valor são obrigatórios para gerar cobrança.' });
+    }
+
+    // Step 1: Find or Create Customer on Asaas
+    let asaasCustomerId = null;
+    const axios = require('axios');
+
+    try {
+      const searchRes = await axios.get(`${ASAAS_BASE_URL}/customers?email=${encodeURIComponent(customerEmail)}`, {
+        headers: { 'access_token': ASAAS_API_KEY }
+      });
+      if (searchRes.data?.data && searchRes.data.data.length > 0) {
+        asaasCustomerId = searchRes.data.data[0].id;
+      }
+    } catch (e) {}
+
+    if (!asaasCustomerId) {
+      const createCustRes = await axios.post(`${ASAAS_BASE_URL}/customers`, {
+        name: customerName || 'Cliente Athena',
+        email: customerEmail,
+        cpfCnpj: (customerCpfCnpj || '').replace(/\D/g, ''),
+        phone: customerPhone ? customerPhone.replace(/\D/g, '') : undefined,
+        notificationDisabled: false
+      }, {
+        headers: { 'access_token': ASAAS_API_KEY }
+      });
+      asaasCustomerId = createCustRes.data.id;
+    }
+
+    // Step 2: Create Payment on Asaas
+    const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 3 days due
+    const paymentPayload = {
+      customer: asaasCustomerId,
+      billingType: billingType || 'PIX',
+      value: Number(value),
+      dueDate,
+      description: description || `Equipamento Athena - Pedido #${orderId || 'Online'}`,
+      externalReference: orderId || `athena_${Date.now()}`
+    };
+
+    if (billingType === 'CREDIT_CARD' && creditCard) {
+      paymentPayload.creditCard = creditCard;
+      paymentPayload.creditCardHolderInfo = creditCardHolderInfo;
+    }
+
+    const paymentRes = await axios.post(`${ASAAS_BASE_URL}/payments`, paymentPayload, {
+      headers: { 'access_token': ASAAS_API_KEY }
+    });
+
+    const paymentData = paymentRes.data;
+
+    // If PIX, fetch QR Code
+    let pixData = null;
+    if (billingType === 'PIX' && paymentData.id) {
+      try {
+        const pixRes = await axios.get(`${ASAAS_BASE_URL}/payments/${paymentData.id}/pixQrCode`, {
+          headers: { 'access_token': ASAAS_API_KEY }
+        });
+        pixData = pixRes.data;
+      } catch (pixErr) {
+        console.warn('Aviso ao gerar PIX QR Code:', pixErr.message);
+      }
+    }
+
+    return res.status(201).json({
+      id: paymentData.id,
+      status: paymentData.status,
+      value: paymentData.value,
+      billingType: paymentData.billingType,
+      invoiceUrl: paymentData.invoiceUrl,
+      bankSlipUrl: paymentData.bankSlipUrl,
+      pix: pixData,
+      dueDate: paymentData.dueDate,
+      externalReference: paymentData.externalReference
+    });
+
+  } catch (err) {
+    console.error('Erro ao processar cobrança Asaas:', err.response?.data || err.message);
+    const errMsg = err.response?.data?.errors?.[0]?.description || 'Erro ao processar pagamento via Asaas.';
+    return res.status(err.response?.status || 500).json({ error: errMsg });
+  }
+});
+
+// 2. Query Payment Status on Asaas
+app.get('/api/payments/charge/:id/status', async (req, res) => {
+  try {
+    const paymentId = req.params.id;
+    if (!ASAAS_API_KEY) {
+      return res.status(500).json({ error: 'Chave do Asaas não configurada.' });
+    }
+    const axios = require('axios');
+    const response = await axios.get(`${ASAAS_BASE_URL}/payments/${paymentId}`, {
+      headers: { 'access_token': ASAAS_API_KEY }
+    });
+    return res.json({
+      id: response.data.id,
+      status: response.data.status,
+      value: response.data.value,
+      confirmedDate: response.data.confirmedDate,
+      paymentDate: response.data.paymentDate,
+      clientPaymentDate: response.data.clientPaymentDate
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao consultar status no Asaas.' });
+  }
+});
+
+// 3. Asaas Webhook Endpoint
+app.post('/api/payments/webhook', async (req, res) => {
+  try {
+    const asaasToken = req.headers['asaas-access-token'];
+    if (ASAAS_WEBHOOK_SECRET && asaasToken && asaasToken !== ASAAS_WEBHOOK_SECRET) {
+      return res.status(401).json({ error: 'Webhook token inválido.' });
+    }
+
+    const { event, payment } = req.body;
+    console.log(`🔔 [Asaas Webhook] Evento: ${event} | Pagamento: ${payment?.id} | Status: ${payment?.status}`);
+
+    if (payment && payment.externalReference) {
+      const orderId = payment.externalReference;
+      let newStatus = 'em_analise';
+
+      if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
+        newStatus = 'faturado';
+      } else if (event === 'PAYMENT_OVERDUE') {
+        newStatus = 'expirado';
+      }
+
+      if (pool) {
+        try {
+          await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2', [newStatus, orderId]);
+        } catch (e) {}
+      }
+
+      const db = readDbJson();
+      const oIdx = (db.orders || []).findIndex(o => o.id === orderId);
+      if (oIdx !== -1) {
+        db.orders[oIdx].status = newStatus;
+        writeDbJson(db);
+      }
+    }
+
+    return res.json({ received: true });
+  } catch (err) {
+    console.error('Erro no processamento de webhook Asaas:', err);
+    return res.status(500).json({ error: 'Erro no webhook.' });
   }
 });
 
