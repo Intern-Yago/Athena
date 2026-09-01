@@ -10,6 +10,7 @@ import CategoryPage from './pages/CategoryPage';
 import BrandPage from './pages/BrandPage';
 import AboutPage from './pages/AboutPage';
 import LoginPage from './pages/LoginPage';
+import CustomerAccountPage from './pages/CustomerAccountPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ServerErrorPage from './pages/ServerErrorPage';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -149,7 +150,11 @@ export default function App() {
     const saved = saveSession(userObj);
     setCurrentUser(saved);
     showNotification(`Bem-vindo, ${userObj.name}!`, 'success');
-    navigateTo('admin');
+    if (userObj.role === 'admin' || userObj.role === 'vendedor') {
+      navigateTo('admin');
+    } else {
+      navigateTo('minha-conta');
+    }
   };
 
   const handleLogout = (msg = 'Sessão encerrada.') => {
@@ -562,12 +567,76 @@ export default function App() {
 
   // Render Page Content Router
   const renderCurrentPage = () => {
-    if (currentRoute === 'login') {
+    if (currentRoute === 'login' || currentRoute === 'cadastro' || currentRoute === 'register' || currentRoute === 'entrar') {
+      if (currentUser) {
+        if (currentUser.role === 'admin') {
+          // If admin, go to Admin Panel
+          return (
+            <AdminPanel
+              products={products}
+              categories={categories}
+              brands={brands}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProduct={handleDeleteProduct}
+              onReorderProducts={handleReorderProducts}
+              onAddCategory={handleAddCategory}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
+              onReorderCategories={handleReorderCategories}
+              onAddBrand={handleAddBrand}
+              onUpdateBrand={handleUpdateBrand}
+              onDeleteBrand={handleDeleteBrand}
+              onReorderBrands={handleReorderBrands}
+              showNotification={showNotification}
+              editingProduct={editingProduct}
+              setEditingProduct={setEditingProduct}
+              onNavigate={navigateTo}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+              API_BASE_URL={API_BASE_URL}
+            />
+          );
+        }
+        return (
+          <CustomerAccountPage
+            currentUser={currentUser}
+            onUpdateUser={(u) => setCurrentUser(u)}
+            onLogout={handleLogout}
+            onNavigate={navigateTo}
+            API_BASE_URL={API_BASE_URL}
+            showNotification={showNotification}
+          />
+        );
+      }
+
       return (
         <LoginPage
           onLoginSuccess={handleLoginSuccess}
           onNavigate={navigateTo}
           API_BASE_URL={API_BASE_URL}
+        />
+      );
+    }
+
+    if (currentRoute === 'minha-conta' || currentRoute === 'minha_conta' || currentRoute === 'account' || currentRoute === 'perfil' || currentRoute === 'pedidos' || currentRoute === 'orders') {
+      if (!currentUser) {
+        return (
+          <LoginPage
+            onLoginSuccess={handleLoginSuccess}
+            onNavigate={navigateTo}
+            API_BASE_URL={API_BASE_URL}
+          />
+        );
+      }
+      return (
+        <CustomerAccountPage
+          currentUser={currentUser}
+          onUpdateUser={(u) => setCurrentUser(u)}
+          onLogout={handleLogout}
+          onNavigate={navigateTo}
+          API_BASE_URL={API_BASE_URL}
+          showNotification={showNotification}
         />
       );
     }
@@ -857,6 +926,8 @@ export default function App() {
           categories={categories}
           brands={brands}
           products={publicProducts}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
 
         {/* Main Page Content */}
@@ -899,14 +970,14 @@ export default function App() {
       />
 
       {/* App-style Bottom Navigation Bar for Mobile */}
-      <BottomNavBar activeTab={currentRoute} onNavigate={navigateTo} />
+      <BottomNavBar activeTab={currentRoute} onNavigate={navigateTo} currentUser={currentUser} />
 
       {/* Toast Notification */}
       <Toast toast={toast} onClose={() => setToast(null)} />
 
       {/* Footer */}
       <div className="pb-14 md:pb-0">
-        <Footer setActiveTab={navigateTo} />
+        <Footer setActiveTab={navigateTo} currentUser={currentUser} />
       </div>
 
     </div>

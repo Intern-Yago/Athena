@@ -13,10 +13,76 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'data', 'athena-db.json');
+
+// -------------------------------------------------------------
+// GOOGLE SMTP & NODEMAILER CONFIGURATION (GMAIL EMAIL SERVICE)
+// -------------------------------------------------------------
+const SMTP_USER = process.env.SMTP_USER || process.env.GMAIL_USER || 'athena.consultoria.automotiva@gmail.com';
+const SMTP_PASS = process.env.SMTP_PASS || process.env.GMAIL_PASS || process.env.GMAIL_APP_PASSWORD || '';
+const SMTP_FROM = process.env.SMTP_FROM || `"Athena Soluções Automotivas" <${SMTP_USER}>`;
+
+let mailTransporter = null;
+if (SMTP_PASS) {
+  mailTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS
+    }
+  });
+  console.log('📧 Google SMTP (Gmail) configurado com sucesso para:', SMTP_USER);
+} else {
+  console.log('ℹ️ Google SMTP em modo log (Defina GMAIL_APP_PASSWORD no .env para envio real).');
+}
+
+async function sendPasswordResetEmail(toEmail, resetCode, userName = 'Cliente') {
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 40px 20px; text-align: center;">
+      <div style="max-width: 500px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <div style="margin-bottom: 20px;">
+          <h1 style="color: #f59e0b; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">ATHENA</h1>
+          <p style="color: #94a3b8; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Soluções Automotivas</p>
+        </div>
+        <h2 style="color: #ffffff; font-size: 18px; margin-bottom: 12px;">Recuperação de Senha</h2>
+        <p style="color: #cbd5e1; font-size: 13px; line-height: 1.5; margin-bottom: 24px;">
+          Olá, <strong>${userName}</strong>! Recebemos uma solicitação para redefinir a senha da sua conta Athena. Utilize o código de verificação abaixo:
+        </p>
+        <div style="background-color: #0f172a; border: 2px dashed #f59e0b; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
+          <span style="font-size: 32px; font-weight: 900; letter-spacing: 6px; color: #fbbf24;">${resetCode}</span>
+        </div>
+        <p style="color: #94a3b8; font-size: 11px; margin-bottom: 24px;">
+          Este código é válido por <strong>15 minutos</strong>. Se você não solicitou esta redefinição, ignore este e-mail.
+        </p>
+        <hr style="border: none; border-top: 1px solid #334155; margin: 24px 0;" />
+        <p style="color: #64748b; font-size: 10px; margin: 0;">
+          Athena Soluções Automotivas • Brasília - DF • (61) 98348-5671
+        </p>
+      </div>
+    </div>
+  `;
+
+  if (mailTransporter) {
+    try {
+      await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: toEmail,
+        subject: 'Código de Recuperação de Senha — Athena Soluções Automotivas',
+        html: htmlContent
+      });
+      return { success: true, method: 'smtp' };
+    } catch (err) {
+      console.error('Erro no envio SMTP:', err.message);
+    }
+  }
+
+  console.log(`🔑 [DEBUG CÓDIGO DE RECUPERAÇÃO] E-mail: ${toEmail} | Código: ${resetCode}`);
+  return { success: true, method: 'log', code: resetCode };
+}
 
 // -------------------------------------------------------------
 // JWT CRYPTOGRAPHIC SIGNING & SESSION SECURITY (OWASP A07:2021)
@@ -677,7 +743,7 @@ async function initDb() {
         );
       `);
 
-      // Ensure is_featured and images exist on products
+      // Ensure is_featured, images, video_url, custom_tabs exist on products
       await pool.query(`
         DO $$ 
         BEGIN 
@@ -693,7 +759,48 @@ async function initDb() {
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='custom_tabs') THEN 
             ALTER TABLE products ADD COLUMN custom_tabs JSONB; 
           END IF;
+          -- Customer fields on users table
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phone') THEN 
+            ALTER TABLE users ADD COLUMN phone VARCHAR(50); 
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='document') THEN 
+            ALTER TABLE users ADD COLUMN document VARCHAR(50); 
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='company_name') THEN 
+            ALTER TABLE users ADD COLUMN company_name VARCHAR(255); 
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='address') THEN 
+            ALTER TABLE users ADD COLUMN address JSONB; 
+          END IF;
         END $$;
+      `);
+
+      // Create Password Resets Table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS password_resets (
+          id VARCHAR(100) PRIMARY KEY,
+          email VARCHAR(255) NOT NULL,
+          token VARCHAR(255) NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          used BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Create Customer Orders & Quotes Table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS orders (
+          id VARCHAR(100) PRIMARY KEY,
+          user_id VARCHAR(100) REFERENCES users(id) ON DELETE SET NULL,
+          user_email VARCHAR(255),
+          user_name VARCHAR(255),
+          items JSONB NOT NULL,
+          total_amount NUMERIC(12,2) DEFAULT 0,
+          status VARCHAR(50) DEFAULT 'em_analise',
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
       `);
 
       const catCheck = await pool.query('SELECT COUNT(*) FROM categories');
@@ -950,7 +1057,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     let foundUser = null;
     if (pool) {
       try {
-        const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role FROM users WHERE email = $1', [inputEmail]);
+        const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role, phone, document, company_name as "companyName", address FROM users WHERE email = $1', [inputEmail]);
         if (result.rows && result.rows.length > 0) {
           foundUser = result.rows[0];
         }
@@ -969,7 +1076,11 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
           name: user.name,
           email: user.email,
           passwordHash: user.passwordHash || user.password_hash,
-          role: user.role
+          role: user.role || 'cliente',
+          phone: user.phone || '',
+          document: user.document || '',
+          companyName: user.companyName || user.company_name || '',
+          address: user.address || null
         };
       }
     }
@@ -992,18 +1103,24 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         }
       }
 
+      const userRole = foundUser.role || 'cliente';
+
       const { token, expiresAt } = generateToken({
         id: foundUser.id,
         name: foundUser.name,
         email: foundUser.email,
-        role: foundUser.role || 'vendedor'
+        role: userRole
       });
 
       return res.json({
         id: foundUser.id,
         name: foundUser.name,
         email: foundUser.email,
-        role: foundUser.role || 'vendedor',
+        role: userRole,
+        phone: foundUser.phone || '',
+        document: foundUser.document || '',
+        companyName: foundUser.companyName || '',
+        address: foundUser.address || null,
         token,
         expiresAt
       });
@@ -1013,6 +1130,443 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   } catch (err) {
     console.error('Erro inesperado no login:', err);
     return res.status(500).json({ error: 'Erro interno ao processar login.' });
+  }
+});
+
+// Register New Customer (Self-Registration)
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, password, phone, document, companyName, address } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Nome, E-mail e Senha são obrigatórios para cadastro.' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres.' });
+    }
+
+    const inputEmail = email.trim().toLowerCase();
+
+    // Check if email already exists
+    if (pool) {
+      try {
+        const check = await pool.query('SELECT id FROM users WHERE email = $1', [inputEmail]);
+        if (check.rows.length > 0) {
+          return res.status(400).json({ error: 'Este e-mail já está cadastrado. Faça login ou recupere sua senha.' });
+        }
+      } catch (e) {
+        console.error('Erro ao verificar e-mail duplicado no PG:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    if (!db.users) db.users = [];
+    if (db.users.some(u => u.email.toLowerCase() === inputEmail)) {
+      return res.status(400).json({ error: 'Este e-mail já está cadastrado. Faça login ou recupere sua senha.' });
+    }
+
+    const newUserId = `user_cli_${Date.now()}`;
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const cleanUser = {
+      id: newUserId,
+      name: name.trim(),
+      email: inputEmail,
+      passwordHash: hashedPassword,
+      role: 'cliente',
+      phone: phone ? phone.trim() : '',
+      document: document ? document.trim() : '',
+      companyName: companyName ? companyName.trim() : '',
+      company_name: companyName ? companyName.trim() : '',
+      address: address || null,
+      createdAt: new Date().toISOString()
+    };
+
+    // Save to Local DB JSON
+    db.users.push(cleanUser);
+    writeDbJson(db);
+
+    // Save to PostgreSQL
+    if (pool) {
+      try {
+        await pool.query(`
+          INSERT INTO users (id, name, email, password_hash, role, phone, document, company_name, address)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [
+          cleanUser.id,
+          cleanUser.name,
+          cleanUser.email,
+          cleanUser.passwordHash,
+          cleanUser.role,
+          cleanUser.phone,
+          cleanUser.document,
+          cleanUser.companyName,
+          cleanUser.address ? JSON.stringify(cleanUser.address) : null
+        ]);
+      } catch (pgErr) {
+        console.error('Erro ao inserir cliente no PostgreSQL:', pgErr.message);
+      }
+    }
+
+    const { token, expiresAt } = generateToken({
+      id: cleanUser.id,
+      name: cleanUser.name,
+      email: cleanUser.email,
+      role: 'cliente'
+    });
+
+    return res.status(201).json({
+      id: cleanUser.id,
+      name: cleanUser.name,
+      email: cleanUser.email,
+      role: 'cliente',
+      phone: cleanUser.phone,
+      document: cleanUser.document,
+      companyName: cleanUser.companyName,
+      address: cleanUser.address,
+      token,
+      expiresAt,
+      message: 'Cadastro realizado com sucesso!'
+    });
+  } catch (err) {
+    console.error('Erro no cadastro de cliente:', err);
+    return res.status(500).json({ error: 'Erro interno ao realizar cadastro.' });
+  }
+});
+
+// Forgot Password - Send Google SMTP Email with Reset Code
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Informe seu e-mail cadastrado.' });
+    }
+
+    const inputEmail = email.trim().toLowerCase();
+    let foundUser = null;
+
+    if (pool) {
+      try {
+        const userRes = await pool.query('SELECT id, name, email FROM users WHERE email = $1', [inputEmail]);
+        if (userRes.rows.length > 0) {
+          foundUser = userRes.rows[0];
+        }
+      } catch (e) {}
+    }
+
+    if (!foundUser) {
+      const db = readDbJson();
+      foundUser = (db.users || []).find(u => u.email.toLowerCase() === inputEmail);
+    }
+
+    if (!foundUser) {
+      return res.status(404).json({ error: 'Nenhuma conta encontrada com este e-mail.' });
+    }
+
+    // Generate 6-digit code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes TTL
+    const resetId = `reset_${Date.now()}`;
+
+    if (pool) {
+      try {
+        await pool.query(`
+          INSERT INTO password_resets (id, email, token, expires_at, used)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [resetId, inputEmail, resetCode, expiresAt, false]);
+      } catch (e) {
+        console.error('Erro ao registrar reset no PostgreSQL:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    if (!db.password_resets) db.password_resets = [];
+    db.password_resets.push({
+      id: resetId,
+      email: inputEmail,
+      token: resetCode,
+      expiresAt: expiresAt.toISOString(),
+      used: false
+    });
+    writeDbJson(db);
+
+    // Send email via Google SMTP
+    const emailResult = await sendPasswordResetEmail(inputEmail, resetCode, foundUser.name);
+
+    return res.json({
+      success: true,
+      message: 'Código de recuperação enviado para o seu e-mail!',
+      delivery: emailResult.method,
+      // In dev/test without SMTP configured, returns code for instant test preview
+      ...(emailResult.method === 'log' ? { devCode: resetCode } : {})
+    });
+  } catch (err) {
+    console.error('Erro ao processar esqueci minha senha:', err);
+    return res.status(500).json({ error: 'Erro interno ao processar recuperação de senha.' });
+  }
+});
+
+// Reset Password - Verify Code and Set New Password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: 'E-mail, código de verificação e nova senha são obrigatórios.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'A nova senha deve ter no mínimo 6 caracteres.' });
+    }
+
+    const inputEmail = email.trim().toLowerCase();
+    const inputCode = code.trim();
+    let validReset = null;
+
+    if (pool) {
+      try {
+        const check = await pool.query(`
+          SELECT id, email, token, expires_at, used 
+          FROM password_resets 
+          WHERE email = $1 AND token = $2 AND used = FALSE AND expires_at > NOW()
+          ORDER BY created_at DESC LIMIT 1
+        `, [inputEmail, inputCode]);
+        if (check.rows.length > 0) {
+          validReset = check.rows[0];
+        }
+      } catch (e) {}
+    }
+
+    if (!validReset) {
+      const db = readDbJson();
+      const nowIso = new Date().toISOString();
+      validReset = (db.password_resets || []).find(r => 
+        r.email.toLowerCase() === inputEmail && 
+        r.token === inputCode && 
+        !r.used && 
+        r.expiresAt > nowIso
+      );
+    }
+
+    if (!validReset) {
+      return res.status(400).json({ error: 'Código inválido ou expirado. Solicite um novo código de recuperação.' });
+    }
+
+    // Update password hash
+    const newHash = bcrypt.hashSync(newPassword, 10);
+
+    if (pool) {
+      try {
+        await pool.query('UPDATE users SET password_hash = $1 WHERE email = $2', [newHash, inputEmail]);
+        await pool.query('UPDATE password_resets SET used = TRUE WHERE id = $1', [validReset.id]);
+      } catch (e) {
+        console.error('Erro ao atualizar senha no PG:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    const uIdx = (db.users || []).findIndex(u => u.email.toLowerCase() === inputEmail);
+    if (uIdx !== -1) {
+      db.users[uIdx].passwordHash = newHash;
+      db.users[uIdx].password_hash = newHash;
+    }
+    const rIdx = (db.password_resets || []).findIndex(r => r.id === validReset.id);
+    if (rIdx !== -1) {
+      db.password_resets[rIdx].used = true;
+    }
+    writeDbJson(db);
+
+    return res.json({
+      success: true,
+      message: 'Sua senha foi redefinida com sucesso! Você já pode entrar com a nova senha.'
+    });
+  } catch (err) {
+    console.error('Erro ao redefinir senha:', err);
+    return res.status(500).json({ error: 'Erro interno ao redefinir senha.' });
+  }
+});
+
+// Update Customer Profile & Address
+app.put('/api/customer/profile', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, phone, document, companyName, address, currentPassword, newPassword } = req.body;
+
+    const db = readDbJson();
+    let existingUser = (db.users || []).find(u => u.id === userId);
+
+    if (pool) {
+      try {
+        const uRes = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+        if (uRes.rows.length > 0) {
+          existingUser = {
+            ...existingUser,
+            ...uRes.rows[0],
+            passwordHash: uRes.rows[0].password_hash
+          };
+        }
+      } catch (e) {}
+    }
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    // Password change check if requested
+    let updatedHash = existingUser.passwordHash || existingUser.password_hash;
+    if (newPassword) {
+      if (!currentPassword || !checkPassword(currentPassword, updatedHash)) {
+        return res.status(400).json({ error: 'Senha atual incorreta.' });
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'A nova senha deve ter no mínimo 6 caracteres.' });
+      }
+      updatedHash = bcrypt.hashSync(newPassword, 10);
+    }
+
+    const updatedName = name !== undefined ? name.trim() : existingUser.name;
+    const updatedPhone = phone !== undefined ? phone.trim() : (existingUser.phone || '');
+    const updatedDocument = document !== undefined ? document.trim() : (existingUser.document || '');
+    const updatedCompanyName = companyName !== undefined ? companyName.trim() : (existingUser.company_name || existingUser.companyName || '');
+    const updatedAddress = address !== undefined ? address : (existingUser.address || null);
+
+    if (pool) {
+      try {
+        await pool.query(`
+          UPDATE users 
+          SET name = $1, phone = $2, document = $3, company_name = $4, address = $5, password_hash = $6
+          WHERE id = $7
+        `, [
+          updatedName,
+          updatedPhone,
+          updatedDocument,
+          updatedCompanyName,
+          updatedAddress ? JSON.stringify(updatedAddress) : null,
+          updatedHash,
+          userId
+        ]);
+      } catch (e) {
+        console.error('Erro ao atualizar perfil do cliente no PG:', e.message);
+      }
+    }
+
+    const uIdx = (db.users || []).findIndex(u => u.id === userId);
+    if (uIdx !== -1) {
+      db.users[uIdx] = {
+        ...db.users[uIdx],
+        name: updatedName,
+        phone: updatedPhone,
+        document: updatedDocument,
+        companyName: updatedCompanyName,
+        company_name: updatedCompanyName,
+        address: updatedAddress,
+        passwordHash: updatedHash
+      };
+      writeDbJson(db);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Dados atualizados com sucesso!',
+      user: {
+        id: userId,
+        name: updatedName,
+        email: existingUser.email,
+        phone: updatedPhone,
+        document: updatedDocument,
+        companyName: updatedCompanyName,
+        address: updatedAddress,
+        role: existingUser.role || 'cliente'
+      }
+    });
+  } catch (err) {
+    console.error('Erro ao atualizar perfil:', err);
+    return res.status(500).json({ error: 'Erro interno ao atualizar perfil.' });
+  }
+});
+
+// Get Customer Orders & Quotes
+app.get('/api/customer/orders', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = req.user.email;
+
+    if (pool) {
+      try {
+        const query = req.user.role === 'admin' 
+          ? 'SELECT id, user_id as "userId", user_email as "userEmail", user_name as "userName", items, total_amount::float as "totalAmount", status, notes, created_at as "createdAt" FROM orders ORDER BY created_at DESC'
+          : 'SELECT id, user_id as "userId", user_email as "userEmail", user_name as "userName", items, total_amount::float as "totalAmount", status, notes, created_at as "createdAt" FROM orders WHERE user_id = $1 OR user_email = $2 ORDER BY created_at DESC';
+        const params = req.user.role === 'admin' ? [] : [userId, userEmail];
+        const result = await pool.query(query, params);
+        return res.json(result.rows);
+      } catch (e) {
+        console.error('Erro ao buscar pedidos no PG:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    const ordersList = db.orders || [];
+    if (req.user.role === 'admin') {
+      return res.json(ordersList);
+    }
+    const filtered = ordersList.filter(o => o.userId === userId || o.userEmail === userEmail);
+    return res.json(filtered);
+  } catch (err) {
+    console.error('Erro ao buscar pedidos:', err);
+    return res.status(500).json({ error: 'Erro ao buscar pedidos.' });
+  }
+});
+
+// Create Customer Order or Quote
+app.post('/api/customer/orders', async (req, res) => {
+  try {
+    const { userId, userEmail, userName, items, totalAmount, notes } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Lista de equipamentos/itens obrigatória.' });
+    }
+
+    const orderId = `athena_ped_${Date.now().toString().slice(-6)}`;
+    const newOrder = {
+      id: orderId,
+      userId: userId || null,
+      userEmail: userEmail || '',
+      userName: userName || 'Cliente',
+      items,
+      totalAmount: totalAmount || 0,
+      total_amount: totalAmount || 0,
+      status: 'em_analise',
+      notes: notes || '',
+      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString()
+    };
+
+    if (pool) {
+      try {
+        await pool.query(`
+          INSERT INTO orders (id, user_id, user_email, user_name, items, total_amount, status, notes)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+          newOrder.id,
+          newOrder.userId,
+          newOrder.userEmail,
+          newOrder.userName,
+          JSON.stringify(newOrder.items),
+          newOrder.totalAmount,
+          newOrder.status,
+          newOrder.notes
+        ]);
+      } catch (e) {
+        console.error('Erro ao salvar pedido no PG:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    if (!db.orders) db.orders = [];
+    db.orders.unshift(newOrder);
+    writeDbJson(db);
+
+    return res.status(201).json(newOrder);
+  } catch (err) {
+    console.error('Erro ao criar pedido:', err);
+    return res.status(500).json({ error: 'Erro interno ao criar pedido.' });
   }
 });
 

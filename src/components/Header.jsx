@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Layers, Tag, PackageCheck, PhoneCall, Menu, ChevronDown, Info, X } from 'lucide-react';
+import { Search, Layers, Tag, PackageCheck, PhoneCall, Menu, ChevronDown, Info, X, User, LogOut, Shield } from 'lucide-react';
 import MegaMenu from './MegaMenu';
 import MobileDrawer from './MobileDrawer';
 
@@ -13,7 +13,9 @@ export default function Header({
   brandsCount,
   categories,
   brands,
-  products
+  products,
+  currentUser,
+  onLogout
 }) {
   const [activeMegaMenu, setActiveMegaMenu] = useState(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -165,6 +167,43 @@ export default function Header({
                 )}
               </form>
 
+              {/* User Account / Login Button */}
+              {currentUser ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      if (currentUser.role === 'admin') {
+                        onNavigate('admin');
+                      } else {
+                        onNavigate('minha-conta');
+                      }
+                      setActiveMegaMenu(null);
+                    }}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-800 bg-amber-50 border border-amber-300 rounded-xl hover:bg-amber-100 transition-colors shadow-xs shrink-0 cursor-pointer"
+                    title={currentUser.role === 'admin' ? 'Acessar Painel Administrativo' : 'Acessar Minha Conta'}
+                  >
+                    <div className="w-5 h-5 rounded-lg bg-amber-600 text-white flex items-center justify-center text-[10px] font-black">
+                      {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <span className="max-w-[90px] truncate">
+                      {currentUser.name ? currentUser.name.split(' ')[0] : 'Conta'}
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    onNavigate('login');
+                    setActiveMegaMenu(null);
+                  }}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded-xl hover:bg-slate-200 hover:text-slate-900 transition-colors shadow-xs shrink-0 cursor-pointer"
+                  title="Entrar ou criar conta"
+                >
+                  <User className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                  <span>Entrar</span>
+                </button>
+              )}
+
               <a
                 href={whatsappUrl}
                 target="_blank"
@@ -212,7 +251,7 @@ export default function Header({
 
               <button
                 onClick={() => setIsMobileDrawerOpen(true)}
-                className="p-1.5 rounded-xl bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 shadow-xs shrink-0"
+                className="p-1.5 rounded-xl bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 shadow-xs shrink-0 cursor-pointer"
                 title="Abrir Menu"
               >
                 <Menu className="w-5 h-5" />
@@ -244,6 +283,8 @@ export default function Header({
         categories={categories}
         brands={brands}
         products={products}
+        currentUser={currentUser}
+        onLogout={onLogout}
       />
     </>
   );

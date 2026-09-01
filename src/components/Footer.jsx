@@ -1,7 +1,7 @@
 import React from 'react';
 import { PhoneCall, Mail, MapPin, Instagram, ExternalLink, ArrowUp, Lock } from 'lucide-react';
 
-export default function Footer({ setActiveTab }) {
+export default function Footer({ setActiveTab, currentUser }) {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -61,23 +61,28 @@ export default function Footer({ setActiveTab }) {
             <h4 className="text-xs font-bold text-white uppercase tracking-wider">Navegação</h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <button onClick={() => { setActiveTab('catalog'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
+                <button onClick={() => { setActiveTab('catalog'); scrollToTop(); }} className="hover:text-amber-400 transition-colors cursor-pointer">
                   Catálogo de Equipamentos
                 </button>
               </li>
               <li>
-                <button onClick={() => { setActiveTab('categories'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
+                <button onClick={() => { setActiveTab('categories'); scrollToTop(); }} className="hover:text-amber-400 transition-colors cursor-pointer">
                   Categorias de Produtos
                 </button>
               </li>
               <li>
-                <button onClick={() => { setActiveTab('brands'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
+                <button onClick={() => { setActiveTab('brands'); scrollToTop(); }} className="hover:text-amber-400 transition-colors cursor-pointer">
                   Marcas Parceiras
                 </button>
               </li>
               <li>
-                <button onClick={() => { setActiveTab('about'); scrollToTop(); }} className="hover:text-amber-400 transition-colors">
+                <button onClick={() => { setActiveTab('about'); scrollToTop(); }} className="hover:text-amber-400 transition-colors cursor-pointer">
                   Sobre a Empresa
+                </button>
+              </li>
+              <li>
+                <button onClick={() => { setActiveTab(currentUser ? 'minha-conta' : 'login'); scrollToTop(); }} className="text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer flex items-center gap-1">
+                  <span>Minha Conta & Pedidos</span>
                 </button>
               </li>
             </ul>
@@ -166,13 +171,22 @@ export default function Footer({ setActiveTab }) {
 
         {/* Bottom Bar */}
         <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <p>© {new Date().getFullYear()} Athena Soluções Automotivas. Todos os direitos reservados.</p>
+            <span>•</span>
+            <button
+              onClick={() => { setActiveTab('admin'); scrollToTop(); }}
+              className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+              title="Acesso Restrito à Equipe Athena"
+            >
+              <Lock className="w-3 h-3" />
+              <span>Área da Equipe</span>
+            </button>
           </div>
           
           <button 
             onClick={scrollToTop}
-            className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-amber-400 hover:border-amber-500 transition-all flex items-center justify-center gap-1 text-[11px]"
+            className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-amber-400 hover:border-amber-500 transition-all flex items-center justify-center gap-1 text-[11px] cursor-pointer"
           >
             <span>Voltar ao Topo</span>
             <ArrowUp className="w-3.5 h-3.5" />
