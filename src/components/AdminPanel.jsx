@@ -37,6 +37,11 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ChevronDown,
+  ChevronUp,
+  Calculator,
+  Landmark,
+  QrCode,
+  CreditCard,
   AlertTriangle,
   HelpCircle,
   ArrowUpDown,
@@ -50,7 +55,7 @@ import PdfCatalogGenerator from './PdfCatalogGenerator';
 import RichTextEditor from './RichTextEditor';
 import FormattedDescription from './FormattedDescription';
 import { safeStorageSet, saveSession } from '../utils/storage';
-import { calculateInstallments, formatBRL } from '../utils/installmentCalculator';
+import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 
 /**
  * Searchable Combobox Component (Filtragem em tempo real com busca e fallback completo)
@@ -529,6 +534,10 @@ export default function AdminPanel({
   // Quick Category Modal State
   const [isQuickCatModalOpen, setIsQuickCatModalOpen] = useState(false);
   const [quickCatName, setQuickCatName] = useState('');
+
+  // Live Gateway Price Simulation Visibility
+  const [showPriceSimulations, setShowPriceSimulations] = useState(false);
+  const [priceSimulationTab, setPriceSimulationTab] = useState('credit');
 
   // Brand Modal State
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
@@ -4444,38 +4453,206 @@ export default function AdminPanel({
                           </label>
                         </div>
 
-                        {/* LIVE ASAAS INSTALLMENT PREVIEW */}
+                        {/* TOGGLEABLE GATEWAY SIMULATION PREVIEW */}
                         {!productForm.priceNegotiable && Number(productForm.price) > 0 && (() => {
-                          const previewInstallments = calculateInstallments(productForm.price, 12);
+                          const simData = calculatePaymentGateways(productForm.price);
+                          if (!simData) return null;
+
                           return (
-                            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-300/80 space-y-2 text-xs">
-                              <div className="flex items-center justify-between">
-                                <span className="font-extrabold text-amber-950 flex items-center gap-1.5">
-                                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                                  Simulação Automática no Cartão (Asaas):
-                                </span>
-                                <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
-                                  Líquido: {formatBRL(productForm.price)}
-                                </span>
+                            <div className="space-y-2 pt-1">
+                              <div>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPriceSimulations(!showPriceSimulations)}
+                                  className="inline-flex items-center gap-2 text-xs font-bold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-200/90 transition-all cursor-pointer shadow-2xs"
+                                >
+                                  <Calculator className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                  <span>{showPriceSimulations ? 'Ocultar simulações de taxas e parcelas' : 'Ver simulações de taxas e recebimento líquido'}</span>
+                                  {showPriceSimulations ? (
+                                    <ChevronUp className="w-3.5 h-3.5 text-amber-700" />
+                                  ) : (
+                                    <ChevronDown className="w-3.5 h-3.5 text-amber-700" />
+                                  )}
+                                </button>
                               </div>
 
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 text-[11px]">
-                                {[1, 3, 6, 12].map((n) => {
-                                  const inst = previewInstallments.find(p => p.installments === n);
-                                  if (!inst) return null;
-                                  return (
-                                    <div key={n} className="bg-white p-2 rounded-lg border border-amber-200 text-center">
-                                      <span className="font-bold text-slate-500 block text-[10px]">{n}x de</span>
-                                      <span className="font-black text-slate-900 block">{inst.formattedInstallment}</span>
-                                      <span className="text-[9px] text-slate-400 font-mono">Total: {inst.formattedTotal}</span>
+                              {showPriceSimulations && (
+                                <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300/90 space-y-3 text-xs animate-in fade-in duration-200 shadow-2xs">
+                                  {/* Header & Sub-Tabs */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/80 pb-2.5">
+                                    <span className="font-extrabold text-amber-950 flex items-center gap-1.5">
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                      Simulação de Recebimento & Taxas Gateway
+                                    </span>
+                                    <span className="text-[10px] font-black text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-md self-start sm:self-auto">
+                                      Base: {simData.formattedBasePrice}
+                                    </span>
+                                  </div>
+
+                                  {/* Gateway Tabs */}
+                                  <div className="grid grid-cols-4 gap-1 p-1 bg-amber-100/70 rounded-xl text-[11px] font-bold">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPriceSimulationTab('credit')}
+                                      className={`py-1.5 px-1 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                        priceSimulationTab === 'credit'
+                                          ? 'bg-white text-slate-900 shadow-2xs font-black'
+                                          : 'text-amber-900/80 hover:text-amber-950'
+                                      }`}
+                                    >
+                                      <CreditCard className="w-3 h-3 text-amber-600 shrink-0" />
+                                      <span>Crédito</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setPriceSimulationTab('pix')}
+                                      className={`py-1.5 px-1 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                        priceSimulationTab === 'pix'
+                                          ? 'bg-white text-emerald-950 shadow-2xs font-black'
+                                          : 'text-amber-900/80 hover:text-amber-950'
+                                      }`}
+                                    >
+                                      <QrCode className="w-3 h-3 text-emerald-600 shrink-0" />
+                                      <span>PIX</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setPriceSimulationTab('debit')}
+                                      className={`py-1.5 px-1 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                        priceSimulationTab === 'debit'
+                                          ? 'bg-white text-sky-950 shadow-2xs font-black'
+                                          : 'text-amber-900/80 hover:text-amber-950'
+                                      }`}
+                                    >
+                                      <Landmark className="w-3 h-3 text-sky-600 shrink-0" />
+                                      <span>Débito</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setPriceSimulationTab('boleto')}
+                                      className={`py-1.5 px-1 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                        priceSimulationTab === 'boleto'
+                                          ? 'bg-white text-slate-900 shadow-2xs font-black'
+                                          : 'text-amber-900/80 hover:text-amber-950'
+                                      }`}
+                                    >
+                                      <FileText className="w-3 h-3 text-amber-700 shrink-0" />
+                                      <span>Boleto</span>
+                                    </button>
+                                  </div>
+
+                                  {/* TAB CONTENT: CREDIT CARD */}
+                                  {priceSimulationTab === 'credit' && (
+                                    <div className="space-y-2.5">
+                                      <div className="flex items-center justify-between text-[11px]">
+                                        <span className="font-bold text-amber-950">Parcelamento Automático (1x a 12x):</span>
+                                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                                          Líquido à vista: {simData.formattedBasePrice}
+                                        </span>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
+                                        {[1, 3, 6, 12].map((n) => {
+                                          const inst = simData.credit.installments.find(p => p.installments === n);
+                                          if (!inst) return null;
+                                          return (
+                                            <div key={n} className="bg-white p-2 rounded-xl border border-amber-200 text-center shadow-2xs">
+                                              <span className="font-bold text-slate-500 block text-[10px]">{n}x de</span>
+                                              <span className="font-black text-slate-900 block">{inst.formattedInstallment}</span>
+                                              <span className="text-[9px] text-slate-400 font-mono">Total: {inst.formattedTotal}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+
+                                      <div className="p-2.5 rounded-xl bg-white/80 border border-amber-200 text-[11px] text-slate-600 space-y-1">
+                                        <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                          <span>Você recebe o valor líquido integral à vista (D+1 ou D+2).</span>
+                                        </p>
+                                        <p className="text-[10px] text-slate-500 leading-tight">
+                                          ℹ️ A taxa de intermediação e os juros mensais de antecipação são embutidos automaticamente no valor da parcela para o cliente.
+                                        </p>
+                                      </div>
                                     </div>
-                                  );
-                                })}
-                              </div>
+                                  )}
 
-                              <p className="text-[10px] text-slate-500 leading-tight pt-1">
-                                ℹ️ Os juros de antecipação são embutidos automaticamente para o cliente e você recebe o valor líquido à vista.
-                              </p>
+                                  {/* TAB CONTENT: PIX */}
+                                  {priceSimulationTab === 'pix' && (
+                                    <div className="space-y-2 bg-white p-3 rounded-xl border border-amber-200 text-xs">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Cobrado do Cliente</span>
+                                          <span className="text-sm font-black text-slate-900">{simData.pix.formattedCustomerAmount}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Taxa API Gateway</span>
+                                          <span className="text-sm font-black text-red-600">~{simData.pix.formattedFee}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                                          <span className="text-[10px] text-emerald-800 block font-bold">Você Recebe Líquido</span>
+                                          <span className="text-sm font-black text-emerald-950">{simData.pix.formattedNetReceived}</span>
+                                        </div>
+                                      </div>
+                                      <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
+                                        <span>⚡ Prazo de recebimento: <strong>Imediato (D+0)</strong></span>
+                                        <span>Taxa fixa por transação via API</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* TAB CONTENT: DÉBITO */}
+                                  {priceSimulationTab === 'debit' && (
+                                    <div className="space-y-2 bg-white p-3 rounded-xl border border-amber-200 text-xs">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Cobrado do Cliente</span>
+                                          <span className="text-sm font-black text-slate-900">{simData.debit.formattedCustomerAmount}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Taxa Gateway (1,89% + R$ 0,35)</span>
+                                          <span className="text-sm font-black text-red-600">~{simData.debit.formattedFee}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-sky-50 border border-sky-200">
+                                          <span className="text-[10px] text-sky-800 block font-bold">Você Recebe Líquido</span>
+                                          <span className="text-sm font-black text-sky-950">{simData.debit.formattedNetReceived}</span>
+                                        </div>
+                                      </div>
+                                      <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
+                                        <span>💳 Prazo de recebimento: <strong>3 dias após pagamento (D+3)</strong></span>
+                                        <span>Taxa de débito online</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* TAB CONTENT: BOLETO */}
+                                  {priceSimulationTab === 'boleto' && (
+                                    <div className="space-y-2 bg-white p-3 rounded-xl border border-amber-200 text-xs">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Cobrado do Cliente</span>
+                                          <span className="text-sm font-black text-slate-900">{simData.boleto.formattedCustomerAmount}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Taxa por Boleto Pago</span>
+                                          <span className="text-sm font-black text-red-600">~{simData.boleto.formattedFee}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-amber-50 border border-amber-200">
+                                          <span className="text-[10px] text-amber-900 block font-bold">Você Recebe Líquido</span>
+                                          <span className="text-sm font-black text-amber-950">{simData.boleto.formattedNetReceived}</span>
+                                        </div>
+                                      </div>
+                                      <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
+                                        <span>📄 Prazo: <strong>1 dia útil após compensação (D+1)</strong></span>
+                                        <span>Taxa cobrada apenas quando o boleto é pago</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })()}

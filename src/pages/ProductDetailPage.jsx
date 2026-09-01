@@ -588,9 +588,9 @@ export default function ProductDetailPage({
                     <button
                       type="button"
                       onClick={() => setIsInstallmentModalOpen(true)}
-                      className="text-amber-800 hover:text-amber-950 font-black underline cursor-pointer text-[11px]"
+                      className="text-amber-900 hover:text-amber-950 font-black underline cursor-pointer text-[11px] flex items-center gap-1"
                     >
-                      Ver todas as parcelas
+                      <span>Ver formas de pagamento e parcelas</span>
                     </button>
                   </div>
                 </div>
