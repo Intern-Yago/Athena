@@ -1576,7 +1576,7 @@ app.post('/api/customer/orders', async (req, res) => {
 // ASAAS PAYMENT GATEWAY INTEGRATION (PIX, BOLETO & CARTÃO)
 // -------------------------------------------------------------
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY || process.env.VITE_ASAAS_API_KEY || '';
-const ASAAS_IS_SANDBOX = process.env.ASAAS_SANDBOX === 'true' || process.env.VITE_ASAAS_SANDBOX === 'true';
+const ASAAS_IS_SANDBOX = (process.env.ASAAS_SANDBOX === 'true' || process.env.VITE_ASAAS_SANDBOX === 'true') && !ASAAS_API_KEY.startsWith('$aact_prod_');
 const ASAAS_BASE_URL = ASAAS_IS_SANDBOX 
   ? 'https://sandbox.asaas.com/api/v3' 
   : 'https://api.asaas.com/v3';
