@@ -4,7 +4,7 @@ import ProductImageGallery from '../components/ProductImageGallery';
 import FormattedDescription, { stripFormattingTags } from '../components/FormattedDescription';
 import ProductModal from '../components/ProductModal';
 import InstallmentModal from '../components/InstallmentModal';
-import { getBestInstallmentText, formatBRL } from '../utils/installmentCalculator';
+import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import NotFoundPage from './NotFoundPage';
 import { 
   ArrowLeft, 
@@ -201,6 +201,12 @@ export default function ProductDetailPage({
   const category = categories.find((c) => c.id === product.categoryId);
   const brand = brands.find((b) => b.id === product.brandId);
 
+  const hasPrice = product.price > 0 && !product.priceNegotiable;
+  const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
+  const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
+    product.price ? formatBRL(product.price) : 'Sob Consulta'
+  );
+
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
@@ -215,9 +221,13 @@ export default function ProductDetailPage({
     } catch (e) {}
   };
 
-  const whatsappMessage = encodeURIComponent(
-    `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação oficial para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'N/A'}\nCategoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
-  );
+  const whatsappMessage = hasPrice
+    ? encodeURIComponent(
+        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${product.name}*\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\nMarca: ${brand?.name || 'Athena'}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
+      )
+    : encodeURIComponent(
+        `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação oficial para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'N/A'}\nCategoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
+      );
 
   // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
   useEffect(() => {
@@ -567,48 +577,6 @@ export default function ProductDetailPage({
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
                 {product.name}
               </h1>
-
-              {/* Commercial Condition / Price Banner with PIX & Installments */}
-              {product.price > 0 && !product.priceNegotiable ? (
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/80 space-y-2">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider bg-amber-200/80 px-2 py-0.5 rounded">
-                      À Vista no PIX
-                    </span>
-                    <span className="text-2xl sm:text-3xl font-black text-amber-950 font-display">
-                      {formattedPrice}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-200/60 text-xs">
-                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                      <CreditCard className="w-3.5 h-3.5 text-amber-700" />
-                      {getBestInstallmentText(product.price, 12)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsInstallmentModalOpen(true)}
-                      className="text-amber-900 hover:text-amber-950 font-black underline cursor-pointer text-[11px] flex items-center gap-1"
-                    >
-                      <span>Ver formas de pagamento e parcelas</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-baseline gap-2 pt-0.5">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    {product.price > 0 ? 'Preço Estimado:' : 'Condição Comercial:'}
-                  </span>
-                  <span className="text-xl sm:text-2xl font-extrabold text-amber-800 font-display">
-                    {formattedPrice}
-                  </span>
-                  {product.priceNegotiable && (
-                    <span className="text-[11px] text-slate-400 font-medium">
-                      (Consulte condições)
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Clean Description on Normal White Background */}
@@ -623,17 +591,82 @@ export default function ProductDetailPage({
               </div>
             </div>
 
-            {/* Action Buttons Below Description */}
+            {/* Commercial Condition / Price Banner with PIX & Installments (Positioned above CTA Buttons) */}
+            {hasPrice ? (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/80 space-y-2">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider bg-amber-200/80 px-2 py-0.5 rounded">
+                    À Vista no PIX
+                  </span>
+                  <span className="text-2xl sm:text-3xl font-black text-amber-950 font-display">
+                    {pixCustomerPrice}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-200/60 text-xs">
+                  <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-amber-700" />
+                    {getBestInstallmentText(product.price, 12)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsInstallmentModalOpen(true)}
+                    className="text-amber-900 hover:text-amber-950 font-black underline cursor-pointer text-[11px] flex items-center gap-1"
+                  >
+                    <span>Ver opções de pagamento (Cartão, PIX, Débito e Boleto)</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-baseline gap-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {product.price > 0 ? 'Preço Estimado:' : 'Condição Comercial:'}
+                </span>
+                <span className="text-xl sm:text-2xl font-extrabold text-amber-800 font-display">
+                  {formattedPrice}
+                </span>
+                {product.priceNegotiable && (
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    (Consulte condições)
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Action Buttons Below Price */}
             <div className="pt-2 flex flex-wrap items-center gap-3">
-              <a
-                href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-bold flex items-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4 fill-current" />
-                <span>Cotação Instantânea no WhatsApp</span>
-              </a>
+              {hasPrice ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsInstallmentModalOpen(true)}
+                    className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-black flex items-center gap-2 cursor-pointer"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Comprar Agora (PIX / Cartão)</span>
+                  </button>
+
+                  <a
+                    href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs flex items-center gap-2 transition-all"
+                  >
+                    <MessageCircle className="w-4 h-4 text-emerald-600 fill-emerald-600/20" />
+                    <span>Dúvidas no WhatsApp</span>
+                  </a>
+                </>
+              ) : (
+                <a
+                  href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-bold flex items-center gap-2"
+                >
+                  <MessageCircle className="w-4 h-4 fill-current" />
+                  <span>Cotação Instantânea no WhatsApp</span>
+                </a>
+              )}
 
               {onToggleComparison && (
                 <button

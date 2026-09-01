@@ -1,7 +1,7 @@
 import React from 'react';
 import { stripFormattingTags } from './FormattedDescription';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard } from 'lucide-react';
-import { getBestInstallmentText } from '../utils/installmentCalculator';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart } from 'lucide-react';
+import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 
 export default function ProductCard({ 
   product, 
@@ -15,13 +15,23 @@ export default function ProductCard({
   onToggleComparison,
   viewMode = 'grid'
 }) {
+  const hasPrice = product.price > 0 && !product.priceNegotiable;
+  const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
+  const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
+    product.price ? formatBRL(product.price) : 'Sob Consulta'
+  );
+
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
 
-  const whatsappText = encodeURIComponent(
-    `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de um orçamento para o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'}). Poderia me informar valor, prazo de entrega e formas de pagamento?`
-  );
+  const whatsappText = hasPrice
+    ? encodeURIComponent(
+        `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de comprar o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'} - Valor: ${pixCustomerPrice} no PIX / Cartão). Poderia me orientar para concluir o pedido?`
+      )
+    : encodeURIComponent(
+        `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de um orçamento para o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'}). Poderia me informar valor, prazo de entrega e formas de pagamento?`
+      );
 
   const isDraft = product.status === 'draft';
 
@@ -147,12 +157,12 @@ export default function ProductCard({
           <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide block">
-                {product.price > 0 && !product.priceNegotiable ? 'À Vista no PIX' : (product.price > 0 ? 'Preço Estimado' : 'Condição Comercial')}
+                {hasPrice ? 'À Vista no PIX' : (product.price > 0 ? 'Preço Estimado' : 'Condição Comercial')}
               </span>
               <span className="text-sm font-extrabold text-amber-800 font-display bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 inline-block mt-0.5">
-                {formattedPrice}
+                {hasPrice ? pixCustomerPrice : formattedPrice}
               </span>
-              {product.price > 0 && !product.priceNegotiable && (
+              {hasPrice && (
                 <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
                   {getBestInstallmentText(product.price, 12)}
                 </span>
@@ -162,7 +172,7 @@ export default function ProductCard({
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => onSelectProduct(product)}
-                className="btn-secondary text-xs py-2 px-4 font-bold flex items-center gap-1.5"
+                className="btn-secondary text-xs py-2 px-4 font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <FileText className="w-4 h-4 text-slate-600" />
                 <span>Ver Ficha Técnica</span>
@@ -172,10 +182,12 @@ export default function ProductCard({
                 href={`https://wa.me/5561983485671?text=${whatsappText}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                className={`py-2 px-4 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1.5 shadow-xs transition-colors ${
+                  hasPrice ? 'bg-amber-500 hover:bg-amber-600 !text-slate-950 font-extrabold' : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
               >
-                <MessageCircle className="w-4 h-4 fill-current shrink-0" />
-                <span>Solicitar Cotação</span>
+                {hasPrice ? <CreditCard className="w-4 h-4 shrink-0" /> : <MessageCircle className="w-4 h-4 fill-current shrink-0" />}
+                <span>{hasPrice ? 'Comprar Agora' : 'Solicitar Cotação'}</span>
               </a>
             </div>
           </div>
@@ -319,13 +331,13 @@ export default function ProductCard({
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-1">
               <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide">
-                {product.price > 0 && !product.priceNegotiable ? 'À Vista no PIX' : (product.price > 0 ? 'Preço Estimado' : 'Condição Comercial')}
+                {hasPrice ? 'À Vista no PIX' : (product.price > 0 ? 'Preço Estimado' : 'Condição Comercial')}
               </span>
               <span className="text-xs font-extrabold text-amber-800 font-display bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-300">
-                {formattedPrice}
+                {hasPrice ? pixCustomerPrice : formattedPrice}
               </span>
             </div>
-            {product.price > 0 && !product.priceNegotiable && (
+            {hasPrice && (
               <span className="text-[10px] text-slate-500 font-medium block text-right">
                 {getBestInstallmentText(product.price, 12)}
               </span>
@@ -335,7 +347,7 @@ export default function ProductCard({
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => onSelectProduct(product)}
-              className="btn-secondary text-xs py-2.5 px-2 w-full justify-center font-bold"
+              className="btn-secondary text-xs py-2.5 px-2 w-full justify-center font-bold cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
               <span>Detalhes</span>
@@ -345,10 +357,12 @@ export default function ProductCard({
               href={`https://wa.me/5561983485671?text=${whatsappText}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2.5 px-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 flex items-center justify-center gap-1.5 shadow-xs transition-colors text-decoration-none"
+              className={`py-2.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors text-decoration-none ${
+                hasPrice ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold' : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
             >
-              <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
-              <span>Cotar</span>
+              {hasPrice ? <CreditCard className="w-3.5 h-3.5 shrink-0" /> : <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />}
+              <span>{hasPrice ? 'Comprar' : 'Cotar'}</span>
             </a>
           </div>
         </div>

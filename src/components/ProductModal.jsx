@@ -1,6 +1,7 @@
 import React from 'react';
 import FormattedDescription from './FormattedDescription';
-import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles, Play, ExternalLink } from 'lucide-react';
+import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles, Play, ExternalLink, CreditCard } from 'lucide-react';
+import { calculatePaymentGateways, getBestInstallmentText, formatBRL } from '../utils/installmentCalculator';
 
 export default function ProductModal({ 
   product, 
@@ -17,13 +18,25 @@ export default function ProductModal({
   const category = propCategory || (categories && categories.find(c => c.id === product.categoryId));
   const brand = propBrand || (brands && brands.find(b => b.id === product.brandId));
 
+  const hasPrice = product.price > 0 && !product.priceNegotiable;
+  const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
+  const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
+    product.price ? formatBRL(product.price) : 'Sob Consulta'
+  );
+
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
 
-  const whatsappMessage = encodeURIComponent(
+  const whatsappBuyMessage = encodeURIComponent(
+    `Olá Athena Soluções Automotivas!\n\nGostaria de comprar o equipamento:\n📌 *${product.name}*\n🏷️ Marca: ${brand?.name || 'Athena'}\n💰 Valor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\n\nPoderia me orientar para concluir o pedido?`
+  );
+
+  const whatsappQuoteMessage = encodeURIComponent(
     `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação para o equipamento:\n📌 *${product.name}*\n🏷️ Marca: ${brand?.name || 'N/A'}\n📁 Categoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre prazo de entrega, frete e formas de pagamento.`
   );
+
+  const whatsappMessage = hasPrice ? whatsappBuyMessage : whatsappQuoteMessage;
 
   const productUrl = `/produto/${product.slug || product.id}`;
 
@@ -113,17 +126,36 @@ export default function ProductModal({
               </h2>
 
               {/* Price Banner */}
-              <div className="bg-amber-50/60 p-4 rounded-xl border border-amber-200 flex items-baseline justify-between">
-                <div>
-                  <span className="text-xs font-semibold text-slate-500 block uppercase">Investimento Estimado</span>
-                  <span className="text-2xl font-extrabold text-amber-700 font-display">
-                    {formattedPrice}
+              {hasPrice ? (
+                <div className="bg-amber-50/80 p-3.5 rounded-xl border border-amber-200 space-y-1">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <span className="text-[10px] font-black text-amber-900 uppercase block tracking-wider">À Vista no PIX</span>
+                      <span className="text-2xl font-black text-amber-950 font-display">
+                        {pixCustomerPrice}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md">
+                      Melhor Preço
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-600 font-medium block">
+                    {getBestInstallmentText(product.price, 12)}
                   </span>
                 </div>
-                <span className="text-[11px] text-amber-800 bg-amber-100 px-2.5 py-1 rounded-lg font-semibold">
-                  Consulte condições
-                </span>
-              </div>
+              ) : (
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-baseline justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-500 block uppercase">Investimento Estimado</span>
+                    <span className="text-2xl font-extrabold text-amber-800 font-display">
+                      {formattedPrice}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-amber-800 bg-amber-100 px-2.5 py-1 rounded-lg font-semibold">
+                    Consulte condições
+                  </span>
+                </div>
+              )}
 
               {/* Description */}
               <div>
@@ -159,10 +191,12 @@ export default function ProductModal({
                 href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full btn-gold text-sm py-3 justify-center font-extrabold shadow-md"
+                className={`w-full text-sm py-3 justify-center font-extrabold shadow-md rounded-2xl flex items-center gap-2 transition-all ${
+                  hasPrice ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'btn-gold'
+                }`}
               >
-                <MessageCircle className="w-5 h-5 fill-current" />
-                <span>Solicitar Cotação Oficial no WhatsApp</span>
+                {hasPrice ? <CreditCard className="w-5 h-5 shrink-0" /> : <MessageCircle className="w-5 h-5 fill-current" />}
+                <span>{hasPrice ? 'Comprar Agora (PIX / Cartão)' : 'Solicitar Cotação Oficial no WhatsApp'}</span>
               </a>
 
               <a
