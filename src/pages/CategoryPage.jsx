@@ -168,7 +168,7 @@ export default function CategoryPage({
                   onChange={(e) => setSortBy(e.target.value)}
                   className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 outline-none focus:ring-1 focus:ring-amber-500"
                 >
-                  <option value="featured">Destaques</option>
+                  <option value="featured">Mais Relevantes</option>
                   <option value="name-az">Nome (A-Z)</option>
                   <option value="price-low">Menor Preço</option>
                   <option value="price-high">Maior Preço</option>

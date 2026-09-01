@@ -201,7 +201,7 @@ export default function Catalog({
                       onChange={(e) => setSortBy(e.target.value)}
                       className="form-select text-xs py-2 px-3 bg-slate-50 border-slate-300 w-auto font-semibold"
                     >
-                      <option value="featured">Destaques Athena</option>
+                      <option value="featured">Mais Relevantes</option>
                       <option value="price-low">Menor Preço</option>
                       <option value="price-high">Maior Preço</option>
                       <option value="name-az">Nome (A - Z)</option>

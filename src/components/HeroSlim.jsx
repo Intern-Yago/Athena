@@ -1,13 +1,37 @@
-import React from 'react';
-import { Search, Sparkles, Layers, ShieldCheck, Truck, Wrench } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Search, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 
 export default function HeroSlim({ 
   searchTerm, 
   setSearchTerm, 
-  categories, 
+  categories = [], 
   selectedCategory, 
   setSelectedCategory 
 }) {
+  const scrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    setCanScrollLeft(scrollLeft > 5);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
+  };
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [categories]);
+
+  const handleScroll = (direction) => {
+    if (!scrollRef.current) return;
+    const scrollAmount = direction === 'left' ? -280 : 280;
+    scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    setTimeout(checkScroll, 320);
+  };
+
   return (
     <div className="relative bg-slate-950 text-white border-b border-slate-800 py-8 sm:py-12 overflow-hidden shadow-lg">
       
@@ -36,9 +60,9 @@ export default function HeroSlim({
             </p>
           </div>
 
-          {/* Quick Search & Filter Pills */}
-          <div className="space-y-3.5 max-w-2xl mx-auto pt-1">
-            <div className="relative group w-full">
+          {/* Quick Search & Single-Line Category Carousel */}
+          <div className="space-y-3 max-w-3xl mx-auto pt-1">
+            <div className="relative group max-w-2xl mx-auto">
               <input
                 type="text"
                 placeholder="Buscar por elevador, scanner, alinhador ou marca (ex: Launch, Engecass)..."
@@ -49,39 +73,73 @@ export default function HeroSlim({
               <Search className="w-4 h-4 text-amber-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               {searchTerm && (
                 <button
+                  type="button"
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
                 >
                   Limpar
                 </button>
               )}
             </div>
 
-            {/* Quick Filter Pills */}
-            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm ${
-                  selectedCategory === 'all'
-                    ? 'bg-amber-600 text-white border-amber-400 shadow-md scale-105'
-                    : 'bg-slate-900/90 text-white border-slate-700 hover:bg-slate-800 hover:border-amber-400'
-                }`}
-              >
-                Todas
-              </button>
-              {categories.map((cat) => (
+            {/* Single-Line Category Carousel with Smooth Lateral Scrolling */}
+            <div className="relative flex items-center justify-center pt-1">
+              {/* Left Arrow Button */}
+              {canScrollLeft && (
                 <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border shadow-sm ${
-                    selectedCategory === cat.id
+                  type="button"
+                  onClick={() => handleScroll('left')}
+                  className="absolute left-0 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-amber-600 text-white border border-slate-700 hover:border-amber-400 flex items-center justify-center shadow-xl -translate-x-2 sm:-translate-x-4 transition-all cursor-pointer"
+                  title="Ver categorias anteriores"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Scrollable Track in 1 Single Line */}
+              <div
+                ref={scrollRef}
+                onScroll={checkScroll}
+                className="flex items-center gap-2 overflow-x-auto scroll-smooth py-1.5 px-3 w-full max-w-3xl select-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              >
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('all')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
+                    selectedCategory === 'all'
                       ? 'bg-amber-600 text-white border-amber-400 shadow-md scale-105'
-                      : 'bg-slate-900/90 text-white border-slate-700 hover:bg-slate-800 hover:border-amber-400'
+                      : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:bg-slate-800 hover:text-white hover:border-amber-400'
                   }`}
                 >
-                  {cat.name}
+                  Todas
                 </button>
-              ))}
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
+                      selectedCategory === cat.id
+                        ? 'bg-amber-600 text-white border-amber-400 shadow-md scale-105'
+                        : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:bg-slate-800 hover:text-white hover:border-amber-400'
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Right Arrow Button */}
+              {canScrollRight && (
+                <button
+                  type="button"
+                  onClick={() => handleScroll('right')}
+                  className="absolute right-0 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-amber-600 text-white border border-slate-700 hover:border-amber-400 flex items-center justify-center shadow-xl translate-x-2 sm:translate-x-4 transition-all cursor-pointer"
+                  title="Ver mais categorias"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
