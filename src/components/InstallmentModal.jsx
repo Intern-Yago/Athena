@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   X, 
   CreditCard, 
@@ -18,7 +18,7 @@ import {
   MessageCircle,
   ExternalLink,
   ChevronDown,
-  ShoppingBag,
+  ShoppingCart,
   Tag,
   Gift,
   Trash2
@@ -36,17 +36,40 @@ export default function InstallmentModal({
   onOrderCompleted
 }) {
   const [selectedTab, setSelectedTab] = useState('pix');
-  
-  // Normalize items array
-  const activeItems = items && items.length > 0 
-    ? items 
-    : (productName && cashPrice ? [{
-        name: productName,
-        price: Number(cashPrice),
-        quantity: 1
-      }] : []);
 
-  const rawSubtotal = activeItems.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
+  // Lock background scroll when modal is open to eliminate background lag and prevent page scrolling
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+      document.body.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+      };
+    }
+  }, [isOpen]);
+  
+  // Normalize items array with memoization
+  const activeItems = useMemo(() => {
+    return items && items.length > 0 
+      ? items 
+      : (productName && cashPrice ? [{
+          name: productName,
+          price: Number(cashPrice),
+          quantity: 1
+        }] : []);
+  }, [items, productName, cashPrice]);
+
+  const rawSubtotal = useMemo(() => {
+    return activeItems.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
+  }, [activeItems]);
 
   // Customer Form with pre-fill from currentUser
   const [customer, setCustomer] = useState({
@@ -133,13 +156,24 @@ export default function InstallmentModal({
 
   if (!isOpen) return null;
 
-  // Final Payable Calculation
-  const discountedSubtotal = Math.max(0, rawSubtotal - couponDiscount);
+  // Final Payable Calculation with memoization
+  const discountedSubtotal = useMemo(() => {
+    return Math.max(0, rawSubtotal - couponDiscount);
+  }, [rawSubtotal, couponDiscount]);
+
   const isFreeOrder = discountedSubtotal === 0 && appliedCoupon !== null;
 
-  const installments = calculateInstallments(discountedSubtotal, maxInstallments);
-  const gateways = calculatePaymentGateways(discountedSubtotal);
-  const selectedInstallmentData = installments.find(i => i.installments === Number(card.installments)) || installments[0];
+  const installments = useMemo(() => {
+    return calculateInstallments(discountedSubtotal, maxInstallments);
+  }, [discountedSubtotal, maxInstallments]);
+
+  const gateways = useMemo(() => {
+    return calculatePaymentGateways(discountedSubtotal);
+  }, [discountedSubtotal]);
+
+  const selectedInstallmentData = useMemo(() => {
+    return installments.find(i => i.installments === Number(card.installments)) || installments[0];
+  }, [installments, card.installments]);
 
   // Mask Helpers
   const handleCpfChange = (e) => {
@@ -344,9 +378,12 @@ export default function InstallmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+    <div 
+      className="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-3 sm:p-4 overscroll-none animate-in fade-in duration-150"
+      onClick={onClose}
+    >
       <div 
-        className="relative bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]"
+        className="relative bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -378,13 +415,13 @@ export default function InstallmentModal({
         </div>
 
         {/* MODAL BODY */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-5">
 
           {/* 1. ORDER SUMMARY & MULTI-ITEM DRAWER */}
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShoppingBag className="w-4 h-4 text-amber-600" />
+                <ShoppingCart className="w-4 h-4 text-amber-600" />
                 <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">
                   Resumo do Pedido ({activeItems.length} {activeItems.length === 1 ? 'item' : 'itens'})
                 </span>
@@ -540,7 +577,7 @@ export default function InstallmentModal({
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-4 animate-in fade-in">
               <div className="space-y-1">
                 <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs inline-block">
-                  ⚡ Aguardando Pagamento via PIX
+                  Aguardando Pagamento via PIX
                 </span>
                 <p className="text-xs text-slate-500">
                   Abra o aplicativo do seu banco e escaneie o QR Code abaixo ou utilize o Pix Copia e Cola:
@@ -831,17 +868,17 @@ export default function InstallmentModal({
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => handleSubmitPayment('FREE')}
-                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Faturando Pedido Cortesia...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Faturando Pedido Cortesia...</span>
                       </>
                     ) : (
                       <>
-                        <Gift className="w-4 h-4" />
-                        <span>Resgatar Pedido Gratuito (100% OFF)</span>
+                        <Gift className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Resgatar Pedido Gratuito (100% OFF)</span>
                       </>
                     )}
                   </button>
@@ -850,17 +887,17 @@ export default function InstallmentModal({
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => handleSubmitPayment('PIX')}
-                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Gerando QR Code PIX Asaas...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Gerando QR Code PIX Asaas...</span>
                       </>
                     ) : (
                       <>
-                        <Zap className="w-4 h-4" />
-                        <span>Gerar PIX para Pagamento ({gateways.pix.formattedCustomerAmount})</span>
+                        <Zap className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Gerar PIX para Pagamento ({gateways.pix.formattedCustomerAmount})</span>
                       </>
                     )}
                   </button>
@@ -869,17 +906,17 @@ export default function InstallmentModal({
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => handleSubmitPayment('CREDIT_CARD')}
-                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Processando no Cartão...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Processando no Cartão...</span>
                       </>
                     ) : (
                       <>
-                        <CreditCard className="w-4 h-4" />
-                        <span>Pagar {selectedInstallmentData.installments}x de {selectedInstallmentData.formattedMonthly}</span>
+                        <CreditCard className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Pagar {selectedInstallmentData.installments}x de {selectedInstallmentData.formattedMonthly}</span>
                       </>
                     )}
                   </button>
@@ -888,17 +925,17 @@ export default function InstallmentModal({
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => handleSubmitPayment('DEBIT_CARD')}
-                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Processando Débito...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Processando Débito...</span>
                       </>
                     ) : (
                       <>
-                        <Landmark className="w-4 h-4" />
-                        <span>Pagar no Débito Online ({gateways.debit.formattedCustomerAmount})</span>
+                        <Landmark className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Pagar no Débito Online ({gateways.debit.formattedCustomerAmount})</span>
                       </>
                     )}
                   </button>
@@ -907,17 +944,17 @@ export default function InstallmentModal({
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => handleSubmitPayment('BOLETO')}
-                    className="w-full btn-gold font-extrabold text-sm py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Emitindo Boleto Bancário...</span>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Emitindo Boleto Bancário...</span>
                       </>
                     ) : (
                       <>
-                        <FileText className="w-4 h-4" />
-                        <span>Gerar Boleto Bancário ({gateways.boleto.formattedCustomerAmount})</span>
+                        <FileText className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Gerar Boleto Bancário ({gateways.boleto.formattedCustomerAmount})</span>
                       </>
                     )}
                   </button>

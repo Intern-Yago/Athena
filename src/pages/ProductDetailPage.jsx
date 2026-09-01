@@ -31,7 +31,7 @@ import {
   ExternalLink,
   CreditCard,
   QrCode,
-  ShoppingBag
+  ShoppingCart
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
@@ -660,7 +660,7 @@ export default function ProductDetailPage({
                     onClick={() => addToCart(product)}
                     className="py-2.5 px-4 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
                   >
-                    <ShoppingBag className="w-4 h-4 text-amber-700" />
+                    <ShoppingCart className="w-4 h-4 text-amber-700" />
                     <span>+ Carrinho</span>
                   </button>
 

@@ -17,7 +17,7 @@ import {
   Mail, 
   Calendar, 
   Layers, 
-  ShoppingBag, 
+  ShoppingCart, 
   Shuffle, 
   X, 
   Loader2,
@@ -568,8 +568,8 @@ export default function CouponManager({
                       onChange={(e) => setForm({ ...form, status: e.target.value })}
                       className="form-input text-xs font-bold"
                     >
-                      <option value="active">🟢 Ativo (Pronto para uso)</option>
-                      <option value="paused">⏸️ Pausado</option>
+                      <option value="active">Ativo (Pronto para uso)</option>
+                      <option value="paused">Pausado</option>
                     </select>
                   </div>
                 </div>

@@ -1024,7 +1024,7 @@ export default function AdminPanel({
       specs: cleaned
     }));
 
-    showNotification(`✨ ${cleaned.length} especificações técnicas cadastradas no local correto e removidas da descrição!`, 'success');
+    showNotification(`${cleaned.length} especificações técnicas cadastradas no local correto e removidas da descrição!`, 'success');
 
     setTimeout(() => {
       scrollToSpecs();
@@ -1085,7 +1085,7 @@ export default function AdminPanel({
     }));
 
     showNotification(
-      `✨ Inteligência aplicada: ${specsAddedCount > 0 ? `${specsAddedCount} especificações tabuladas e ` : ''}${tabsAddedCount} abas criadas com sucesso!`,
+      `Inteligência aplicada: ${specsAddedCount > 0 ? `${specsAddedCount} especificações tabuladas e ` : ''}${tabsAddedCount} abas criadas com sucesso!`,
       'success'
     );
   };
@@ -1108,7 +1108,7 @@ export default function AdminPanel({
           newCompatibleIds = Array.from(new Set([...newCompatibleIds, ...linkResult.matchedIds]));
         }
 
-        showNotification(`✨ Aba "${title}" criada com conteúdo extraído da descrição!`, 'success');
+        showNotification(`Aba "${title}" criada com conteúdo extraído da descrição!`, 'success');
       }
     }
 
@@ -1183,7 +1183,7 @@ export default function AdminPanel({
       customTabs: (prev.customTabs || []).filter(t => t.id !== tabId)
     }));
 
-    showNotification(`✨ ${lines.length} especificações técnicas cadastradas no local correto e aba removida com sucesso!`, 'success');
+    showNotification(`${lines.length} especificações técnicas cadastradas no local correto e aba removida com sucesso!`, 'success');
 
     // Smoothly focus/scroll to the Specifications Card
     setTimeout(() => {
@@ -1218,7 +1218,7 @@ export default function AdminPanel({
         };
       });
 
-      showNotification(`✨ Conteúdo de "${tabTitle}" extraído e removido da descrição!`, 'success');
+      showNotification(`Conteúdo de "${tabTitle}" extraído e removido da descrição!`, 'success');
     } else {
       showNotification(`Não encontramos um bloco com o tema "${tabTitle}" na descrição. Você pode digitar ou colar diretamente.`, 'info');
     }
@@ -1782,7 +1782,7 @@ export default function AdminPanel({
         if (res.ok) {
           const data = await res.json();
           setBrandForm((prev) => ({ ...prev, logo: data.url }));
-          showNotification('Logo enviada com sucesso! ☁️', 'success');
+          showNotification('Logo enviada com sucesso!', 'success');
         }
       } catch (err) {
         showNotification('Logo salva localmente.', 'info');
@@ -1840,7 +1840,7 @@ export default function AdminPanel({
         attachments: [...(prev.attachments || []), newAtt]
       }));
 
-      showNotification(`Anexo "${file.name}" salvo na nuvem com sucesso! 📄☁️`, 'success');
+      showNotification(`Anexo "${file.name}" salvo na nuvem com sucesso!`, 'success');
     };
 
     reader.readAsDataURL(file);
@@ -1872,7 +1872,7 @@ export default function AdminPanel({
 
       if (brand && brand.status === 'draft') {
         showNotification(
-          `⚠️ Bloqueado: A marca "${brand.name}" está em Rascunho. Ative/publique a marca no painel para liberar a publicação deste equipamento.`,
+          `Bloqueado: A marca "${brand.name}" está em Rascunho. Ative/publique a marca no painel para liberar a publicação deste equipamento.`,
           'warning'
         );
         return;
@@ -1880,7 +1880,7 @@ export default function AdminPanel({
 
       if (category && category.status === 'draft') {
         showNotification(
-          `⚠️ Bloqueado: A categoria "${category.name}" está em Rascunho. Ative/publique a categoria no painel para liberar este equipamento.`,
+          `Bloqueado: A categoria "${category.name}" está em Rascunho. Ative/publique a categoria no painel para liberar este equipamento.`,
           'warning'
         );
         return;
@@ -2740,9 +2740,9 @@ export default function AdminPanel({
                     className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 sm:w-36 font-semibold text-slate-700"
                   >
                     <option value="">Todos os Status</option>
-                    <option value="published">🟢 Publicados</option>
-                    <option value="draft">🟡 Rascunhos</option>
-                    <option value="featured">⭐ Destaques</option>
+                    <option value="published">Publicados</option>
+                    <option value="draft">Rascunhos</option>
+                    <option value="featured">Destaques</option>
                   </select>
 
                   {(adminProductSearch || adminBrandFilter || adminCategoryFilter || adminStatusFilter) && (
@@ -4685,7 +4685,7 @@ export default function AdminPanel({
                                         </div>
                                       </div>
                                       <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
-                                        <span>⚡ Prazo de recebimento: <strong>Imediato (D+0)</strong></span>
+                                        <span>Prazo de recebimento: <strong>Imediato (D+0)</strong></span>
                                         <span>Taxa fixa por transação via API</span>
                                       </div>
                                     </div>
@@ -4709,7 +4709,7 @@ export default function AdminPanel({
                                         </div>
                                       </div>
                                       <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
-                                        <span>💳 Prazo de recebimento: <strong>3 dias após pagamento (D+3)</strong></span>
+                                        <span>Prazo de recebimento: <strong>3 dias após pagamento (D+3)</strong></span>
                                         <span>Taxa de débito online</span>
                                       </div>
                                     </div>
@@ -4733,7 +4733,7 @@ export default function AdminPanel({
                                         </div>
                                       </div>
                                       <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
-                                        <span>📄 Prazo: <strong>1 dia útil após compensação (D+1)</strong></span>
+                                        <span>Prazo: <strong>1 dia útil após compensação (D+1)</strong></span>
                                         <span>Taxa cobrada apenas quando o boleto é pago</span>
                                       </div>
                                     </div>

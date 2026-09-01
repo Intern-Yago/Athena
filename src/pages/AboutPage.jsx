@@ -211,7 +211,7 @@ export default function AboutPage() {
                 Atendimento comercial, consultoria de projetos e remessa de equipamentos pesados para todo o território brasileiro.
               </p>
               <span className="inline-block px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                🚚 Entregas Técnicas em Todo o Brasil
+                Entregas Técnicas em Todo o Brasil
               </span>
             </div>
           </div>

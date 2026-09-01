@@ -29,11 +29,11 @@ export default function ProductModal({
     : 'Sob Consulta';
 
   const whatsappBuyMessage = encodeURIComponent(
-    `Olá Athena Soluções Automotivas!\n\nGostaria de comprar o equipamento:\n📌 *${product.name}*\n🏷️ Marca: ${brand?.name || 'Athena'}\n💰 Valor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\n\nPoderia me orientar para concluir o pedido?`
+    `Olá Athena Soluções Automotivas!\n\nGostaria de comprar o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'Athena'}\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\n\nPoderia me orientar para concluir o pedido?`
   );
 
   const whatsappQuoteMessage = encodeURIComponent(
-    `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação para o equipamento:\n📌 *${product.name}*\n🏷️ Marca: ${brand?.name || 'N/A'}\n📁 Categoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre prazo de entrega, frete e formas de pagamento.`
+    `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'N/A'}\nCategoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre prazo de entrega, frete e formas de pagamento.`
   );
 
   const whatsappMessage = hasPrice ? whatsappBuyMessage : whatsappQuoteMessage;

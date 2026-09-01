@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Layers, Tag, PackageCheck, Info, ChevronDown, ChevronRight, PhoneCall, Lock, Grid, User, LogOut, ShoppingBag } from 'lucide-react';
+import { X, Layers, Tag, PackageCheck, Info, ChevronDown, ChevronRight, PhoneCall, Lock, Grid, User, LogOut, ShoppingCart } from 'lucide-react';
 
 export default function MobileDrawer({ 
   isOpen, 

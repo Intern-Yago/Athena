@@ -36,9 +36,9 @@ if (SMTP_PASS) {
       pass: SMTP_PASS
     }
   });
-  console.log('📧 Google SMTP (Gmail) configurado com sucesso para:', SMTP_USER, '| Remetente:', SMTP_FROM);
+  console.log('Google SMTP (Gmail) configurado com sucesso para:', SMTP_USER, '| Remetente:', SMTP_FROM);
 } else {
-  console.log('ℹ️ Google SMTP em modo log (Defina GMAIL_APP_PASSWORD no .env para envio real).');
+  console.log('Google SMTP em modo log (Defina GMAIL_APP_PASSWORD no .env para envio real).');
 }
 
 async function sendPasswordResetEmail(toEmail, resetCode, userName = 'Cliente') {
@@ -82,7 +82,7 @@ async function sendPasswordResetEmail(toEmail, resetCode, userName = 'Cliente') 
     }
   }
 
-  console.log(`🔑 [DEBUG CÓDIGO DE RECUPERAÇÃO] E-mail: ${toEmail} | Código: ${resetCode}`);
+  console.log(`[DEBUG CODIGO DE RECUPERACAO] E-mail: ${toEmail} | Codigo: ${resetCode}`);
   return { success: true, method: 'log', code: resetCode };
 }
 
@@ -659,7 +659,7 @@ if (dbConnectionString) {
     connectionString: dbConnectionString,
     ssl: { rejectUnauthorized: false }
   });
-  console.log('🐘 PostgreSQL athena-db conectado via DATABASE_URL');
+  console.log('PostgreSQL athena-db conectado via DATABASE_URL');
 }
 
 // Helper for safe password comparison (handles plain text and bcrypt hashes safely)
@@ -695,7 +695,7 @@ async function initDb() {
 
       const userCheck = await pool.query('SELECT id FROM users LIMIT 1');
       if (userCheck.rows.length === 0) {
-        console.log(`👤 Criando usuário Administrador inicial (${adminEmail})...`);
+        console.log(`Criando usuario Administrador inicial (${adminEmail})...`);
         const adminHash = bcrypt.hashSync(adminPassword, 10);
         await pool.query(`
           INSERT INTO users (id, name, email, password_hash, role) 
@@ -888,14 +888,14 @@ async function initDb() {
                 prod.inStock !== undefined ? prod.inStock : true
               ]);
             }
-            console.log(`📦 Seeded ${dbData.products.length} produtos do athena-db.json no PostgreSQL!`);
+            console.log(`Seeded ${dbData.products.length} produtos do athena-db.json no PostgreSQL!`);
           }
         } catch (seedErr) {
           console.error('Erro ao sincronizar produtos do JSON para PostgreSQL:', seedErr);
         }
       }
 
-      console.log('✅ PostgreSQL athena-db pronto!');
+      console.log('PostgreSQL athena-db pronto!');
 
     } catch (err) {
       console.error('Erro na inicialização do PostgreSQL:', err);
@@ -1628,9 +1628,9 @@ async function pingAsaasKeepAlive() {
     const res = await axios.get(`${ASAAS_BASE_URL}/finance/balance`, {
       headers: { 'access_token': ASAAS_API_KEY }
     });
-    console.log(`🛡️ [Asaas Keep-Alive] Conexão ativa! Saldo: R$ ${res.data?.totalBalance || 0} (Chave de API validada)`);
+    console.log(`[Asaas Keep-Alive] Conexao ativa! Saldo: R$ ${res.data?.totalBalance || 0} (Chave de API validada)`);
   } catch (err) {
-    console.warn(`⚠️ [Asaas Keep-Alive] Aviso ao consultar Asaas:`, err.response?.data?.errors?.[0]?.description || err.message);
+    console.warn(`[Asaas Keep-Alive] Aviso ao consultar Asaas:`, err.response?.data?.errors?.[0]?.description || err.message);
   }
 }
 setTimeout(pingAsaasKeepAlive, 10000);
@@ -2413,7 +2413,7 @@ app.post('/api/payments/webhook', async (req, res) => {
     }
 
     const { event, payment } = req.body;
-    console.log(`🔔 [Asaas Webhook] Evento: ${event} | Pagamento: ${payment?.id} | Status: ${payment?.status}`);
+    console.log(`[Asaas Webhook] Evento: ${event} | Pagamento: ${payment?.id} | Status: ${payment?.status}`);
 
     if (payment && payment.externalReference) {
       const orderId = payment.externalReference;
@@ -2999,6 +2999,6 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Athena API Backend rodando na porta ${PORT}`);
-  console.log(`🔒 Swagger API Docs protegida em: http://localhost:${PORT}/api-docs`);
+  console.log(`Athena API Backend rodando na porta ${PORT}`);
+  console.log(`Swagger API Docs protegida em: http://localhost:${PORT}/api-docs`);
 });

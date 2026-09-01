@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Layers, Tag, PackageCheck, PhoneCall, Menu, ChevronDown, Info, X, User, LogOut, Shield, ShoppingBag } from 'lucide-react';
+import { Search, Layers, Tag, PackageCheck, Menu, ChevronDown, Info, X, User, LogOut, Shield, ShoppingCart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import MegaMenu from './MegaMenu';
 import MobileDrawer from './MobileDrawer';
@@ -21,9 +21,6 @@ export default function Header({
   const { totalItemCount, setIsCartOpen } = useCart();
   const [activeMegaMenu, setActiveMegaMenu] = useState(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
-
-  const formattedPhone = "(61) 98348-5671";
-  const whatsappUrl = "https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+informa%C3%A7%C3%B5es.";
 
   const toggleMegaMenu = (menuType) => {
     setActiveMegaMenu(activeMegaMenu === menuType ? null : menuType);
@@ -213,24 +210,15 @@ export default function Header({
                 className="relative flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-extrabold text-slate-800 bg-amber-500/10 border border-amber-500/30 rounded-xl hover:bg-amber-500/20 transition-colors shadow-xs shrink-0 cursor-pointer"
                 title="Abrir Carrinho de Compras"
               >
-                <ShoppingBag className="w-4 h-4 text-amber-700" />
-                <span className="hidden lg:inline">Carrinho</span>
-                {totalItemCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] flex items-center justify-center shadow-xs animate-in zoom-in-50">
+                <ShoppingCart className="w-4 h-4 text-amber-700" />
+                {totalItemCount > 0 ? (
+                  <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[11px] flex items-center justify-center shadow-xs">
                     {totalItemCount}
                   </span>
+                ) : (
+                  <span className="hidden lg:inline text-xs font-bold text-slate-700">Carrinho</span>
                 )}
               </button>
-
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-xl hover:bg-emerald-100 transition-colors shadow-xs shrink-0"
-              >
-                <PhoneCall className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>{formattedPhone}</span>
-              </a>
             </div>
 
             {/* Mobile Header: Search Input + Cart + Hamburger (Locked on Screen) */}
@@ -274,7 +262,7 @@ export default function Header({
                 className="relative p-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 shadow-xs shrink-0 cursor-pointer"
                 title="Abrir Carrinho"
               >
-                <ShoppingBag className="w-4 h-4 text-amber-700" />
+                <ShoppingCart className="w-4 h-4 text-amber-700" />
                 {totalItemCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] flex items-center justify-center shadow-xs">
                     {totalItemCount}

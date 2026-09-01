@@ -1,4 +1,4 @@
-# 🚘 Athena Soluções Automotivas — Catálogo Digital de Equipamentos
+# Athena Soluções Automotivas — Catálogo Digital de Equipamentos
 
 [![Vercel Deployment](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com)
 [![Render Deployment](https://img.shields.io/badge/Backend-Render-46E3B7?style=for-the-badge&logo=render)](https://render.com)
@@ -10,9 +10,9 @@
 
 ---
 
-## 🌟 Principais Funcionalidades
+## Principais Funcionalidades
 
-### 🛒 Catálogo & Filtros E-commerce (Estilo KaBuM! / Amazon)
+### Catálogo & Filtros E-commerce (Estilo KaBuM! / Amazon)
 - **Painel Lateral Fixo (Sticky Sidebar)** com busca integrada por palavra-chave.
 - **Seleção Múltipla com Checkboxes `[x]`**: Permite selecionar simultaneamente várias marcas e várias categorias.
 - **Cruzamento Inteligente de Filtros**: Bloqueia e desabilita (`disabled`) automaticamente opções incompatíveis com contadores dinâmicos `(Qtd)` em tempo real.
@@ -20,26 +20,26 @@
 - **Slider Dinâmico de Preço Máximo**: Filtra equipamentos dentro do orçamento desejado pelo cliente.
 - **Paginação do Catálogo**: Organização limpa de 20 equipamentos por página com barra de navegação.
 
-### 📄 Páginas Dedicadas de Produtos (`/#/produto/:slug`)
+### Páginas Dedicadas de Produtos (`/#/produto/:slug`)
 - **URLs Amigáveis para SEO**: Rotas limpas baseadas no slug do equipamento.
 - **Navegação Inteligente "Voltar"**: Identifica se o visitante veio de uma marca, categoria ou link direto e adapta a navegação de retorno.
 - **Recomendação de Produtos Relacionados**: Exibe automaticamente 3 produtos complementares (mesma categoria/marca diferente, mesma marca/categoria diferente e destaque).
 - **Anexos e Documentos Opcionais**: Sistema de upload para manuais e fichas técnicas em PDF com o botão formatado **`Baixe <NomeFormatado>`**.
 - **Cotação Direta via WhatsApp**: Botão preenchendo mensagem oficial com dados e especificações do equipamento.
 
-### 🏷️ Páginas de Fabricantes & Parceiros (`/#/marca/:slug`)
+### Páginas de Fabricantes & Parceiros (`/#/marca/:slug`)
 - Exibição de logo oficial da marca armazenada no Cloudinary CDN.
 - Botão **`Visitar Site Oficial ↗`** para redirecionar diretamente ao site oficial do fabricante parceiro (ex: Engecass, Launch, Raven, Napro, Sun).
 
-### ⚙️ Painel Administrativo Completo (`/#/admin`)
+### Painel Administrativo Completo (`/#/admin`)
 - **Gestão de Status (`Publicado` vs `Rascunho`)**: Permite criar e visualizar rascunhos em modo de pré-visualização exclusiva antes da publicação.
-- **Reordenação Comercial Prioritária**: Botões **⬆️ Subir** e **⬇️ Descer** para colocar marcas parceiras estratégicas no topo dos filtros.
+- **Reordenação Comercial Prioritária**: Botões **Subir** e **Descer** para colocar marcas parceiras estratégicas no topo dos filtros.
 - **Gerador de Alt Text para SEO com IA**: Gera descrições acessíveis automáticas para imagens de produtos.
 - **Upload Direto para Nuvem Cloudinary**: Processamento de imagens JPG/PNG e PDFs de manuais convertidos para CDN global de alta velocidade.
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 
 ### Frontend (Interface do Usuário)
 - **React (v18)** + **Vite** — Build super rápido e estrutura SPA baseada em Hash Router.
@@ -53,7 +53,7 @@
 
 ---
 
-## 📂 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```text
 athena/
@@ -76,7 +76,7 @@ athena/
 
 ---
 
-## 🌐 Variáveis de Ambiente (Environment Variables)
+## Variáveis de Ambiente (Environment Variables)
 
 ### Backend (Render / Produção)
 | Variável | Descrição |
@@ -93,7 +93,7 @@ athena/
 
 ---
 
-## 🚀 Como Executar Localmente
+## Como Executar Localmente
 
 ### 1. Clonar o repositório
 ```bash
@@ -126,7 +126,7 @@ O Frontend estará disponível em `http://localhost:5173` e a API do Backend em 
 
 ---
 
-## 📞 Suporte Comercial & Contato
+## Suporte Comercial & Contato
 
 - **Empresa**: Athena Soluções Automotivas
 - **WhatsApp**: [(61) 98348-5671](https://wa.me/5561983485671)

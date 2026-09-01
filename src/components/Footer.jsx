@@ -159,7 +159,7 @@ export default function Footer({ setActiveTab, currentUser }) {
                     <span className="block text-[11px] text-slate-400">Arniqueira, Brasília – DF, CEP 71996-413</span>
                   </a>
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 pt-0.5">
-                    🚚 Atendimento & Logística para todo o Brasil
+                    Atendimento & Logística para todo o Brasil
                   </span>
                 </div>
               </div>

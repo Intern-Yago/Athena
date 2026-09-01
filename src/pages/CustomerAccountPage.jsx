@@ -20,7 +20,7 @@ import {
   Eye, 
   EyeOff, 
   Search,
-  ShoppingBag,
+  ShoppingCart,
   ShieldCheck,
   ArrowRight
 } from 'lucide-react';
@@ -494,7 +494,7 @@ export default function CustomerAccountPage({
             ) : (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs space-y-4 max-w-lg mx-auto">
                 <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600 shadow-xs">
-                  <ShoppingBag className="w-8 h-8" />
+                  <ShoppingCart className="w-8 h-8" />
                 </div>
                 <div className="space-y-1.5">
                   <h3 className="text-base font-bold text-slate-900">

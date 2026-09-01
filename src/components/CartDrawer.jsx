@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
-  ShoppingBag, 
+  ShoppingCart, 
   X, 
   Trash2, 
   Plus, 
@@ -27,17 +27,36 @@ export function CartDrawer() {
     openCartCheckout
   } = useCart();
 
+  // Lock background scroll when cart drawer is open to eliminate background lag
+  useEffect(() => {
+    if (isCartOpen) {
+      const originalOverflow = document.body.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+      document.body.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+      };
+    }
+  }, [isCartOpen]);
+
   if (!isCartOpen) return null;
 
   const formatBRL = (val) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-hidden animate-in fade-in duration-150 overscroll-none">
       {/* Backdrop */}
       <div 
         onClick={() => setIsCartOpen(false)}
-        className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity"
+        className="absolute inset-0 bg-slate-950/75 transition-opacity"
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
@@ -47,7 +66,7 @@ export function CartDrawer() {
           <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <ShoppingBag className="w-4 h-4" />
+                <ShoppingCart className="w-4 h-4" />
               </div>
               <div>
                 <h3 className="font-extrabold text-sm sm:text-base leading-none">
@@ -81,11 +100,11 @@ export function CartDrawer() {
           </div>
 
           {/* Cart Items List */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 divide-y divide-slate-100">
+          <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-3 divide-y divide-slate-100">
             {cartItems.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center py-12 px-4 space-y-4">
                 <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-sm">
-                  <ShoppingBag className="w-8 h-8" />
+                  <ShoppingCart className="w-8 h-8" />
                 </div>
                 <div className="space-y-1">
                   <h4 className="font-bold text-slate-900 text-sm">Seu carrinho está vazio</h4>
@@ -203,11 +222,11 @@ export function CartDrawer() {
                 <button
                   type="button"
                   onClick={openCartCheckout}
-                  className="w-full btn-gold font-extrabold text-xs sm:text-sm py-3 rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer group"
+                  className="w-full bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 group"
                 >
-                  <CreditCard className="w-4 h-4 text-slate-950 group-hover:scale-110 transition-transform" />
-                  <span>Finalizar Compra Segura</span>
-                  <ArrowRight className="w-4 h-4 text-slate-950" />
+                  <CreditCard className="w-5 h-5 text-slate-950 group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="text-slate-950 font-black tracking-wide">Finalizar Compra Segura</span>
+                  <ArrowRight className="w-5 h-5 text-slate-950 shrink-0" />
                 </button>
 
                 <button

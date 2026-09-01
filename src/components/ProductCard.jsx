@@ -1,6 +1,6 @@
 import React from 'react';
 import { stripFormattingTags } from './FormattedDescription';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, ShoppingBag } from 'lucide-react';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 
@@ -188,7 +188,7 @@ export default function ProductCard({
                     className="py-2 px-3 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
                     title="Adicionar ao Carrinho"
                   >
-                    <ShoppingBag className="w-3.5 h-3.5 text-amber-700" />
+                    <ShoppingCart className="w-3.5 h-3.5 text-amber-700" />
                     <span>+ Carrinho</span>
                   </button>
 
@@ -383,7 +383,7 @@ export default function ProductCard({
                 className="col-span-3 py-2.5 px-1 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer"
                 title="Adicionar ao Carrinho"
               >
-                <ShoppingBag className="w-3.5 h-3.5 text-amber-700" />
+                <ShoppingCart className="w-3.5 h-3.5 text-amber-700" />
                 <span className="hidden min-[400px]:inline">+</span>
               </button>
 

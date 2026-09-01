@@ -16,6 +16,6 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
-  console.log(`🚀 NestJS Backend Athena rodando com sucesso na porta ${port}: http://localhost:${port}/api`);
+  console.log(`NestJS Backend Athena rodando com sucesso na porta ${port}: http://localhost:${port}/api`);
 }
 bootstrap();
