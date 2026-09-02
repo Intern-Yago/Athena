@@ -31,7 +31,8 @@ import {
   ExternalLink,
   CreditCard,
   QrCode,
-  ShoppingCart
+  ShoppingCart,
+  Zap
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
@@ -560,6 +561,18 @@ export default function ProductDetailPage({
                     <Tag className="w-3 h-3 text-sky-600" />
                     {brand.name}
                   </button>
+                )}
+
+                {product.productType === 'digital' ? (
+                  <span className="badge bg-emerald-600 text-white font-bold flex items-center gap-1">
+                    <Zap className="w-3 h-3" />
+                    <span>Licença / Produto Digital</span>
+                  </span>
+                ) : (
+                  <span className="badge bg-slate-100 text-slate-700 font-bold border border-slate-200 flex items-center gap-1">
+                    <Truck className="w-3 h-3 text-slate-500" />
+                    <span>Equipamento Físico</span>
+                  </span>
                 )}
 
                 {product.badge && product.badge.trim() && (

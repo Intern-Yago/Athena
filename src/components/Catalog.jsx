@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ProductCard from './ProductCard';
 import FilterSidebar from './FilterSidebar';
 import Pagination from './Pagination';
 import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, LayoutGrid, List } from 'lucide-react';
+import { sortProducts } from '../utils/productSorting';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -29,11 +30,12 @@ export default function Catalog({
   const [sortBy, setSortBy] = useState('featured');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('grid');
+  const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1000000));
 
   // Reset to page 1 whenever any filter or search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategories, selectedBrands, maxPriceFilter, searchTerm, sortBy]);
+  }, [selectedCategories, selectedBrands, maxPriceFilter, searchTerm, sortBy, shuffleSeed]);
 
   // Helper for accent-insensitive search matching with plural/singular stemming
   const normalizeText = (text) => {
@@ -60,52 +62,46 @@ export default function Catalog({
   };
 
   // Filter products according to all active multi-selections
-  const filteredProducts = products.filter((prod) => {
-    const rawTerm = searchTerm.trim();
-    const term = normalizeText(rawTerm);
-    const category = categories.find((c) => c.id === prod.categoryId);
-    const brand = brands.find((b) => b.id === prod.brandId);
+  const filteredProducts = useMemo(() => {
+    return products.filter((prod) => {
+      const rawTerm = searchTerm.trim();
+      const term = normalizeText(rawTerm);
+      const category = categories.find((c) => c.id === prod.categoryId);
+      const brand = brands.find((b) => b.id === prod.brandId);
 
-    const tokens = getSearchTokens(rawTerm);
+      const tokens = getSearchTokens(rawTerm);
 
-    const matchesSearch = !term || (() => {
-      const customTabsContent = Array.isArray(prod.customTabs) 
-        ? prod.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ')
-        : '';
-      const specsContent = Array.isArray(prod.specs) ? prod.specs.join(' ') : '';
+      const matchesSearch = !term || (() => {
+        const customTabsContent = Array.isArray(prod.customTabs) 
+          ? prod.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ')
+          : '';
+        const specsContent = Array.isArray(prod.specs) ? prod.specs.join(' ') : '';
 
-      const productCorpus = [
-        prod.name,
-        prod.badge,
-        prod.description,
-        category?.name,
-        brand?.name,
-        specsContent,
-        customTabsContent
-      ].map(normalizeText).join(' ');
+        const productCorpus = [
+          prod.name,
+          prod.badge,
+          prod.description,
+          category?.name,
+          brand?.name,
+          specsContent,
+          customTabsContent
+        ].map(normalizeText).join(' ');
 
-      return productCorpus.includes(term) || (tokens.length > 0 && tokens.some(t => productCorpus.includes(t)));
-    })();
+        return productCorpus.includes(term) || (tokens.length > 0 && tokens.some(t => productCorpus.includes(t)));
+      })();
 
-    const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prod.categoryId);
-    const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(prod.brandId);
-    const matchesPrice = maxPriceFilter === null || (prod.price > 0 ? prod.price <= maxPriceFilter : true);
+      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prod.categoryId);
+      const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(prod.brandId);
+      const matchesPrice = maxPriceFilter === null || (prod.price > 0 ? prod.price <= maxPriceFilter : true);
 
-    return matchesSearch && matchesCategory && matchesBrand && matchesPrice;
-  });
+      return matchesSearch && matchesCategory && matchesBrand && matchesPrice;
+    });
+  }, [products, searchTerm, selectedCategories, selectedBrands, maxPriceFilter, categories, brands]);
 
-  // Sort products (Featured priority when sortBy === 'featured')
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === 'featured') {
-      if (a.isFeatured && !b.isFeatured) return -1;
-      if (!a.isFeatured && b.isFeatured) return 1;
-      return 0;
-    }
-    if (sortBy === 'price-low') return (a.price || 0) - (b.price || 0);
-    if (sortBy === 'price-high') return (b.price || 0) - (a.price || 0);
-    if (sortBy === 'name-az') return a.name.localeCompare(b.name);
-    return 0;
-  });
+  // Sort products (Smart Multi-Brand & Multi-Category Interleaving when sortBy === 'featured')
+  const sortedProducts = useMemo(() => {
+    return sortProducts(filteredProducts, sortBy, shuffleSeed);
+  }, [filteredProducts, sortBy, shuffleSeed]);
 
   // Pagination calculation
   const totalPages = Math.ceil(sortedProducts.length / ITEMS_PER_PAGE);
@@ -126,6 +122,7 @@ export default function Catalog({
     setMaxPriceFilter(null);
     setSearchTerm('');
     setSortBy('featured');
+    setShuffleSeed(Math.floor(Math.random() * 1000000));
     setCurrentPage(1);
   };
 
@@ -206,6 +203,20 @@ export default function Catalog({
                       <option value="price-high">Maior Preço</option>
                       <option value="name-az">Nome (A - Z)</option>
                     </select>
+
+                    {sortBy === 'featured' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShuffleSeed(Math.floor(Math.random() * 1000000));
+                          setCurrentPage(1);
+                        }}
+                        className="p-2 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all border border-slate-200 bg-white shadow-2xs group"
+                        title="Nova combinação de destaques (Embaralhar marcas e categorias)"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500 text-amber-600" />
+                      </button>
+                    )}
                   </div>
 
                   {/* View Mode Switcher (Grid / List) */}

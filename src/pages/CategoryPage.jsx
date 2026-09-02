@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ProductCard from '../components/ProductCard';
 import Pagination from '../components/Pagination';
 import NotFoundPage from './NotFoundPage';
-import { Layers, ArrowLeft, Package, Search, LayoutGrid, List, SlidersHorizontal } from 'lucide-react';
+import { Layers, ArrowLeft, Package, Search, LayoutGrid, List, SlidersHorizontal, RefreshCw } from 'lucide-react';
+import { sortProducts } from '../utils/productSorting';
 
 export default function CategoryPage({ 
   categoryId, 
@@ -22,13 +23,14 @@ export default function CategoryPage({
   const [sortBy, setSortBy] = useState('featured');
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1000000));
 
   const category = categories.find((c) => c.id === categoryId || c.slug === categoryId);
 
-  // Reset to page 1 when category, search or sort changes
+  // Reset to page 1 when category, search, sort or shuffle changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [categoryId, searchTerm, sortBy, itemsPerPage]);
+  }, [categoryId, searchTerm, sortBy, itemsPerPage, shuffleSeed]);
 
   if (!category) {
     return (
@@ -47,32 +49,26 @@ export default function CategoryPage({
   const rawCategoryProducts = (products || []).filter((p) => p.categoryId === category.id && p.status !== 'draft');
 
   // Filter products by search term inside category
-  const filteredProducts = rawCategoryProducts.filter((prod) => {
-    const term = normalizeText(searchTerm);
-    if (!term) return true;
+  const filteredProducts = useMemo(() => {
+    return rawCategoryProducts.filter((prod) => {
+      const term = normalizeText(searchTerm);
+      if (!term) return true;
 
-    const brand = brands.find((b) => b.id === prod.brandId);
-    return (
-      normalizeText(prod.name).includes(term) ||
-      normalizeText(prod.description).includes(term) ||
-      normalizeText(prod.badge).includes(term) ||
-      (brand && normalizeText(brand.name).includes(term)) ||
-      (prod.specs && prod.specs.some((s) => normalizeText(s).includes(term)))
-    );
-  });
+      const brand = brands.find((b) => b.id === prod.brandId);
+      return (
+        normalizeText(prod.name).includes(term) ||
+        normalizeText(prod.description).includes(term) ||
+        normalizeText(prod.badge).includes(term) ||
+        (brand && normalizeText(brand.name).includes(term)) ||
+        (prod.specs && prod.specs.some((s) => normalizeText(s).includes(term)))
+      );
+    });
+  }, [rawCategoryProducts, searchTerm, brands]);
 
-  // Sort products
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === 'featured') {
-      if (a.isFeatured && !b.isFeatured) return -1;
-      if (!a.isFeatured && b.isFeatured) return 1;
-      return 0;
-    }
-    if (sortBy === 'price-low') return (a.price || 0) - (b.price || 0);
-    if (sortBy === 'price-high') return (b.price || 0) - (a.price || 0);
-    if (sortBy === 'name-az') return (a.name || '').localeCompare(b.name || '');
-    return 0;
-  });
+  // Sort products (Diversifies brands when sortBy === 'featured')
+  const sortedProducts = useMemo(() => {
+    return sortProducts(filteredProducts, sortBy, shuffleSeed);
+  }, [filteredProducts, sortBy, shuffleSeed]);
 
   // Pagination calculation
   const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
@@ -173,6 +169,20 @@ export default function CategoryPage({
                   <option value="price-low">Menor Preço</option>
                   <option value="price-high">Maior Preço</option>
                 </select>
+
+                {sortBy === 'featured' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShuffleSeed(Math.floor(Math.random() * 1000000));
+                      setCurrentPage(1);
+                    }}
+                    className="p-1.5 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all border border-slate-200 bg-white group"
+                    title="Nova combinação de destaques"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500 text-amber-600" />
+                  </button>
+                )}
               </div>
 
               {/* Items Per Page */}

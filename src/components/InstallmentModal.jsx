@@ -21,9 +21,13 @@ import {
   ShoppingCart,
   Tag,
   Gift,
-  Trash2
+  Trash2,
+  Building,
+  Search,
+  Truck
 } from 'lucide-react';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
+import { formatCpfCnpj, fetchCnpjData } from '../utils/documentUtils';
 
 export default function InstallmentModal({ 
   isOpen, 
@@ -76,8 +80,25 @@ export default function InstallmentModal({
     name: currentUser?.name || '',
     email: currentUser?.email || '',
     cpfCnpj: currentUser?.document || '',
-    phone: currentUser?.phone || ''
+    phone: currentUser?.phone || '',
+    companyName: currentUser?.companyName || ''
   });
+
+  const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
+  const [cnpjSuccessMsg, setCnpjSuccessMsg] = useState(null);
+  const [cnpjErrorMsg, setCnpjErrorMsg] = useState(null);
+
+  const docInfo = useMemo(() => {
+    return formatCpfCnpj(customer.cpfCnpj);
+  }, [customer.cpfCnpj]);
+
+  const hasPhysicalItems = useMemo(() => {
+    return activeItems.some(i => (i.productType || 'physical') === 'physical');
+  }, [activeItems]);
+
+  const allDigital = useMemo(() => {
+    return activeItems.length > 0 && activeItems.every(i => i.productType === 'digital');
+  }, [activeItems]);
 
   useEffect(() => {
     if (currentUser) {
@@ -85,7 +106,8 @@ export default function InstallmentModal({
         name: prev.name || currentUser.name || '',
         email: prev.email || currentUser.email || '',
         cpfCnpj: prev.cpfCnpj || currentUser.document || '',
-        phone: prev.phone || currentUser.phone || ''
+        phone: prev.phone || currentUser.phone || '',
+        companyName: prev.companyName || currentUser.companyName || ''
       }));
     }
   }, [currentUser]);
@@ -175,21 +197,39 @@ export default function InstallmentModal({
     return installments.find(i => i.installments === Number(card.installments)) || installments[0];
   }, [installments, card.installments]);
 
-  // Mask Helpers
-  const handleCpfChange = (e) => {
-    let v = e.target.value.replace(/\D/g, '');
-    if (v.length <= 11) {
-      v = v.replace(/(\d{3})(\d)/, '$1.$2');
-      v = v.replace(/(\d{3})(\d)/, '$1.$2');
-      v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    } else {
-      v = v.slice(0, 14);
-      v = v.replace(/^(\d{2})(\d)/, '$1.$2');
-      v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
-      v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
-      v = v.replace(/(\d{4})(\d)/, '$1-$2');
+  // Mask Helpers & Document Verification
+  const triggerCnpjLookup = async (manualRaw = null) => {
+    const raw = manualRaw || customer.cpfCnpj.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+    if (raw.length !== 14) return;
+    setIsSearchingCnpj(true);
+    setCnpjErrorMsg(null);
+    setCnpjSuccessMsg(null);
+    try {
+      const data = await fetchCnpjData(raw);
+      setCustomer(c => ({
+        ...c,
+        companyName: data.tradeName || data.companyName || c.companyName,
+        email: c.email || data.email || '',
+        phone: c.phone || data.phone || ''
+      }));
+      setCnpjSuccessMsg(`Empresa localizada: ${data.companyName} (${data.city}/${data.state})`);
+      setTimeout(() => setCnpjSuccessMsg(null), 5000);
+    } catch (err) {
+      setCnpjErrorMsg(err.message || 'Erro ao consultar CNPJ');
+      setTimeout(() => setCnpjErrorMsg(null), 4000);
+    } finally {
+      setIsSearchingCnpj(false);
     }
-    setCustomer(c => ({ ...c, cpfCnpj: v }));
+  };
+
+  const handleCpfChange = (e) => {
+    const info = formatCpfCnpj(e.target.value);
+    setCustomer(c => ({ ...c, cpfCnpj: info.formatted }));
+
+    // Auto-search company data if full 14-char CNPJ is entered and companyName is empty
+    if (info.isCnpj && info.isComplete && !customer.companyName) {
+      triggerCnpjLookup(info.raw);
+    }
   };
 
   const handlePhoneChange = (e) => {
@@ -277,9 +317,13 @@ export default function InstallmentModal({
       setErrorMessage('Por favor, preencha seu Nome Completo.');
       return;
     }
-    const cleanCpf = customer.cpfCnpj.replace(/\D/g, '');
-    if (cleanCpf.length !== 11 && cleanCpf.length !== 14) {
-      setErrorMessage('Por favor, informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.');
+    const cleanDoc = customer.cpfCnpj.replace(/[^0-9a-zA-Z]/g, '');
+    if (cleanDoc.length !== 11 && cleanDoc.length !== 14) {
+      setErrorMessage('Por favor, informe um CPF (11 dígitos) ou CNPJ (14 dígitos/caracteres) válido.');
+      return;
+    }
+    if (docInfo.isCnpj && !customer.companyName?.trim()) {
+      setErrorMessage('Por favor, informe o Nome da Oficina / Razão Social da empresa.');
       return;
     }
     if (!customer.email.trim() || !customer.email.includes('@')) {
@@ -319,6 +363,7 @@ export default function InstallmentModal({
         customerName: customer.name.trim(),
         customerEmail: customer.email.trim().toLowerCase(),
         customerCpfCnpj: customer.cpfCnpj.trim(),
+        customerCompanyName: docInfo.isCnpj ? (customer.companyName || '').trim() : undefined,
         customerPhone: customer.phone.trim(),
         billingType: isFreeOrder ? 'FREE' : method,
         value: isFreeOrder ? 0 : (
@@ -344,7 +389,7 @@ export default function InstallmentModal({
         payload.creditCardHolderInfo = {
           name: customer.name.trim(),
           email: customer.email.trim(),
-          cpfCnpj: customer.cpfCnpj.replace(/\D/g, ''),
+          cpfCnpj: customer.cpfCnpj.replace(/[^0-9a-zA-Z]/g, ''),
           phone: customer.phone.replace(/\D/g, '')
         };
       }
@@ -702,10 +747,32 @@ export default function InstallmentModal({
 
               {/* CUSTOMER BILLING DATA (LEAD CAPTURE FOR CRM) */}
               <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Dados para Faturamento & Entrega</span>
-                </h4>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 pb-2.5">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    {allDigital ? (
+                      <>
+                        <Zap className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Dados para Faturamento & Envio Digital</span>
+                      </>
+                    ) : (
+                      <>
+                        <Truck className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Dados para Faturamento & Entrega Técnica</span>
+                      </>
+                    )}
+                  </h4>
+                  {allDigital ? (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/80 w-fit flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-emerald-600" />
+                      <span>Produto Digital: Sem frete</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/80 w-fit flex items-center gap-1">
+                      <Truck className="w-3 h-3 text-sky-600" />
+                      <span>Equipamento Físico: Entrega técnica</span>
+                    </span>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -723,18 +790,77 @@ export default function InstallmentModal({
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      CPF ou CNPJ *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="000.000.000-00"
-                      value={customer.cpfCnpj}
-                      onChange={handleCpfChange}
-                      className="form-input text-xs"
-                      required
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        {docInfo.isCnpj ? 'CNPJ (Pessoa Jurídica) *' : 'CPF ou CNPJ *'}
+                      </label>
+                      {docInfo.isCnpj && (
+                        <button
+                          type="button"
+                          onClick={() => triggerCnpjLookup()}
+                          disabled={isSearchingCnpj || customer.cpfCnpj.replace(/[^0-9a-zA-Z]/g, '').length !== 14}
+                          className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+                        >
+                          {isSearchingCnpj ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                              <span>Consultando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Search className="w-3 h-3 text-amber-600" />
+                              <span>Buscar CNPJ</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                        value={customer.cpfCnpj}
+                        onChange={handleCpfChange}
+                        className="form-input text-xs font-mono"
+                        required
+                      />
+                      {isSearchingCnpj && (
+                        <Loader2 className="w-4 h-4 text-amber-600 animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      )}
+                    </div>
+                    {cnpjSuccessMsg && (
+                      <p className="text-[10px] font-semibold text-emerald-700 mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                        <span>{cnpjSuccessMsg}</span>
+                      </p>
+                    )}
+                    {cnpjErrorMsg && (
+                      <p className="text-[10px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                        <span>{cnpjErrorMsg}</span>
+                      </p>
+                    )}
                   </div>
+
+                  {/* Nome da Oficina / Razão Social: ONLY DISPLAYED IF CNPJ */}
+                  {docInfo.isCnpj && (
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Nome da Oficina / Razão Social *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Ex: Centro Automotivo Modelo LTDA"
+                          value={customer.companyName || ''}
+                          onChange={(e) => setCustomer({ ...customer, companyName: e.target.value })}
+                          className="form-input text-xs !pl-9"
+                          required={docInfo.isCnpj}
+                        />
+                        <Building className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label className="text-[11px] font-bold text-slate-700 block mb-1">

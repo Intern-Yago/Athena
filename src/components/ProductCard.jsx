@@ -1,6 +1,6 @@
 import React from 'react';
 import { stripFormattingTags } from './FormattedDescription';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart } from 'lucide-react';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 
@@ -62,6 +62,12 @@ export default function ProductCard({
 
           {/* Badges Overlay */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 pointer-events-none">
+            {product.productType === 'digital' && (
+              <span className="badge bg-emerald-600 text-white font-extrabold text-[10px] px-2 py-0.5 shadow-xs flex items-center gap-1">
+                <Zap className="w-2.5 h-2.5" />
+                <span>Licença Digital</span>
+              </span>
+            )}
             {product.badge && (
               <span className="badge bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2.5 py-0.5 shadow-xs">
                 {product.badge}
@@ -245,6 +251,12 @@ export default function ProductCard({
         {/* Top Badges (Category & Custom Badges) */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none z-10">
           <div className="flex flex-col gap-1.5">
+            {product.productType === 'digital' && (
+              <span className="bg-emerald-600 text-white font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-emerald-500 w-fit flex items-center gap-1">
+                <Zap className="w-3 h-3" />
+                <span>Licença Digital</span>
+              </span>
+            )}
             {product.badge && (
               <span className="bg-amber-500 text-slate-950 font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-amber-400">
                 {product.badge}

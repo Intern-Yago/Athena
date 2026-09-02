@@ -761,6 +761,9 @@ async function initDb() {
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='custom_tabs') THEN 
             ALTER TABLE products ADD COLUMN custom_tabs JSONB; 
           END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='product_type') THEN 
+            ALTER TABLE products ADD COLUMN product_type VARCHAR(20) DEFAULT 'physical'; 
+          END IF;
           -- Customer fields on users table
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phone') THEN 
             ALTER TABLE users ADD COLUMN phone VARCHAR(50); 
@@ -1663,12 +1666,12 @@ function evaluateCoupon(coupon, items = [], customerEmail = '', customerCpfCnpj 
   const maxPerCustomer = Number(coupon.maxUsagePerCustomer || coupon.max_usage_per_customer || 1);
   const usedBy = coupon.usedBy || coupon.used_by || [];
   const cleanEmail = (customerEmail || '').toLowerCase().trim();
-  const cleanDoc = (customerCpfCnpj || '').replace(/\D/g, '');
+  const cleanDoc = (customerCpfCnpj || '').replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
 
   if (maxPerCustomer > 0 && (cleanEmail || cleanDoc)) {
     const customerUsageCount = usedBy.filter(u => 
       (cleanEmail && (u.email || '').toLowerCase().trim() === cleanEmail) ||
-      (cleanDoc && (u.document || '').replace(/\D/g, '') === cleanDoc)
+      (cleanDoc && (u.document || '').replace(/[^0-9a-zA-Z]/g, '').toUpperCase() === cleanDoc)
     ).length;
 
     if (customerUsageCount >= maxPerCustomer) {
@@ -2089,8 +2092,9 @@ app.post('/api/payments/charge', async (req, res) => {
     }
 
     const cleanEmail = customerEmail.toLowerCase().trim();
-    const cleanDoc = (customerCpfCnpj || '').replace(/\D/g, '');
+    const cleanDoc = (customerCpfCnpj || '').replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
     const cleanPhone = (customerPhone || '').replace(/\D/g, '');
+    const cleanCompanyName = (req.body.customerCompanyName || '').trim();
     const orderId = clientOrderId || `athena_ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
     // ---------------------------------------------------------
@@ -2109,17 +2113,18 @@ app.post('/api/payments/charge', async (req, res) => {
               name = COALESCE(NULLIF($1, ''), name),
               phone = COALESCE(NULLIF($2, ''), phone),
               document = COALESCE(NULLIF($3, ''), document),
+              company_name = COALESCE(NULLIF($4, ''), company_name),
               updated_at = NOW()
-            WHERE id = $4
-          `, [customerName, cleanPhone, cleanDoc, userId]);
+            WHERE id = $5
+          `, [customerName, cleanPhone, cleanDoc, cleanCompanyName, userId]);
         } else {
           userId = `user_cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
           const initialPass = customerPassword || 'ClienteAthena2026!';
           const passHash = bcrypt.hashSync(initialPass, 10);
           await pool.query(`
-            INSERT INTO users (id, name, email, password_hash, role, phone, document, created_at)
-            VALUES ($1, $2, $3, $4, 'cliente', $5, $6, NOW())
-          `, [userId, customerName || 'Cliente Athena', cleanEmail, passHash, cleanPhone, cleanDoc]);
+            INSERT INTO users (id, name, email, password_hash, role, phone, document, company_name, created_at)
+            VALUES ($1, $2, $3, $4, 'cliente', $5, $6, $7, NOW())
+          `, [userId, customerName || 'Cliente Athena', cleanEmail, passHash, cleanPhone, cleanDoc, cleanCompanyName]);
         }
       } catch (userErr) {
         console.warn('Aviso no sync de usuário PG:', userErr.message);
@@ -2801,7 +2806,7 @@ app.get('/api/products', async (req, res) => {
       const result = await pool.query(`
         SELECT id, name, slug, category_id as "categoryId", brand_id as "brandId", price::float, price_negotiable as "priceNegotiable", badge, status, is_featured as "isFeatured", image, images, alt_text as "altText", description, specs, attachments, in_stock as "inStock", video_url as "videoUrl", custom_tabs as "customTabs", created_at
         FROM products 
-        ORDER BY created_at DESC
+        ORDER BY is_featured DESC, created_at DESC
       `);
       return res.json(result.rows);
     } catch (e) {
@@ -2817,10 +2822,10 @@ app.post('/api/products', authenticateToken, async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock, video_url, custom_tabs)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock, video_url, custom_tabs, product_type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         ON CONFLICT (id) DO UPDATE SET 
-          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, is_featured=$10, image=$11, images=$12, alt_text=$13, description=$14, specs=$15, attachments=$16, in_stock=$17, video_url=$18, custom_tabs=$19
+          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, is_featured=$10, image=$11, images=$12, alt_text=$13, description=$14, specs=$15, attachments=$16, in_stock=$17, video_url=$18, custom_tabs=$19, product_type=$20
       `, [
         newProduct.id,
         newProduct.name,
@@ -2840,7 +2845,8 @@ app.post('/api/products', authenticateToken, async (req, res) => {
         JSON.stringify(newProduct.attachments || []),
         newProduct.inStock !== undefined ? newProduct.inStock : true,
         newProduct.videoUrl || newProduct.youtubeVideoUrl || '',
-        JSON.stringify(newProduct.customTabs || [])
+        JSON.stringify(newProduct.customTabs || []),
+        newProduct.productType || 'physical'
       ]);
       return res.status(201).json(newProduct);
     } catch (e) {
@@ -2878,8 +2884,8 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
     try {
       await pool.query(`
         UPDATE products SET 
-          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, is_featured=$9, image=$10, images=$11, alt_text=$12, description=$13, specs=$14, attachments=$15, in_stock=$16, video_url=$17, custom_tabs=$18
-        WHERE id=$19
+          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, is_featured=$9, image=$10, images=$11, alt_text=$12, description=$13, specs=$14, attachments=$15, in_stock=$16, video_url=$17, custom_tabs=$18, product_type=$19
+        WHERE id=$20
       `, [
         updatedProduct.name,
         updatedProduct.slug || '',
@@ -2899,6 +2905,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
         updatedProduct.inStock !== undefined ? updatedProduct.inStock : true,
         updatedProduct.videoUrl || updatedProduct.youtubeVideoUrl || '',
         JSON.stringify(updatedProduct.customTabs || []),
+        updatedProduct.productType || 'physical',
         req.params.id
       ]);
       return res.json(updatedProduct);

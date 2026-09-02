@@ -82,6 +82,13 @@ export default function ProductImageGallery({ product }) {
 
   // Mouse move handler for Desktop PC Lens Magnifier Zoom
   const handleMouseMove = (e) => {
+    // If hovering over any interactive button or control (arrows, dots, expand button), immediately turn off zoom
+    if (e.target.closest('button') || e.target.closest('.no-zoom-control')) {
+      if (zoomState.show) {
+        setZoomState((prev) => ({ ...prev, show: false }));
+      }
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -110,7 +117,7 @@ export default function ProductImageGallery({ product }) {
           src={currentImageUrl} 
           alt={product?.name || 'Equipamento Athena'} 
           decoding="async"
-          className="w-full h-full object-cover rounded-2xl transition-opacity duration-300 group-hover:scale-[1.02] transition-transform"
+          className="w-full h-full object-cover rounded-2xl transition-opacity duration-300"
           onError={(e) => {
             e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
           }}
@@ -130,7 +137,15 @@ export default function ProductImageGallery({ product }) {
             e.stopPropagation();
             setIsLightboxOpen(true);
           }}
-          className="absolute top-4 right-4 z-30 p-2 rounded-xl bg-white/90 hover:bg-amber-600 text-slate-800 hover:text-white shadow-md transition-all flex items-center gap-1.5 text-xs font-bold backdrop-blur-xs"
+          onMouseEnter={(e) => {
+            e.stopPropagation();
+            setZoomState((prev) => ({ ...prev, show: false }));
+          }}
+          onMouseMove={(e) => {
+            e.stopPropagation();
+            setZoomState((prev) => ({ ...prev, show: false }));
+          }}
+          className="no-zoom-control absolute top-4 right-4 z-30 p-2 rounded-xl bg-white/90 hover:bg-amber-600 text-slate-800 hover:text-white shadow-md transition-all flex items-center gap-1.5 text-xs font-bold backdrop-blur-xs"
           title="Ver foto expandida sem zoom"
         >
           <Maximize2 className="w-4 h-4 text-amber-600 hover:text-white transition-colors" />
@@ -164,7 +179,15 @@ export default function ProductImageGallery({ product }) {
           <>
             <button
               onClick={handlePrev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/90 text-slate-800 shadow-md hover:bg-amber-600 hover:text-white transition-all opacity-80 group-hover:opacity-100 active:scale-95"
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                setZoomState((prev) => ({ ...prev, show: false }));
+              }}
+              onMouseMove={(e) => {
+                e.stopPropagation();
+                setZoomState((prev) => ({ ...prev, show: false }));
+              }}
+              className="no-zoom-control absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/90 text-slate-800 shadow-md hover:bg-amber-600 hover:text-white transition-all opacity-80 group-hover:opacity-100 active:scale-95"
               title="Foto Anterior"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -172,20 +195,42 @@ export default function ProductImageGallery({ product }) {
 
             <button
               onClick={handleNext}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/90 text-slate-800 shadow-md hover:bg-amber-600 hover:text-white transition-all opacity-80 group-hover:opacity-100 active:scale-95"
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                setZoomState((prev) => ({ ...prev, show: false }));
+              }}
+              onMouseMove={(e) => {
+                e.stopPropagation();
+                setZoomState((prev) => ({ ...prev, show: false }));
+              }}
+              className="no-zoom-control absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/90 text-slate-800 shadow-md hover:bg-amber-600 hover:text-white transition-all opacity-80 group-hover:opacity-100 active:scale-95"
               title="Próxima Foto"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
 
             {/* Autoplay Progress Dots / Counter */}
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/75 backdrop-blur-xs text-white text-[10px] font-bold">
+            <div 
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                setZoomState((prev) => ({ ...prev, show: false }));
+              }}
+              onMouseMove={(e) => {
+                e.stopPropagation();
+                setZoomState((prev) => ({ ...prev, show: false }));
+              }}
+              className="no-zoom-control absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/75 backdrop-blur-xs text-white text-[10px] font-bold"
+            >
               {displayImages.map((_, idx) => (
                 <button
                   key={idx}
                   onClick={(e) => {
                     e.stopPropagation();
                     setCurrentIndex(idx);
+                  }}
+                  onMouseEnter={(e) => {
+                    e.stopPropagation();
+                    setZoomState((prev) => ({ ...prev, show: false }));
                   }}
                   className={`w-2 h-2 rounded-full transition-all ${
                     currentIndex === idx ? 'bg-amber-400 w-4' : 'bg-white/60 hover:bg-white'

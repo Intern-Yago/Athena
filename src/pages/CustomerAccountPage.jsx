@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   User, 
   Package, 
@@ -22,9 +22,11 @@ import {
   Search,
   ShoppingCart,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
 import { saveSession } from '../utils/storage';
+import { formatCpfCnpj, fetchCnpjData } from '../utils/documentUtils';
 
 export default function CustomerAccountPage({
   currentUser,
@@ -72,6 +74,54 @@ export default function CustomerAccountPage({
   const [savingAddress, setSavingAddress] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [searchingCep, setSearchingCep] = useState(false);
+  const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
+  const [cnpjSuccessMsg, setCnpjSuccessMsg] = useState(null);
+  const [cnpjErrorMsg, setCnpjErrorMsg] = useState(null);
+
+  const docInfo = useMemo(() => {
+    return formatCpfCnpj(profileForm.document);
+  }, [profileForm.document]);
+
+  const triggerCnpjLookup = async (manualRaw = null) => {
+    const raw = manualRaw || profileForm.document.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+    if (raw.length !== 14) return;
+    setIsSearchingCnpj(true);
+    setCnpjErrorMsg(null);
+    setCnpjSuccessMsg(null);
+    try {
+      const data = await fetchCnpjData(raw);
+      setProfileForm(prev => ({
+        ...prev,
+        companyName: data.tradeName || data.companyName || prev.companyName,
+        phone: prev.phone || data.phone || ''
+      }));
+      setAddressForm(prev => ({
+        ...prev,
+        cep: prev.cep || data.zip || '',
+        street: prev.street || data.street || '',
+        number: prev.number || data.number || '',
+        neighborhood: prev.neighborhood || data.district || '',
+        city: prev.city || data.city || '',
+        state: prev.state || data.state || ''
+      }));
+      setCnpjSuccessMsg(`Empresa localizada: ${data.companyName} (${data.city}/${data.state})`);
+      setTimeout(() => setCnpjSuccessMsg(null), 5000);
+    } catch (err) {
+      setCnpjErrorMsg(err.message || 'Erro ao consultar CNPJ');
+      setTimeout(() => setCnpjErrorMsg(null), 4000);
+    } finally {
+      setIsSearchingCnpj(false);
+    }
+  };
+
+  const handleDocumentChange = (e) => {
+    const info = formatCpfCnpj(e.target.value);
+    setProfileForm(prev => ({ ...prev, document: info.formatted }));
+
+    if (info.isCnpj && info.isComplete && !profileForm.companyName) {
+      triggerCnpjLookup(info.raw);
+    }
+  };
 
   // Sync state when currentUser updates
   useEffect(() => {
@@ -574,32 +624,75 @@ export default function CustomerAccountPage({
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">CPF ou CNPJ</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700">
+                      {docInfo.isCnpj ? 'CNPJ (Pessoa Jurídica)' : 'CPF ou CNPJ'}
+                    </label>
+                    {docInfo.isCnpj && (
+                      <button
+                        type="button"
+                        onClick={() => triggerCnpjLookup()}
+                        disabled={isSearchingCnpj || profileForm.document.replace(/[^0-9a-zA-Z]/g, '').length !== 14}
+                        className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+                      >
+                        {isSearchingCnpj ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                            <span>Consultando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-3 h-3 text-amber-600" />
+                            <span>Buscar CNPJ</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                   <div className="relative">
                     <input
                       type="text"
                       value={profileForm.document}
-                      onChange={(e) => setProfileForm({ ...profileForm, document: e.target.value })}
-                      placeholder="00.000.000/0001-00"
-                      className="form-input text-xs !pl-10"
+                      onChange={handleDocumentChange}
+                      placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                      className="form-input text-xs !pl-10 font-mono"
                     />
-                    <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    {isSearchingCnpj && (
+                      <Loader2 className="w-4 h-4 text-amber-600 animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    )}
                   </div>
+                  {cnpjSuccessMsg && (
+                    <p className="text-[10px] font-semibold text-emerald-700 mt-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span>{cnpjSuccessMsg}</span>
+                    </p>
+                  )}
+                  {cnpjErrorMsg && (
+                    <p className="text-[10px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                      <span>{cnpjErrorMsg}</span>
+                    </p>
+                  )}
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Nome da Oficina / Razão Social</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={profileForm.companyName}
-                      onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
-                      placeholder="Ex: Auto Center Modelo"
-                      className="form-input text-xs !pl-10"
-                    />
-                    <Building className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                {/* Nome da Oficina / Razão Social - ONLY SHOWN IF CNPJ */}
+                {docInfo.isCnpj && (
+                  <div className="animate-fadeIn">
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Nome da Oficina / Razão Social *</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={profileForm.companyName}
+                        onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
+                        placeholder="Ex: Centro Automotivo Modelo LTDA"
+                        className="form-input text-xs !pl-10"
+                        required={docInfo.isCnpj}
+                      />
+                      <Building className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="pt-2">
