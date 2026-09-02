@@ -4,6 +4,7 @@ import Pagination from '../components/Pagination';
 import NotFoundPage from './NotFoundPage';
 import { Layers, ArrowLeft, Package, Search, LayoutGrid, List, SlidersHorizontal, RefreshCw } from 'lucide-react';
 import { sortProducts } from '../utils/productSorting';
+import { buildProductRelationsMap, matchProductWithRelations } from '../utils/productSearch';
 
 export default function CategoryPage({ 
   categoryId, 
@@ -48,22 +49,19 @@ export default function CategoryPage({
 
   const rawCategoryProducts = (products || []).filter((p) => p.categoryId === category.id && p.status !== 'draft');
 
-  // Filter products by search term inside category
-  const filteredProducts = useMemo(() => {
-    return rawCategoryProducts.filter((prod) => {
-      const term = normalizeText(searchTerm);
-      if (!term) return true;
+  // Build bidirectional relation map across all catalog items
+  const relationsMap = useMemo(() => {
+    return buildProductRelationsMap(products);
+  }, [products]);
 
-      const brand = brands.find((b) => b.id === prod.brandId);
-      return (
-        normalizeText(prod.name).includes(term) ||
-        normalizeText(prod.description).includes(term) ||
-        normalizeText(prod.badge).includes(term) ||
-        (brand && normalizeText(brand.name).includes(term)) ||
-        (prod.specs && prod.specs.some((s) => normalizeText(s).includes(term)))
-      );
+  // Filter products by search term inside category (with related products support)
+  const filteredProducts = useMemo(() => {
+    const rawTerm = searchTerm.trim();
+    return rawCategoryProducts.filter((prod) => {
+      if (!rawTerm) return true;
+      return matchProductWithRelations(prod, rawTerm, relationsMap, categories, brands).matches;
     });
-  }, [rawCategoryProducts, searchTerm, brands]);
+  }, [rawCategoryProducts, searchTerm, categories, brands, relationsMap]);
 
   // Sort products (Diversifies brands when sortBy === 'featured')
   const sortedProducts = useMemo(() => {

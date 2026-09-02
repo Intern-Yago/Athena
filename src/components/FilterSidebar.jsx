@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Filter, Layers, Tag, DollarSign, ChevronDown, ChevronUp, RefreshCw, Sliders, Search, X } from 'lucide-react';
+import { buildProductRelationsMap, matchProductWithRelations } from '../utils/productSearch';
 
 export default function FilterSidebar({
   products,
@@ -19,6 +20,11 @@ export default function FilterSidebar({
   const [showAllBrands, setShowAllBrands] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
+  // Build bidirectional relation map across all catalog items
+  const relationsMap = useMemo(() => {
+    return buildProductRelationsMap(products);
+  }, [products]);
+
   // Min and Max price bounds calculated from products with valid prices (> 0)
   const priceBounds = useMemo(() => {
     const validPrices = products.filter(p => p.price > 0).map(p => p.price);
@@ -31,39 +37,14 @@ export default function FilterSidebar({
 
   const currentMaxPrice = maxPriceFilter !== null ? maxPriceFilter : priceBounds.max;
 
-  // Helper for accent-insensitive search matching
-  const normalizeText = (text) => {
-    if (!text) return '';
-    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  };
-
-  // DYNAMIC CROSS-FILTER ENGINE
+  // DYNAMIC CROSS-FILTER ENGINE (Takes bidirectional relations into account)
   const matchesBase = (p) => {
     const rawTerm = searchTerm.trim();
-    const term = normalizeText(rawTerm);
-    if (!term) return maxPriceFilter === null || (p.price > 0 ? p.price <= maxPriceFilter : true);
-
-    const category = categories.find((c) => c.id === p.categoryId);
-    const brand = brands.find((b) => b.id === p.brandId);
-    const customTabsContent = Array.isArray(p.customTabs) 
-      ? p.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ')
-      : '';
-    const specsContent = Array.isArray(p.specs) ? p.specs.join(' ') : '';
-
-    const productCorpus = [
-      p.name,
-      p.badge,
-      p.description,
-      category?.name,
-      brand?.name,
-      specsContent,
-      customTabsContent
-    ].map(normalizeText).join(' ');
-
-    const matchesSearch = productCorpus.includes(term);
     const matchesPrice = maxPriceFilter === null || (p.price > 0 ? p.price <= maxPriceFilter : true);
+    if (!matchesPrice) return false;
+    if (!rawTerm) return true;
 
-    return matchesSearch && matchesPrice;
+    return matchProductWithRelations(p, rawTerm, relationsMap, categories, brands).matches;
   };
 
   // Compute stats and sorting for CATEGORIES

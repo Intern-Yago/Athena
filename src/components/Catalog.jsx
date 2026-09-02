@@ -4,6 +4,7 @@ import FilterSidebar from './FilterSidebar';
 import Pagination from './Pagination';
 import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, LayoutGrid, List } from 'lucide-react';
 import { sortProducts } from '../utils/productSorting';
+import { buildProductRelationsMap, matchProductWithRelations } from '../utils/productSearch';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -37,66 +38,63 @@ export default function Catalog({
     setCurrentPage(1);
   }, [selectedCategories, selectedBrands, maxPriceFilter, searchTerm, sortBy, shuffleSeed]);
 
-  // Helper for accent-insensitive search matching with plural/singular stemming
-  const normalizeText = (text) => {
-    if (!text) return '';
-    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  };
+  // Build bidirectional relation map across all catalog items
+  const relationsMap = useMemo(() => {
+    return buildProductRelationsMap(products);
+  }, [products]);
 
-  const getSearchTokens = (term) => {
-    if (!term) return [];
-    const normalized = normalizeText(term).trim();
-    const words = normalized.split(/\s+/).filter(Boolean);
-    const tokens = new Set();
-    
-    words.forEach(w => {
-      tokens.add(w);
-      if (w.endsWith('es') && w.length > 4) {
-        tokens.add(w.slice(0, -2)); // elevadores -> elevador, alinhadores -> alinhador
-      } else if (w.endsWith('s') && w.length > 3) {
-        tokens.add(w.slice(0, -1)); // rampas -> rampa, ferramentas -> ferramenta
-      }
-    });
-    
-    return Array.from(tokens);
-  };
-
-  // Filter products according to all active multi-selections
+  // Filter products according to all active multi-selections + Bidirectional Relations
   const filteredProducts = useMemo(() => {
-    return products.filter((prod) => {
-      const rawTerm = searchTerm.trim();
-      const term = normalizeText(rawTerm);
-      const category = categories.find((c) => c.id === prod.categoryId);
-      const brand = brands.find((b) => b.id === prod.brandId);
+    const rawTerm = searchTerm.trim();
+    const categoriesMap = new Map((categories || []).map((c) => [c.id, c]));
+    const brandsMap = new Map((brands || []).map((b) => [b.id, b]));
 
-      const tokens = getSearchTokens(rawTerm);
+    const matched = [];
 
-      const matchesSearch = !term || (() => {
-        const customTabsContent = Array.isArray(prod.customTabs) 
-          ? prod.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ')
-          : '';
-        const specsContent = Array.isArray(prod.specs) ? prod.specs.join(' ') : '';
-
-        const productCorpus = [
-          prod.name,
-          prod.badge,
-          prod.description,
-          category?.name,
-          brand?.name,
-          specsContent,
-          customTabsContent
-        ].map(normalizeText).join(' ');
-
-        return productCorpus.includes(term) || (tokens.length > 0 && tokens.some(t => productCorpus.includes(t)));
-      })();
+    for (let i = 0; i < (products || []).length; i++) {
+      const prod = products[i];
 
       const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prod.categoryId);
-      const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(prod.brandId);
-      const matchesPrice = maxPriceFilter === null || (prod.price > 0 ? prod.price <= maxPriceFilter : true);
+      if (!matchesCategory) continue;
 
-      return matchesSearch && matchesCategory && matchesBrand && matchesPrice;
-    });
-  }, [products, searchTerm, selectedCategories, selectedBrands, maxPriceFilter, categories, brands]);
+      const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(prod.brandId);
+      if (!matchesBrand) continue;
+
+      const matchesPrice = maxPriceFilter === null || (prod.price > 0 ? prod.price <= maxPriceFilter : true);
+      if (!matchesPrice) continue;
+
+      const searchRes = matchProductWithRelations(
+        prod,
+        rawTerm,
+        relationsMap,
+        categoriesMap,
+        brandsMap
+      );
+
+      if (!searchRes.matches) continue;
+
+      // If matched via relation to another product, annotate _matchedVia for visual badge & ranking
+      if (!searchRes.isDirectMatch && searchRes.matchedViaProduct) {
+        matched.push({
+          ...prod,
+          _matchedVia: searchRes.matchedViaProduct
+        });
+      } else {
+        matched.push(prod);
+      }
+    }
+
+    // When searching, prioritize direct name/model matches first, then related accessories/equipment
+    if (rawTerm) {
+      matched.sort((a, b) => {
+        const aDirect = !a._matchedVia ? 1 : 0;
+        const bDirect = !b._matchedVia ? 1 : 0;
+        return bDirect - aDirect;
+      });
+    }
+
+    return matched;
+  }, [products, searchTerm, selectedCategories, selectedBrands, maxPriceFilter, categories, brands, relationsMap]);
 
   // Sort products (Smart Multi-Brand & Multi-Category Interleaving when sortBy === 'featured')
   const sortedProducts = useMemo(() => {

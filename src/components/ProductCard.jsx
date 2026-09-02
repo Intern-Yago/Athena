@@ -1,6 +1,6 @@
 import React from 'react';
 import { stripFormattingTags } from './FormattedDescription';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap } from 'lucide-react';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 
@@ -62,6 +62,12 @@ export default function ProductCard({
 
           {/* Badges Overlay */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 pointer-events-none">
+            {product._matchedVia && (
+              <span className="badge bg-indigo-600 text-white font-extrabold text-[10px] px-2 py-0.5 shadow-xs flex items-center gap-1">
+                <Link2 className="w-2.5 h-2.5 shrink-0" />
+                <span className="truncate max-w-[130px]">Compatível c/ {product._matchedVia.name}</span>
+              </span>
+            )}
             {product.productType === 'digital' && (
               <span className="badge bg-emerald-600 text-white font-extrabold text-[10px] px-2 py-0.5 shadow-xs flex items-center gap-1">
                 <Zap className="w-2.5 h-2.5" />
@@ -251,6 +257,12 @@ export default function ProductCard({
         {/* Top Badges (Category & Custom Badges) */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none z-10">
           <div className="flex flex-col gap-1.5">
+            {product._matchedVia && (
+              <span className="bg-indigo-600 text-white font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-indigo-500 w-fit flex items-center gap-1 max-w-[200px]" title={`Compatível com: ${product._matchedVia.name}`}>
+                <Link2 className="w-3 h-3 shrink-0" />
+                <span className="truncate">Compatível c/ {product._matchedVia.name}</span>
+              </span>
+            )}
             {product.productType === 'digital' && (
               <span className="bg-emerald-600 text-white font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-emerald-500 w-fit flex items-center gap-1">
                 <Zap className="w-3 h-3" />
