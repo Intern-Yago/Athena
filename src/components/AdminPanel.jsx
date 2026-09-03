@@ -4124,11 +4124,17 @@ export default function AdminPanel({
                                 Remover Vídeo
                               </button>
                             </div>
-                            <div className="aspect-video w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950">
+                            <div className={
+                              videoInfo.type === 'instagram'
+                                ? "w-full max-w-[380px] mx-auto min-h-[520px] rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-white"
+                                : videoInfo.isVertical
+                                ? "w-full max-w-[320px] mx-auto aspect-[9/16] rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-black"
+                                : "aspect-video w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950"
+                            }>
                               <iframe
                                 src={videoInfo.embedUrl}
                                 title="Prévia do Vídeo Demonstrativo"
-                                className="w-full h-full"
+                                className={`w-full h-full ${videoInfo.type === 'instagram' ? 'min-h-[500px]' : ''}`}
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
                                 frameBorder="0"

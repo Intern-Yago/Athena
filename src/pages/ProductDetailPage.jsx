@@ -763,11 +763,17 @@ export default function ProductDetailPage({
                     )}
                   </div>
 
-                  <div className="aspect-video w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-950">
+                  <div className={
+                    videoInfo.type === 'instagram'
+                      ? "w-full max-w-[420px] mx-auto min-h-[580px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white"
+                      : videoInfo.isVertical
+                      ? "w-full max-w-[360px] mx-auto aspect-[9/16] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-black"
+                      : "aspect-video w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-950"
+                  }>
                     <iframe
                       src={videoInfo.embedUrl}
                       title={`Vídeo - ${product.name}`}
-                      className="w-full h-full"
+                      className={`w-full h-full ${videoInfo.type === 'instagram' ? 'min-h-[560px]' : ''}`}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                       frameBorder="0"
