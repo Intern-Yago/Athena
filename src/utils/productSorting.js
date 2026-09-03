@@ -37,83 +37,91 @@ export function shuffleArray(arr, randomFn = Math.random) {
 
 /**
  * Interleave a list of products to minimize/eliminate consecutive brand or category repeats.
+ * Uses Dynamic Anti-Clustering Balanced Dispersion so brands and categories are richly mixed
+ * without deterministic A-B-A-B repetition, ensuring no two adjacent products share the same brand or category.
  * 
  * @param {Array} items - Products to interleave
- * @param {Object|null} initialPrev1 - Last item from preceding segment (for boundary continuity)
+ * @param {Object|null} initialPrev1 - Last item from preceding segment
  * @param {Object|null} initialPrev2 - Second to last item from preceding segment
+ * @param {Object|null} initialPrev3 - Third to last item from preceding segment
  * @param {Function} randomFn - PRNG generator function
  * @returns {Array} Interleaved products
  */
-export function interleaveProducts(items, initialPrev1 = null, initialPrev2 = null, randomFn = Math.random) {
+export function interleaveProducts(items, initialPrev1 = null, initialPrev2 = null, initialPrev3 = null, randomFn = Math.random) {
   if (!items || items.length <= 1) return items ? [...items] : [];
 
   let pool = shuffleArray(items, randomFn);
   const result = [];
   let prev1 = initialPrev1;
   let prev2 = initialPrev2;
+  let prev3 = initialPrev3;
 
   while (pool.length > 0) {
-    // Count remaining occurrences of each brand and category in current pool
     const brandCounts = {};
     const catCounts = {};
     for (let k = 0; k < pool.length; k++) {
-      const item = pool[k];
-      if (item.brandId) brandCounts[item.brandId] = (brandCounts[item.brandId] || 0) + 1;
-      if (item.categoryId) catCounts[item.categoryId] = (catCounts[item.categoryId] || 0) + 1;
+      const it = pool[k];
+      if (it.brandId) brandCounts[it.brandId] = (brandCounts[it.brandId] || 0) + 1;
+      if (it.categoryId) catCounts[it.categoryId] = (catCounts[it.categoryId] || 0) + 1;
     }
 
     const totalRemaining = pool.length;
-    let bestIndex = 0;
-    let minScore = Infinity;
+    let bestCandidates = [];
+    let bestScore = -Infinity;
 
     for (let i = 0; i < pool.length; i++) {
-      const candidate = pool[i];
+      const cand = pool[i];
       let score = 0;
 
-      const bCount = candidate.brandId ? (brandCounts[candidate.brandId] || 0) : 0;
-      const cCount = candidate.categoryId ? (catCounts[candidate.categoryId] || 0) : 0;
-
-      // 1. Extreme penalty for repeating the immediate previous item's brand or category
-      if (prev1) {
-        if (candidate.brandId && prev1.brandId && candidate.brandId === prev1.brandId) {
-          score += 1000000;
-        }
-        if (candidate.categoryId && prev1.categoryId && candidate.categoryId === prev1.categoryId) {
-          score += 500000;
-        }
+      // 1. BRAND ANTI-CLUSTERING: Never place same brand side-by-side
+      if (prev1 && cand.brandId && prev1.brandId && cand.brandId === prev1.brandId) {
+        score -= 60000;
+      }
+      if (prev2 && cand.brandId && prev2.brandId && cand.brandId === prev2.brandId) {
+        score -= 2500;
+      }
+      if (prev3 && cand.brandId && prev3.brandId && cand.brandId === prev3.brandId) {
+        score -= 600;
       }
 
-      // 2. Moderate penalty for repeating an item from 2 spots ago (discourages A-B-A-B repetition)
-      if (prev2) {
-        if (candidate.brandId && prev2.brandId && candidate.brandId === prev2.brandId) {
-          score += 3000;
-        }
-        if (candidate.categoryId && prev2.categoryId && candidate.categoryId === prev2.categoryId) {
-          score += 1500;
-        }
+      // 2. CATEGORY ANTI-CLUSTERING: Never place same category side-by-side
+      if (prev1 && cand.categoryId && prev1.categoryId && cand.categoryId === prev1.categoryId) {
+        score -= 30000;
+      }
+      if (prev2 && cand.categoryId && prev2.categoryId && cand.categoryId === prev2.categoryId) {
+        score -= 2000;
+      }
+      if (prev3 && cand.categoryId && prev3.categoryId && cand.categoryId === prev3.categoryId) {
+        score -= 400;
       }
 
-      // 3. Pigeonhole urgency:
-      // When a brand or category represents a larger portion of remaining items,
-      // it MUST be consumed early so it doesn't run out of alternatives and bunch up at the end.
-      const brandUrgency = (bCount / totalRemaining) * 50000;
-      const catUrgency = (cCount / totalRemaining) * 20000;
-      score -= (brandUrgency + catUrgency);
+      // 3. BALANCED PROPORTIONAL URGENCY: Gently prioritize brands/categories with higher remaining volume
+      const bCount = cand.brandId ? (brandCounts[cand.brandId] || 0) : 0;
+      const cCount = cand.categoryId ? (catCounts[cand.categoryId] || 0) : 0;
+      const bRatio = bCount / totalRemaining;
+      const cRatio = cCount / totalRemaining;
+      score += bRatio * 1600;
+      score += cRatio * 900;
 
-      // 4. Controlled random jitter for true dynamic variety
-      score += randomFn() * 40;
+      // 4. VIBRANT RANDOM JITTER: Ensures varied, non-deterministic mixes across pages
+      score += randomFn() * 1200;
 
-      if (score < minScore) {
-        minScore = score;
-        bestIndex = i;
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidates = [i];
+      } else if (Math.abs(score - bestScore) < 1e-6) {
+        bestCandidates.push(i);
       }
     }
 
-    const chosen = pool[bestIndex];
+    const chosenPoolIndex = bestCandidates[Math.floor(randomFn() * bestCandidates.length)];
+    const chosen = pool[chosenPoolIndex];
     result.push(chosen);
+
+    prev3 = prev2;
     prev2 = prev1;
     prev1 = chosen;
-    pool.splice(bestIndex, 1);
+    pool.splice(chosenPoolIndex, 1);
   }
 
   return result;
@@ -121,8 +129,8 @@ export function interleaveProducts(items, initialPrev1 = null, initialPrev2 = nu
 
 /**
  * Sorts products using Athena's Smart Relevance Interleaving:
- * - Featured items (isFeatured === true) placed at the top, interleaved by brand and category.
- * - Standard items follow immediately, continuing the brand and category alternating sequence.
+ * - Featured items (isFeatured === true or featured === true) placed at the top, interleaved by brand and category.
+ * - Standard items follow immediately, continuing the diverse alternating sequence.
  * 
  * @param {Array} products 
  * @param {number|null} seed 
@@ -137,18 +145,20 @@ export function getRelevanceSortedProducts(products, seed = null) {
 
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
-    if (p.isFeatured) {
+    const isFeatured = Boolean(p.isFeatured || p.featured || p.destaque);
+    if (isFeatured) {
       featured.push(p);
     } else {
       standard.push(p);
     }
   }
 
-  const sortedFeatured = interleaveProducts(featured, null, null, randomFn);
+  const sortedFeatured = interleaveProducts(featured, null, null, null, randomFn);
   const lastFeatured1 = sortedFeatured.length > 0 ? sortedFeatured[sortedFeatured.length - 1] : null;
   const lastFeatured2 = sortedFeatured.length > 1 ? sortedFeatured[sortedFeatured.length - 2] : null;
+  const lastFeatured3 = sortedFeatured.length > 2 ? sortedFeatured[sortedFeatured.length - 3] : null;
 
-  const sortedStandard = interleaveProducts(standard, lastFeatured1, lastFeatured2, randomFn);
+  const sortedStandard = interleaveProducts(standard, lastFeatured1, lastFeatured2, lastFeatured3, randomFn);
 
   return [...sortedFeatured, ...sortedStandard];
 }
