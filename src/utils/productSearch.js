@@ -112,17 +112,39 @@ export const computeTokenSimilarity = (qToken, tToken) => {
 
   // Prefix matching
   if (tToken.startsWith(qToken) && qToken.length >= 3) {
+    if (/^\d+$/.test(qToken)) {
+      const charAfter = tToken[qToken.length];
+      if (charAfter && /\d/.test(charAfter)) {
+        return 0; // Distinct number e.g. 4010 vs 40100
+      }
+    }
     return 0.88 + 0.1 * (qToken.length / tToken.length);
   }
   if (qClean && tClean && tClean.startsWith(qClean) && qClean.length >= 3) {
+    if (/^\d+$/.test(qClean)) {
+      const charAfter = tClean[qClean.length];
+      if (charAfter && /\d/.test(charAfter)) {
+        return 0; // Distinct number e.g. 4010 vs 40100
+      }
+    }
     return 0.86 + 0.1 * (qClean.length / tClean.length);
   }
 
   // Substring matching
   if (tToken.includes(qToken) && qToken.length >= 3) {
+    if (/^\d+$/.test(qToken) && /\d/.test(tToken)) {
+      if (!new RegExp(`(?:^|\\D)${qToken}(?:\\D|$)`).test(tToken)) {
+        return 0;
+      }
+    }
     return 0.84 + 0.05 * (qToken.length / tToken.length);
   }
   if (qClean && tClean && tClean.includes(qClean) && qClean.length >= 3) {
+    if (/^\d+$/.test(qClean) && /\d/.test(tClean)) {
+      if (!new RegExp(`(?:^|\\D)${qClean}(?:\\D|$)`).test(tClean)) {
+        return 0;
+      }
+    }
     return 0.82 + 0.05 * (qClean.length / tClean.length);
   }
 
@@ -134,6 +156,10 @@ export const computeTokenSimilarity = (qToken, tToken) => {
 
   // Guard against false positives on very short tokens (1 to 3 chars)
   if (minLen < 4) return 0;
+
+  // CRITICAL: NEVER fuzzy-edit numbers or alphanumeric model codes!
+  // In equipment catalogs, 4010 vs 4011 or 1010 are completely distinct models.
+  if (/\d/.test(s1) || /\d/.test(s2)) return 0;
 
   let maxDist = 0;
   if (minLen >= 4 && minLen <= 5) maxDist = 1;
@@ -302,12 +328,21 @@ export const evaluateDirectProductMatch = (profile, rawTerm) => {
   }
 
   // 1. Direct full text substring match (exact)
-  if (profile.fullNorm.includes(normTerm)) {
-    const isNameExact = profile.nameNorm.includes(normTerm);
-    const isCodeExact = profile.compounds.some((c) => c.includes(normTerm));
+  const isPureNumber = /^\d+$/.test(normTerm);
+  const matchesNumberBoundary = isPureNumber ? new RegExp(`(?:^|\\D)${normTerm}(?:\\D|$)`).test(profile.fullNorm) : true;
+
+  if (profile.fullNorm.includes(normTerm) && matchesNumberBoundary) {
+    const isNameExact = isPureNumber
+      ? new RegExp(`(?:^|\\D)${normTerm}(?:\\D|$)`).test(profile.nameNorm)
+      : profile.nameNorm.includes(normTerm);
+    const isCodeExact = profile.compounds.some((c) =>
+      isPureNumber ? new RegExp(`(?:^|\\D)${normTerm}(?:\\D|$)`).test(c) : c.includes(normTerm)
+    );
     const isBrandExact = profile.brandNorm?.includes(normTerm);
     const isCatExact = profile.catNorm?.includes(normTerm);
-    const isSpecsExact = profile.specsNorm?.includes(normTerm);
+    const isSpecsExact = isPureNumber
+      ? new RegExp(`(?:^|\\D)${normTerm}(?:\\D|$)`).test(profile.specsNorm || '')
+      : profile.specsNorm?.includes(normTerm);
 
     let score = 45; // Default for description match
     let matchType = 'desc';
@@ -332,48 +367,52 @@ export const evaluateDirectProductMatch = (profile, rawTerm) => {
 
   // 2. Direct clean alphanumeric full match (e.g. WALFUN matching WAL-FUN in name or codes)
   if (cleanTerm.length >= 3) {
-    const inNameClean = profile.nameClean.includes(cleanTerm);
-    if (inNameClean) {
-      return {
-        matches: true,
-        score: 95,
-        matchType: 'clean_name'
-      };
-    }
-    // Check if cleanTerm matches any compound code cleaned
-    for (const code of profile.compounds) {
-      const codeClean = cleanAlphanumeric(code);
-      if (codeClean === cleanTerm) {
+    if (isPureNumber && !new RegExp(`(?:^|\\D)${cleanTerm}(?:\\D|$)`).test(profile.fullNorm)) {
+      // Do not allow loose substring match of a pure number inside another number (e.g. "4010" in "40100")
+    } else {
+      const inNameClean = profile.nameClean.includes(cleanTerm);
+      if (inNameClean) {
         return {
           matches: true,
           score: 95,
-          matchType: 'clean_code'
+          matchType: 'clean_name'
         };
       }
-    }
-    // Check brand/category clean
-    if (cleanAlphanumeric(profile.brandNorm).includes(cleanTerm) || cleanAlphanumeric(profile.catNorm).includes(cleanTerm)) {
-      return {
-        matches: true,
-        score: 80,
-        matchType: 'clean_brand'
-      };
-    }
-    // Check specs clean
-    if (cleanAlphanumeric(profile.specsNorm).includes(cleanTerm)) {
-      return {
-        matches: true,
-        score: 60,
-        matchType: 'clean_specs'
-      };
-    }
-    // Fallback: description clean
-    if (profile.fullClean.includes(cleanTerm)) {
-      return {
-        matches: true,
-        score: 40,
-        matchType: 'clean_desc'
-      };
+      // Check if cleanTerm matches any compound code cleaned
+      for (const code of profile.compounds) {
+        const codeClean = cleanAlphanumeric(code);
+        if (codeClean === cleanTerm) {
+          return {
+            matches: true,
+            score: 95,
+            matchType: 'clean_code'
+          };
+        }
+      }
+      // Check brand/category clean
+      if (cleanAlphanumeric(profile.brandNorm).includes(cleanTerm) || cleanAlphanumeric(profile.catNorm).includes(cleanTerm)) {
+        return {
+          matches: true,
+          score: 80,
+          matchType: 'clean_brand'
+        };
+      }
+      // Check specs clean
+      if (cleanAlphanumeric(profile.specsNorm).includes(cleanTerm)) {
+        return {
+          matches: true,
+          score: 60,
+          matchType: 'clean_specs'
+        };
+      }
+      // Fallback: description clean
+      if (profile.fullClean.includes(cleanTerm)) {
+        return {
+          matches: true,
+          score: 40,
+          matchType: 'clean_desc'
+        };
+      }
     }
   }
 
