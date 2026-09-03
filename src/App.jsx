@@ -19,6 +19,7 @@ import ComparisonFloatingBar from './components/ComparisonFloatingBar';
 import ProductComparisonModal from './components/ProductComparisonModal';
 import CartDrawer from './components/CartDrawer';
 import InstallmentModal from './components/InstallmentModal';
+import APointsBanner from './components/APointsBanner';
 import { CartProvider, useCart } from './context/CartContext';
 
 import { INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
@@ -900,6 +901,8 @@ export default function App() {
               else setSelectedCategories([catId]);
             }}
           />
+
+          <APointsBanner onNavigate={navigateTo} currentUser={currentUser} />
 
           <Catalog
             products={publicProducts}

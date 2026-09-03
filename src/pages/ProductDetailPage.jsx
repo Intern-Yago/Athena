@@ -36,53 +36,72 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
-export function getYouTubeEmbedUrl(url) {
+export function getVideoEmbedInfo(url) {
   if (!url || typeof url !== 'string') return null;
   let trimmed = url.trim();
   if (!trimmed) return null;
 
-  // 1. If user pasted raw <iframe ... src="..." ...></iframe> code, extract the src URL
+  // Extract src from iframe if user pasted embed code
   const iframeSrcMatch = trimmed.match(/<iframe\b[^>]*\bsrc=["']([^"']+)["']/i);
   if (iframeSrcMatch && iframeSrcMatch[1]) {
     trimmed = iframeSrcMatch[1].trim();
   }
 
-  // 2. youtube.com/embed/VIDEO_ID or youtube-nocookie.com/embed/VIDEO_ID
-  if (trimmed.includes('youtube.com/embed/') || trimmed.includes('youtube-nocookie.com/embed/')) {
-    const parts = trimmed.split(/\/embed\/([a-zA-Z0-9_-]{11})/i);
-    if (parts && parts[1]) {
-      return `https://www.youtube.com/embed/${parts[1]}`;
-    }
-    const cleanId = trimmed.split('/embed/')[1]?.split('?')[0]?.split('&')[0];
-    if (cleanId) return `https://www.youtube.com/embed/${cleanId}`;
-    return trimmed;
-  }
-  
-  // 3. youtu.be/VIDEO_ID
-  const shortMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
-  if (shortMatch && shortMatch[1]) {
-    return `https://www.youtube.com/embed/${shortMatch[1]}`;
-  }
-  
-  // 4. watch?v=VIDEO_ID
-  const watchMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
-  if (watchMatch && watchMatch[1]) {
-    return `https://www.youtube.com/embed/${watchMatch[1]}`;
-  }
-  
-  // 5. youtube.com/shorts/VIDEO_ID
-  const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/i);
-  if (shortsMatch && shortsMatch[1]) {
-    return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+  // 1. Instagram: reel, post (p), or tv
+  const instaMatch = trimmed.match(/(?:instagram\.com|instagr\.am)\/(?:reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
+  if (instaMatch && instaMatch[1]) {
+    const code = instaMatch[1];
+    const isReel = trimmed.includes('/reel/');
+    return {
+      type: 'instagram',
+      platform: 'Instagram',
+      embedUrl: `https://www.instagram.com/${isReel ? 'reel' : 'p'}/${code}/embed/`,
+      isVertical: true,
+      originalUrl: trimmed
+    };
   }
 
-  // 6. Generic YouTube ID match anywhere in the string
-  const genericMatch = trimmed.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
-  if (genericMatch && genericMatch[1]) {
-    return `https://www.youtube.com/embed/${genericMatch[1]}`;
+  // 2. YouTube Shorts
+  const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/i);
+  if (shortsMatch && shortsMatch[1]) {
+    return {
+      type: 'youtube-shorts',
+      platform: 'YouTube Shorts',
+      embedUrl: `https://www.youtube.com/embed/${shortsMatch[1]}`,
+      isVertical: true,
+      originalUrl: trimmed
+    };
+  }
+
+  // 3. YouTube Standard (watch?v=, youtu.be, embed/)
+  const ytMatch = trimmed.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return {
+      type: 'youtube',
+      platform: 'YouTube',
+      embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}`,
+      isVertical: false,
+      originalUrl: trimmed
+    };
+  }
+
+  // 4. Direct embed url fallback
+  if (trimmed.startsWith('https://www.youtube.com/embed/')) {
+    return {
+      type: 'youtube',
+      platform: 'YouTube',
+      embedUrl: trimmed,
+      isVertical: false,
+      originalUrl: trimmed
+    };
   }
 
   return null;
+}
+
+export function getYouTubeEmbedUrl(url) {
+  const info = getVideoEmbedInfo(url);
+  return info ? info.embedUrl : null;
 }
 
 export const formatAttachmentLabel = (fileName) => {
@@ -716,33 +735,49 @@ export default function ProductDetailPage({
 
             {/* VIDEO EMBED: Between Description / CTA and Custom Tabs */}
             {(() => {
-              const embedUrl = getYouTubeEmbedUrl(product.videoUrl || product.youtubeVideoUrl);
-              if (!embedUrl) return null;
+              const videoInfo = getVideoEmbedInfo(product.videoUrl || product.youtubeVideoUrl);
+              if (!videoInfo) return null;
 
               return (
                 <div id="video-demonstrativo" className="space-y-3 pt-4 border-t border-slate-100">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                        <Film className="w-4 h-4 text-red-600" />
-                        Vídeo & Apresentação do Equipamento
+                        <Film className="w-4 h-4 text-slate-700" />
+                        Vídeo Demonstrativo ({videoInfo.platform})
                       </h4>
                       <p className="text-[11px] text-slate-500">
-                        Demonstração de funcionamento, recursos e orientações de uso deste equipamento.
+                        Demonstração de funcionamento e orientações de uso deste equipamento.
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200 text-[10px] font-extrabold flex items-center gap-1.5">
-                      <Play className="w-3 h-3 fill-current" /> Vídeo Demonstrativo
-                    </span>
+                    {videoInfo.originalUrl && (
+                      <a
+                        href={videoInfo.originalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        Abrir no {videoInfo.platform}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
                   </div>
 
-                  <div className="aspect-video w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-950">
+                  <div className={
+                    videoInfo.type === 'instagram'
+                      ? "w-full max-w-[420px] mx-auto min-h-[580px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white"
+                      : videoInfo.isVertical
+                      ? "w-full max-w-[360px] mx-auto aspect-[9/16] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-black"
+                      : "aspect-video w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-950"
+                  }>
                     <iframe
-                      src={embedUrl}
+                      src={videoInfo.embedUrl}
                       title={`Vídeo - ${product.name}`}
-                      className="w-full h-full"
+                      className="w-full h-full min-h-[460px]"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
+                      frameBorder="0"
+                      scrolling="no"
                     />
                   </div>
                 </div>
