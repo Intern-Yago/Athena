@@ -1249,6 +1249,28 @@ app.post('/api/auth/register', async (req, res) => {
       } catch (pgErr) {
         console.error('Erro ao inserir cliente no PostgreSQL:', pgErr.message);
       }
+
+      // Retroactive link for A-Points earned prior to creating an account
+      try {
+        const cleanDoc = (cleanUser.document || '').replace(/\D/g, '');
+        const pRes = await pool.query(`
+          SELECT id, points_earned FROM a_points_transactions 
+          WHERE user_id IS NULL AND (LOWER(customer_email) = $1 OR (customer_document = $2 AND $2 != ''))
+        `, [cleanUser.email, cleanDoc]);
+
+        if (pRes.rows.length > 0) {
+          const retroactivePoints = pRes.rows.reduce((acc, row) => acc + (Number(row.points_earned) || 0), 0);
+          await pool.query(`
+            UPDATE a_points_transactions 
+            SET user_id = $1 
+            WHERE user_id IS NULL AND (LOWER(customer_email) = $2 OR (customer_document = $3 AND $3 != ''))
+          `, [cleanUser.id, cleanUser.email, cleanDoc]);
+          await pool.query(`UPDATE users SET a_points = $1 WHERE id = $2`, [retroactivePoints, cleanUser.id]);
+          console.log(`[A-POINTS] Resgatou ${retroactivePoints} pontos retroativos para o novo usuário ${cleanUser.id}`);
+        }
+      } catch (pointsErr) {
+        console.error('Erro ao vincular pontos retroativos no registro:', pointsErr.message);
+      }
     }
 
     const { token, expiresAt } = generateToken({
