@@ -14,6 +14,7 @@ const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -2448,6 +2449,220 @@ app.post('/api/payments/webhook', async (req, res) => {
   } catch (err) {
     console.error('Erro no processamento de webhook Asaas:', err);
     return res.status(500).json({ error: 'Erro no webhook.' });
+  }
+});
+
+// -------------------------------------------------------------
+// 4. OMIE ERP WEBHOOK & A-POINTS LOYALTY SYSTEM
+// -------------------------------------------------------------
+const OMIE_APP_KEY = process.env.OMIE_APP_KEY || '7410462256197';
+const OMIE_APP_SECRET = process.env.OMIE_APP_SECRET || '0a8c9d675963da05b8565eb75a167020';
+
+async function callOmieApi(endpointUrl, callMethod, paramObj) {
+  const response = await axios.post(endpointUrl, {
+    call: callMethod,
+    app_key: OMIE_APP_KEY,
+    app_secret: OMIE_APP_SECRET,
+    param: [paramObj]
+  });
+  return response.data;
+}
+
+// Function to process an Omie sale event and credit A-Points
+async function processOmieSaleEvent(body) {
+  try {
+    console.log('[OMIE WEBHOOK] Processing payload:', JSON.stringify(body));
+    const topic = body.topic || '';
+    const event = body.event || body.data || body;
+
+    const orderId = event.idPedido || event.codigo_pedido || event.codigo_pedido_integracao || body.idPedido;
+    let clientId = event.idCliente || event.codigo_cliente || body.idCliente;
+    let orderTotal = Number(event.valorTotal || event.valor_total || event.valorTotalPedido || 0);
+
+    let customerCpfCnpj = '';
+    let customerEmail = '';
+    let customerName = '';
+
+    // If orderId is available and we don't have orderTotal or customer details, consult Omie
+    if (orderId && (!orderTotal || !clientId)) {
+      try {
+        const orderData = await callOmieApi(
+          'https://app.omie.com.br/api/v1/produtos/pedido/',
+          'ConsultarPedido',
+          { codigo_pedido: Number(orderId) }
+        );
+        if (orderData) {
+          if (!orderTotal) orderTotal = Number(orderData.total_pedido?.valor_total_pedido || 0);
+          if (!clientId) clientId = orderData.cabecalho?.codigo_cliente;
+        }
+      } catch (e) {
+        console.warn('[OMIE] Could not fetch order details from Omie:', e.message);
+      }
+    }
+
+    // If clientId is available, consult customer in Omie to get CPF/CNPJ and Email
+    if (clientId) {
+      try {
+        const clientData = await callOmieApi(
+          'https://app.omie.com.br/api/v1/geral/clientes/',
+          'ConsultarCliente',
+          { codigo_cliente_omie: Number(clientId) }
+        );
+        if (clientData) {
+          customerCpfCnpj = (clientData.cnpj_cpf || '').replace(/\D/g, '');
+          customerEmail = (clientData.email || '').trim().toLowerCase();
+          customerName = clientData.nome_fantasia || clientData.razao_social || '';
+        }
+      } catch (e) {
+        console.warn('[OMIE] Could not fetch customer details from Omie:', e.message);
+      }
+    }
+
+    // Rule: 1 A-Point for every R$ 10.00 in sales (R$ 1.000 = 100 A-Points)
+    const pointsEarned = Math.floor(orderTotal / 10);
+
+    if (pointsEarned <= 0) {
+      console.log(`[OMIE] Order total R$ ${orderTotal} resulted in 0 points.`);
+      return;
+    }
+
+    const txId = `apt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    console.log(`[OMIE] Crediting ${pointsEarned} A-Points for "${customerName}" (${customerEmail || customerCpfCnpj}) from order ${orderId}`);
+
+    // Update in Postgres
+    if (pool) {
+      try {
+        let matchedUserId = null;
+        if (customerEmail) {
+          const uRes = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1', [customerEmail]);
+          if (uRes.rows.length > 0) matchedUserId = uRes.rows[0].id;
+        }
+        if (!matchedUserId && customerCpfCnpj) {
+          const uRes = await pool.query("SELECT id FROM users WHERE REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $1 LIMIT 1", [customerCpfCnpj]);
+          if (uRes.rows.length > 0) matchedUserId = uRes.rows[0].id;
+        }
+
+        await pool.query(`
+          INSERT INTO a_points_transactions (id, user_id, customer_document, customer_email, customer_name, order_id, order_value, points_earned, source)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [txId, matchedUserId, customerCpfCnpj, customerEmail, customerName, String(orderId || ''), orderTotal, pointsEarned, 'omie']);
+
+        if (matchedUserId) {
+          await pool.query('UPDATE users SET a_points = COALESCE(a_points, 0) + $1 WHERE id = $2', [pointsEarned, matchedUserId]);
+        }
+      } catch (e) {
+        console.error('[OMIE] Error saving A-Points to Postgres:', e.message);
+      }
+    }
+
+    // Local DB JSON fallback
+    const db = readDbJson();
+    if (!db.aPointsTransactions) db.aPointsTransactions = [];
+    db.aPointsTransactions.push({
+      id: txId,
+      customerDocument: customerCpfCnpj,
+      customerEmail,
+      customerName,
+      orderId: String(orderId || ''),
+      orderValue: orderTotal,
+      pointsEarned,
+      source: 'omie',
+      createdAt: new Date().toISOString()
+    });
+
+    if (db.users) {
+      const u = db.users.find(usr => 
+        (customerEmail && usr.email && usr.email.toLowerCase() === customerEmail) ||
+        (customerCpfCnpj && usr.document && usr.document.replace(/\D/g, '') === customerCpfCnpj)
+      );
+      if (u) {
+        u.aPoints = (u.aPoints || 0) + pointsEarned;
+      }
+    }
+    writeDbJson(db);
+
+  } catch (err) {
+    console.error('[OMIE] Error processing webhook event:', err);
+  }
+}
+
+// Health check endpoint for Omie Webhook
+app.get('/api/webhooks/omie', (req, res) => {
+  res.json({
+    status: 'online',
+    message: 'Athena Omie Webhook Receiver is ready to process sales events.',
+    service: 'A-Points Loyalty System'
+  });
+});
+
+// Omie Webhook Receiver (POST)
+app.post('/api/webhooks/omie', async (req, res) => {
+  // Always return 200 OK immediately so Omie confirms successful delivery
+  res.status(200).json({ received: true, timestamp: new Date().toISOString() });
+
+  // Process event in background
+  processOmieSaleEvent(req.body);
+});
+
+// Diagnostic route to check Omie connection
+app.get('/api/omie/status', async (req, res) => {
+  try {
+    const clientTest = await callOmieApi(
+      'https://app.omie.com.br/api/v1/geral/clientes/',
+      'ListarClientes',
+      { pagina: 1, registros_por_pagina: 1, apenas_importado_api: 'N' }
+    );
+    return res.json({
+      status: 'connected',
+      totalClients: clientTest.total_de_registros,
+      appKey: OMIE_APP_KEY ? `${OMIE_APP_KEY.slice(0, 4)}...` : 'not_set'
+    });
+  } catch (e) {
+    return res.status(500).json({
+      status: 'error',
+      error: e.response ? e.response.data : e.message
+    });
+  }
+});
+
+// User points endpoint
+app.get('/api/points/me', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase();
+    const userDoc = (req.user.document || '').replace(/\D/g, '');
+
+    let points = 0;
+    let transactions = [];
+
+    if (pool) {
+      try {
+        const uRes = await pool.query('SELECT a_points FROM users WHERE id = $1', [userId]);
+        if (uRes.rows.length > 0) points = uRes.rows[0].a_points || 0;
+
+        const tRes = await pool.query(`
+          SELECT id, order_id as "orderId", order_value as "orderValue", points_earned as "pointsEarned", source, created_at as "createdAt"
+          FROM a_points_transactions
+          WHERE user_id = $1 OR customer_email = $2 OR (customer_document = $3 AND $3 != '')
+          ORDER BY created_at DESC
+          LIMIT 50
+        `, [userId, userEmail, userDoc]);
+        transactions = tRes.rows;
+      } catch (e) {}
+    } else {
+      const db = readDbJson();
+      const u = (db.users || []).find(usr => usr.id === userId);
+      points = u?.aPoints || 0;
+      transactions = (db.aPointsTransactions || []).filter(t => 
+        t.userId === userId || 
+        (userEmail && t.customerEmail === userEmail) ||
+        (userDoc && t.customerDocument === userDoc)
+      ).reverse().slice(0, 50);
+    }
+
+    return res.json({ points, transactions });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
 });
 

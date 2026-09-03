@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Search, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import SearchBar from './SearchBar';
 
 export default function HeroSlim({ 
   searchTerm, 
@@ -62,25 +63,11 @@ export default function HeroSlim({
 
           {/* Quick Search & Single-Line Category Carousel */}
           <div className="space-y-3 max-w-3xl mx-auto pt-1">
-            <div className="relative group max-w-2xl mx-auto">
-              <input
-                type="text"
-                placeholder="Buscar por elevador, scanner, alinhador ou marca (ex: Launch, Engecass)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white text-slate-900 placeholder-slate-500 text-xs sm:text-sm rounded-2xl pl-11 pr-24 py-3.5 shadow-2xl border-2 border-amber-400/60 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 transition-all outline-none"
-              />
-              <Search className="w-4 h-4 text-amber-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Limpar
-                </button>
-              )}
-            </div>
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              variant="hero-slim"
+            />
 
             {/* Single-Line Category Carousel with Smooth Lateral Scrolling */}
             <div className="relative flex items-center justify-center pt-1">

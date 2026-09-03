@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import ProductCard from '../components/ProductCard';
 import Pagination from '../components/Pagination';
 import NotFoundPage from './NotFoundPage';
+import SearchBar from '../components/SearchBar';
 import { Tag, ArrowLeft, Layers, ExternalLink, Globe, Search, LayoutGrid, List, SlidersHorizontal, Package, RefreshCw } from 'lucide-react';
 import { sortProducts } from '../utils/productSorting';
 import { buildProductRelationsMap, matchProductWithRelations } from '../utils/productSearch';
@@ -57,16 +58,37 @@ export default function BrandPage({
   // Filter products by search term inside brand (with related products support)
   const filteredProducts = useMemo(() => {
     const rawTerm = searchTerm.trim();
-    return rawBrandProducts.filter((prod) => {
-      if (!rawTerm) return true;
-      return matchProductWithRelations(prod, rawTerm, relationsMap, categories, brands).matches;
+    if (!rawTerm) return rawBrandProducts;
+
+    const matched = [];
+    for (const prod of rawBrandProducts) {
+      const searchRes = matchProductWithRelations(prod, rawTerm, relationsMap, categories, brands);
+      if (searchRes.matches) {
+        matched.push({
+          ...prod,
+          _searchScore: searchRes.score || 0,
+          _matchedVia: !searchRes.isDirectMatch ? searchRes.matchedViaProduct : null
+        });
+      }
+    }
+
+    matched.sort((a, b) => {
+      const aDirect = !a._matchedVia ? 1 : 0;
+      const bDirect = !b._matchedVia ? 1 : 0;
+      if (bDirect !== aDirect) return bDirect - aDirect;
+      return (b._searchScore || 0) - (a._searchScore || 0);
     });
+
+    return matched;
   }, [rawBrandProducts, searchTerm, categories, brands, relationsMap]);
 
-  // Sort products (Diversifies categories when sortBy === 'featured')
+  // Sort products (Diversifies categories when sortBy === 'featured', or relevance when searching)
   const sortedProducts = useMemo(() => {
+    if (searchTerm.trim() && sortBy === 'featured') {
+      return filteredProducts;
+    }
     return sortProducts(filteredProducts, sortBy, shuffleSeed);
-  }, [filteredProducts, sortBy, shuffleSeed]);
+  }, [filteredProducts, sortBy, shuffleSeed, searchTerm]);
 
   // Pagination calculation
   const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
@@ -175,16 +197,12 @@ export default function BrandPage({
             {/* Filter / Search / Sort Controls */}
             <div className="flex flex-wrap items-center gap-3">
               {/* Mini Search inside Brand */}
-              <div className="relative min-w-[180px] sm:min-w-[220px]">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder={`Buscar em ${brand.name}...`}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-1 focus:ring-amber-500 outline-none"
-                />
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              </div>
+              <SearchBar
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder={`Buscar em ${brand.name}...`}
+                variant="compact"
+              />
 
               {/* Sort Dropdown */}
               <div className="flex items-center gap-1.5">

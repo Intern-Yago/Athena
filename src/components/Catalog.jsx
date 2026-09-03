@@ -77,29 +77,37 @@ export default function Catalog({
       if (!searchRes.isDirectMatch && searchRes.matchedViaProduct) {
         matched.push({
           ...prod,
-          _matchedVia: searchRes.matchedViaProduct
+          _matchedVia: searchRes.matchedViaProduct,
+          _searchScore: searchRes.score || 0
         });
       } else {
-        matched.push(prod);
+        matched.push({
+          ...prod,
+          _searchScore: searchRes.score || 0
+        });
       }
     }
 
-    // When searching, prioritize direct name/model matches first, then related accessories/equipment
+    // When searching, prioritize direct name/model matches first, then by similarity score
     if (rawTerm) {
       matched.sort((a, b) => {
         const aDirect = !a._matchedVia ? 1 : 0;
         const bDirect = !b._matchedVia ? 1 : 0;
-        return bDirect - aDirect;
+        if (bDirect !== aDirect) return bDirect - aDirect;
+        return (b._searchScore || 0) - (a._searchScore || 0);
       });
     }
 
     return matched;
   }, [products, searchTerm, selectedCategories, selectedBrands, maxPriceFilter, categories, brands, relationsMap]);
 
-  // Sort products (Smart Multi-Brand & Multi-Category Interleaving when sortBy === 'featured')
+  // Sort products (Smart Multi-Brand & Multi-Category Interleaving when sortBy === 'featured', or relevance when searching)
   const sortedProducts = useMemo(() => {
+    if (searchTerm.trim() && sortBy === 'featured') {
+      return filteredProducts;
+    }
     return sortProducts(filteredProducts, sortBy, shuffleSeed);
-  }, [filteredProducts, sortBy, shuffleSeed]);
+  }, [filteredProducts, sortBy, shuffleSeed, searchTerm]);
 
   // Pagination calculation
   const totalPages = Math.ceil(sortedProducts.length / ITEMS_PER_PAGE);

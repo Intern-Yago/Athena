@@ -1,5 +1,6 @@
 import React from 'react';
-import { Search, ShieldCheck, Truck, Wrench, Award, Sparkles, Layers } from 'lucide-react';
+import { ShieldCheck, Truck, Wrench, Award, Sparkles, Layers } from 'lucide-react';
+import SearchBar from './SearchBar';
 
 export default function Hero({ 
   searchTerm, 
@@ -34,28 +35,11 @@ export default function Hero({
 
           {/* Search Box & Category Filters Container */}
           <div className="pt-2 w-full max-w-2xl mx-auto space-y-5">
-            <div className="relative group w-full">
-              <input
-                type="text"
-                placeholder="Busque por produto, marca ou categoria (ex: Elevador, Scanner, Launch)..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white border-2 border-slate-300 focus:border-amber-500 text-slate-900 placeholder-slate-400 text-sm sm:text-base rounded-2xl pl-12 pr-28 py-4 shadow-md shadow-slate-200/50 transition-all outline-none"
-              />
-              <Search className="w-5 h-5 text-amber-600 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:scale-110 transition-transform" />
-              {searchTerm ? (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
-                >
-                  Limpar
-                </button>
-              ) : (
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hidden sm:inline-block">
-                  Pressione Enter
-                </span>
-              )}
-            </div>
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              variant="hero"
+            />
 
             {/* Category Filter Chips */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3 w-full">

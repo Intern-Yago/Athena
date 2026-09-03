@@ -60,6 +60,7 @@ import FormattedDescription from './FormattedDescription';
 import CouponManager from './CouponManager';
 import { safeStorageSet, saveSession } from '../utils/storage';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
+import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
 
 /**
  * Searchable Combobox Component (Filtragem em tempo real com busca e fallback completo)
@@ -2622,9 +2623,14 @@ export default function AdminPanel({
         {/* PRODUCTS MANAGEMENT TAB WITH PAGINATION */}
         {activeAdminTab === 'products' && (() => {
           const filteredAdminProducts = products.filter((prod) => {
-            const matchSearch = !adminProductSearch || 
-              prod.name.toLowerCase().includes(adminProductSearch.toLowerCase()) ||
-              (prod.slug && prod.slug.toLowerCase().includes(adminProductSearch.toLowerCase()));
+            const rawAdminSearch = (adminProductSearch || '').trim();
+            const cleanSearch = cleanAlphanumeric(rawAdminSearch);
+            const normSearch = normalizeSearchText(rawAdminSearch);
+            const matchSearch = !rawAdminSearch || 
+              normalizeSearchText(prod.name).includes(normSearch) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.name).includes(cleanSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.sku || '').includes(cleanSearch)) ||
+              (prod.slug && normalizeSearchText(prod.slug).includes(normSearch));
             const matchBrand = !adminBrandFilter || prod.brandId === adminBrandFilter;
             const matchCategory = !adminCategoryFilter || prod.categoryId === adminCategoryFilter;
             const matchStatus = !adminStatusFilter || 

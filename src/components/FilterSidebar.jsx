@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Filter, Layers, Tag, DollarSign, ChevronDown, ChevronUp, RefreshCw, Sliders, Search, X } from 'lucide-react';
+import SearchBar from './SearchBar';
 import { buildProductRelationsMap, matchProductWithRelations } from '../utils/productSearch';
 
 export default function FilterSidebar({
@@ -194,24 +195,12 @@ export default function FilterSidebar({
           <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">
             Buscar Equipamento
           </label>
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Digite o nome..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-xl pl-8 pr-7 py-2 outline-none"
-            />
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-700"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+          <SearchBar
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Digite o nome..."
+            variant="sidebar"
+          />
         </div>
 
         <div className="border-t border-slate-100" />
