@@ -899,6 +899,23 @@ async function initDb() {
         }
       }
 
+      // Migrate existing image URLs in PostgreSQL to custom CDN domain
+      try {
+        await pool.query(`
+          UPDATE products 
+          SET image = REPLACE(image, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev', 'https://images.athenaconsultoria.com.br')
+          WHERE image LIKE '%pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev%';
+        `);
+        await pool.query(`
+          UPDATE brands 
+          SET logo = REPLACE(logo, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev', 'https://images.athenaconsultoria.com.br')
+          WHERE logo LIKE '%pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev%';
+        `);
+        console.log('[CDN Migration] Imagens migradas com sucesso para https://images.athenaconsultoria.com.br no PostgreSQL!');
+      } catch (migErr) {
+        console.warn('[CDN Migration Notice]:', migErr.message);
+      }
+
       console.log('PostgreSQL athena-db pronto!');
 
     } catch (err) {

@@ -36,6 +36,8 @@ import {
   isSessionExpired 
 } from './utils/storage';
 
+import { normalizeProduct, normalizeBrand } from './utils/imageUrl';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
 
 // Helper component to connect global cart checkout modal with CartContext
@@ -307,13 +309,14 @@ export default function App() {
           idbGet('athena_brands')
         ]);
         if (Array.isArray(idbProds) && idbProds.length > 0) {
-          setProducts((prev) => (prev.length === 0 || idbProds.length >= prev.length ? idbProds : prev));
+          const normProds = idbProds.map(normalizeProduct);
+          setProducts((prev) => (prev.length === 0 || normProds.length >= prev.length ? normProds : prev));
         }
         if (Array.isArray(idbCats) && idbCats.length > 0) {
           setCategories((prev) => (prev.length <= INITIAL_CATEGORIES.length ? idbCats : prev));
         }
         if (Array.isArray(idbBrands) && idbBrands.length > 0) {
-          setBrands((prev) => (prev.length <= INITIAL_BRANDS.length ? idbBrands : prev));
+          setBrands((prev) => (prev.length <= INITIAL_BRANDS.length ? idbBrands.map(normalizeBrand) : prev));
         }
       } catch (e) {
         console.warn('[Athena Storage] Erro ao sincronizar IndexedDB:', e);
@@ -337,9 +340,9 @@ export default function App() {
           const catData = await catRes.json();
           const brandData = await brandRes.json();
 
-          setProducts(prodData);
+          setProducts(Array.isArray(prodData) ? prodData.map(normalizeProduct) : []);
           setCategories(catData);
-          setBrands(brandData);
+          setBrands(Array.isArray(brandData) ? brandData.map(normalizeBrand) : []);
           setIsBackendConnected(true);
         }
       } catch (err) {
