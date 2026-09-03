@@ -4583,76 +4583,78 @@ export default function AdminPanel({
                           </span>
                         </div>
 
-                        {/* MODALIDADE DE ENTREGA / TIPO DE PRODUTO (FÍSICO OU DIGITAL) */}
-                        <div className="space-y-1.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
-                          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                            <Truck className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Modalidade de Entrega do Equipamento / Produto</span>
-                          </label>
-                          <p className="text-[11px] text-slate-500 mb-2">
-                            Define se o item requer entrega técnica/transporte físico ou se é uma licença/software digital sem frete.
-                          </p>
+                        {/* MODALIDADE DE ENTREGA / TIPO DE PRODUTO (FÍSICO OU DIGITAL) - APENAS SE PREÇO NÃO FOR SOB CONSULTA */}
+                        {!productForm.priceNegotiable && (
+                          <div className="space-y-1.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                            <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                              <Truck className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Modalidade de Entrega do Equipamento / Produto</span>
+                            </label>
+                            <p className="text-[11px] text-slate-500 mb-2">
+                              Define se o item requer entrega técnica/transporte físico ou se é uma licença/software digital sem frete.
+                            </p>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            <button
-                              type="button"
-                              onClick={() => setProductForm({ ...productForm, productType: 'physical' })}
-                              className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
-                                (productForm.productType || 'physical') === 'physical'
-                                  ? 'bg-white border-amber-500 shadow-xs ring-1 ring-amber-500/50'
-                                  : 'bg-slate-100/70 border-slate-200 hover:bg-white text-slate-600'
-                              }`}
-                            >
-                              <div className={`p-1.5 rounded-lg shrink-0 ${
-                                (productForm.productType || 'physical') === 'physical'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-slate-200 text-slate-600'
-                              }`}>
-                                <Truck className="w-4 h-4" />
-                              </div>
-                              <div className="space-y-0.5 min-w-0">
-                                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                                  <span>📦 Produto Físico</span>
-                                  {(productForm.productType || 'physical') === 'physical' && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                                  )}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <button
+                                type="button"
+                                onClick={() => setProductForm({ ...productForm, productType: 'physical' })}
+                                className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                                  (productForm.productType || 'physical') === 'physical'
+                                    ? 'bg-white border-amber-500 shadow-xs ring-1 ring-amber-500/50'
+                                    : 'bg-slate-100/70 border-slate-200 hover:bg-white text-slate-600'
+                                }`}
+                              >
+                                <div className={`p-1.5 rounded-lg shrink-0 ${
+                                  (productForm.productType || 'physical') === 'physical'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-slate-200 text-slate-600'
+                                }`}>
+                                  <Truck className="w-4 h-4" />
                                 </div>
-                                <p className="text-[10px] text-slate-500 leading-tight">
-                                  Equipamento ou ferramenta. Requer logística, entrega técnica e frete.
-                                </p>
-                              </div>
-                            </button>
+                                <div className="space-y-0.5 min-w-0">
+                                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                    <span>Produto Físico</span>
+                                    {(productForm.productType || 'physical') === 'physical' && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 leading-tight">
+                                    Equipamento ou ferramenta. Requer logística, entrega técnica e frete.
+                                  </p>
+                                </div>
+                              </button>
 
-                            <button
-                              type="button"
-                              onClick={() => setProductForm({ ...productForm, productType: 'digital' })}
-                              className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
-                                productForm.productType === 'digital'
-                                  ? 'bg-white border-amber-500 shadow-xs ring-1 ring-amber-500/50'
-                                  : 'bg-slate-100/70 border-slate-200 hover:bg-white text-slate-600'
-                              }`}
-                            >
-                              <div className={`p-1.5 rounded-lg shrink-0 ${
-                                productForm.productType === 'digital'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-slate-200 text-slate-600'
-                              }`}>
-                                <Zap className="w-4 h-4" />
-                              </div>
-                              <div className="space-y-0.5 min-w-0">
-                                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                                  <span>⚡ Produto Digital</span>
-                                  {productForm.productType === 'digital' && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                                  )}
+                              <button
+                                type="button"
+                                onClick={() => setProductForm({ ...productForm, productType: 'digital' })}
+                                className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                                  productForm.productType === 'digital'
+                                    ? 'bg-white border-amber-500 shadow-xs ring-1 ring-amber-500/50'
+                                    : 'bg-slate-100/70 border-slate-200 hover:bg-white text-slate-600'
+                                }`}
+                              >
+                                <div className={`p-1.5 rounded-lg shrink-0 ${
+                                  productForm.productType === 'digital'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-slate-200 text-slate-600'
+                                }`}>
+                                  <Zap className="w-4 h-4" />
                                 </div>
-                                <p className="text-[10px] text-slate-500 leading-tight">
-                                  Licença, software ou token. Não precisa de entrega presencial nem frete.
-                                </p>
-                              </div>
-                            </button>
+                                <div className="space-y-0.5 min-w-0">
+                                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                    <span>Produto Digital</span>
+                                    {productForm.productType === 'digital' && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 leading-tight">
+                                    Licença, software ou token. Não precisa de entrega presencial nem frete.
+                                  </p>
+                                </div>
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {/* TOGGLEABLE GATEWAY SIMULATION PREVIEW */}
                         {!productForm.priceNegotiable && Number(productForm.price) > 0 && (() => {
