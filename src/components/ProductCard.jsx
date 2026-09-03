@@ -56,6 +56,18 @@ export default function ProductCard({
             decoding="async"
             className="w-full h-full max-h-56 object-contain group-hover:scale-105 transition-transform duration-300"
             onError={(e) => {
+              const retries = Number(e.target.dataset.retried || 0);
+              if (retries < 2) {
+                e.target.dataset.retried = String(retries + 1);
+                const src = product.image || '';
+                if (src && !src.includes('unsplash.com')) {
+                  const sep = src.includes('?') ? '&' : '?';
+                  setTimeout(() => {
+                    e.target.src = `${src.split('?retry=')[0]}${sep}retry=${Date.now()}`;
+                  }, 400);
+                  return;
+                }
+              }
               e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
             }}
           />
@@ -250,6 +262,18 @@ export default function ProductCard({
           decoding="async"
           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
           onError={(e) => {
+            const retries = Number(e.target.dataset.retried || 0);
+            if (retries < 2) {
+              e.target.dataset.retried = String(retries + 1);
+              const src = product.image || '';
+              if (src && !src.includes('unsplash.com')) {
+                const sep = src.includes('?') ? '&' : '?';
+                setTimeout(() => {
+                  e.target.src = `${src.split('?retry=')[0]}${sep}retry=${Date.now()}`;
+                }, 400);
+                return;
+              }
+            }
             e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
           }}
         />
