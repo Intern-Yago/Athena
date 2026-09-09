@@ -279,12 +279,12 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
       const data = await res.json();
       if (res.ok) {
         setForgotStep(2);
-        setForgotSuccessMsg('Código de 6 dígitos enviado para seu e-mail! Verifique sua caixa de entrada e spam.');
+        setForgotSuccessMsg(data.message || 'E-mail enviado! Se este endereço estiver cadastrado, você receberá o código em instantes.');
         if (data.devCode) {
           setForgotCode(data.devCode);
         }
       } else {
-        setForgotErrorMsg(data.error || 'E-mail não localizado no sistema.');
+        setForgotErrorMsg(data.error || 'Não foi possível processar o envio. Tente novamente mais tarde.');
       }
     } catch (err) {
       setForgotErrorMsg('Não foi possível conectar ao servidor de e-mail.');

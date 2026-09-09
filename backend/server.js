@@ -1529,7 +1529,11 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 
     if (!foundUser) {
-      return res.status(404).json({ error: 'Nenhuma conta encontrada com este e-mail.' });
+      // Segurança: Não divulga se o e-mail existe ou não (prevenção de enumeração de contas)
+      return res.json({
+        success: true,
+        message: 'E-mail enviado! Se o endereço estiver cadastrado em nosso sistema, você receberá o código de recuperação em instantes.'
+      });
     }
 
     // Generate 6-digit code
@@ -1564,7 +1568,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Código de recuperação enviado para o seu e-mail!',
+      message: 'E-mail enviado! Se o endereço estiver cadastrado em nosso sistema, você receberá o código de recuperação em instantes.',
       delivery: emailResult.method,
       // In dev/test without SMTP configured, returns code for instant test preview
       ...(emailResult.method === 'log' ? { devCode: resetCode } : {})
