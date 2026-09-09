@@ -823,46 +823,20 @@ async function initDb() {
 
       // Ensure is_featured, images, video_url, custom_tabs exist on products
       await pool.query(`
-        DO $$ 
-        BEGIN 
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='is_featured') THEN 
-            ALTER TABLE products ADD COLUMN is_featured BOOLEAN DEFAULT FALSE; 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='images') THEN 
-            ALTER TABLE products ADD COLUMN images JSONB; 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='video_url') THEN 
-            ALTER TABLE products ADD COLUMN video_url TEXT; 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='custom_tabs') THEN 
-            ALTER TABLE products ADD COLUMN custom_tabs JSONB; 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='product_type') THEN 
-            ALTER TABLE products ADD COLUMN product_type VARCHAR(20) DEFAULT 'physical'; 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='a_points') THEN 
-            ALTER TABLE products ADD COLUMN a_points INTEGER DEFAULT 0; 
-          END IF;
-          -- Customer fields on users table
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phone') THEN 
-            ALTER TABLE users ADD COLUMN phone VARCHAR(50); 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='document') THEN 
-            ALTER TABLE users ADD COLUMN document VARCHAR(50); 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='company_name') THEN 
-            ALTER TABLE users ADD COLUMN company_name VARCHAR(255); 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='address') THEN 
-            ALTER TABLE users ADD COLUMN address JSONB; 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='a_points') THEN 
-            ALTER TABLE users ADD COLUMN a_points INTEGER DEFAULT 0; 
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_verified') THEN 
-            ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE; 
-          END IF;
-        END $$;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT FALSE;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS images JSONB;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS video_url TEXT;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS custom_tabs JSONB;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS product_type VARCHAR(20) DEFAULT 'physical';
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS a_points INTEGER DEFAULT 0;
+
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS document VARCHAR(50);
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS address JSONB;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS a_points INTEGER DEFAULT 0;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
       `);
 
       // Create Email Verifications Table
@@ -951,6 +925,23 @@ async function initDb() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `);
+
+      // Ensure Row Level Security (RLS) on all public tables in Supabase
+      try {
+        await pool.query(`
+          ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.brands ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.a_points_transactions ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.email_verifications ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.password_resets ENABLE ROW LEVEL SECURITY;
+        `);
+      } catch (rlsErr) {
+        console.warn('Aviso ao aplicar RLS:', rlsErr.message);
+      }
 
       const catCheck = await pool.query('SELECT COUNT(*) FROM categories');
       if (parseInt(catCheck.rows[0].count, 10) === 0) {
@@ -1435,8 +1426,8 @@ app.post('/api/auth/register', async (req, res) => {
     if (pool) {
       try {
         await pool.query(`
-          INSERT INTO users (id, name, email, password_hash, role, phone, document, company_name, address)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          INSERT INTO public.users (id, name, email, password_hash, role, phone, document, company_name, address, a_points, is_verified)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         `, [
           cleanUser.id,
           cleanUser.name,
@@ -1446,10 +1437,13 @@ app.post('/api/auth/register', async (req, res) => {
           cleanUser.phone,
           cleanUser.document,
           cleanUser.companyName,
-          cleanUser.address ? JSON.stringify(cleanUser.address) : null
+          cleanUser.address ? JSON.stringify(cleanUser.address) : null,
+          cleanUser.aPoints || 0,
+          false
         ]);
       } catch (pgErr) {
-        console.error('Erro ao inserir cliente no PostgreSQL:', pgErr.message);
+        console.error('Erro crítico ao inserir cliente no PostgreSQL:', pgErr);
+        return res.status(500).json({ error: 'Erro ao cadastrar usuário no banco de dados. Tente novamente.' });
       }
 
       // Retroactive link for A-Points earned prior to creating an account
