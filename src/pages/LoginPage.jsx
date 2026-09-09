@@ -21,7 +21,80 @@ import {
   Search,
   Loader2
 } from 'lucide-react';
-import { formatCpfCnpj, fetchCnpjData } from '../utils/documentUtils';
+import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
+
+export function getPasswordValidation(password) {
+  const pwd = String(password || '');
+  const minLength = pwd.length >= 8;
+  const hasUpper = /[A-Z]/.test(pwd);
+  const hasLower = /[a-z]/.test(pwd);
+  const hasNumber = /[0-9]/.test(pwd);
+  const hasSpecial = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/.test(pwd);
+  
+  const score = [minLength, hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
+  const isValid = minLength && hasUpper && hasLower && hasNumber && hasSpecial;
+
+  return {
+    minLength,
+    hasUpper,
+    hasLower,
+    hasNumber,
+    hasSpecial,
+    score,
+    isValid
+  };
+}
+
+function PasswordStrengthIndicator({ password }) {
+  if (!password) return null;
+  const val = getPasswordValidation(password);
+
+  const getStrengthLabel = () => {
+    if (val.score <= 2) return { text: 'Fraca', color: 'text-rose-600', barColor: 'bg-rose-500', width: '25%' };
+    if (val.score === 3) return { text: 'Média', color: 'text-amber-600', barColor: 'bg-amber-500', width: '55%' };
+    if (val.score === 4) return { text: 'Boa', color: 'text-sky-600', barColor: 'bg-sky-500', width: '80%' };
+    return { text: 'Excelente (Forte)', color: 'text-emerald-600', barColor: 'bg-emerald-500', width: '100%' };
+  };
+
+  const strength = getStrengthLabel();
+
+  return (
+    <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200 mt-2">
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-slate-600 font-medium">Segurança da senha:</span>
+        <span className={`font-bold ${strength.color}`}>{strength.text}</span>
+      </div>
+      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+        <div 
+          className={`h-full transition-all duration-300 ${strength.barColor}`} 
+          style={{ width: strength.width }} 
+        />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 pt-1 text-[10px]">
+        <div className={`flex items-center gap-1.5 ${val.minLength ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+          <CheckCircle2 className={`w-3 h-3 shrink-0 ${val.minLength ? 'text-emerald-600' : 'text-slate-300'}`} />
+          <span>Mín. 8 caracteres</span>
+        </div>
+        <div className={`flex items-center gap-1.5 ${val.hasUpper ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+          <CheckCircle2 className={`w-3 h-3 shrink-0 ${val.hasUpper ? 'text-emerald-600' : 'text-slate-300'}`} />
+          <span>Letra maiúscula (A-Z)</span>
+        </div>
+        <div className={`flex items-center gap-1.5 ${val.hasLower ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+          <CheckCircle2 className={`w-3 h-3 shrink-0 ${val.hasLower ? 'text-emerald-600' : 'text-slate-300'}`} />
+          <span>Letra minúscula (a-z)</span>
+        </div>
+        <div className={`flex items-center gap-1.5 ${val.hasNumber ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+          <CheckCircle2 className={`w-3 h-3 shrink-0 ${val.hasNumber ? 'text-emerald-600' : 'text-slate-300'}`} />
+          <span>Número (0-9)</span>
+        </div>
+        <div className={`flex items-center gap-1.5 sm:col-span-2 ${val.hasSpecial ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+          <CheckCircle2 className={`w-3 h-3 shrink-0 ${val.hasSpecial ? 'text-emerald-600' : 'text-slate-300'}`} />
+          <span>Caractere especial (!@#$%^&*...)</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) {
   // Mode: 'login' | 'register'
@@ -43,6 +116,7 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
     confirmPassword: ''
   });
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
 
   // Forgot Password Modal State
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
@@ -51,6 +125,8 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
   const [forgotCode, setForgotCode] = useState('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccessMsg, setForgotSuccessMsg] = useState('');
   const [forgotErrorMsg, setForgotErrorMsg] = useState('');
@@ -136,8 +212,19 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (registerForm.password.length < 6) {
-      setErrorMsg('A senha deve ter no mínimo 6 caracteres.');
+    const pwdVal = getPasswordValidation(registerForm.password);
+    if (!pwdVal.isValid) {
+      if (!pwdVal.minLength) {
+        setErrorMsg('A senha deve ter no mínimo 8 caracteres.');
+      } else if (!pwdVal.hasUpper) {
+        setErrorMsg('A senha deve conter ao menos uma letra maiúscula (A-Z).');
+      } else if (!pwdVal.hasLower) {
+        setErrorMsg('A senha deve conter ao menos uma letra minúscula (a-z).');
+      } else if (!pwdVal.hasNumber) {
+        setErrorMsg('A senha deve conter ao menos um número (0-9).');
+      } else if (!pwdVal.hasSpecial) {
+        setErrorMsg('A senha deve conter ao menos um caractere especial (!@#$%...).');
+      }
       return;
     }
 
@@ -212,8 +299,19 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
     setForgotErrorMsg('');
     setForgotSuccessMsg('');
 
-    if (forgotNewPassword.length < 6) {
-      setForgotErrorMsg('A nova senha deve ter no mínimo 6 caracteres.');
+    const pwdVal = getPasswordValidation(forgotNewPassword);
+    if (!pwdVal.isValid) {
+      if (!pwdVal.minLength) {
+        setForgotErrorMsg('A nova senha deve ter no mínimo 8 caracteres.');
+      } else if (!pwdVal.hasUpper) {
+        setForgotErrorMsg('A nova senha deve conter ao menos uma letra maiúscula (A-Z).');
+      } else if (!pwdVal.hasLower) {
+        setForgotErrorMsg('A nova senha deve conter ao menos uma letra minúscula (a-z).');
+      } else if (!pwdVal.hasNumber) {
+        setForgotErrorMsg('A nova senha deve conter ao menos um número (0-9).');
+      } else if (!pwdVal.hasSpecial) {
+        setForgotErrorMsg('A nova senha deve conter ao menos um caractere especial (!@#$%...).');
+      }
       return;
     }
 
@@ -441,11 +539,11 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
                 <label className="text-xs font-bold text-slate-700 block mb-1">WhatsApp / Telefone *</label>
                 <div className="relative">
                   <input
-                    type="text"
+                    type="tel"
                     placeholder="(61) 99999-9999"
                     value={registerForm.phone}
-                    onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
-                    className="form-input text-xs !pl-10"
+                    onChange={(e) => setRegisterForm({ ...registerForm, phone: formatPhone(e.target.value) })}
+                    className="form-input text-xs !pl-10 font-mono"
                     required
                   />
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -526,32 +624,63 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Senha (Mín. 6 dígitos) *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Senha (Mín. 8 caracteres) *</label>
                 <div className="relative">
                   <input
                     type={showRegisterPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={registerForm.password}
                     onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                    className="form-input text-xs !pl-10"
+                    className="form-input text-xs !pl-10 !pr-10"
                     required
                   />
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                    tabIndex={-1}
+                    title={showRegisterPassword ? "Ocultar senha" : "Ver senha"}
+                  >
+                    {showRegisterPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Confirmar Senha *</label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={registerForm.confirmPassword}
-                  onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
-                  className="form-input text-xs"
-                  required
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700">Confirmar Senha *</label>
+                  {registerForm.confirmPassword && (
+                    <span className={`text-[10px] font-bold ${registerForm.password === registerForm.confirmPassword ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {registerForm.password === registerForm.confirmPassword ? '✓ Conferem' : '✕ Diferentes'}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showRegisterConfirmPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={registerForm.confirmPassword}
+                    onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                    className="form-input text-xs !pl-10 !pr-10"
+                    required
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterConfirmPassword(!showRegisterConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                    tabIndex={-1}
+                    title={showRegisterConfirmPassword ? "Ocultar confirmação" : "Ver confirmação"}
+                  >
+                    {showRegisterConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             </div>
+
+            {/* Indicador de Segurança da Senha */}
+            <PasswordStrengthIndicator password={registerForm.password} />
 
             <button
               type="submit"
@@ -680,27 +809,57 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Nova Senha (Mín. 6 dígitos) *</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={forgotNewPassword}
-                    onChange={(e) => setForgotNewPassword(e.target.value)}
-                    className="form-input text-xs"
-                  />
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nova Senha (Mín. 8 caracteres) *</label>
+                  <div className="relative">
+                    <input
+                      type={showForgotNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      className="form-input text-xs !pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                      tabIndex={-1}
+                      title={showForgotNewPassword ? "Ocultar senha" : "Ver senha"}
+                    >
+                      {showForgotNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <PasswordStrengthIndicator password={forgotNewPassword} />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Confirmar Nova Senha *</label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={forgotConfirmPassword}
-                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
-                    className="form-input text-xs"
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700">Confirmar Nova Senha *</label>
+                    {forgotConfirmPassword && (
+                      <span className={`text-[10px] font-bold ${forgotNewPassword === forgotConfirmPassword ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        {forgotNewPassword === forgotConfirmPassword ? '✓ Conferem' : '✕ Diferentes'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showForgotConfirmPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={forgotConfirmPassword}
+                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                      className="form-input text-xs !pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                      tabIndex={-1}
+                      title={showForgotConfirmPassword ? "Ocultar confirmação" : "Ver confirmação"}
+                    >
+                      {showForgotConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-2">

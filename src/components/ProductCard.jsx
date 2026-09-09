@@ -1,6 +1,6 @@
 import React from 'react';
 import { stripFormattingTags } from './FormattedDescription';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2 } from 'lucide-react';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 
@@ -22,6 +22,10 @@ export default function ProductCard({
   const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
     product.price ? formatBRL(product.price) : 'Sob Consulta'
   );
+
+  const earnedPoints = (product.aPoints && Number(product.aPoints) > 0) 
+    ? Number(product.aPoints) 
+    : (hasPrice ? Math.floor(product.price / 10) : 0);
 
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
@@ -191,6 +195,12 @@ export default function ProductCard({
               {hasPrice && (
                 <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
                   {getBestInstallmentText(product.price, 12)}
+                </span>
+              )}
+              {earnedPoints > 0 && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md mt-1">
+                  <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
+                  <span>+{earnedPoints} A-Points</span>
                 </span>
               )}
             </div>
@@ -412,6 +422,15 @@ export default function ProductCard({
               <span className="text-[10px] text-slate-500 font-medium block text-right">
                 {getBestInstallmentText(product.price, 12)}
               </span>
+            )}
+            {earnedPoints > 0 && (
+              <div className="flex items-center justify-between pt-0.5">
+                <span className="text-[10px] text-slate-400 font-medium">Pontos no pedido:</span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded">
+                  <Sparkles className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                  <span>+{earnedPoints} A-Points</span>
+                </span>
+              </div>
             )}
           </div>
 

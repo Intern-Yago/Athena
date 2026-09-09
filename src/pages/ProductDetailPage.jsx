@@ -234,6 +234,10 @@ export default function ProductDetailPage({
     product.price ? formatBRL(product.price) : 'Sob Consulta'
   );
 
+  const earnedPoints = (product.aPoints && Number(product.aPoints) > 0) 
+    ? Number(product.aPoints) 
+    : (hasPrice ? Math.floor(product.price / 10) : 0);
+
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
@@ -657,6 +661,18 @@ export default function ProductDetailPage({
                     <span>Opções de parcelamento e pagamento</span>
                   </button>
                 </div>
+
+                {earnedPoints > 0 && (
+                  <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs text-amber-950">
+                    <span className="flex items-center gap-1.5 font-bold text-slate-700">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      Programa A-Points:
+                    </span>
+                    <span className="font-extrabold bg-white/90 border border-amber-300 text-amber-900 px-2.5 py-0.5 rounded-lg shadow-2xs">
+                      +{earnedPoints} A-Points nesta compra
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-baseline gap-2">

@@ -51,7 +51,8 @@ import {
   Loader2,
   Gift,
   Truck,
-  Zap
+  Zap,
+  Coins
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl, getVideoEmbedInfo } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
@@ -444,6 +445,44 @@ export default function AdminPanel({
     role: 'vendedor'
   });
 
+  // A-Points Adjustment State
+  const [pointsModalUser, setPointsModalUser] = useState(null);
+  const [pointsAdjustment, setPointsAdjustment] = useState('');
+  const [pointsReason, setPointsReason] = useState('');
+  const [isSavingPoints, setIsSavingPoints] = useState(false);
+
+  const handleSavePointsAdjustment = async (e) => {
+    e.preventDefault();
+    if (!pointsModalUser || !pointsAdjustment) return;
+    setIsSavingPoints(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/points/adjust`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          userId: pointsModalUser.id,
+          userEmail: pointsModalUser.email,
+          points: Number(pointsAdjustment),
+          reason: pointsReason || 'Ajuste administrativo de pontos'
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification && showNotification('Pontos do cliente atualizados com sucesso!', 'success');
+        setPointsModalUser(null);
+        setPointsAdjustment('');
+        setPointsReason('');
+        fetchUsers();
+      } else {
+        showNotification && showNotification(data.error || 'Erro ao ajustar pontos.', 'error');
+      }
+    } catch (err) {
+      showNotification && showNotification('Falha de conexão com o servidor.', 'error');
+    } finally {
+      setIsSavingPoints(false);
+    }
+  };
+
   // Fetch Users List
   const fetchUsers = async () => {
     try {
@@ -549,7 +588,7 @@ export default function AdminPanel({
     if (!targetProduct) return;
     setProductModalHistory(prev => [...prev, { form: { ...productForm }, editing: editingProduct }]);
     setEditingProduct(targetProduct);
-    setProductForm({
+    const targetForm = {
       ...targetProduct,
       aPoints: targetProduct.aPoints != null ? targetProduct.aPoints : '',
       isFeatured: !!targetProduct.isFeatured,
@@ -560,7 +599,9 @@ export default function AdminPanel({
       videoUrl: targetProduct.videoUrl || targetProduct.youtubeVideoUrl || '',
       customTabs: Array.isArray(targetProduct.customTabs) ? [...targetProduct.customTabs] : [],
       compatibleProductIds: Array.isArray(targetProduct.compatibleProductIds) ? [...targetProduct.compatibleProductIds] : []
-    });
+    };
+    setProductForm(targetForm);
+    initialProductFormRef.current = JSON.stringify(targetForm);
 
     const modalForm = document.getElementById('productMainForm');
     if (modalForm) {
@@ -575,6 +616,7 @@ export default function AdminPanel({
     setProductModalHistory(prev => prev.slice(0, -1));
     setEditingProduct(prevEntry.editing || null);
     setProductForm(prevEntry.form);
+    initialProductFormRef.current = JSON.stringify(prevEntry.form);
 
     const modalForm = document.getElementById('productMainForm');
     if (modalForm) {
@@ -704,6 +746,64 @@ export default function AdminPanel({
     setConfirmModal(prev => ({ ...prev, isOpen: false, onConfirm: null }));
   };
 
+  // Reference to snapshot initial product form state to detect unsaved changes
+  const initialProductFormRef = React.useRef(null);
+
+  const hasUnsavedProductChanges = () => {
+    if (!isProductModalOpen) return false;
+    if (!initialProductFormRef.current) return false;
+    try {
+      return JSON.stringify(productForm) !== initialProductFormRef.current;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // 1. Browser Native confirmation dialog on tab reload, close or navigate away
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isProductModalOpen && hasUnsavedProductChanges()) {
+        e.preventDefault();
+        e.returnValue = ''; // Triggers browser's native confirmation dialog
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isProductModalOpen, productForm]);
+
+  // Sync snapshot when product modal is open and snapshot not yet taken
+  useEffect(() => {
+    if (isProductModalOpen && !initialProductFormRef.current) {
+      initialProductFormRef.current = JSON.stringify(productForm);
+    }
+  }, [isProductModalOpen, productForm]);
+
+  // 2. In-app confirmation dialog on accidental click to close (backdrop, X, cancel, Esc)
+  const handleRequestCloseProductModal = () => {
+    if (hasUnsavedProductChanges()) {
+      askConfirmation({
+        title: 'Descartar alterações?',
+        message: 'Você tem modificações não salvas neste equipamento. Se fechar agora, todas as informações preenchidas serão descartadas.',
+        confirmText: 'Sim, Descartar Alterações',
+        cancelText: 'Continuar Editando',
+        type: 'warning',
+        onConfirm: () => {
+          initialProductFormRef.current = null;
+          setIsProductModalOpen(false);
+          setEditingProduct(null);
+          setProductModalHistory([]);
+        }
+      });
+    } else {
+      initialProductFormRef.current = null;
+      setIsProductModalOpen(false);
+      setEditingProduct(null);
+      setProductModalHistory([]);
+    }
+  };
+
   // Revogar Acesso de Usuário / Funcionário
   const handleDeleteUser = (userId, userName) => {
     askConfirmation({
@@ -748,7 +848,7 @@ export default function AdminPanel({
   const openNewProductModal = () => {
     setProductModalHistory([]);
     setEditingProduct(null);
-    setProductForm({
+    const initialForm = {
       name: '',
       slug: '',
       categoryId: categories[0]?.id || '',
@@ -769,7 +869,9 @@ export default function AdminPanel({
       videoUrl: '',
       customTabs: [],
       compatibleProductIds: []
-    });
+    };
+    setProductForm(initialForm);
+    initialProductFormRef.current = JSON.stringify(initialForm);
     setNewAttachmentForm({ title: '', url: '', mode: 'url' });
     setIsProductModalOpen(true);
   };
@@ -777,7 +879,7 @@ export default function AdminPanel({
   const openEditProductModal = (product) => {
     setProductModalHistory([]);
     setEditingProduct(product);
-    setProductForm({
+    const initialForm = {
       ...product,
       aPoints: product.aPoints != null ? product.aPoints : '',
       isFeatured: !!product.isFeatured,
@@ -788,7 +890,9 @@ export default function AdminPanel({
       videoUrl: product.videoUrl || product.youtubeVideoUrl || '',
       customTabs: Array.isArray(product.customTabs) ? [...product.customTabs] : [],
       compatibleProductIds: Array.isArray(product.compatibleProductIds) ? [...product.compatibleProductIds] : []
-    });
+    };
+    setProductForm(initialForm);
+    initialProductFormRef.current = JSON.stringify(initialForm);
     setNewAttachmentForm({ title: '', url: '', mode: 'url' });
     setIsProductModalOpen(true);
   };
@@ -2217,6 +2321,7 @@ export default function AdminPanel({
       showNotification(`Produto "${finalProduct.name}" cadastrado!`, 'success');
     }
 
+    initialProductFormRef.current = null;
     setIsProductModalOpen(false);
     setEditingProduct(null);
   };
@@ -2269,16 +2374,12 @@ export default function AdminPanel({
     const handleGlobalKeyDown = (e) => {
       // 1. ESC KEY -> Close whichever modal is currently active without saving
       if (e.key === 'Escape') {
+        if (confirmModal?.isOpen) {
+          closeConfirmation();
+          return;
+        }
         if (previewingImage) {
           setPreviewingImage(null);
-          return;
-        }
-        if (editingAttachmentId) {
-          setEditingAttachmentId(null);
-          return;
-        }
-        if (confirmModal?.isOpen) {
-          setConfirmModal(prev => ({ ...prev, isOpen: false }));
           return;
         }
         if (isPdfModalOpen) {
@@ -2287,12 +2388,10 @@ export default function AdminPanel({
         }
         if (isCategoryModalOpen) {
           setIsCategoryModalOpen(false);
-          setEditingCategory(null);
           return;
         }
         if (isBrandModalOpen) {
           setIsBrandModalOpen(false);
-          setEditingBrand(null);
           return;
         }
         if (isUserModalOpen) {
@@ -2304,8 +2403,7 @@ export default function AdminPanel({
           return;
         }
         if (isProductModalOpen) {
-          setIsProductModalOpen(false);
-          setEditingProduct(null);
+          handleRequestCloseProductModal();
           return;
         }
       }
@@ -2534,7 +2632,7 @@ export default function AdminPanel({
 
               {onLogout && (
                 <button
-                  onClick={onLogout}
+                  onClick={() => onLogout('Você saiu da sua conta.')}
                   className="btn-danger text-xs font-bold py-3 px-3 shrink-0"
                   title="Sair da Conta"
                 >
@@ -3345,10 +3443,11 @@ export default function AdminPanel({
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-100 uppercase text-[11px] text-slate-600 border-b border-slate-200 font-bold">
                   <tr>
-                    <th className="py-3 px-4">Funcionário</th>
-                    <th className="py-3 px-4">E-mail Corporativo</th>
+                    <th className="py-3 px-4">Usuário</th>
+                    <th className="py-3 px-4">E-mail</th>
                     <th className="py-3 px-4">Nível de Permissão</th>
-                    <th className="py-3 px-4 text-right">Ação</th>
+                    <th className="py-3 px-4 text-center">Saldo A-Points</th>
+                    <th className="py-3 px-4 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -3357,7 +3456,8 @@ export default function AdminPanel({
                       admin: { label: 'Administrador Geral', color: 'bg-amber-100 text-amber-900 border-amber-300' },
                       editor: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
                       edicao: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
-                      vendedor: { label: 'Vendedor (Somente Leitura & PDF)', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' }
+                      vendedor: { label: 'Vendedor (Somente Leitura & PDF)', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' },
+                      cliente: { label: 'Cliente (Portal)', color: 'bg-purple-100 text-purple-900 border-purple-300' }
                     };
                     const roleObj = roleLabels[user.role] || roleLabels.vendedor;
 
@@ -3374,18 +3474,39 @@ export default function AdminPanel({
                             {roleObj.label}
                           </span>
                         </td>
+                        <td className="py-3 px-4 text-center">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                            <Coins className="w-3 h-3 text-amber-600 shrink-0" />
+                            {Number(user.aPoints || 0)} pts
+                          </span>
+                        </td>
                         <td className="py-3 px-4 text-right">
-                          {user.id !== currentUser?.id ? (
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => handleDeleteUser(user.id, user.name)}
-                              className="btn-danger text-xs py-1.5 px-2.5"
-                              title="Revogar Acesso / Apagar"
+                              type="button"
+                              onClick={() => {
+                                setPointsModalUser(user);
+                                setPointsAdjustment('');
+                                setPointsReason('');
+                              }}
+                              className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 font-bold text-amber-800 hover:text-amber-950 hover:bg-amber-50 border border-amber-300"
+                              title="Ajustar ou bonificar pontos do usuário"
                             >
-                              <UserX className="w-3.5 h-3.5" /> Revogar Acesso
+                              <Coins className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Pontos</span>
                             </button>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 font-semibold italic">Você</span>
-                          )}
+                            {user.id !== currentUser?.id ? (
+                              <button
+                                onClick={() => handleDeleteUser(user.id, user.name)}
+                                className="btn-danger text-xs py-1.5 px-2.5"
+                                title="Revogar Acesso / Apagar"
+                              >
+                                <UserX className="w-3.5 h-3.5" /> Revogar
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-semibold italic px-2">Você</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -3630,9 +3751,88 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* POINTS ADJUSTMENT MODAL */}
+        {pointsModalUser && (
+          <div className="modal-backdrop" onClick={() => setPointsModalUser(null)}>
+            <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700">
+                    <Coins className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Ajustar Saldo de A-Points</h4>
+                    <p className="text-[11px] text-slate-500 truncate max-w-[240px]">{pointsModalUser.name} ({pointsModalUser.email})</p>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setPointsModalUser(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSavePointsAdjustment} className="pt-3 space-y-3">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex items-center justify-between">
+                  <span className="text-slate-600 font-medium">Saldo Atual do Usuário:</span>
+                  <span className="font-black text-amber-900 text-sm">{Number(pointsModalUser.aPoints || 0)} pts</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Quantidade de Pontos *
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    required
+                    placeholder="Ex: 100 (para creditar) ou -50 (para debitar)"
+                    value={pointsAdjustment}
+                    onChange={(e) => setPointsAdjustment(e.target.value)}
+                    className="form-input text-xs font-mono"
+                  />
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    Digite um valor positivo para bonificar ou negativo para estornar pontos.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Motivo do Ajuste *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Bonificação de boas-vindas, suporte, compensação de pedido"
+                    value={pointsReason}
+                    onChange={(e) => setPointsReason(e.target.value)}
+                    className="form-input text-xs"
+                  />
+                </div>
+
+                <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setPointsModalUser(null)}
+                    className="btn-secondary text-xs"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingPoints || !pointsAdjustment}
+                    className="btn-gold text-xs font-bold py-2 px-4 flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSavingPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    <span>Confirmar Ajuste</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* FULL PRODUCT FORM MODAL - BALANCED WIDE 2-COLUMN LAYOUT */}
         {isProductModalOpen && canEditContent && (
-          <div className="modal-backdrop !p-2 sm:!p-4 md:!p-6" onClick={() => setIsProductModalOpen(false)}>
+          <div className="modal-backdrop !p-2 sm:!p-4 md:!p-6" onClick={handleRequestCloseProductModal}>
             <div 
               className="modal-content !max-w-[1440px] !w-[96vw] !max-h-[94vh] !p-0 bg-slate-100/95 border border-slate-300 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden" 
               onClick={(e) => e.stopPropagation()}
@@ -3644,9 +3844,16 @@ export default function AdminPanel({
                     <Package className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
-                      {editingProduct ? 'Editar Equipamento' : 'Cadastrar Novo Equipamento'}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+                        {editingProduct ? 'Editar Equipamento' : 'Cadastrar Novo Equipamento'}
+                      </h3>
+                      {hasUnsavedProductChanges() && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 rounded-full animate-in fade-in">
+                          Modificações não salvas
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500">
                       {productForm.name || 'Preencha as informações comerciais, fotos, vídeos, documentos e especificações'}
                     </p>
@@ -3655,8 +3862,8 @@ export default function AdminPanel({
 
                 <button 
                   type="button"
-                  onClick={() => setIsProductModalOpen(false)}
-                  className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors"
+                  onClick={handleRequestCloseProductModal}
+                  className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors cursor-pointer"
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -5288,8 +5495,8 @@ export default function AdminPanel({
                 <div className="flex items-center gap-3">
                   <button 
                     type="button" 
-                    onClick={() => setIsProductModalOpen(false)} 
-                    className="btn-secondary text-xs py-2.5 px-4 font-bold"
+                    onClick={handleRequestCloseProductModal} 
+                    className="btn-secondary text-xs py-2.5 px-4 font-bold cursor-pointer"
                   >
                     Cancelar
                   </button>

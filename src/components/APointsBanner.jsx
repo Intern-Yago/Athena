@@ -14,7 +14,7 @@ export default function APointsBanner({ onNavigate, currentUser }) {
           </p>
           <button
             type="button"
-            onClick={() => onNavigate('account')}
+            onClick={() => onNavigate('pontos')}
             className="text-amber-800 font-bold hover:underline shrink-0 cursor-pointer"
           >
             Acessar meus pontos &rarr;

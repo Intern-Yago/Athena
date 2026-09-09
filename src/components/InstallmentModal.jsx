@@ -24,10 +24,11 @@ import {
   Trash2,
   Building,
   Search,
-  Truck
+  Truck,
+  Sparkles
 } from 'lucide-react';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
-import { formatCpfCnpj, fetchCnpjData } from '../utils/documentUtils';
+import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
 
 export default function InstallmentModal({ 
   isOpen, 
@@ -75,12 +76,22 @@ export default function InstallmentModal({
     return activeItems.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
   }, [activeItems]);
 
+  const estimatedPoints = useMemo(() => {
+    return activeItems.reduce((acc, it) => {
+      if (it.aPoints && Number(it.aPoints) > 0) {
+        return acc + (Number(it.aPoints) * (Number(it.quantity) || 1));
+      }
+      const val = (Number(it.price) || 0) * (Number(it.quantity) || 1);
+      return acc + Math.floor(val / 10);
+    }, 0);
+  }, [activeItems]);
+
   // Customer Form with pre-fill from currentUser
   const [customer, setCustomer] = useState({
     name: currentUser?.name || '',
     email: currentUser?.email || '',
     cpfCnpj: currentUser?.document || '',
-    phone: currentUser?.phone || '',
+    phone: currentUser?.phone ? formatPhone(currentUser.phone) : '',
     companyName: currentUser?.companyName || ''
   });
 
@@ -106,7 +117,7 @@ export default function InstallmentModal({
         name: prev.name || currentUser.name || '',
         email: prev.email || currentUser.email || '',
         cpfCnpj: prev.cpfCnpj || currentUser.document || '',
-        phone: prev.phone || currentUser.phone || '',
+        phone: prev.phone || (currentUser.phone ? formatPhone(currentUser.phone) : ''),
         companyName: prev.companyName || currentUser.companyName || ''
       }));
     }
@@ -233,10 +244,7 @@ export default function InstallmentModal({
   };
 
   const handlePhoneChange = (e) => {
-    let v = e.target.value.replace(/\D/g, '').slice(0, 11);
-    if (v.length > 2) v = `(${v.slice(0, 2)}) ${v.slice(2)}`;
-    if (v.length > 9) v = `${v.slice(0, 10)}-${v.slice(10)}`;
-    setCustomer(c => ({ ...c, phone: v }));
+    setCustomer(c => ({ ...c, phone: formatPhone(e.target.value) }));
   };
 
   const handleCardNumberChange = (e) => {
@@ -529,6 +537,18 @@ export default function InstallmentModal({
                   {isFreeOrder ? 'GRÁTIS (100% OFF)' : formatBRL(discountedSubtotal)}
                 </span>
               </div>
+
+              {estimatedPoints > 0 && (
+                <div className="flex items-center justify-between text-amber-950 font-semibold bg-amber-50/90 px-2.5 py-1.5 rounded-lg border border-amber-200/80">
+                  <span className="flex items-center gap-1.5 text-xs text-amber-900">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    A-Points acumulados neste pedido:
+                  </span>
+                  <span className="font-extrabold text-xs text-amber-950">
+                    +{estimatedPoints} pts
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -606,6 +626,13 @@ export default function InstallmentModal({
                 <div><strong>Status:</strong> FATURADO / APROVADO</div>
                 <div><strong>Cliente:</strong> {customer.name}</div>
               </div>
+
+              {estimatedPoints > 0 && (
+                <div className="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-amber-950 text-xs font-semibold flex items-center justify-center gap-2 max-w-md mx-auto shadow-xs">
+                  <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span>Você acumulou <strong>+{estimatedPoints} A-Points</strong> com este pedido! Eles estarão visíveis na sua conta.</span>
+                </div>
+              )}
 
               <div>
                 <button

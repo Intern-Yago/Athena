@@ -182,17 +182,19 @@ export default function App() {
     }
   };
 
-  const handleLogout = (msg = 'Sessão encerrada.') => {
+  const handleLogout = (msg) => {
     clearSession();
     setCurrentUser(null);
-    showNotification(msg, 'info');
+    const text = typeof msg === 'string' ? msg : 'Você saiu da sua conta.';
+    showNotification(text, 'info');
     navigateTo('catalog');
   };
 
-  const handleSessionExpired = (msg = 'Sua sessão expirou por inatividade para sua segurança. Faça login novamente.') => {
+  const handleSessionExpired = (msg) => {
     clearSession();
     setCurrentUser(null);
-    showNotification(msg, 'error');
+    const text = typeof msg === 'string' ? msg : 'Sua sessão expirou por inatividade para sua segurança. Faça login novamente.';
+    showNotification(text, 'error');
   };
 
   // Helper for Authorization Headers
@@ -373,7 +375,15 @@ export default function App() {
   }, [brands]);
 
   const showNotification = (message, type = 'success') => {
-    setToast({ message, type });
+    let cleanMsg = 'Notificação';
+    if (typeof message === 'string') {
+      cleanMsg = message;
+    } else if (message && typeof message === 'object') {
+      cleanMsg = message.message || message.error || 'Ação concluída com sucesso.';
+    } else if (message != null) {
+      cleanMsg = String(message);
+    }
+    setToast({ message: cleanMsg, type });
   };
 
   const handleAddProduct = async (newProduct) => {
@@ -645,7 +655,7 @@ export default function App() {
       );
     }
 
-    if (currentRoute === 'minha-conta' || currentRoute === 'minha_conta' || currentRoute === 'account' || currentRoute === 'perfil' || currentRoute === 'pedidos' || currentRoute === 'orders') {
+    if (currentRoute === 'minha-conta' || currentRoute === 'minha_conta' || currentRoute === 'account' || currentRoute === 'perfil' || currentRoute === 'pedidos' || currentRoute === 'orders' || currentRoute === 'pontos' || currentRoute === 'points') {
       if (!currentUser) {
         return (
           <LoginPage
@@ -663,6 +673,7 @@ export default function App() {
           onNavigate={navigateTo}
           API_BASE_URL={API_BASE_URL}
           showNotification={showNotification}
+          initialTab={currentRoute === 'pontos' || currentRoute === 'points' ? 'points' : 'orders'}
         />
       );
     }

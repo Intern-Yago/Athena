@@ -7,6 +7,22 @@
  * - Automatic company data lookup via open.cnpja.com
  */
 
+/**
+ * Format Brazilian phone numbers dynamically:
+ * (61) 99377-4923 (11 digits) or (61) 3344-5566 (10 digits)
+ */
+export function formatPhone(value) {
+  if (!value) return '';
+  const digits = String(value).replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
 export function formatCpfCnpj(value) {
   if (!value) {
     return {

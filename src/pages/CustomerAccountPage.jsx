@@ -23,10 +23,15 @@ import {
   ShoppingCart,
   ShieldCheck,
   ArrowRight,
-  Loader2
+  Loader2,
+  Sparkles,
+  Coins,
+  Gift,
+  TrendingUp
 } from 'lucide-react';
 import { saveSession } from '../utils/storage';
-import { formatCpfCnpj, fetchCnpjData } from '../utils/documentUtils';
+import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
+import { getPasswordValidation } from './LoginPage';
 
 export default function CustomerAccountPage({
   currentUser,
@@ -34,15 +39,21 @@ export default function CustomerAccountPage({
   onLogout,
   onNavigate,
   API_BASE_URL,
-  showNotification
+  showNotification,
+  initialTab = 'orders'
 }) {
-  const [activeTab, setActiveTab] = useState('orders'); // 'orders' | 'profile' | 'address' | 'security'
+  const [activeTab, setActiveTab] = useState(initialTab || 'orders');
   
+  // A-Points State
+  const [userPoints, setUserPoints] = useState(currentUser?.aPoints || currentUser?.a_points || 0);
+  const [pointsTransactions, setPointsTransactions] = useState([]);
+  const [loadingPoints, setLoadingPoints] = useState(false);
+
   // Profile State
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || '',
     email: currentUser?.email || '',
-    phone: currentUser?.phone || '',
+    phone: currentUser?.phone ? formatPhone(currentUser.phone) : '',
     document: currentUser?.document || '',
     companyName: currentUser?.companyName || currentUser?.company_name || ''
   });
@@ -66,6 +77,7 @@ export default function CustomerAccountPage({
   });
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Orders State
   const [orders, setOrders] = useState([]);
@@ -123,6 +135,13 @@ export default function CustomerAccountPage({
     }
   };
 
+  // Sync tab with initialTab
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
   // Sync state when currentUser updates
   useEffect(() => {
     if (currentUser) {
@@ -177,7 +196,30 @@ export default function CustomerAccountPage({
       }
     };
 
+    const fetchPoints = async () => {
+      if (!currentUser?.token) return;
+      setLoadingPoints(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/points/me`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentUser.token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUserPoints(Number(data.points) || 0);
+          setPointsTransactions(Array.isArray(data.transactions) ? data.transactions : []);
+        }
+      } catch (e) {
+        console.warn('Erro ao carregar pontos do cliente:', e.message);
+      } finally {
+        setLoadingPoints(false);
+      }
+    };
+
     fetchCustomerOrders();
+    fetchPoints();
   }, [currentUser, API_BASE_URL]);
 
   // Auto Search CEP via ViaCEP
@@ -292,8 +334,19 @@ export default function CustomerAccountPage({
       showNotification('Digite sua senha atual.', 'error');
       return;
     }
-    if (passwordForm.newPassword.length < 6) {
-      showNotification('A nova senha deve ter no mínimo 6 caracteres.', 'error');
+    const pwdVal = getPasswordValidation(passwordForm.newPassword);
+    if (!pwdVal.isValid) {
+      if (!pwdVal.minLength) {
+        showNotification('A nova senha deve ter no mínimo 8 caracteres.', 'error');
+      } else if (!pwdVal.hasUpper) {
+        showNotification('A nova senha deve conter ao menos uma letra maiúscula (A-Z).', 'error');
+      } else if (!pwdVal.hasLower) {
+        showNotification('A nova senha deve conter ao menos uma letra minúscula (a-z).', 'error');
+      } else if (!pwdVal.hasNumber) {
+        showNotification('A nova senha deve conter ao menos um número (0-9).', 'error');
+      } else if (!pwdVal.hasSpecial) {
+        showNotification('A nova senha deve conter ao menos um caractere especial (!@#$%...).', 'error');
+      }
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -437,6 +490,21 @@ export default function CustomerAccountPage({
           </button>
 
           <button
+            onClick={() => setActiveTab('points')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'points'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-100/80'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Meus A-Points</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'points' ? 'bg-amber-800 text-white' : 'bg-amber-100 text-amber-900'}`}>
+              {userPoints} pts
+            </span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('profile')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'profile'
@@ -566,6 +634,163 @@ export default function CustomerAccountPage({
           </div>
         )}
 
+        {/* TAB: MEUS A-POINTS */}
+        {activeTab === 'points' && (
+          <div className="space-y-6">
+            {/* Saldo & Header do Programa */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950 text-white rounded-3xl p-6 sm:p-8 border border-amber-500/20 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-xs font-black uppercase tracking-wider">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    Programa de Fidelidade Athena
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    Meus A-Points
+                  </h2>
+                  <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                    A cada R$ 10,00 faturados em compras de equipamentos, você recebe 1 A-Point automaticamente. Seus pontos acumulados podem ser usados em futuros pedidos e serviços.
+                  </p>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-5 text-center sm:text-right min-w-[180px] shrink-0">
+                  <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider block mb-0.5">
+                    Saldo Disponível
+                  </span>
+                  <div className="text-3xl sm:text-4xl font-black text-amber-400">
+                    {userPoints}
+                  </div>
+                  <span className="text-[10px] text-slate-300 font-semibold">
+                    A-Points Acumulados
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400/15 flex items-center justify-center text-amber-400 shrink-0">
+                    <Coins className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <strong className="block text-white font-bold">1 pt a cada R$ 10</strong>
+                    <span className="text-slate-400 text-[11px]">R$ 1.000 = 100 pontos</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400/15 flex items-center justify-center text-amber-400 shrink-0">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <strong className="block text-white font-bold">Crédito Retroativo</strong>
+                    <span className="text-slate-400 text-[11px]">Vinculado ao seu CPF/CNPJ</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400/15 flex items-center justify-center text-amber-400 shrink-0">
+                    <Gift className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <strong className="block text-white font-bold">Resgate em Pedidos</strong>
+                    <span className="text-slate-400 text-[11px]">Consulte com seu consultor</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Extrato de Pontos */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-amber-600" />
+                    Histórico de Movimentações
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Todas as pontuações creditadas por vendas faturadas vinculadas à sua conta.
+                  </p>
+                </div>
+                {pointsTransactions.length > 0 && (
+                  <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-slate-100 text-slate-700">
+                    {pointsTransactions.length} movimentação(ões)
+                  </span>
+                )}
+              </div>
+
+              {loadingPoints ? (
+                <div className="p-8 text-center space-y-2">
+                  <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs text-slate-500 font-bold">Consultando seu saldo de pontos...</p>
+                </div>
+              ) : pointsTransactions.length > 0 ? (
+                <div className="divide-y divide-slate-100 overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="text-slate-400 font-bold border-b border-slate-100">
+                        <th className="pb-3">Data</th>
+                        <th className="pb-3">Origem</th>
+                        <th className="pb-3">Pedido</th>
+                        <th className="pb-3">Valor da Compra</th>
+                        <th className="pb-3 text-right">Pontos Creditados</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {pointsTransactions.map((tx) => (
+                        <tr key={tx.id || Math.random()} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3.5 text-slate-600">
+                            {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('pt-BR') : '—'}
+                          </td>
+                          <td className="py-3.5">
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 uppercase">
+                              {tx.source === 'omie' ? 'Omie ERP' : 'Site Athena'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 font-mono text-slate-800 font-bold">
+                            #{tx.orderId || '—'}
+                          </td>
+                          <td className="py-3.5 text-slate-700">
+                            {tx.orderValue ? Number(tx.orderValue).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
+                          </td>
+                          <td className="py-3.5 text-right">
+                            <span className="inline-flex items-center gap-1 font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                              +{tx.pointsEarned || 0} pts
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-10 space-y-3">
+                  <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                    <Sparkles className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-black text-slate-900">
+                      Nenhuma pontuação registrada ainda
+                    </h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                      Ao adquirir elevadores, scanners e ferramentas na Athena, seus pontos aparecerão aqui assim que o pedido for faturado!
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('catalog')}
+                    className="btn-gold text-xs font-bold py-2.5 px-5 shadow-xs inline-flex items-center gap-2 cursor-pointer mt-2"
+                  >
+                    <span>Explorar Catálogo de Equipamentos</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* TAB 2: DADOS CADASTRAIS */}
         {activeTab === 'profile' && (
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-2xl">
@@ -612,12 +837,12 @@ export default function CustomerAccountPage({
                   <label className="text-xs font-bold text-slate-700 block mb-1">WhatsApp / Telefone *</label>
                   <div className="relative">
                     <input
-                      type="text"
+                      type="tel"
                       required
                       value={profileForm.phone}
-                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                      onChange={(e) => setProfileForm({ ...profileForm, phone: formatPhone(e.target.value) })}
                       placeholder="(61) 99999-9999"
-                      className="form-input text-xs !pl-10"
+                      className="form-input text-xs !pl-10 font-mono"
                     />
                     <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   </div>
@@ -863,7 +1088,7 @@ export default function CustomerAccountPage({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Nova Senha (Mínimo 6 dígitos) *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Nova Senha (Mín. 8 caracteres) *</label>
                 <div className="relative">
                   <input
                     type={showNewPassword ? 'text' : 'password'}
@@ -877,23 +1102,75 @@ export default function CustomerAccountPage({
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                    tabIndex={-1}
+                    title={showNewPassword ? "Ocultar senha" : "Ver senha"}
                   >
                     {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {(() => {
+                  if (!passwordForm.newPassword) return null;
+                  const val = getPasswordValidation(passwordForm.newPassword);
+                  return (
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 mt-2 space-y-1.5 text-[10px]">
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="text-slate-500">Critérios de Segurança:</span>
+                        <span className={val.isValid ? 'text-emerald-600' : 'text-amber-600'}>
+                          {val.isValid ? 'Senha Segura ✓' : 'Em preenchimento...'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <span className={val.minLength ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
+                          {val.minLength ? '✓' : '○'} Mín. 8 caracteres
+                        </span>
+                        <span className={val.hasUpper ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
+                          {val.hasUpper ? '✓' : '○'} Letra maiúscula (A-Z)
+                        </span>
+                        <span className={val.hasLower ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
+                          {val.hasLower ? '✓' : '○'} Letra minúscula (a-z)
+                        </span>
+                        <span className={val.hasNumber ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
+                          {val.hasNumber ? '✓' : '○'} Número (0-9)
+                        </span>
+                        <span className={`col-span-2 ${val.hasSpecial ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                          {val.hasSpecial ? '✓' : '○'} Caractere especial (!@#$%...)
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Confirmar Nova Senha *</label>
-                <input
-                  type="password"
-                  required
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                  placeholder="••••••••"
-                  className="form-input text-xs"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700">Confirmar Nova Senha *</label>
+                  {passwordForm.confirmPassword && (
+                    <span className={`text-[10px] font-bold ${passwordForm.newPassword === passwordForm.confirmPassword ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {passwordForm.newPassword === passwordForm.confirmPassword ? '✓ Conferem' : '✕ Diferentes'}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    placeholder="••••••••"
+                    className="form-input text-xs !pl-10 !pr-10"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                    tabIndex={-1}
+                    title={showConfirmPassword ? "Ocultar confirmação" : "Ver confirmação"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="pt-2">

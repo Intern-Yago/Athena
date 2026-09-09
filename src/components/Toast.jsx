@@ -28,7 +28,9 @@ export default function Toast({ toast, onClose }) {
       <div className={`p-4 rounded-xl border shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 text-xs text-white ${borders[toast.type] || borders.info}`}>
         <div className="flex items-center gap-2.5">
           {icons[toast.type] || icons.info}
-          <span className="font-semibold">{toast.message}</span>
+          <span className="font-semibold">
+            {typeof toast.message === 'string' ? toast.message : (toast.message?.message || String(toast.message || ''))}
+          </span>
         </div>
         <button onClick={onClose} className="p-1 hover:text-slate-300">
           <X className="w-4 h-4" />

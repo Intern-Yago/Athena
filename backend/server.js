@@ -765,6 +765,9 @@ async function initDb() {
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='product_type') THEN 
             ALTER TABLE products ADD COLUMN product_type VARCHAR(20) DEFAULT 'physical'; 
           END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='a_points') THEN 
+            ALTER TABLE products ADD COLUMN a_points INTEGER DEFAULT 0; 
+          END IF;
           -- Customer fields on users table
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phone') THEN 
             ALTER TABLE users ADD COLUMN phone VARCHAR(50); 
@@ -777,6 +780,9 @@ async function initDb() {
           END IF;
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='address') THEN 
             ALTER TABLE users ADD COLUMN address JSONB; 
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='a_points') THEN 
+            ALTER TABLE users ADD COLUMN a_points INTEGER DEFAULT 0; 
           END IF;
         END $$;
       `);
@@ -836,6 +842,22 @@ async function initDb() {
           status VARCHAR(20) DEFAULT 'active',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Create A-Points Transactions Table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS a_points_transactions (
+          id VARCHAR(100) PRIMARY KEY,
+          user_id VARCHAR(100) REFERENCES users(id) ON DELETE SET NULL,
+          customer_document VARCHAR(50),
+          customer_email VARCHAR(255),
+          customer_name VARCHAR(255),
+          order_id VARCHAR(100),
+          order_value NUMERIC(12,2) DEFAULT 0,
+          points_earned INTEGER DEFAULT 0,
+          source VARCHAR(50) DEFAULT 'omie',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `);
 
@@ -943,21 +965,33 @@ async function initDb() {
 }
 
 function readDbJson() {
-  if (!fs.existsSync(DB_PATH)) return { users: [], categories: [], brands: [], products: [], coupons: [], orders: [] };
-  const raw = fs.readFileSync(DB_PATH, 'utf-8');
   try {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(DB_PATH)) return { users: [], categories: [], brands: [], products: [], coupons: [], orders: [], aPointsTransactions: [] };
+    const raw = fs.readFileSync(DB_PATH, 'utf-8');
     const data = JSON.parse(raw);
     if (!Array.isArray(data.coupons)) data.coupons = [];
     if (!Array.isArray(data.orders)) data.orders = [];
     if (!Array.isArray(data.users)) data.users = [];
+    if (!Array.isArray(data.products)) data.products = [];
+    if (!Array.isArray(data.categories)) data.categories = [];
+    if (!Array.isArray(data.brands)) data.brands = [];
+    if (!Array.isArray(data.aPointsTransactions)) data.aPointsTransactions = [];
     return data;
   } catch (e) {
-    return { users: [], categories: [], brands: [], products: [], coupons: [], orders: [] };
+    return { users: [], categories: [], brands: [], products: [], coupons: [], orders: [], aPointsTransactions: [] };
   }
 }
 
 function writeDbJson(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Aviso: Falha ao persistir athena-db.json local (não-crítico com PostgreSQL):', err.message);
+  }
 }
 
 initDb();
@@ -1194,6 +1228,29 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   }
 });
 
+// Standard Password Security Validator
+function validatePasswordStandard(password) {
+  if (!password || typeof password !== 'string') {
+    return { valid: false, message: 'A senha é obrigatória.' };
+  }
+  if (password.length < 8) {
+    return { valid: false, message: 'A senha deve conter no mínimo 8 caracteres.' };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: 'A senha deve conter ao menos uma letra maiúscula (A-Z).' };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, message: 'A senha deve conter ao menos uma letra minúscula (a-z).' };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, message: 'A senha deve conter ao menos um número (0-9).' };
+  }
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/.test(password)) {
+    return { valid: false, message: 'A senha deve conter ao menos um caractere especial (!@#$%...).' };
+  }
+  return { valid: true };
+}
+
 // Register New Customer (Self-Registration)
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -1202,16 +1259,18 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Nome, E-mail e Senha são obrigatórios para cadastro.' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres.' });
+    // Password Security Standards
+    const pwdCheck = validatePasswordStandard(password);
+    if (!pwdCheck.valid) {
+      return res.status(400).json({ error: pwdCheck.message });
     }
 
     const inputEmail = email.trim().toLowerCase();
 
-    // Check if email already exists
+    // Check if email already exists in PostgreSQL
     if (pool) {
       try {
-        const check = await pool.query('SELECT id FROM users WHERE email = $1', [inputEmail]);
+        const check = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [inputEmail]);
         if (check.rows.length > 0) {
           return res.status(400).json({ error: 'Este e-mail já está cadastrado. Faça login ou recupere sua senha.' });
         }
@@ -1220,10 +1279,14 @@ app.post('/api/auth/register', async (req, res) => {
       }
     }
 
-    const db = readDbJson();
-    if (!db.users) db.users = [];
-    if (db.users.some(u => u.email.toLowerCase() === inputEmail)) {
-      return res.status(400).json({ error: 'Este e-mail já está cadastrado. Faça login ou recupere sua senha.' });
+    // Check if email already exists in local DB
+    try {
+      const db = readDbJson();
+      if (Array.isArray(db.users) && db.users.some(u => u && u.email && u.email.toLowerCase() === inputEmail)) {
+        return res.status(400).json({ error: 'Este e-mail já está cadastrado. Faça login ou recupere sua senha.' });
+      }
+    } catch (dbCheckErr) {
+      console.warn('Aviso ao consultar usuários no DB JSON:', dbCheckErr.message);
     }
 
     const newUserId = `user_cli_${Date.now()}`;
@@ -1242,9 +1305,34 @@ app.post('/api/auth/register', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    // Save to Local DB JSON
-    db.users.push(cleanUser);
-    writeDbJson(db);
+    // Save to Local DB JSON (safely wrapped)
+    try {
+      const db = readDbJson();
+      if (!Array.isArray(db.users)) db.users = [];
+
+      // Retroactive link for A-Points in JSON DB
+      if (Array.isArray(db.aPointsTransactions)) {
+        const cleanDoc = (cleanUser.document || '').replace(/\D/g, '');
+        let retroactivePoints = 0;
+        db.aPointsTransactions.forEach(t => {
+          if (!t.userId && (
+            (t.customerEmail && t.customerEmail.toLowerCase() === cleanUser.email) ||
+            (cleanDoc && t.customerDocument && t.customerDocument.replace(/\D/g, '') === cleanDoc)
+          )) {
+            t.userId = cleanUser.id;
+            retroactivePoints += (Number(t.pointsEarned) || 0);
+          }
+        });
+        if (retroactivePoints > 0) {
+          cleanUser.aPoints = (cleanUser.aPoints || 0) + retroactivePoints;
+        }
+      }
+
+      db.users.push(cleanUser);
+      writeDbJson(db);
+    } catch (jsonErr) {
+      console.warn('Aviso ao registrar usuário no athena-db.json:', jsonErr.message);
+    }
 
     // Save to PostgreSQL
     if (pool) {
@@ -1286,7 +1374,7 @@ app.post('/api/auth/register', async (req, res) => {
           console.log(`[A-POINTS] Resgatou ${retroactivePoints} pontos retroativos para o novo usuário ${cleanUser.id}`);
         }
       } catch (pointsErr) {
-        console.error('Erro ao vincular pontos retroativos no registro:', pointsErr.message);
+        console.warn('Aviso ao vincular pontos retroativos no registro:', pointsErr.message);
       }
     }
 
@@ -1312,7 +1400,7 @@ app.post('/api/auth/register', async (req, res) => {
     });
   } catch (err) {
     console.error('Erro no cadastro de cliente:', err);
-    return res.status(500).json({ error: 'Erro interno ao realizar cadastro.' });
+    return res.status(500).json({ error: err.message || 'Erro interno ao realizar cadastro.' });
   }
 });
 
@@ -1396,8 +1484,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'E-mail, código de verificação e nova senha são obrigatórios.' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'A nova senha deve ter no mínimo 6 caracteres.' });
+    const pwdCheck = validatePasswordStandard(newPassword);
+    if (!pwdCheck.valid) {
+      return res.status(400).json({ error: pwdCheck.message });
     }
 
     const inputEmail = email.trim().toLowerCase();
@@ -1499,8 +1588,9 @@ app.put('/api/customer/profile', authenticateToken, async (req, res) => {
       if (!currentPassword || !checkPassword(currentPassword, updatedHash)) {
         return res.status(400).json({ error: 'Senha atual incorreta.' });
       }
-      if (newPassword.length < 6) {
-        return res.status(400).json({ error: 'A nova senha deve ter no mínimo 6 caracteres.' });
+      const pwdCheck = validatePasswordStandard(newPassword);
+      if (!pwdCheck.valid) {
+        return res.status(400).json({ error: pwdCheck.message });
       }
       updatedHash = bcrypt.hashSync(newPassword, 10);
     }
@@ -2466,6 +2556,29 @@ app.post('/api/payments/webhook', async (req, res) => {
 
       if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
         newStatus = 'faturado';
+
+        // Automatically credit A-Points for this confirmed order
+        let orderForPoints = null;
+        if (pool) {
+          try {
+            const oRes = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+            if (oRes.rows.length > 0) orderForPoints = oRes.rows[0];
+          } catch (e) {}
+        }
+        if (!orderForPoints) {
+          const dbCheck = readDbJson();
+          orderForPoints = (dbCheck.orders || []).find(o => o.id === orderId);
+        }
+        if (orderForPoints) {
+          await creditCustomerAPoints({
+            orderId,
+            orderTotal: orderForPoints.total_amount || orderForPoints.totalAmount || payment.value || 0,
+            customerEmail: orderForPoints.user_email || orderForPoints.userEmail || '',
+            customerName: orderForPoints.user_name || orderForPoints.userName || '',
+            customerCpfCnpj: orderForPoints.customer_document || '',
+            source: 'site_asaas'
+          });
+        }
       } else if (event === 'PAYMENT_OVERDUE') {
         newStatus = 'expirado';
       }
@@ -2505,6 +2618,103 @@ async function callOmieApi(endpointUrl, callMethod, paramObj) {
     param: [paramObj]
   });
   return response.data;
+}
+
+// Universal Helper: Credit or Adjust A-Points
+async function creditCustomerAPoints({ 
+  orderId = '', 
+  orderTotal = 0, 
+  points = null, 
+  customerEmail = '', 
+  customerCpfCnpj = '', 
+  customerName = '', 
+  source = 'loja' 
+}) {
+  try {
+    const cleanEmail = (customerEmail || '').trim().toLowerCase();
+    const cleanDoc = (customerCpfCnpj || '').replace(/\D/g, '');
+    const pointsEarned = points != null ? Number(points) : Math.floor(Number(orderTotal || 0) / 10);
+
+    if (pointsEarned === 0) return { credited: false, reason: 'zero_points' };
+
+    // Prevent duplicate credits for the same order
+    if (orderId && !String(orderId).startsWith('ajuste')) {
+      if (pool) {
+        try {
+          const checkTx = await pool.query('SELECT id FROM a_points_transactions WHERE order_id = $1 LIMIT 1', [String(orderId)]);
+          if (checkTx.rows.length > 0) {
+            console.log(`[A-POINTS] Pontos já creditados anteriormente para o pedido ${orderId}`);
+            return { credited: false, reason: 'already_credited' };
+          }
+        } catch (e) {}
+      } else {
+        const db = readDbJson();
+        if ((db.aPointsTransactions || []).some(t => t.orderId === String(orderId))) {
+          console.log(`[A-POINTS] Pontos já creditados anteriormente para o pedido ${orderId}`);
+          return { credited: false, reason: 'already_credited' };
+        }
+      }
+    }
+
+    const txId = `apt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    console.log(`[A-POINTS] Crediting ${pointsEarned} points for "${customerName}" (${cleanEmail || cleanDoc}) source: ${source} order: ${orderId}`);
+
+    if (pool) {
+      try {
+        let matchedUserId = null;
+        if (cleanEmail) {
+          const uRes = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1', [cleanEmail]);
+          if (uRes.rows.length > 0) matchedUserId = uRes.rows[0].id;
+        }
+        if (!matchedUserId && cleanDoc) {
+          const uRes = await pool.query("SELECT id FROM users WHERE REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $1 LIMIT 1", [cleanDoc]);
+          if (uRes.rows.length > 0) matchedUserId = uRes.rows[0].id;
+        }
+
+        await pool.query(`
+          INSERT INTO a_points_transactions (id, user_id, customer_document, customer_email, customer_name, order_id, order_value, points_earned, source)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [txId, matchedUserId, cleanDoc, cleanEmail, customerName, String(orderId || ''), Number(orderTotal || 0), pointsEarned, source]);
+
+        if (matchedUserId) {
+          await pool.query('UPDATE users SET a_points = COALESCE(a_points, 0) + $1 WHERE id = $2', [pointsEarned, matchedUserId]);
+        }
+      } catch (e) {
+        console.error('[A-POINTS] Error saving A-Points to Postgres:', e.message);
+      }
+    }
+
+    // Local DB JSON fallback
+    const db = readDbJson();
+    if (!db.aPointsTransactions) db.aPointsTransactions = [];
+    db.aPointsTransactions.push({
+      id: txId,
+      customerDocument: cleanDoc,
+      customerEmail: cleanEmail,
+      customerName,
+      orderId: String(orderId || ''),
+      orderValue: Number(orderTotal || 0),
+      pointsEarned,
+      source,
+      createdAt: new Date().toISOString()
+    });
+
+    if (db.users) {
+      const u = db.users.find(usr => 
+        (cleanEmail && usr.email && usr.email.toLowerCase() === cleanEmail) ||
+        (cleanDoc && usr.document && usr.document.replace(/\D/g, '') === cleanDoc)
+      );
+      if (u) {
+        u.aPoints = (u.aPoints || 0) + pointsEarned;
+      }
+    }
+    writeDbJson(db);
+
+    return { credited: true, pointsEarned, txId };
+  } catch (err) {
+    console.error('[A-POINTS] Error in creditCustomerAPoints:', err.message);
+    return { credited: false, error: err.message };
+  }
 }
 
 // Function to process an Omie sale event and credit A-Points
@@ -2557,68 +2767,15 @@ async function processOmieSaleEvent(body) {
       }
     }
 
-    // Rule: 1 A-Point for every R$ 10.00 in sales (R$ 1.000 = 100 A-Points)
-    const pointsEarned = Math.floor(orderTotal / 10);
-
-    if (pointsEarned <= 0) {
-      console.log(`[OMIE] Order total R$ ${orderTotal} resulted in 0 points.`);
-      return;
-    }
-
-    const txId = `apt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    console.log(`[OMIE] Crediting ${pointsEarned} A-Points for "${customerName}" (${customerEmail || customerCpfCnpj}) from order ${orderId}`);
-
-    // Update in Postgres
-    if (pool) {
-      try {
-        let matchedUserId = null;
-        if (customerEmail) {
-          const uRes = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1', [customerEmail]);
-          if (uRes.rows.length > 0) matchedUserId = uRes.rows[0].id;
-        }
-        if (!matchedUserId && customerCpfCnpj) {
-          const uRes = await pool.query("SELECT id FROM users WHERE REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $1 LIMIT 1", [customerCpfCnpj]);
-          if (uRes.rows.length > 0) matchedUserId = uRes.rows[0].id;
-        }
-
-        await pool.query(`
-          INSERT INTO a_points_transactions (id, user_id, customer_document, customer_email, customer_name, order_id, order_value, points_earned, source)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        `, [txId, matchedUserId, customerCpfCnpj, customerEmail, customerName, String(orderId || ''), orderTotal, pointsEarned, 'omie']);
-
-        if (matchedUserId) {
-          await pool.query('UPDATE users SET a_points = COALESCE(a_points, 0) + $1 WHERE id = $2', [pointsEarned, matchedUserId]);
-        }
-      } catch (e) {
-        console.error('[OMIE] Error saving A-Points to Postgres:', e.message);
-      }
-    }
-
-    // Local DB JSON fallback
-    const db = readDbJson();
-    if (!db.aPointsTransactions) db.aPointsTransactions = [];
-    db.aPointsTransactions.push({
-      id: txId,
-      customerDocument: customerCpfCnpj,
+    // Credit Points via Universal Helper
+    await creditCustomerAPoints({
+      orderId,
+      orderTotal,
       customerEmail,
+      customerCpfCnpj,
       customerName,
-      orderId: String(orderId || ''),
-      orderValue: orderTotal,
-      pointsEarned,
-      source: 'omie',
-      createdAt: new Date().toISOString()
+      source: 'omie'
     });
-
-    if (db.users) {
-      const u = db.users.find(usr => 
-        (customerEmail && usr.email && usr.email.toLowerCase() === customerEmail) ||
-        (customerCpfCnpj && usr.document && usr.document.replace(/\D/g, '') === customerCpfCnpj)
-      );
-      if (u) {
-        u.aPoints = (u.aPoints || 0) + pointsEarned;
-      }
-    }
-    writeDbJson(db);
 
   } catch (err) {
     console.error('[OMIE] Error processing webhook event:', err);
@@ -2717,7 +2874,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   if (pool) {
     try {
-      const result = await pool.query('SELECT id, name, email, role, created_at as "createdAt" FROM users ORDER BY created_at DESC');
+      const result = await pool.query('SELECT id, name, email, role, phone, document, company_name as "companyName", a_points as "aPoints", created_at as "createdAt" FROM users ORDER BY created_at DESC');
       if (result.rows && result.rows.length > 0) {
         return res.json(result.rows);
       }
@@ -2726,8 +2883,81 @@ app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
     }
   }
   const db = readDbJson();
-  const cleanUsers = (db.users || []).map(({ passwordHash, password_hash, ...rest }) => rest);
+  const cleanUsers = (db.users || []).map(({ passwordHash, password_hash, ...rest }) => ({
+    ...rest,
+    aPoints: rest.aPoints || rest.a_points || 0
+  }));
   res.json(cleanUsers);
+});
+
+// Admin: List All A-Points Transactions
+app.get('/api/admin/points/transactions', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    if (pool) {
+      try {
+        const result = await pool.query(`
+          SELECT id, user_id as "userId", customer_document as "customerDocument", 
+                 customer_email as "customerEmail", customer_name as "customerName", 
+                 order_id as "orderId", order_value as "orderValue", points_earned as "pointsEarned", 
+                 source, created_at as "createdAt"
+          FROM a_points_transactions
+          ORDER BY created_at DESC
+          LIMIT 100
+        `);
+        return res.json(result.rows);
+      } catch (e) {
+        console.error('Erro ao listar transações de pontos no PG:', e.message);
+      }
+    }
+    const db = readDbJson();
+    const list = (db.aPointsTransactions || []).slice().reverse().slice(0, 100);
+    return res.json(list);
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao listar transações de pontos.' });
+  }
+});
+
+// Admin: Manually Adjust or Credit Points for a Customer
+app.post('/api/admin/points/adjust', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { userId, userEmail, points, reason } = req.body;
+    const numPoints = Number(points);
+    if (isNaN(numPoints) || numPoints === 0) {
+      return res.status(400).json({ error: 'Informe uma quantidade válida de pontos (positiva ou negativa).' });
+    }
+
+    let targetEmail = (userEmail || '').trim().toLowerCase();
+    let targetName = 'Cliente';
+    let targetDoc = '';
+
+    if (pool) {
+      try {
+        const uRes = userId 
+          ? await pool.query('SELECT * FROM users WHERE id = $1', [userId])
+          : await pool.query('SELECT * FROM users WHERE LOWER(email) = $1', [targetEmail]);
+        if (uRes.rows.length > 0) {
+          const u = uRes.rows[0];
+          targetEmail = u.email;
+          targetName = u.name;
+          targetDoc = u.document || '';
+        }
+      } catch (e) {}
+    }
+
+    const result = await creditCustomerAPoints({
+      orderId: reason ? `Ajuste: ${reason.slice(0, 50)}` : 'ajuste_manual',
+      orderTotal: 0,
+      points: numPoints,
+      customerEmail: targetEmail,
+      customerCpfCnpj: targetDoc,
+      customerName: targetName,
+      source: 'admin_manual'
+    });
+
+    return res.json({ success: true, message: 'Pontos atualizados com sucesso!', result });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Erro ao ajustar pontos.' });
+  }
 });
 
 // Create Employee User (Restricted to Administrator)
@@ -3058,7 +3288,7 @@ app.get('/api/products', async (req, res) => {
   if (pool) {
     try {
       const result = await pool.query(`
-        SELECT id, name, slug, category_id as "categoryId", brand_id as "brandId", price::float, price_negotiable as "priceNegotiable", badge, status, is_featured as "isFeatured", image, images, alt_text as "altText", description, specs, attachments, in_stock as "inStock", video_url as "videoUrl", custom_tabs as "customTabs", created_at
+        SELECT id, name, slug, category_id as "categoryId", brand_id as "brandId", price::float, price_negotiable as "priceNegotiable", badge, status, is_featured as "isFeatured", image, images, alt_text as "altText", description, specs, attachments, in_stock as "inStock", video_url as "videoUrl", custom_tabs as "customTabs", product_type as "productType", a_points as "aPoints", created_at
         FROM products 
         ORDER BY is_featured DESC, created_at DESC
       `);
@@ -3076,10 +3306,10 @@ app.post('/api/products', authenticateToken, async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock, video_url, custom_tabs, product_type)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock, video_url, custom_tabs, product_type, a_points)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         ON CONFLICT (id) DO UPDATE SET 
-          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, is_featured=$10, image=$11, images=$12, alt_text=$13, description=$14, specs=$15, attachments=$16, in_stock=$17, video_url=$18, custom_tabs=$19, product_type=$20
+          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, is_featured=$10, image=$11, images=$12, alt_text=$13, description=$14, specs=$15, attachments=$16, in_stock=$17, video_url=$18, custom_tabs=$19, product_type=$20, a_points=$21
       `, [
         newProduct.id,
         newProduct.name,
@@ -3100,7 +3330,8 @@ app.post('/api/products', authenticateToken, async (req, res) => {
         newProduct.inStock !== undefined ? newProduct.inStock : true,
         newProduct.videoUrl || newProduct.youtubeVideoUrl || '',
         JSON.stringify(newProduct.customTabs || []),
-        newProduct.productType || 'physical'
+        newProduct.productType || 'physical',
+        newProduct.aPoints != null ? parseInt(newProduct.aPoints, 10) : null
       ]);
       return res.status(201).json(newProduct);
     } catch (e) {
@@ -3138,8 +3369,8 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
     try {
       await pool.query(`
         UPDATE products SET 
-          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, is_featured=$9, image=$10, images=$11, alt_text=$12, description=$13, specs=$14, attachments=$15, in_stock=$16, video_url=$17, custom_tabs=$18, product_type=$19
-        WHERE id=$20
+          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, is_featured=$9, image=$10, images=$11, alt_text=$12, description=$13, specs=$14, attachments=$15, in_stock=$16, video_url=$17, custom_tabs=$18, product_type=$19, a_points=$20
+        WHERE id=$21
       `, [
         updatedProduct.name,
         updatedProduct.slug || '',
@@ -3160,6 +3391,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
         updatedProduct.videoUrl || updatedProduct.youtubeVideoUrl || '',
         JSON.stringify(updatedProduct.customTabs || []),
         updatedProduct.productType || 'physical',
+        updatedProduct.aPoints != null ? parseInt(updatedProduct.aPoints, 10) : null,
         req.params.id
       ]);
       return res.json(updatedProduct);

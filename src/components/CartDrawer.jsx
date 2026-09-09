@@ -215,6 +215,23 @@ export function CartDrawer() {
                     {formatBRL(subtotal)}
                   </span>
                 </div>
+
+                {subtotal > 0 && (
+                  <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-amber-950 font-semibold bg-amber-50/80 px-2.5 py-1.5 rounded-lg border border-amber-200/70">
+                    <span className="flex items-center gap-1.5 text-xs text-amber-900">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      A-Points a acumular:
+                    </span>
+                    <span className="font-extrabold text-xs text-amber-950">
+                      +{cartItems.reduce((acc, item) => {
+                        if (item.aPoints && Number(item.aPoints) > 0) {
+                          return acc + (Number(item.aPoints) * (Number(item.quantity) || 1));
+                        }
+                        return acc + Math.floor(((Number(item.price) || 0) * (Number(item.quantity) || 1)) / 10);
+                      }, 0)} pts
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Action Buttons */}
