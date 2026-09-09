@@ -40,15 +40,10 @@ export default function CustomerAccountPage({
   onNavigate,
   API_BASE_URL,
   showNotification,
-  initialTab = 'orders'
+  initialTab = 'orders',
+  onStartVerification
 }) {
-  const [activeTab, setActiveTab] = useState(initialTab || 'orders');
-  
-  // A-Points State
-  const [userPoints, setUserPoints] = useState(currentUser?.aPoints || currentUser?.a_points || 0);
-  const [pointsTransactions, setPointsTransactions] = useState([]);
-  const [loadingPoints, setLoadingPoints] = useState(false);
-
+  const [activeTab, setActiveTab] = useState(initialTab || 'orders'); // 'orders' | 'points' | 'profile' | 'address' | 'security'
   // Profile State
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || '',
@@ -89,6 +84,13 @@ export default function CustomerAccountPage({
   const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
   const [cnpjSuccessMsg, setCnpjSuccessMsg] = useState(null);
   const [cnpjErrorMsg, setCnpjErrorMsg] = useState(null);
+
+  // Points State
+  const [pointsData, setPointsData] = useState({ 
+    points: currentUser?.a_points || currentUser?.aPoints || 0, 
+    transactions: [] 
+  });
+  const [loadingPoints, setLoadingPoints] = useState(false);
 
   const docInfo = useMemo(() => {
     return formatCpfCnpj(profileForm.document);
@@ -219,6 +221,32 @@ export default function CustomerAccountPage({
     };
 
     fetchCustomerOrders();
+    fetchPoints();
+  }, [currentUser, API_BASE_URL]);
+
+  // Fetch Customer Points & Loyalty Transactions
+  useEffect(() => {
+    const fetchPoints = async () => {
+      if (!currentUser?.token) return;
+      setLoadingPoints(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/points/me`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentUser.token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPointsData(data || { points: 0, transactions: [] });
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar A-Points:', err);
+      } finally {
+        setLoadingPoints(false);
+      }
+    };
+
     fetchPoints();
   }, [currentUser, API_BASE_URL]);
 
@@ -425,24 +453,40 @@ export default function CustomerAccountPage({
     <div className="py-8 bg-slate-50 min-h-[calc(100vh-140px)]">
       <div className="container-custom space-y-6">
         
-        {/* Header Profile Banner */}
-        <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-          <div className="flex items-center gap-4 relative z-10">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-400 font-extrabold text-2xl shadow-inner">
+        {/* Compact, Modern Header Profile Bar */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-700 font-black text-xl shrink-0 shadow-2xs">
               {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'C'}
             </div>
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/10 text-amber-300 text-[11px] font-bold border border-amber-400/20">
-                <User className="w-3 h-3" /> Área do Cliente Athena
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-amber-700">
+                  <User className="w-3 h-3 text-amber-600" /> Área do Cliente
+                </span>
+                {currentUser?.isVerified ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> E-mail Verificado
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onStartVerification}
+                    className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-colors cursor-pointer"
+                    title="Clique para validar seu e-mail"
+                  >
+                    <AlertCircle className="w-3 h-3 text-amber-600" /> Confirmar E-mail
+                  </button>
+                )}
               </div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight">
+              <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-snug">
                 Olá, {currentUser?.name || 'Cliente Athena'}!
               </h1>
-              <p className="text-xs text-slate-400 flex items-center gap-2">
+              <p className="text-xs text-slate-500 flex flex-wrap items-center gap-2">
                 <span>{currentUser?.email}</span>
                 {currentUser?.phone && (
                   <>
-                    <span>•</span>
+                    <span className="text-slate-300">•</span>
                     <span>{currentUser.phone}</span>
                   </>
                 )}
@@ -450,22 +494,33 @@ export default function CustomerAccountPage({
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto relative z-10">
+          <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+            {/* Quick A-Points Chip */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('points')}
+              className="flex-1 md:flex-initial px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-amber-50/60 text-slate-800 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>{pointsData.points || currentUser?.a_points || currentUser?.aPoints || 0} A-Points</span>
+            </button>
+
             {currentUser?.role === 'admin' && (
               <button
                 onClick={() => onNavigate('admin')}
-                className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-md"
+                className="flex-1 md:flex-initial px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
               >
-                <span>Painel Administrativo</span>
-                <ChevronRight className="w-4 h-4" />
+                <span>Painel Admin</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
+
             <button
               onClick={() => onLogout('Você saiu da sua conta.')}
-              className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-red-300 hover:text-red-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-700 border border-slate-200 hover:border-red-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <LogOut className="w-4 h-4" />
-              <span>Sair da Conta</span>
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sair</span>
             </button>
           </div>
         </div>
@@ -497,10 +552,10 @@ export default function CustomerAccountPage({
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-100/80'
             }`}
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-4 h-4 text-amber-500" />
             <span>Meus A-Points</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'points' ? 'bg-amber-800 text-white' : 'bg-amber-100 text-amber-900'}`}>
-              {userPoints} pts
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'points' ? 'bg-amber-800 text-white' : 'bg-amber-100 text-amber-800'}`}>
+              {pointsData.points || currentUser?.a_points || currentUser?.aPoints || 0} pts
             </span>
           </button>
 
@@ -634,166 +689,129 @@ export default function CustomerAccountPage({
           </div>
         )}
 
-        {/* TAB: MEUS A-POINTS */}
+
+        {/* TAB: PROGRAMA DE FIDELIDADE (MEUS A-POINTS) */}
         {activeTab === 'points' && (
-          <div className="space-y-6">
-            {/* Saldo & Header do Programa */}
-            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-amber-950 text-white rounded-3xl p-6 sm:p-8 border border-amber-500/20 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="max-w-3xl mx-auto space-y-5 animate-in fade-in">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
               
-              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-xs font-black uppercase tracking-wider">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    Programa de Fidelidade Athena
+              {/* Sober Minimalist Header */}
+              <div className="space-y-1">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  Programa de Fidelidade Athena
+                </span>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Meus A-Points
+                </h2>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
+                  A cada R$ 10,00 faturados em compras de equipamentos, você recebe 1 A-Point automaticamente. Seus pontos acumulados podem ser usados em futuros pedidos e serviços.
+                </p>
+              </div>
+
+              {/* Minimalist Balance Card */}
+              <div className="bg-slate-900 rounded-2xl p-6 sm:p-7 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 border border-slate-800">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-slate-400">Saldo Disponível</p>
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-4xl sm:text-5xl font-black text-amber-400 font-mono tracking-tight">
+                      {pointsData.points || currentUser?.a_points || currentUser?.aPoints || 0}
+                    </span>
+                    <span className="text-sm font-bold text-slate-300">
+                      A-Points Acumulados
+                    </span>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                    Meus A-Points
-                  </h2>
-                  <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
-                    A cada R$ 10,00 faturados em compras de equipamentos, você recebe 1 A-Point automaticamente. Seus pontos acumulados podem ser usados em futuros pedidos e serviços.
+                  <p className="text-[11px] text-slate-400">
+                    Equivale a descontos e vantagens exclusivas na aquisição de novos equipamentos.
                   </p>
                 </div>
 
-                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-5 text-center sm:text-right min-w-[180px] shrink-0">
-                  <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider block mb-0.5">
-                    Saldo Disponível
-                  </span>
-                  <div className="text-3xl sm:text-4xl font-black text-amber-400">
-                    {userPoints}
-                  </div>
-                  <span className="text-[10px] text-slate-300 font-semibold">
-                    A-Points Acumulados
-                  </span>
-                </div>
+                <a
+                  href={`https://wa.me/5561983485671?text=Ol%C3%A1%21+Sou+o+cliente+${encodeURIComponent(currentUser?.name || '')}+e+gostaria+de+consultar+o+resgate+dos+meus+${pointsData.points || currentUser?.a_points || currentUser?.aPoints || 0}+A-Points+no+meu+pr%C3%B3ximo+pedido.`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs border border-amber-400 shrink-0"
+                >
+                  <MessageCircle className="w-4 h-4 text-slate-950" />
+                  <span>Consulte com seu consultor</span>
+                </a>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-400/15 flex items-center justify-center text-amber-400 shrink-0">
-                    <Coins className="w-4 h-4" />
+              {/* 3 Minimalist Rule Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                    <h3 className="text-xs font-black">1 pt a cada R$ 10</h3>
                   </div>
-                  <div>
-                    <strong className="block text-white font-bold">1 pt a cada R$ 10</strong>
-                    <span className="text-slate-400 text-[11px]">R$ 1.000 = 100 pontos</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-400/15 flex items-center justify-center text-amber-400 shrink-0">
-                    <TrendingUp className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <strong className="block text-white font-bold">Crédito Retroativo</strong>
-                    <span className="text-slate-400 text-[11px]">Vinculado ao seu CPF/CNPJ</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-amber-400/15 flex items-center justify-center text-amber-400 shrink-0">
-                    <Gift className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <strong className="block text-white font-bold">Resgate em Pedidos</strong>
-                    <span className="text-slate-400 text-[11px]">Consulte com seu consultor</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Extrato de Pontos */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
-                <div>
-                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-amber-600" />
-                    Histórico de Movimentações
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Todas as pontuações creditadas por vendas faturadas vinculadas à sua conta.
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    R$ 1.000 = 100 pontos acumulados automaticamente.
                   </p>
                 </div>
-                {pointsTransactions.length > 0 && (
-                  <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-slate-100 text-slate-700">
-                    {pointsTransactions.length} movimentação(ões)
-                  </span>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <FileText className="w-4 h-4 text-amber-600 shrink-0" />
+                    <h3 className="text-xs font-black">Crédito Retroativo</h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Vinculado ao seu CPF/CNPJ informado no faturamento.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                    <h3 className="text-xs font-black">Resgate em Pedidos</h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Consulte com seu consultor para abater valores em novas compras.
+                  </p>
+                </div>
+              </div>
+
+              {/* Points Activity History (Minimalist Table) */}
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Extrato de Movimentações
+                </h4>
+                {loadingPoints ? (
+                  <div className="p-6 text-center text-xs text-slate-400">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto text-amber-600 mb-2" />
+                    Carregando extrato de pontos...
+                  </div>
+                ) : pointsData.transactions && pointsData.transactions.length > 0 ? (
+                  <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
+                    {pointsData.transactions.map((tx, idx) => (
+                      <div key={idx} className="p-3.5 flex items-center justify-between text-xs bg-white hover:bg-slate-50/80 transition-colors">
+                        <div>
+                          <p className="font-extrabold text-slate-900">
+                            {tx.orderId ? `Pedido #${tx.orderId}` : 'Crédito de Equipamentos'}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            {new Date(tx.createdAt || Date.now()).toLocaleDateString('pt-BR')}
+                            {tx.orderValue > 0 && ` • Valor: R$ ${Number(tx.orderValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                          </p>
+                        </div>
+                        <span className="font-mono font-black text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                          +{tx.pointsEarned} pts
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    Nenhuma movimentação de A-Points registrada ainda. Seus pedidos faturados serão creditados automaticamente aqui.
+                  </div>
                 )}
               </div>
-
-              {loadingPoints ? (
-                <div className="p-8 text-center space-y-2">
-                  <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                  <p className="text-xs text-slate-500 font-bold">Consultando seu saldo de pontos...</p>
-                </div>
-              ) : pointsTransactions.length > 0 ? (
-                <div className="divide-y divide-slate-100 overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="text-slate-400 font-bold border-b border-slate-100">
-                        <th className="pb-3">Data</th>
-                        <th className="pb-3">Origem</th>
-                        <th className="pb-3">Pedido</th>
-                        <th className="pb-3">Valor da Compra</th>
-                        <th className="pb-3 text-right">Pontos Creditados</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {pointsTransactions.map((tx) => (
-                        <tr key={tx.id || Math.random()} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3.5 text-slate-600">
-                            {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('pt-BR') : '—'}
-                          </td>
-                          <td className="py-3.5">
-                            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 uppercase">
-                              {tx.source === 'omie' ? 'Omie ERP' : 'Site Athena'}
-                            </span>
-                          </td>
-                          <td className="py-3.5 font-mono text-slate-800 font-bold">
-                            #{tx.orderId || '—'}
-                          </td>
-                          <td className="py-3.5 text-slate-700">
-                            {tx.orderValue ? Number(tx.orderValue).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
-                          </td>
-                          <td className="py-3.5 text-right">
-                            <span className="inline-flex items-center gap-1 font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                              +{tx.pointsEarned || 0} pts
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-10 space-y-3">
-                  <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
-                    <Sparkles className="w-7 h-7" />
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-black text-slate-900">
-                      Nenhuma pontuação registrada ainda
-                    </h4>
-                    <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-                      Ao adquirir elevadores, scanners e ferramentas na Athena, seus pontos aparecerão aqui assim que o pedido for faturado!
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate('catalog')}
-                    className="btn-gold text-xs font-bold py-2.5 px-5 shadow-xs inline-flex items-center gap-2 cursor-pointer mt-2"
-                  >
-                    <span>Explorar Catálogo de Equipamentos</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         )}
 
         {/* TAB 2: DADOS CADASTRAIS */}
         {activeTab === 'profile' && (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-2xl">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-2xl mx-auto">
             <form onSubmit={handleSaveProfile} className="space-y-5">
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -936,7 +954,7 @@ export default function CustomerAccountPage({
 
         {/* TAB 3: ENDEREÇO DE ENTREGA */}
         {activeTab === 'address' && (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-2xl">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-2xl mx-auto">
             <form onSubmit={handleSaveAddress} className="space-y-5">
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -1054,7 +1072,7 @@ export default function CustomerAccountPage({
 
         {/* TAB 4: SEGURANÇA & SENHA */}
         {activeTab === 'security' && (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-md">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-xl mx-auto">
             <form onSubmit={handleSavePassword} className="space-y-4">
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">

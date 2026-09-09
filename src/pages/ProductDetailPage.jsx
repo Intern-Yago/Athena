@@ -226,7 +226,7 @@ export default function ProductDetailPage({
 
   const category = categories.find((c) => c.id === product.categoryId);
   const brand = brands.find((b) => b.id === product.brandId);
-  const { addToCart } = useCart();
+  const { addToCart, requireVerification } = useCart();
 
   const hasPrice = product.price > 0 && !product.priceNegotiable;
   const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
@@ -716,7 +716,14 @@ export default function ProductDetailPage({
                     href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs flex items-center gap-2 transition-all"
+                    onClick={(e) => {
+                      if (requireVerification && requireVerification(() => {
+                        window.open(`https://wa.me/5561983485671?text=${whatsappMessage}`, '_blank');
+                      })) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
                   >
                     <MessageCircle className="w-4 h-4 text-emerald-600 fill-emerald-600/20" />
                     <span>Dúvidas no WhatsApp</span>
@@ -727,7 +734,14 @@ export default function ProductDetailPage({
                   href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-bold flex items-center gap-2"
+                  onClick={(e) => {
+                    if (requireVerification && requireVerification(() => {
+                      window.open(`https://wa.me/5561983485671?text=${whatsappMessage}`, '_blank');
+                    })) {
+                      e.preventDefault();
+                    }
+                  }}
+                  className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-bold flex items-center gap-2 cursor-pointer"
                 >
                   <MessageCircle className="w-4 h-4 fill-current" />
                   <span>Cotação Instantânea no WhatsApp</span>

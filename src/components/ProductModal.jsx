@@ -2,6 +2,7 @@ import React from 'react';
 import FormattedDescription from './FormattedDescription';
 import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles, Play, ExternalLink, CreditCard } from 'lucide-react';
 import { calculatePaymentGateways, getBestInstallmentText, formatBRL } from '../utils/installmentCalculator';
+import { useCart } from '../context/CartContext';
 
 export default function ProductModal({ 
   product, 
@@ -13,6 +14,7 @@ export default function ProductModal({
   onClose,
   onSelectProduct 
 }) {
+  const { openDirectCheckout, requireVerification } = useCart();
   if (!product) return null;
 
   const category = propCategory || (categories && categories.find(c => c.id === product.categoryId));
@@ -191,7 +193,23 @@ export default function ProductModal({
                 href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`w-full text-sm py-3 justify-center font-extrabold shadow-md rounded-2xl flex items-center gap-2 transition-all ${
+                onClick={(e) => {
+                  if (requireVerification && requireVerification(() => {
+                    if (hasPrice) {
+                      openDirectCheckout(product);
+                      onClose();
+                    } else {
+                      window.open(`https://wa.me/5561983485671?text=${whatsappMessage}`, '_blank');
+                    }
+                  })) {
+                    e.preventDefault();
+                  } else if (hasPrice) {
+                    e.preventDefault();
+                    openDirectCheckout(product);
+                    onClose();
+                  }
+                }}
+                className={`w-full text-sm py-3 justify-center font-extrabold shadow-md rounded-2xl flex items-center gap-2 transition-all cursor-pointer ${
                   hasPrice ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'btn-gold'
                 }`}
               >

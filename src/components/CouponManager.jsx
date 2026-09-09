@@ -510,10 +510,10 @@ export default function CouponManager({
                   <Gift className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base">
+                  <h3 className="font-extrabold text-base text-white">
                     {editingCoupon ? `Editar Cupom: ${editingCoupon.code}` : 'Criar Novo Cupom de Desconto'}
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-300">
                     Defina as regras, escopo, segmentação e validade da promoção.
                   </p>
                 </div>

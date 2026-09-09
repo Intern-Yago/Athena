@@ -3,7 +3,7 @@ import { safeStorageGet, safeStorageSet } from '../utils/storage';
 
 const CartContext = createContext();
 
-export function CartProvider({ children, showNotification, brands = [], categories = [] }) {
+export function CartProvider({ children, showNotification, brands = [], categories = [], requireVerification }) {
   const [cartItems, setCartItems] = useState(() => {
     const saved = safeStorageGet('athena_cart_items', []);
     return Array.isArray(saved) ? saved : [];
@@ -103,6 +103,10 @@ export function CartProvider({ children, showNotification, brands = [], categori
 
   // Direct checkout for single product (Buy Now)
   const openDirectCheckout = (product, quantity = 1) => {
+    if (requireVerification && requireVerification(() => openDirectCheckout(product, quantity))) {
+      return false;
+    }
+
     const hasPrice = Number(product.price) > 0 && !product.priceNegotiable;
     if (!hasPrice) {
       if (showNotification) {
@@ -136,6 +140,10 @@ export function CartProvider({ children, showNotification, brands = [], categori
 
   // Open checkout for all items in the cart
   const openCartCheckout = () => {
+    if (requireVerification && requireVerification(() => openCartCheckout())) {
+      return false;
+    }
+
     if (cartItems.length === 0) {
       if (showNotification) {
         showNotification('Seu carrinho está vazio. Adicione produtos para prosseguir.', 'error');
@@ -177,7 +185,8 @@ export function CartProvider({ children, showNotification, brands = [], categori
         checkoutTarget,
         openDirectCheckout,
         openCartCheckout,
-        closeCheckout
+        closeCheckout,
+        requireVerification
       }}
     >
       {children}

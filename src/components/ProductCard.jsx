@@ -16,7 +16,7 @@ export default function ProductCard({
   onToggleComparison,
   viewMode = 'grid'
 }) {
-  const { addToCart, openDirectCheckout } = useCart();
+  const { addToCart, openDirectCheckout, requireVerification } = useCart();
   const hasPrice = product.price > 0 && !product.priceNegotiable;
   const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
   const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
@@ -240,6 +240,13 @@ export default function ProductCard({
                   href={`https://wa.me/5561983485671?text=${whatsappText}`}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => {
+                    if (requireVerification && requireVerification(() => {
+                      window.open(`https://wa.me/5561983485671?text=${whatsappText}`, '_blank');
+                    })) {
+                      e.preventDefault();
+                    }
+                  }}
                   className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
@@ -477,6 +484,13 @@ export default function ProductCard({
                 href={`https://wa.me/5561983485671?text=${whatsappText}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (requireVerification && requireVerification(() => {
+                    window.open(`https://wa.me/5561983485671?text=${whatsappText}`, '_blank');
+                  })) {
+                    e.preventDefault();
+                  }
+                }}
                 className="py-2.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />

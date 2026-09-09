@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import HeroSlim from './components/HeroSlim';
 import Catalog from './components/Catalog';
@@ -20,6 +20,7 @@ import ProductComparisonModal from './components/ProductComparisonModal';
 import CartDrawer from './components/CartDrawer';
 import InstallmentModal from './components/InstallmentModal';
 import APointsBanner from './components/APointsBanner';
+import EmailVerificationModal from './components/EmailVerificationModal';
 import { CartProvider, useCart } from './context/CartContext';
 
 import { INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
@@ -131,6 +132,20 @@ export default function App() {
   // Side-by-Side Product Comparison States
   const [comparisonList, setComparisonList] = useState([]);
   const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+
+  // Email Security Verification Modal States
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const pendingVerificationActionRef = useRef(null);
+
+  const requireVerification = (actionCallback) => {
+    if (currentUser && currentUser.role !== 'admin' && !currentUser.isVerified) {
+      pendingVerificationActionRef.current = actionCallback || null;
+      setIsVerificationModalOpen(true);
+      return true; // Action gated for verification
+    }
+    if (actionCallback) actionCallback();
+    return false;
+  };
 
   useEffect(() => {
     if (isComparisonModalOpen) {
@@ -642,6 +657,7 @@ export default function App() {
             onNavigate={navigateTo}
             API_BASE_URL={API_BASE_URL}
             showNotification={showNotification}
+            onStartVerification={() => requireVerification()}
           />
         );
       }
@@ -674,6 +690,7 @@ export default function App() {
           API_BASE_URL={API_BASE_URL}
           showNotification={showNotification}
           initialTab={currentRoute === 'pontos' || currentRoute === 'points' ? 'points' : 'orders'}
+          onStartVerification={() => requireVerification()}
         />
       );
     }
@@ -951,7 +968,12 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <CartProvider showNotification={showNotification} brands={brands} categories={categories}>
+      <CartProvider 
+        showNotification={showNotification} 
+        brands={brands} 
+        categories={categories}
+        requireVerification={requireVerification}
+      >
         <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-amber-500 selection:text-white">
           
           {/* Header */}
@@ -980,6 +1002,13 @@ export default function App() {
             href="https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento."
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => {
+              if (requireVerification(() => {
+                window.open('https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento.', '_blank');
+              })) {
+                e.preventDefault();
+              }
+            }}
             className="hidden md:flex fixed bottom-6 right-6 z-40 p-3.5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-500 hover:scale-110 active:scale-95 transition-all items-center gap-2 group text-xs font-extrabold"
             title="Falar no WhatsApp (61) 98348-5671"
           >
@@ -1017,6 +1046,29 @@ export default function App() {
 
           {/* Global Checkout Modal */}
           <GlobalCartCheckout currentUser={currentUser} />
+
+          {/* Email Security Verification Modal */}
+          <EmailVerificationModal
+            isOpen={isVerificationModalOpen}
+            currentUser={currentUser}
+            onVerified={(updatedUser) => {
+              saveSession(updatedUser);
+              setCurrentUser(updatedUser);
+              setIsVerificationModalOpen(false);
+              if (pendingVerificationActionRef.current) {
+                const action = pendingVerificationActionRef.current;
+                pendingVerificationActionRef.current = null;
+                action();
+              }
+            }}
+            onLogout={(msg) => {
+              setIsVerificationModalOpen(false);
+              pendingVerificationActionRef.current = null;
+              handleLogout(msg);
+            }}
+            API_BASE_URL={API_BASE_URL}
+            showNotification={showNotification}
+          />
 
           {/* Toast Notification */}
           <Toast toast={toast} onClose={() => setToast(null)} />

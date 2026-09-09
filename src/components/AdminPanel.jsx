@@ -52,7 +52,9 @@ import {
   Gift,
   Truck,
   Zap,
-  Coins
+  Coins,
+  GripVertical,
+  Move
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl, getVideoEmbedInfo } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
@@ -580,6 +582,24 @@ export default function AdminPanel({
       compatibleProductIds: []
     }
   );
+
+  // Drag and Drop Gallery Image Reordering States
+  const [draggedImgIndex, setDraggedImgIndex] = useState(null);
+  const [dragOverImgIndex, setDragOverImgIndex] = useState(null);
+
+  const handleReorderProductImage = (fromIndex, toIndex, allImages) => {
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
+    const reordered = [...allImages];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    setProductForm(prev => ({
+      ...prev,
+      image: reordered[0] || '',
+      images: reordered
+    }));
+    setDraggedImgIndex(null);
+    setDragOverImgIndex(null);
+  };
 
   // Modal History Stack for navigating between related products
   const [productModalHistory, setProductModalHistory] = useState([]);
@@ -4113,7 +4133,7 @@ export default function AdminPanel({
                                 Galeria do Produto ({totalCount} {totalCount === 1 ? 'foto' : 'fotos'}):
                               </span>
                               <span className="text-[10px] text-slate-400">
-                                {isUploadingImages ? 'Aguarde o envio das fotos para salvar' : 'Primeira foto é a capa principal'}
+                                {isUploadingImages ? 'Aguarde o envio das fotos para salvar' : 'Arraste para reordenar • 1ª foto é a capa'}
                               </span>
                             </div>
 
@@ -4121,22 +4141,68 @@ export default function AdminPanel({
                               {/* 1. Completed / Saved Images */}
                               {allImages.map((imgUrl, index) => {
                                 const isCover = (productForm.image || allImages[0]) === imgUrl;
+                                const isDragging = draggedImgIndex === index;
+                                const isDragOver = dragOverImgIndex === index && draggedImgIndex !== index;
+
                                 return (
                                   <div
-                                    key={`saved_${index}`}
-                                    className={`group relative rounded-xl border p-1 bg-white transition-all ${
-                                      isCover ? 'border-amber-500 ring-2 ring-amber-400/40 shadow-xs' : 'border-slate-200 hover:border-slate-300'
+                                    key={`saved_${imgUrl}_${index}`}
+                                    draggable={!isUploadingImages}
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.effectAllowed = 'move';
+                                      e.dataTransfer.setData('text/plain', String(index));
+                                      setDraggedImgIndex(index);
+                                    }}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      e.dataTransfer.dropEffect = 'move';
+                                      if (dragOverImgIndex !== index) {
+                                        setDragOverImgIndex(index);
+                                      }
+                                    }}
+                                    onDragLeave={() => {
+                                      if (dragOverImgIndex === index) {
+                                        setDragOverImgIndex(null);
+                                      }
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      handleReorderProductImage(draggedImgIndex, index, allImages);
+                                    }}
+                                    onDragEnd={() => {
+                                      setDraggedImgIndex(null);
+                                      setDragOverImgIndex(null);
+                                    }}
+                                    className={`group relative rounded-xl border p-1 bg-white transition-all cursor-grab active:cursor-grabbing select-none ${
+                                      isDragging
+                                        ? 'opacity-30 scale-95 border-dashed border-amber-500 ring-2 ring-amber-400'
+                                        : isDragOver
+                                        ? 'border-amber-500 ring-2 ring-amber-400 scale-[1.03] shadow-lg z-10 bg-amber-50/50'
+                                        : isCover
+                                        ? 'border-amber-500 ring-2 ring-amber-400/40 shadow-xs'
+                                        : 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
                                     }`}
+                                    title="Segure e arraste para reordenar a foto"
                                   >
+                                    {/* Drag Grip Indicator */}
+                                    <div className="absolute top-2 right-2 z-10 p-1 rounded-md bg-slate-900/60 text-white opacity-60 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xs">
+                                      <GripVertical className="w-3.5 h-3.5" />
+                                    </div>
+
                                     <div
-                                      onClick={() => setPreviewingImage(imgUrl)}
+                                      onClick={() => {
+                                        if (draggedImgIndex === null) {
+                                          setPreviewingImage(imgUrl);
+                                        }
+                                      }}
                                       className="aspect-square rounded-lg overflow-hidden bg-slate-50 relative cursor-pointer group/img"
                                       title="Clique para expandir a foto"
                                     >
                                       <img
                                         src={imgUrl}
                                         alt={`Foto ${index + 1}`}
-                                        className="w-full h-full object-contain p-1 group-hover/img:scale-105 transition-transform"
+                                        draggable="false"
+                                        className="w-full h-full object-contain p-1 group-hover/img:scale-105 transition-transform pointer-events-none select-none"
                                       />
 
                                       {isCover && (
@@ -4150,7 +4216,7 @@ export default function AdminPanel({
                                       {!isCover ? (
                                         <button
                                           type="button"
-                                          onClick={() => setProductForm({ ...productForm, image: imgUrl })}
+                                          onClick={() => handleReorderProductImage(index, 0, allImages)}
                                           className="text-amber-700 hover:text-amber-900 font-bold hover:underline"
                                         >
                                           Tornar Capa

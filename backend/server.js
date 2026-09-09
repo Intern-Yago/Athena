@@ -87,6 +87,81 @@ async function sendPasswordResetEmail(toEmail, resetCode, userName = 'Cliente') 
   return { success: true, method: 'log', code: resetCode };
 }
 
+// Generate 6-Character Alphanumeric Code (Letters & Numbers Mixed)
+function generateAlphanumericOtp(length = 6) {
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const numbers = '23456789';
+  const allChars = letters + numbers;
+
+  // Guarantee mixed: at least 2 letters and at least 2 numbers
+  let chars = [
+    letters[Math.floor(Math.random() * letters.length)],
+    letters[Math.floor(Math.random() * letters.length)],
+    numbers[Math.floor(Math.random() * numbers.length)],
+    numbers[Math.floor(Math.random() * numbers.length)]
+  ];
+
+  for (let i = 4; i < length; i++) {
+    chars.push(allChars[Math.floor(Math.random() * allChars.length)]);
+  }
+
+  // Shuffle using Fisher-Yates algorithm
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  return chars.join('');
+}
+
+async function sendVerificationEmail(toEmail, code, userName = 'Cliente') {
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 40px 20px; text-align: center;">
+      <div style="max-width: 500px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <div style="margin-bottom: 20px;">
+          <h1 style="color: #f59e0b; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">ATHENA</h1>
+          <p style="color: #94a3b8; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Soluções Automotivas</p>
+        </div>
+        <div style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 9999px; padding: 6px 14px; margin: 0 auto 16px auto; display: inline-block;">
+          <span style="color: #fbbf24; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Verificação de Segurança</span>
+        </div>
+        <h2 style="color: #ffffff; font-size: 18px; margin-bottom: 12px; font-weight: 700;">Confirme seu E-mail</h2>
+        <p style="color: #cbd5e1; font-size: 13px; line-height: 1.5; margin-bottom: 24px;">
+          Olá, <strong>${userName}</strong>! Para validar suas solicitações de cotações, orçamentos e compras de equipamentos no portal Athena, utilize o código alfanumérico abaixo:
+        </p>
+        <div style="background-color: #0f172a; border: 2px dashed #f59e0b; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+          <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #fbbf24;">${code}</span>
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin-bottom: 20px;">
+          Este código de segurança é válido por <strong>30 minutos</strong> e deve ser informado na tela de verificação do site.
+        </p>
+        <hr style="border: none; border-top: 1px solid #334155; margin: 20px 0;" />
+        <p style="color: #64748b; font-size: 10px; margin: 0;">
+          Athena Soluções Automotivas • Brasília - DF • (61) 98348-5671
+        </p>
+      </div>
+    </div>
+  `;
+
+  if (mailTransporter) {
+    try {
+      await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: toEmail,
+        replyTo: 'contato@athenaconsultoria.com.br',
+        subject: `Código de Verificação Athena: ${code}`,
+        html: htmlContent
+      });
+      return { success: true, method: 'smtp' };
+    } catch (err) {
+      console.error('Erro no envio SMTP de verificação:', err.message);
+    }
+  }
+
+  console.log(`[VERIFICACAO EMAIL ATHENA] E-mail: ${toEmail} | Codigo: ${code} (Validade: 30 minutos)`);
+  return { success: true, method: 'log', code };
+}
+
 // -------------------------------------------------------------
 // JWT CRYPTOGRAPHIC SIGNING & SESSION SECURITY (OWASP A07:2021)
 // -------------------------------------------------------------
@@ -784,7 +859,23 @@ async function initDb() {
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='a_points') THEN 
             ALTER TABLE users ADD COLUMN a_points INTEGER DEFAULT 0; 
           END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_verified') THEN 
+            ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE; 
+          END IF;
         END $$;
+      `);
+
+      // Create Email Verifications Table
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS email_verifications (
+          id VARCHAR(100) PRIMARY KEY,
+          user_id VARCHAR(100),
+          email VARCHAR(255) NOT NULL,
+          code VARCHAR(20) NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          verified BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
       `);
 
       // Create Password Resets Table
@@ -1135,7 +1226,8 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         id: 'user_admin_default',
         name: envAdminName,
         email: envAdminEmail,
-        role: 'admin'
+        role: 'admin',
+        isVerified: true
       });
 
       return res.json({
@@ -1143,6 +1235,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         name: envAdminName,
         email: envAdminEmail,
         role: 'admin',
+        isVerified: true,
         token,
         expiresAt
       });
@@ -1152,7 +1245,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     let foundUser = null;
     if (pool) {
       try {
-        const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role, phone, document, company_name as "companyName", address FROM users WHERE email = $1', [inputEmail]);
+        const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role, phone, document, company_name as "companyName", address, is_verified as "isVerified" FROM users WHERE email = $1', [inputEmail]);
         if (result.rows && result.rows.length > 0) {
           foundUser = result.rows[0];
         }
@@ -1175,7 +1268,8 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
           phone: user.phone || '',
           document: user.document || '',
           companyName: user.companyName || user.company_name || '',
-          address: user.address || null
+          address: user.address || null,
+          isVerified: Boolean(user.isVerified || user.is_verified || false)
         };
       }
     }
@@ -1199,12 +1293,14 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
       }
 
       const userRole = foundUser.role || 'cliente';
+      const isVerified = Boolean(foundUser.isVerified || foundUser.is_verified || userRole === 'admin');
 
       const { token, expiresAt } = generateToken({
         id: foundUser.id,
         name: foundUser.name,
         email: foundUser.email,
-        role: userRole
+        role: userRole,
+        isVerified
       });
 
       return res.json({
@@ -1216,6 +1312,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         document: foundUser.document || '',
         companyName: foundUser.companyName || '',
         address: foundUser.address || null,
+        isVerified,
         token,
         expiresAt
       });
@@ -1382,7 +1479,8 @@ app.post('/api/auth/register', async (req, res) => {
       id: cleanUser.id,
       name: cleanUser.name,
       email: cleanUser.email,
-      role: 'cliente'
+      role: 'cliente',
+      isVerified: false
     });
 
     return res.status(201).json({
@@ -1394,6 +1492,7 @@ app.post('/api/auth/register', async (req, res) => {
       document: cleanUser.document,
       companyName: cleanUser.companyName,
       address: cleanUser.address,
+      isVerified: false,
       token,
       expiresAt,
       message: 'Cadastro realizado com sucesso!'
@@ -1556,6 +1655,185 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 });
 
+// -------------------------------------------------------------
+// EMAIL VERIFICATION ENDPOINTS (6-DIGIT ALPHANUMERIC OTP)
+// -------------------------------------------------------------
+
+// Send 6-Character Alphanumeric Email Verification Code
+app.post('/api/auth/send-verification-code', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase().trim();
+    const userName = req.user.name || 'Cliente Athena';
+
+    if (!userEmail) {
+      return res.status(400).json({ error: 'E-mail do usuário não encontrado na sessão.' });
+    }
+
+    // Check if user is already verified
+    let isAlreadyVerified = false;
+    if (pool) {
+      try {
+        const uCheck = await pool.query('SELECT is_verified FROM users WHERE id = $1', [userId]);
+        if (uCheck.rows.length > 0 && uCheck.rows[0].is_verified) {
+          isAlreadyVerified = true;
+        }
+      } catch (e) {}
+    } else {
+      const db = readDbJson();
+      const u = (db.users || []).find(usr => usr.id === userId);
+      if (u && (u.isVerified || u.is_verified)) isAlreadyVerified = true;
+    }
+
+    if (isAlreadyVerified) {
+      return res.json({
+        success: true,
+        alreadyVerified: true,
+        message: 'Seu e-mail já está confirmado e verificado.'
+      });
+    }
+
+    // Generate 6-character alphanumeric code (letters and numbers mixed, never pure numeric)
+    const verificationCode = generateAlphanumericOtp(6);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes validity
+    const verificationId = `vcode_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    if (pool) {
+      try {
+        await pool.query(`
+          INSERT INTO email_verifications (id, user_id, email, code, expires_at, verified)
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `, [verificationId, userId, userEmail, verificationCode, expiresAt, false]);
+      } catch (e) {
+        console.error('Erro ao registrar verificação no PG:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    if (!db.email_verifications) db.email_verifications = [];
+    db.email_verifications.push({
+      id: verificationId,
+      userId,
+      email: userEmail,
+      code: verificationCode,
+      expiresAt: expiresAt.toISOString(),
+      verified: false,
+      createdAt: new Date().toISOString()
+    });
+    writeDbJson(db);
+
+    // Send email via Google SMTP
+    const emailResult = await sendVerificationEmail(userEmail, verificationCode, userName);
+
+    return res.json({
+      success: true,
+      message: 'Código de verificação enviado para o seu e-mail!',
+      delivery: emailResult.method,
+      expiresInMinutes: 30,
+      ...(emailResult.method === 'log' ? { devCode: verificationCode } : {})
+    });
+  } catch (err) {
+    console.error('Erro ao enviar código de verificação:', err);
+    return res.status(500).json({ error: 'Erro interno ao gerar código de verificação.' });
+  }
+});
+
+// Verify 6-Character Alphanumeric Email Code
+app.post('/api/auth/verify-email-code', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase().trim();
+    const { code } = req.body;
+
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Por favor, informe o código de 6 dígitos recebido por e-mail.' });
+    }
+
+    const cleanCode = code.trim().toUpperCase();
+    if (cleanCode.length !== 6) {
+      return res.status(400).json({ error: 'O código de verificação deve conter exatamente 6 caracteres.' });
+    }
+
+    let isValid = false;
+    let recordId = null;
+
+    if (pool) {
+      try {
+        const checkRes = await pool.query(`
+          SELECT id FROM email_verifications
+          WHERE (user_id = $1 OR email = $2)
+            AND code = $3
+            AND verified = FALSE
+            AND expires_at > NOW()
+          ORDER BY created_at DESC
+          LIMIT 1
+        `, [userId, userEmail, cleanCode]);
+
+        if (checkRes.rows.length > 0) {
+          isValid = true;
+          recordId = checkRes.rows[0].id;
+        }
+      } catch (e) {
+        console.error('Erro ao validar verificação no PG:', e.message);
+      }
+    }
+
+    if (!isValid) {
+      const db = readDbJson();
+      const records = db.email_verifications || [];
+      const match = records.find(r => 
+        (r.userId === userId || r.email === userEmail) &&
+        r.code === cleanCode &&
+        !r.verified &&
+        new Date(r.expiresAt) > new Date()
+      );
+      if (match) {
+        isValid = true;
+        recordId = match.id;
+      }
+    }
+
+    if (!isValid) {
+      return res.status(400).json({
+        error: 'Código inválido ou expirado (validade de 30 minutos). Verifique os caracteres ou solicite um novo código.'
+      });
+    }
+
+    // Mark code as verified
+    if (pool) {
+      try {
+        if (recordId) {
+          await pool.query('UPDATE email_verifications SET verified = TRUE WHERE id = $1', [recordId]);
+        }
+        await pool.query('UPDATE users SET is_verified = TRUE WHERE id = $1', [userId]);
+      } catch (e) {
+        console.error('Erro ao atualizar status verificado no PG:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    if (db.email_verifications) {
+      const rec = db.email_verifications.find(r => r.id === recordId);
+      if (rec) rec.verified = true;
+    }
+    const uIdx = (db.users || []).findIndex(u => u.id === userId);
+    if (uIdx !== -1) {
+      db.users[uIdx].isVerified = true;
+      db.users[uIdx].is_verified = true;
+      writeDbJson(db);
+    }
+
+    return res.json({
+      success: true,
+      isVerified: true,
+      message: 'E-mail verificado com sucesso! Suas ações foram liberadas.'
+    });
+  } catch (err) {
+    console.error('Erro ao validar código de verificação:', err);
+    return res.status(500).json({ error: 'Erro interno ao validar código.' });
+  }
+});
+
 // Update Customer Profile & Address
 app.put('/api/customer/profile', authenticateToken, async (req, res) => {
   try {
@@ -1647,7 +1925,8 @@ app.put('/api/customer/profile', authenticateToken, async (req, res) => {
         document: updatedDocument,
         companyName: updatedCompanyName,
         address: updatedAddress,
-        role: existingUser.role || 'cliente'
+        role: existingUser.role || 'cliente',
+        isVerified: Boolean(existingUser.is_verified || existingUser.isVerified || existingUser.role === 'admin')
       }
     });
   } catch (err) {
