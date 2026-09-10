@@ -51,31 +51,124 @@ if (SMTP_PASS) {
   console.log('Google SMTP em modo log (Defina GMAIL_APP_PASSWORD no .env para envio real).');
 }
 
+function buildAthenaEmailHtml({
+  badgeText = '',
+  badgeBg = '#fffbeb',
+  badgeColor = '#b45309',
+  badgeBorder = '#fde68a',
+  title = '',
+  subtitle = '',
+  bodyHtml = '',
+  maxWidth = 600
+}) {
+  const badgeHtml = badgeText ? `
+    <div style="margin-bottom: 14px; text-align: center;">
+      <span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; background-color: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+        ${badgeText}
+      </span>
+    </div>
+  ` : '';
+
+  const titleHtml = title ? `
+    <h2 style="color: #0f172a; font-size: 20px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.3px; text-align: center;">
+      ${title}
+    </h2>
+  ` : '';
+
+  const subtitleHtml = subtitle ? `
+    <p style="color: #64748b; font-size: 13px; margin: 0 0 20px 0; text-align: center; line-height: 1.5;">
+      ${subtitle}
+    </p>
+  ` : '';
+
+  return `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Athena Soluções Automotivas</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #334155;">
+      <div style="background-color: #f8fafc; width: 100%; padding: 36px 16px; box-sizing: border-box;">
+        <div style="max-width: ${maxWidth}px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); border-top: 4px solid #f59e0b;">
+          
+          <!-- Cabeçalho Oficial Athena -->
+          <div style="background-color: #ffffff; padding: 26px 24px 20px 24px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+            <table role="presentation" style="margin: 0 auto; border-collapse: collapse;">
+              <tr>
+                <td style="vertical-align: middle; padding-right: 12px;">
+                  <img src="https://athenaconsultoria.com.br/logo.jpg" alt="Athena Logo" width="42" height="42" style="border-radius: 10px; border: 1px solid #e2e8f0; display: block; object-fit: contain;" />
+                </td>
+                <td style="vertical-align: middle; text-align: left;">
+                  <span style="display: block; font-size: 22px; font-weight: 900; letter-spacing: 0.5px; color: #0f172a; line-height: 1.1;">
+                    ATHENA
+                  </span>
+                  <span style="display: block; font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #d97706; margin-top: 2px;">
+                    Soluções Automotivas
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Corpo do Conteúdo -->
+          <div style="padding: 28px 32px;">
+            ${badgeHtml}
+            ${titleHtml}
+            ${subtitleHtml}
+            ${bodyHtml}
+          </div>
+
+          <!-- Rodapé Oficial Athena -->
+          <div style="background-color: #f8fafc; padding: 22px 24px; border-top: 1px solid #e2e8f0; text-align: center;">
+            <p style="color: #64748b; font-size: 12px; margin: 0 0 6px 0; font-weight: 600;">
+              Athena Soluções Automotivas • SIA Trecho 3, Brasília - DF
+            </p>
+            <p style="color: #94a3b8; font-size: 11px; margin: 0 0 8px 0;">
+              Dúvidas ou Atendimento? WhatsApp: <strong style="color: #0f172a;">(61) 98348-5671</strong> • E-mail: <a href="mailto:contato@athenaconsultoria.com.br" style="color: #d97706; text-decoration: none; font-weight: 600;">contato@athenaconsultoria.com.br</a>
+            </p>
+            <p style="color: #cbd5e1; font-size: 10px; margin: 0;">
+              Mensagem oficial gerada automaticamente pelo sistema Athena.
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 async function sendPasswordResetEmail(toEmail, resetCode, userName = 'Cliente') {
-  const htmlContent = `
-    <div style="font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 40px 20px; text-align: center;">
-      <div style="max-width: 500px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-        <div style="margin-bottom: 20px;">
-          <h1 style="color: #f59e0b; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">ATHENA</h1>
-          <p style="color: #94a3b8; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Soluções Automotivas</p>
-        </div>
-        <h2 style="color: #ffffff; font-size: 18px; margin-bottom: 12px;">Recuperação de Senha</h2>
-        <p style="color: #cbd5e1; font-size: 13px; line-height: 1.5; margin-bottom: 24px;">
-          Olá, <strong>${userName}</strong>! Recebemos uma solicitação para redefinir a senha da sua conta Athena. Utilize o código de verificação abaixo:
-        </p>
-        <div style="background-color: #0f172a; border: 2px dashed #f59e0b; border-radius: 12px; padding: 18px; margin-bottom: 24px;">
-          <span style="font-size: 32px; font-weight: 900; letter-spacing: 6px; color: #fbbf24;">${resetCode}</span>
-        </div>
-        <p style="color: #94a3b8; font-size: 11px; margin-bottom: 24px;">
-          Este código é válido por <strong>15 minutos</strong>. Se você não solicitou esta redefinição, ignore este e-mail.
-        </p>
-        <hr style="border: none; border-top: 1px solid #334155; margin: 24px 0;" />
-        <p style="color: #64748b; font-size: 10px; margin: 0;">
-          Athena Soluções Automotivas • Brasília - DF • (61) 98348-5671
+  const htmlContent = buildAthenaEmailHtml({
+    maxWidth: 520,
+    badgeText: 'Recuperação de Acesso',
+    badgeBg: '#fffbeb',
+    badgeColor: '#b45309',
+    badgeBorder: '#fde68a',
+    title: 'Redefinição de Senha',
+    bodyHtml: `
+      <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; text-align: center;">
+        Olá, <strong>${userName}</strong>! Recebemos uma solicitação para redefinir a senha de acesso da sua conta Athena. Utilize o código de verificação abaixo:
+      </p>
+
+      <div style="background-color: #fffbeb; border: 2px dashed #f59e0b; border-radius: 14px; padding: 22px; margin: 0 0 20px 0; text-align: center;">
+        <span style="font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #b45309; display: block;">
+          ${resetCode}
+        </span>
+        <span style="font-size: 11px; color: #92400e; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; display: block;">
+          Código de Segurança
+        </span>
+      </div>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; text-align: center;">
+        <p style="margin: 0; color: #64748b; font-size: 12px; line-height: 1.5;">
+          ⏱ Este código é válido por <strong>15 minutos</strong>. Se você não solicitou esta redefinição, desconsidere este e-mail com segurança.
         </p>
       </div>
-    </div>
-  `;
+    `
+  });
 
   const result = await sendDispatchedEmail({
     to: toEmail,
@@ -120,33 +213,34 @@ function generateAlphanumericOtp(length = 6) {
 }
 
 async function sendVerificationEmail(toEmail, code, userName = 'Cliente') {
-  const htmlContent = `
-    <div style="font-family: Arial, sans-serif; background-color: #0f172a; color: #f8fafc; padding: 40px 20px; text-align: center;">
-      <div style="max-width: 500px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; padding: 32px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-        <div style="margin-bottom: 20px;">
-          <h1 style="color: #f59e0b; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">ATHENA</h1>
-          <p style="color: #94a3b8; font-size: 11px; margin: 4px 0 0 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1px;">Soluções Automotivas</p>
-        </div>
-        <div style="background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 9999px; padding: 6px 14px; margin: 0 auto 16px auto; display: inline-block;">
-          <span style="color: #fbbf24; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Verificação de Segurança</span>
-        </div>
-        <h2 style="color: #ffffff; font-size: 18px; margin-bottom: 12px; font-weight: 700;">Confirme seu E-mail</h2>
-        <p style="color: #cbd5e1; font-size: 13px; line-height: 1.5; margin-bottom: 24px;">
-          Olá, <strong>${userName}</strong>! Para validar suas solicitações de cotações, orçamentos e compras de equipamentos no portal Athena, utilize o código alfanumérico abaixo:
-        </p>
-        <div style="background-color: #0f172a; border: 2px dashed #f59e0b; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
-          <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #fbbf24;">${code}</span>
-        </div>
-        <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin-bottom: 20px;">
-          Este código de segurança é válido por <strong>30 minutos</strong> e deve ser informado na tela de verificação do site.
-        </p>
-        <hr style="border: none; border-top: 1px solid #334155; margin: 20px 0;" />
-        <p style="color: #64748b; font-size: 10px; margin: 0;">
-          Athena Soluções Automotivas • Brasília - DF • (61) 98348-5671
+  const htmlContent = buildAthenaEmailHtml({
+    maxWidth: 520,
+    badgeText: 'Verificação de Segurança',
+    badgeBg: '#fffbeb',
+    badgeColor: '#b45309',
+    badgeBorder: '#fde68a',
+    title: 'Confirme seu E-mail',
+    bodyHtml: `
+      <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; text-align: center;">
+        Olá, <strong>${userName}</strong>! Para validar suas solicitações de cotações, orçamentos e compras de equipamentos no portal Athena, utilize o código de segurança abaixo:
+      </p>
+
+      <div style="background-color: #fffbeb; border: 2px dashed #f59e0b; border-radius: 14px; padding: 22px; margin: 0 0 20px 0; text-align: center;">
+        <span style="font-family: 'Courier New', Courier, monospace; font-size: 34px; font-weight: 900; letter-spacing: 8px; color: #b45309; display: block;">
+          ${code}
+        </span>
+        <span style="font-size: 11px; color: #92400e; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; display: block;">
+          Código de Validação da Conta
+        </span>
+      </div>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; text-align: center;">
+        <p style="margin: 0; color: #64748b; font-size: 12px; line-height: 1.5;">
+          ⏱ Este código expira em <strong>30 minutos</strong> e deve ser informado na tela de verificação do site Athena.
         </p>
       </div>
-    </div>
-  `;
+    `
+  });
 
   const result = await sendDispatchedEmail({
     to: toEmail,
@@ -1494,128 +1588,117 @@ async function sendLoyaltyRedemptionReceiptNotification({
 
     // 1. E-mail detalhado para a Administração / Equipe Athena
     const adminSubject = `[Athena Fidelidade] Resgate de Recompensa: ${reward.name} — ${customerName}`;
-    const adminHtml = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5);">
-          
-          <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px 32px 24px 32px; border-bottom: 1px solid #334155; text-align: center;">
-            <span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; background-color: #d97706; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px;">
-              Resgate de Fidelidade A-Points
-            </span>
-            <h1 style="color: #f59e0b; margin: 0 0 6px 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px;">ATHENA</h1>
-            <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Soluções Automotivas • Notificação de Resgate</p>
-          </div>
-
-          <div style="padding: 32px;">
-            <div style="background-color: #0f172a; border-radius: 14px; border-left: 4px solid #f59e0b; padding: 18px 20px; margin-bottom: 24px;">
-              <p style="margin: 0; color: #f8fafc; font-size: 14px; font-weight: 600; line-height: 1.5;">
-                Novo resgate de recompensa efetuado no site por <strong>${customerName}</strong>.
-              </p>
-              <p style="margin: 6px 0 0 0; color: #94a3b8; font-size: 12px;">
-                Protocolo da Operação: <code style="color: #fbbf24; background-color: #1e293b; padding: 2px 6px; border-radius: 6px;">${txId}</code>
-              </p>
-            </div>
-
-            <table style="width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 20px; font-size: 13px;">
-              <tbody>
-                <tr style="background-color: #0f172a;">
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-top-left-radius: 10px; border-bottom: 1px solid #334155; width: 40%;">Item Resgatado</td>
-                  <td style="padding: 12px 16px; color: #fbbf24; font-weight: 800; border-top-right-radius: 10px; border-bottom: 1px solid #334155;">${reward.name}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Custo em Pontos</td>
-                  <td style="padding: 12px 16px; color: #ef4444; font-weight: 800; border-bottom: 1px solid #334155;">- ${reward.points_cost} A-Points</td>
-                </tr>
-                <tr style="background-color: #0f172a;">
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Saldo Anterior</td>
-                  <td style="padding: 12px 16px; color: #cbd5e1; font-weight: 600; border-bottom: 1px solid #334155;">${previousPoints} pontos</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Novo Saldo Disponível</td>
-                  <td style="padding: 12px 16px; color: #10b981; font-weight: 800; border-bottom: 1px solid #334155;">${remainingPoints} pontos</td>
-                </tr>
-                <tr style="background-color: #0f172a;">
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Cliente</td>
-                  <td style="padding: 12px 16px; color: #ffffff; font-weight: 700; border-bottom: 1px solid #334155;">${customerName}</td>
-                </tr>
-                ${customerCpfCnpj ? `
-                <tr>
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">CPF / CNPJ</td>
-                  <td style="padding: 12px 16px; color: #cbd5e1; font-family: monospace; border-bottom: 1px solid #334155;">${customerCpfCnpj}</td>
-                </tr>` : ''}
-                ${customerEmail ? `
-                <tr style="background-color: #0f172a;">
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">E-mail do Cliente</td>
-                  <td style="padding: 12px 16px; color: #cbd5e1; border-bottom: 1px solid #334155;">${customerEmail}</td>
-                </tr>` : ''}
-                ${customerPhone ? `
-                <tr>
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Telefone / WhatsApp</td>
-                  <td style="padding: 12px 16px; color: #cbd5e1; border-bottom: 1px solid #334155;">${customerPhone}</td>
-                </tr>` : ''}
-                <tr style="background-color: #0f172a;">
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom-left-radius: 10px;">Data e Horário</td>
-                  <td style="padding: 12px 16px; color: #94a3b8; border-bottom-right-radius: 10px;">${formattedDate} (Brasília)</td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* DADOS DE ENTREGA / DESPACHO */}
-            <div style="background-color: #0f172a; border-radius: 14px; border: 1px solid #334155; padding: 20px; margin-bottom: 20px;">
-              <p style="margin: 0 0 10px 0; color: #fbbf24; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
-                🚚 Dados de Entrega / Despacho
-              </p>
-              <div style="margin-bottom: 10px;">
-                <span style="color: #94a3b8; font-size: 12px; font-weight: 600;">Modalidade Escolhida:</span>
-                <span style="display: inline-block; margin-left: 6px; padding: 3px 10px; border-radius: 6px; background-color: #1e293b; color: #38bdf8; font-size: 12px; font-weight: 800; border: 1px solid #38bdf8/30;">
-                  ${deliveryLabel}
-                </span>
-              </div>
-              ${deliveryMethod === 'shipping' && resolvedAddress ? `
-                <div style="background-color: #1e293b; border-radius: 10px; padding: 12px 14px; margin-top: 8px;">
-                  <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px;">Endereço de Destino:</span>
-                  <p style="margin: 0; color: #f8fafc; font-size: 13px; font-weight: 600; line-height: 1.5;">
-                    ${resolvedAddress}
-                  </p>
-                </div>
-              ` : ''}
-              ${deliveryNotes ? `
-                <p style="margin: 10px 0 0 0; font-size: 12px; color: #cbd5e1; font-style: italic; background-color: #1e293b; padding: 10px 12px; border-radius: 8px;">
-                  <strong style="color: #fbbf24;">Observação do Cliente:</strong> "${deliveryNotes}"
-                </p>
-              ` : ''}
-            </div>
-
-            <div style="background-color: #1e1b4b; border: 1px solid #4338ca; border-radius: 14px; padding: 18px 20px; margin-bottom: 24px;">
-              <p style="margin: 0; color: #a5b4fc; font-size: 13px; font-weight: 700;">
-                📌 Próxima ação recomendada:
-              </p>
-              <p style="margin: 6px 0 0 0; color: #e0e7ff; font-size: 12px; line-height: 1.5;">
-                ${deliveryActionText}
-              </p>
-            </div>
-
-            <div style="text-align: center;">
-              ${waLink ? `
-                <a href="${waLink}" style="display: inline-block; background-color: #25d366; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 24px; border-radius: 12px; margin-right: 8px; margin-bottom: 8px;">
-                  💬 Falar no WhatsApp com o Cliente
-                </a>
-              ` : ''}
-              <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 24px; border-radius: 12px; margin-bottom: 8px;">
-                Acessar Painel Admin Athena
-              </a>
-            </div>
-          </div>
-
-          <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
-            <p style="color: #64748b; font-size: 11px; margin: 0;">
-              Athena Soluções Automotivas • SIA Trecho 3, Brasília - DF • (61) 98348-5671
-            </p>
-          </div>
-
+    const adminHtml = buildAthenaEmailHtml({
+      maxWidth: 600,
+      badgeText: 'Resgate de Fidelidade A-Points',
+      badgeBg: '#fffbeb',
+      badgeColor: '#b45309',
+      badgeBorder: '#fde68a',
+      title: 'Novo Resgate de Recompensa',
+      subtitle: `Solicitação registrada no site por <strong>${customerName}</strong>`,
+      bodyHtml: `
+        <div style="background-color: #f8fafc; border-radius: 12px; border-left: 4px solid #f59e0b; padding: 16px 18px; margin-bottom: 22px;">
+          <p style="margin: 0; color: #0f172a; font-size: 14px; font-weight: 600; line-height: 1.5;">
+            O cliente <strong>${customerName}</strong> efetuou o resgate de um brinde utilizando saldo de A-Points.
+          </p>
+          <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">
+            Protocolo da Operação: <code style="color: #b45309; background-color: #fffbeb; padding: 2px 6px; border-radius: 6px; font-weight: 700; border: 1px solid #fde68a;">${txId}</code>
+          </p>
         </div>
-      </div>
-    `;
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 22px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+          <tbody>
+            <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600; width: 38%;">Item Resgatado</td>
+              <td style="padding: 11px 16px; color: #0f172a; font-weight: 800; font-size: 14px;">${reward.name}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Custo em Pontos</td>
+              <td style="padding: 11px 16px; color: #dc2626; font-weight: 800;">- ${reward.points_cost} A-Points</td>
+            </tr>
+            <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Saldo Anterior</td>
+              <td style="padding: 11px 16px; color: #475569; font-weight: 600;">${previousPoints} pontos</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Novo Saldo Disponível</td>
+              <td style="padding: 11px 16px; color: #059669; font-weight: 800;">${remainingPoints} pontos</td>
+            </tr>
+            <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Cliente</td>
+              <td style="padding: 11px 16px; color: #0f172a; font-weight: 700;">${customerName}</td>
+            </tr>
+            ${customerCpfCnpj ? `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">CPF / CNPJ</td>
+              <td style="padding: 11px 16px; color: #334155; font-family: monospace;">${customerCpfCnpj}</td>
+            </tr>` : ''}
+            ${customerEmail ? `
+            <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">E-mail do Cliente</td>
+              <td style="padding: 11px 16px; color: #334155;">${customerEmail}</td>
+            </tr>` : ''}
+            ${customerPhone ? `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Telefone / WhatsApp</td>
+              <td style="padding: 11px 16px; color: #334155;">${customerPhone}</td>
+            </tr>` : ''}
+            <tr style="background-color: #f8fafc;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Data e Horário</td>
+              <td style="padding: 11px 16px; color: #64748b;">${formattedDate} (Brasília)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Dados de Entrega / Despacho -->
+        <div style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 18px 20px; margin-bottom: 20px;">
+          <p style="margin: 0 0 10px 0; color: #b45309; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+            🚚 Dados de Entrega / Despacho
+          </p>
+          <div style="margin-bottom: 8px;">
+            <span style="color: #64748b; font-size: 12px; font-weight: 600;">Modalidade Escolhida:</span>
+            <span style="display: inline-block; margin-left: 6px; padding: 3px 10px; border-radius: 6px; background-color: #e0f2fe; color: #0369a1; font-size: 12px; font-weight: 800; border: 1px solid #bae6fd;">
+              ${deliveryLabel}
+            </span>
+          </div>
+          ${deliveryMethod === 'shipping' && resolvedAddress ? `
+            <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-top: 8px;">
+              <span style="color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px;">Endereço de Destino:</span>
+              <p style="margin: 0; color: #0f172a; font-size: 13px; font-weight: 600; line-height: 1.5;">
+                ${resolvedAddress}
+              </p>
+            </div>
+          ` : ''}
+          ${deliveryNotes ? `
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #475569; font-style: italic; background-color: #ffffff; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 8px;">
+              <strong style="color: #b45309;">Observação do Cliente:</strong> "${deliveryNotes}"
+            </p>
+          ` : ''}
+        </div>
+
+        <!-- Próxima Ação Recomendada -->
+        <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-left: 4px solid #0284c7; border-radius: 10px; padding: 16px 18px; margin-bottom: 24px;">
+          <p style="margin: 0; color: #0369a1; font-size: 13px; font-weight: 800;">
+            📌 Próxima Ação da Equipe:
+          </p>
+          <p style="margin: 6px 0 0 0; color: #0c4a6e; font-size: 12px; line-height: 1.5;">
+            ${deliveryActionText}
+          </p>
+        </div>
+
+        <!-- Botões -->
+        <div style="text-align: center;">
+          ${waLink ? `
+            <a href="${waLink}" style="display: inline-block; background-color: #25d366; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 22px; border-radius: 10px; margin-right: 8px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.25);">
+              💬 Falar no WhatsApp com o Cliente
+            </a>
+          ` : ''}
+          <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 22px; border-radius: 10px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);">
+            Acessar Painel Admin Athena
+          </a>
+        </div>
+      `
+    });
 
     await sendGenericNotificationEmail({
       to: adminDestination,
@@ -1626,70 +1709,61 @@ async function sendLoyaltyRedemptionReceiptNotification({
     // 2. Cópia de Comprovante para o Cliente
     if (config.sendCustomerCopy && customerEmail && customerEmail.includes('@')) {
       const custSubject = `Comprovante de Resgate — Athena Soluções Automotivas (#${txId.slice(-6)})`;
-      const custHtml = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
-          <div style="max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden;">
-            
-            <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px; text-align: center; border-bottom: 1px solid #334155;">
-              <span style="display: inline-block; padding: 4px 12px; border-radius: 9999px; background-color: #10b981; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 12px;">
-                Resgate Confirmado com Sucesso
-              </span>
-              <h1 style="color: #f59e0b; margin: 0 0 4px 0; font-size: 24px; font-weight: 900;">ATHENA</h1>
-              <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1.5px;">Soluções Automotivas</p>
-            </div>
+      const custHtml = buildAthenaEmailHtml({
+        maxWidth: 580,
+        badgeText: 'Resgate Confirmado com Sucesso',
+        badgeBg: '#ecfdf5',
+        badgeColor: '#047857',
+        badgeBorder: '#a7f3d0',
+        title: 'Comprovante de Resgate de Pontos',
+        bodyHtml: `
+          <p style="margin: 0 0 12px 0; font-size: 15px; color: #0f172a;">
+            Olá, <strong>${customerName}</strong>!
+          </p>
+          <p style="margin: 0 0 20px 0; font-size: 13px; color: #475569; line-height: 1.6;">
+            Recebemos com sucesso a solicitação de resgate da sua recompensa com seus A-Points! Guarde este comprovante para seu acompanhamento e controle:
+          </p>
 
-            <div style="padding: 28px;">
-              <p style="margin: 0 0 16px 0; font-size: 15px; color: #f8fafc;">
-                Olá, <strong>${customerName}</strong>!
-              </p>
-              <p style="margin: 0 0 20px 0; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-                Recebemos com sucesso a solicitação de resgate da sua recompensa com seus A-Points! Guarde este comprovante para seu controle.
-              </p>
-
-              <div style="background-color: #0f172a; border-radius: 14px; padding: 20px; border: 1px solid #334155; margin-bottom: 20px;">
-                <p style="margin: 0 0 10px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Detalhes do Benefício</p>
-                <p style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; color: #fbbf24;">${reward.name}</p>
-                <p style="margin: 0 0 12px 0; font-size: 13px; color: #ef4444; font-weight: 700;">- ${reward.points_cost} A-Points debitados</p>
-                <hr style="border: none; border-top: 1px solid #334155; margin: 12px 0;" />
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
-                  <span>Seu saldo atual: <strong style="color: #10b981;">${remainingPoints} pontos</strong></span>
-                  <span>Protocolo: <strong style="color: #ffffff;">${txId}</strong></span>
-                </div>
-              </div>
-
-              {/* Box de Entrega no Comprovante do Cliente */}
-              <div style="background-color: #0f172a; border-radius: 14px; border: 1px solid #334155; padding: 18px; margin-bottom: 20px;">
-                <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Forma de Recebimento</p>
-                <p style="margin: 0 0 6px 0; font-size: 14px; font-weight: 700; color: #38bdf8;">${deliveryLabel}</p>
-                ${deliveryMethod === 'shipping' && resolvedAddress ? `
-                  <p style="margin: 4px 0 0 0; font-size: 12px; color: #cbd5e1; line-height: 1.5;">
-                    ${resolvedAddress}
-                  </p>
-                ` : ''}
-              </div>
-
-              <div style="background-color: #064e3b; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; border: 1px solid #059669;">
-                <p style="margin: 0; color: #a7f3d0; font-size: 12px; line-height: 1.5;">
-                  🚀 <strong>O que acontece agora?</strong> Nossa equipe logística e comercial já recebeu sua solicitação para providenciar o envio ou entrega conforme a forma escolhida.
-                </p>
-              </div>
-
-              <div style="text-align: center;">
-                <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 12px;">
-                  Acessar Minha Conta Athena
-                </a>
-              </div>
-            </div>
-
-            <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
-              <p style="color: #64748b; font-size: 11px; margin: 0;">
-                Athena Soluções Automotivas • Dúvidas? Contate-nos pelo WhatsApp: (61) 98348-5671
-              </p>
-            </div>
-
+          <!-- Card do Benefício Resgatado -->
+          <div style="background-color: #f8fafc; border-radius: 14px; padding: 20px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+            <p style="margin: 0 0 6px 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Recompensa Resgatada</p>
+            <p style="margin: 0 0 8px 0; font-size: 20px; font-weight: 900; color: #0f172a;">${reward.name}</p>
+            <p style="margin: 0 0 14px 0; font-size: 14px; color: #dc2626; font-weight: 800;">- ${reward.points_cost} A-Points debitados</p>
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 12px 0;" />
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <tr>
+                <td style="color: #64748b;">Seu saldo atual: <strong style="color: #059669; font-size: 13px;">${remainingPoints} pontos</strong></td>
+                <td style="text-align: right; color: #64748b;">Protocolo: <strong style="color: #0f172a;">${txId}</strong></td>
+              </tr>
+            </table>
           </div>
-        </div>
-      `;
+
+          <!-- Box de Entrega -->
+          <div style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 18px 20px; margin-bottom: 20px;">
+            <p style="margin: 0 0 6px 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Forma de Recebimento</p>
+            <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: 800; color: #0284c7;">${deliveryLabel}</p>
+            ${deliveryMethod === 'shipping' && resolvedAddress ? `
+              <p style="margin: 6px 0 0 0; font-size: 12px; color: #475569; line-height: 1.5;">
+                ${resolvedAddress}
+              </p>
+            ` : ''}
+          </div>
+
+          <!-- Próximos Passos -->
+          <div style="background-color: #ecfdf5; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; border: 1px solid #a7f3d0;">
+            <p style="margin: 0; color: #065f46; font-size: 12px; line-height: 1.6;">
+              🚀 <strong>O que acontece agora?</strong> Nossa equipe de atendimento e expedição já recebeu a sua solicitação para providenciar a remessa ou liberação do item conforme a modalidade escolhida.
+            </p>
+          </div>
+
+          <!-- CTA -->
+          <div style="text-align: center;">
+            <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 13px 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);">
+              Acessar Minha Conta Athena
+            </a>
+          </div>
+        `
+      });
 
       await sendGenericNotificationEmail({
         to: customerEmail,
@@ -1735,95 +1809,90 @@ async function sendPurchaseReceiptNotification({
 
     // 1. E-mail de Comprovante de Compra para Administração
     const adminSubject = `[Athena Comprovante] Compra Faturada (#${orderId}) +${pointsEarned} pts — ${customerName || 'Cliente'}`;
-    const adminHtml = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5);">
-          
-          <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px 32px 24px 32px; border-bottom: 1px solid #334155; text-align: center;">
-            <span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; background-color: #059669; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px;">
-              Comprovante de Compra & Acúmulo de Pontos
-            </span>
-            <h1 style="color: #f59e0b; margin: 0 0 6px 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px;">ATHENA</h1>
-            <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Soluções Automotivas • Comprovante de Faturamento</p>
-          </div>
-
-          <div style="padding: 32px;">
-            <div style="background-color: #0f172a; border-radius: 14px; border-left: 4px solid #10b981; padding: 18px 20px; margin-bottom: 24px;">
-              <p style="margin: 0; color: #f8fafc; font-size: 14px; font-weight: 600; line-height: 1.5;">
-                Nova venda confirmada de <strong>${customerName || 'Cliente'}</strong>.
-              </p>
-              <p style="margin: 6px 0 0 0; color: #94a3b8; font-size: 12px;">
-                Identificador do Pedido: <code style="color: #10b981; background-color: #1e293b; padding: 2px 6px; border-radius: 6px;">#${orderId}</code> • Origem: <strong>${source}</strong>
-              </p>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-              <div style="background-color: #0f172a; border-radius: 14px; padding: 18px; border: 1px solid #334155; text-align: center;">
-                <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700;">Valor Total Faturado</p>
-                <p style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 900;">${formattedTotal}</p>
-              </div>
-              <div style="background-color: #0f172a; border-radius: 14px; padding: 18px; border: 1px solid #334155; text-align: center;">
-                <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700;">A-Points Gerados</p>
-                <p style="margin: 0; color: #10b981; font-size: 22px; font-weight: 900;">+${pointsEarned} pts</p>
-              </div>
-            </div>
-
-            <table style="width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 24px; font-size: 13px;">
-              <tbody>
-                <tr style="background-color: #0f172a;">
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-top-left-radius: 10px; border-bottom: 1px solid #334155; width: 40%;">Número do Pedido</td>
-                  <td style="padding: 12px 16px; color: #ffffff; font-weight: 800; border-top-right-radius: 10px; border-bottom: 1px solid #334155;">#${orderId}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Valor Elegível (sem frete)</td>
-                  <td style="padding: 12px 16px; color: #cbd5e1; font-weight: 600; border-bottom: 1px solid #334155;">${formattedEligible}</td>
-                </tr>
-                <tr style="background-color: #0f172a;">
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Regra de Pontuação</td>
-                  <td style="padding: 12px 16px; color: #fbbf24; font-weight: 600; border-bottom: 1px solid #334155;">R$ 50,00 = 1 A-Point</td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Cliente</td>
-                  <td style="padding: 12px 16px; color: #ffffff; font-weight: 700; border-bottom: 1px solid #334155;">${customerName}</td>
-                </tr>
-                ${customerCpfCnpj ? `
-                <tr style="background-color: #0f172a;">
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">CPF / CNPJ</td>
-                  <td style="padding: 12px 16px; color: #cbd5e1; font-family: monospace; border-bottom: 1px solid #334155;">${customerCpfCnpj}</td>
-                </tr>` : ''}
-                ${customerEmail ? `
-                <tr>
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">E-mail do Cliente</td>
-                  <td style="padding: 12px 16px; color: #cbd5e1; border-bottom: 1px solid #334155;">${customerEmail}</td>
-                </tr>` : ''}
-                ${customerPhone ? `
-                <tr style="background-color: #0f172a;">
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Telefone</td>
-                  <td style="padding: 12px 16px; color: #cbd5e1; border-bottom: 1px solid #334155;">${customerPhone}</td>
-                </tr>` : ''}
-                <tr>
-                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom-left-radius: 10px;">Data e Horário</td>
-                  <td style="padding: 12px 16px; color: #94a3b8; border-bottom-right-radius: 10px;">${formattedDate} (Brasília)</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div style="text-align: center;">
-              <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 12px;">
-                Ver Transações no Painel Admin
-              </a>
-            </div>
-          </div>
-
-          <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
-            <p style="color: #64748b; font-size: 11px; margin: 0;">
-              Athena Soluções Automotivas • SIA Trecho 3, Brasília - DF • (61) 98348-5671
-            </p>
-          </div>
-
+    const adminHtml = buildAthenaEmailHtml({
+      maxWidth: 600,
+      badgeText: 'Comprovante de Faturamento & Pontos',
+      badgeBg: '#ecfdf5',
+      badgeColor: '#047857',
+      badgeBorder: '#a7f3d0',
+      title: 'Nova Venda Faturada',
+      subtitle: `Faturamento registrado no canal <strong>${source}</strong>`,
+      bodyHtml: `
+        <div style="background-color: #f8fafc; border-radius: 12px; border-left: 4px solid #059669; padding: 16px 18px; margin-bottom: 22px;">
+          <p style="margin: 0; color: #0f172a; font-size: 14px; font-weight: 600; line-height: 1.5;">
+            Venda confirmada de <strong>${customerName || 'Cliente'}</strong>.
+          </p>
+          <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">
+            Pedido: <code style="color: #059669; background-color: #ecfdf5; padding: 2px 6px; border-radius: 6px; font-weight: 700; border: 1px solid #a7f3d0;">#${orderId}</code> • Origem: <strong>${source}</strong>
+          </p>
         </div>
-      </div>
-    `;
+
+        <!-- Métricas em Grid -->
+        <table role="presentation" style="width: 100%; border-collapse: collapse; margin-bottom: 22px;">
+          <tr>
+            <td style="width: 50%; padding-right: 6px; vertical-align: top;">
+              <div style="background-color: #f8fafc; border-radius: 12px; padding: 18px; border: 1px solid #e2e8f0; text-align: center;">
+                <p style="margin: 0 0 6px 0; color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Valor Total Faturado</p>
+                <p style="margin: 0; color: #0f172a; font-size: 24px; font-weight: 900;">${formattedTotal}</p>
+              </div>
+            </td>
+            <td style="width: 50%; padding-left: 6px; vertical-align: top;">
+              <div style="background-color: #ecfdf5; border-radius: 12px; padding: 18px; border: 1px solid #a7f3d0; text-align: center;">
+                <p style="margin: 0 0 6px 0; color: #047857; font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">A-Points Gerados</p>
+                <p style="margin: 0; color: #059669; font-size: 24px; font-weight: 900;">+${pointsEarned} pts</p>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Tabela de Detalhes -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+          <tbody>
+            <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600; width: 40%;">Número do Pedido / NF</td>
+              <td style="padding: 11px 16px; color: #0f172a; font-weight: 800;">#${orderId}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Valor Elegível (sem frete)</td>
+              <td style="padding: 11px 16px; color: #334155; font-weight: 600;">${formattedEligible}</td>
+            </tr>
+            <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Regra de Pontuação</td>
+              <td style="padding: 11px 16px; color: #b45309; font-weight: 700;">R$ 50,00 = 1 A-Point</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Cliente</td>
+              <td style="padding: 11px 16px; color: #0f172a; font-weight: 700;">${customerName}</td>
+            </tr>
+            ${customerCpfCnpj ? `
+            <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">CPF / CNPJ</td>
+              <td style="padding: 11px 16px; color: #334155; font-family: monospace;">${customerCpfCnpj}</td>
+            </tr>` : ''}
+            ${customerEmail ? `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">E-mail do Cliente</td>
+              <td style="padding: 11px 16px; color: #334155;">${customerEmail}</td>
+            </tr>` : ''}
+            ${customerPhone ? `
+            <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Telefone</td>
+              <td style="padding: 11px 16px; color: #334155;">${customerPhone}</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding: 11px 16px; color: #64748b; font-weight: 600;">Data e Horário</td>
+              <td style="padding: 11px 16px; color: #64748b;">${formattedDate} (Brasília)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="text-align: center;">
+          <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 13px 28px; border-radius: 10px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);">
+            Ver Transações no Painel Admin
+          </a>
+        </div>
+      `
+    });
 
     await sendGenericNotificationEmail({
       to: adminDestination,
@@ -1843,93 +1912,80 @@ async function sendPurchaseReceiptNotification({
         : `Comprovante de Compra & Seus A-Points (#${orderId}) — Athena Soluções Automotivas`;
 
       const omieTestBadge = isOmieSource ? `
-        <div style="background-color: #1e3a8a; border: 1px solid #3b82f6; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px; color: #ffffff;">
-          <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; color: #93c5fd; letter-spacing: 0.5px;">
+        <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; border-radius: 10px; padding: 14px 18px; margin-bottom: 22px;">
+          <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; color: #1d4ed8; letter-spacing: 0.5px;">
             🧪 Modo de Homologação / Teste Omie ERP
           </p>
-          <p style="margin: 0; font-size: 12px; line-height: 1.4; color: #e0f2fe;">
-            Este comprovante foi redirecionado para seu e-mail para validação de conformidade.<br/>
-            <strong>Cliente no ERP:</strong> ${customerName} | <strong>E-mail cadastrado:</strong> ${customerEmail || 'Não informado'} | <strong>Doc:</strong> ${customerCpfCnpj || 'N/A'}
+          <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #1e40af;">
+            Este comprovante foi enviado em cópia para validação técnica de layout.<br/>
+            <strong>Cliente ERP:</strong> ${customerName} | <strong>E-mail:</strong> ${customerEmail || 'Não informado'} | <strong>Doc:</strong> ${customerCpfCnpj || 'N/A'}
           </p>
         </div>
       ` : '';
 
       const pointsBlockHtml = pointsEarned > 0 ? `
-        <div style="background-color: #0f172a; border-radius: 14px; padding: 22px; border: 1px solid #334155; text-align: center; margin-bottom: 24px;">
-          <p style="margin: 0 0 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Você acumulou no Programa de Fidelidade</p>
-          <p style="margin: 0 0 6px 0; font-size: 34px; font-weight: 900; color: #10b981;">+${pointsEarned} A-Points</p>
-          <p style="margin: 0; font-size: 12px; color: #cbd5e1;">(Regra: R$ 50,00 faturados = 1 A-Point)</p>
+        <div style="background-color: #fffbeb; border-radius: 14px; padding: 22px; border: 1px solid #fde68a; text-align: center; margin-bottom: 22px;">
+          <p style="margin: 0 0 6px 0; font-size: 12px; color: #92400e; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Você Acumulou no Programa de Fidelidade</p>
+          <p style="margin: 0 0 6px 0; font-size: 36px; font-weight: 900; color: #d97706;">+${pointsEarned} A-Points</p>
+          <p style="margin: 0; font-size: 12px; color: #b45309; font-weight: 600;">(Regra: R$ 50,00 faturados = 1 A-Point)</p>
         </div>
       ` : `
-        <div style="background-color: #0f172a; border-radius: 14px; padding: 18px; border: 1px solid #334155; text-align: center; margin-bottom: 24px;">
-          <p style="margin: 0 0 4px 0; font-size: 13px; color: #f8fafc; font-weight: 700;">Compra Registrada com Sucesso</p>
-          <p style="margin: 0; font-size: 12px; color: #94a3b8;">A cada R$ 50,00 faturados você acumula 1 ponto no programa A-Points.</p>
+        <div style="background-color: #f8fafc; border-radius: 12px; padding: 16px; border: 1px solid #e2e8f0; text-align: center; margin-bottom: 22px;">
+          <p style="margin: 0 0 4px 0; font-size: 13px; color: #0f172a; font-weight: 700;">Compra Registrada com Sucesso</p>
+          <p style="margin: 0; font-size: 12px; color: #64748b;">A cada R$ 50,00 faturados você acumula 1 ponto no programa A-Points.</p>
         </div>
       `;
 
-      const custHtml = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
-          <div style="max-width: 580px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5);">
-            
-            <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px; text-align: center; border-bottom: 1px solid #334155;">
-              <span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; background-color: #10b981; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
-                Comprovante de Compra Confirmada
-              </span>
-              <h1 style="color: #f59e0b; margin: 0 0 4px 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px;">ATHENA</h1>
-              <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Soluções Automotivas • Comprovante do Cliente</p>
-            </div>
+      const custHtml = buildAthenaEmailHtml({
+        maxWidth: 580,
+        badgeText: 'Comprovante de Compra Confirmada',
+        badgeBg: '#ecfdf5',
+        badgeColor: '#047857',
+        badgeBorder: '#a7f3d0',
+        title: 'Faturamento Confirmado',
+        bodyHtml: `
+          ${omieTestBadge}
 
-            <div style="padding: 28px 32px;">
-              ${omieTestBadge}
+          <p style="margin: 0 0 10px 0; font-size: 15px; color: #0f172a;">
+            Olá, <strong>${customerName}</strong>!
+          </p>
+          <p style="margin: 0 0 20px 0; font-size: 13px; color: #475569; line-height: 1.6;">
+            Seu faturamento recente no valor de <strong style="color: #0f172a;">${formattedTotal}</strong> foi processado e confirmado com sucesso. Guarde este comprovante para seu acompanhamento e controle.
+          </p>
 
-              <p style="margin: 0 0 12px 0; font-size: 16px; color: #f8fafc;">
-                Olá, <strong>${customerName}</strong>!
-              </p>
-              <p style="margin: 0 0 22px 0; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-                Seu faturamento recente no valor de <strong>${formattedTotal}</strong> foi processado e confirmado com sucesso. Guarde este comprovante para seu acompanhamento e controle.
-              </p>
+          ${pointsBlockHtml}
 
-              ${pointsBlockHtml}
-
-              <div style="background-color: #0f172a; border-radius: 14px; padding: 18px 20px; border: 1px solid #334155; margin-bottom: 24px;">
-                <p style="margin: 0 0 10px 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Resumo do Pedido</p>
-                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
-                  <span style="color: #94a3b8;">Número do Pedido / NF:</span>
-                  <span style="color: #ffffff; font-weight: 700;">#${orderId}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
-                  <span style="color: #94a3b8;">Valor Total:</span>
-                  <span style="color: #ffffff; font-weight: 800;">${formattedTotal}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
-                  <span style="color: #94a3b8;">Canal de Faturamento:</span>
-                  <span style="color: #cbd5e1;">${source}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; border-top: 1px solid #1e293b; pt-2; margin-top: 8px;">
-                  <span>Data de Confirmação:</span>
-                  <span>${formattedDate} (Brasília)</span>
-                </div>
-              </div>
-
-              <div style="text-align: center; margin-bottom: 12px;">
-                <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 13px 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
-                  Acessar Minha Conta & Catálogo de Prêmios
-                </a>
-              </div>
-            </div>
-
-            <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
-              <p style="color: #64748b; font-size: 11px; margin: 0 0 4px 0;">
-                Athena Soluções Automotivas • ST SHA Arniqueira, Brasília - DF • (61) 98348-5671
-              </p>
-              <p style="color: #475569; font-size: 10px; margin: 0;">
-                Este e-mail foi enviado automaticamente por no-reply@athenaconsultoria.com.br
-              </p>
-            </div>
-
+          <!-- Resumo do Pedido -->
+          <div style="background-color: #f8fafc; border-radius: 12px; padding: 18px 20px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
+            <p style="margin: 0 0 12px 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Resumo da Operação</p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 7px 0; color: #64748b;">Número do Pedido / NF:</td>
+                <td style="padding: 7px 0; color: #0f172a; font-weight: 700; text-align: right;">#${orderId}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 7px 0; color: #64748b;">Valor Total:</td>
+                <td style="padding: 7px 0; color: #0f172a; font-weight: 900; text-align: right;">${formattedTotal}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 7px 0; color: #64748b;">Canal de Faturamento:</td>
+                <td style="padding: 7px 0; color: #334155; text-align: right;">${source}</td>
+              </tr>
+              <tr>
+                <td style="padding: 7px 0; color: #94a3b8; font-size: 12px;">Data de Confirmação:</td>
+                <td style="padding: 7px 0; color: #64748b; font-size: 12px; text-align: right;">${formattedDate} (Brasília)</td>
+              </tr>
+            </table>
           </div>
-        </div>
-      `;
+
+          <!-- Botão CTA -->
+          <div style="text-align: center; margin-bottom: 6px;">
+            <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 13px 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);">
+              Acessar Minha Conta & Catálogo de Prêmios
+            </a>
+          </div>
+        `
+      });
 
       await sendGenericNotificationEmail({
         to: actualCustomerRecipient,
@@ -1977,20 +2033,20 @@ async function sendOrderPlacedReceiptNotification({
 
     // Itens HTML Table
     const itemsRowsHtml = (items && items.length > 0)
-      ? items.map(it => `
-          <tr style="border-bottom: 1px solid #334155;">
-            <td style="padding: 10px 14px; color: #f8fafc; font-size: 13px;">
+      ? items.map((it, idx) => `
+          <tr style="border-bottom: 1px solid #f1f5f9; ${idx % 2 === 1 ? 'background-color: #fafafa;' : ''}">
+            <td style="padding: 10px 14px; color: #0f172a; font-size: 13px;">
               <strong>${it.name || it.description || 'Equipamento'}</strong>
-              ${it.sku ? `<br/><span style="font-size: 11px; color: #94a3b8;">SKU: ${it.sku}</span>` : ''}
+              ${it.sku ? `<br/><span style="font-size: 11px; color: #64748b;">SKU: ${it.sku}</span>` : ''}
             </td>
-            <td style="padding: 10px 14px; color: #cbd5e1; font-size: 13px; text-align: center;">${it.quantity || 1}x</td>
-            <td style="padding: 10px 14px; color: #ffffff; font-size: 13px; font-weight: 700; text-align: right;">${formatBrlNumber((it.price || it.unitPrice || 0) * (it.quantity || 1))}</td>
+            <td style="padding: 10px 14px; color: #475569; font-size: 13px; text-align: center;">${it.quantity || 1}x</td>
+            <td style="padding: 10px 14px; color: #0f172a; font-size: 13px; font-weight: 700; text-align: right;">${formatBrlNumber((it.price || it.unitPrice || 0) * (it.quantity || 1))}</td>
           </tr>
         `).join('')
       : `
-          <tr style="border-bottom: 1px solid #334155;">
-            <td style="padding: 10px 14px; color: #f8fafc; font-size: 13px;" colspan="2">Equipamentos e Serviços Automotivos</td>
-            <td style="padding: 10px 14px; color: #ffffff; font-size: 13px; font-weight: 700; text-align: right;">${formattedTotal}</td>
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 10px 14px; color: #0f172a; font-size: 13px;" colspan="2">Equipamentos e Serviços Automotivos</td>
+            <td style="padding: 10px 14px; color: #0f172a; font-size: 13px; font-weight: 700; text-align: right;">${formattedTotal}</td>
           </tr>
         `;
 
@@ -1998,31 +2054,31 @@ async function sendOrderPlacedReceiptNotification({
     let paymentDetailsHtml = '';
     if (billingType === 'PIX' && pix?.payload) {
       paymentDetailsHtml = `
-        <div style="background-color: #064e3b; border: 1px solid #059669; border-radius: 14px; padding: 20px; margin-bottom: 24px; text-align: center;">
-          <span style="display: inline-block; padding: 3px 10px; border-radius: 9999px; background-color: #10b981; color: #064e3b; font-size: 10px; font-weight: 800; text-transform: uppercase; margin-bottom: 10px;">
-            Pagamento via PIX
+        <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 20px; margin-bottom: 22px; text-align: center;">
+          <span style="display: inline-block; padding: 3px 10px; border-radius: 9999px; background-color: #059669; color: #ffffff; font-size: 10px; font-weight: 800; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px;">
+            Pagamento via PIX Instantâneo
           </span>
-          <p style="margin: 0 0 10px 0; font-size: 13px; color: #a7f3d0; font-weight: 700;">
-            Copie o código PIX abaixo e cole no seu aplicativo bancário:
+          <p style="margin: 0 0 10px 0; font-size: 13px; color: #065f46; font-weight: 700;">
+            Copie o código PIX Copia e Cola abaixo para pagar:
           </p>
-          <div style="background-color: #022c22; border: 1px dashed #10b981; border-radius: 8px; padding: 12px; margin-bottom: 12px; word-break: break-all; font-family: monospace; font-size: 11px; color: #6ee7b7; user-select: all;">
+          <div style="background-color: #ffffff; border: 1px dashed #059669; border-radius: 8px; padding: 12px; margin-bottom: 10px; word-break: break-all; font-family: monospace; font-size: 11px; color: #065f46; user-select: all;">
             ${pix.payload}
           </div>
-          <p style="margin: 0; font-size: 11px; color: #6ee7b7;">
-            ⏱ O pagamento é compensado instantaneamente e você receberá a confirmação em seguida!
+          <p style="margin: 0; font-size: 11px; color: #047857;">
+            ⏱ A compensação do PIX é imediata e seu pedido é aprovado na hora!
           </p>
         </div>
       `;
     } else if (billingType === 'BOLETO' && bankSlipUrl) {
       paymentDetailsHtml = `
-        <div style="background-color: #0f172a; border: 1px solid #334155; border-radius: 14px; padding: 20px; margin-bottom: 24px; text-align: center;">
-          <p style="margin: 0 0 12px 0; font-size: 13px; color: #f8fafc; font-weight: 700;">
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 22px; text-align: center;">
+          <p style="margin: 0 0 12px 0; font-size: 14px; color: #0f172a; font-weight: 700;">
             Boleto Bancário Gerado com Sucesso
           </p>
-          <a href="${bankSlipUrl}" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
+          <a href="${bankSlipUrl}" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 24px; border-radius: 10px; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);">
             📄 Abrir Boleto para Pagamento
           </a>
-          <p style="margin: 10px 0 0 0; font-size: 11px; color: #94a3b8;">
+          <p style="margin: 10px 0 0 0; font-size: 11px; color: #64748b;">
             A compensação bancária do boleto ocorre em até 1 a 2 dias úteis.
           </p>
         </div>
@@ -2032,89 +2088,74 @@ async function sendOrderPlacedReceiptNotification({
     // 1. Envia para o Cliente
     if (config.sendCustomerCopy && customerEmail && customerEmail.includes('@')) {
       const custSubject = `Recebemos seu Pedido #${orderId}! — Athena Soluções Automotivas`;
-      const custHtml = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5);">
-            
-            <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px; text-align: center; border-bottom: 1px solid #334155;">
-              <span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; background-color: #2563eb; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
-                Pedido Registrado na Loja Online
-              </span>
-              <h1 style="color: #f59e0b; margin: 0 0 4px 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px;">ATHENA</h1>
-              <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Soluções Automotivas • Comprovante de Pedido</p>
-            </div>
+      const custHtml = buildAthenaEmailHtml({
+        maxWidth: 600,
+        badgeText: 'Pedido Registrado na Loja Online',
+        badgeBg: '#e0f2fe',
+        badgeColor: '#0369a1',
+        badgeBorder: '#bae6fd',
+        title: 'Recebemos seu Pedido!',
+        subtitle: `Identificador: <strong>#${orderId}</strong>`,
+        bodyHtml: `
+          <p style="margin: 0 0 10px 0; font-size: 15px; color: #0f172a;">
+            Olá, <strong>${customerName}</strong>!
+          </p>
+          <p style="margin: 0 0 20px 0; font-size: 13px; color: #475569; line-height: 1.6;">
+            Recebemos seu pedido <strong>#${orderId}</strong> na loja online Athena! Abaixo estão os detalhes dos itens adquiridos e as orientações de pagamento:
+          </p>
 
-            <div style="padding: 28px 32px;">
-              <p style="margin: 0 0 12px 0; font-size: 16px; color: #f8fafc;">
-                Olá, <strong>${customerName}</strong>!
-              </p>
-              <p style="margin: 0 0 20px 0; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-                Recebemos seu pedido <strong>#${orderId}</strong> em nossa loja online! Abaixo estão os detalhes dos produtos adquiridos e as informações de acompanhamento:
-              </p>
+          ${paymentDetailsHtml}
 
-              ${paymentDetailsHtml}
+          <!-- Tabela de Itens -->
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #ffffff; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0;">
+            <thead>
+              <tr style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <th style="padding: 10px 14px; text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800;">Produto</th>
+                <th style="padding: 10px 14px; text-align: center; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800;">Qtd</th>
+                <th style="padding: 10px 14px; text-align: right; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRowsHtml}
+            </tbody>
+          </table>
 
-              <!-- Tabela de Itens -->
-              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #0f172a; border-radius: 12px; overflow: hidden; border: 1px solid #334155;">
-                <thead>
-                  <tr style="background-color: #1e293b; border-bottom: 1px solid #334155;">
-                    <th style="padding: 10px 14px; text-align: left; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Produto</th>
-                    <th style="padding: 10px 14px; text-align: center; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Qtd</th>
-                    <th style="padding: 10px 14px; text-align: right; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${itemsRowsHtml}
-                </tbody>
-              </table>
-
-              <!-- Totais -->
-              <div style="background-color: #0f172a; border-radius: 12px; padding: 16px 20px; border: 1px solid #334155; margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                  <span style="color: #94a3b8;">Forma de Pagamento:</span>
-                  <span style="color: #ffffff; font-weight: 700;">${paymentMethodDescription}</span>
-                </div>
-                ${discountAmount > 0 ? `
-                  <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                    <span style="color: #10b981;">Desconto Aplicado:</span>
-                    <span style="color: #10b981; font-weight: 700;">- ${formatBrlNumber(discountAmount)}</span>
-                  </div>
-                ` : ''}
-                <div style="display: flex; justify-content: space-between; font-size: 16px; border-top: 1px solid #1e293b; padding-top: 8px; margin-top: 8px;">
-                  <span style="color: #ffffff; font-weight: 800;">Valor Total:</span>
-                  <span style="color: #fbbf24; font-weight: 900;">${formattedTotal}</span>
-                </div>
-              </div>
-
-              <!-- Estimativa A-Points -->
-              <div style="background-color: #1e1b4b; border: 1px solid #4338ca; border-radius: 14px; padding: 16px 20px; margin-bottom: 24px; text-align: center;">
-                <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 800; color: #c7d2fe;">
-                  🎁 Pontos a Ganhar no Programa A-Points:
-                </p>
-                <p style="margin: 0; font-size: 12px; color: #e0e7ff;">
-                  Após a aprovação do pagamento, você acumulará aproximadamente <strong style="color: #38bdf8;">+${estimatedPoints} A-Points</strong> para resgatar brindes e vantagens exclusivas!
-                </p>
-              </div>
-
-              <div style="text-align: center;">
-                <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 13px 30px; border-radius: 12px;">
-                  Acompanhar Meu Pedido
-                </a>
-              </div>
-            </div>
-
-            <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
-              <p style="color: #64748b; font-size: 11px; margin: 0 0 4px 0;">
-                Athena Soluções Automotivas • ST SHA Arniqueira, Brasília - DF • WhatsApp: (61) 98348-5671
-              </p>
-              <p style="color: #475569; font-size: 10px; margin: 0;">
-                Enviado automaticamente por no-reply@athenaconsultoria.com.br
-              </p>
-            </div>
-
+          <!-- Totais -->
+          <div style="background-color: #f8fafc; border-radius: 12px; padding: 16px 20px; border: 1px solid #e2e8f0; margin-bottom: 22px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; color: #64748b;">Forma de Pagamento:</td>
+                <td style="padding: 6px 0; color: #0f172a; font-weight: 700; text-align: right;">${paymentMethodDescription}</td>
+              </tr>
+              ${discountAmount > 0 ? `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 0; color: #059669;">Desconto Aplicado:</td>
+                <td style="padding: 6px 0; color: #059669; font-weight: 700; text-align: right;">- ${formatBrlNumber(discountAmount)}</td>
+              </tr>` : ''}
+              <tr>
+                <td style="padding: 10px 0 4px 0; color: #0f172a; font-weight: 800; font-size: 15px;">Valor Total:</td>
+                <td style="padding: 10px 0 4px 0; color: #b45309; font-weight: 900; font-size: 16px; text-align: right;">${formattedTotal}</td>
+              </tr>
+            </table>
           </div>
-        </div>
-      `;
+
+          <!-- Estimativa A-Points -->
+          <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; text-align: center;">
+            <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 800; color: #92400e;">
+              🎁 Pontos a Ganhar no Programa A-Points:
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #b45309; line-height: 1.5;">
+              Após a aprovação do pagamento, você acumulará aproximadamente <strong style="color: #d97706;">+${estimatedPoints} A-Points</strong> para resgatar brindes e vantagens exclusivas!
+            </p>
+          </div>
+
+          <div style="text-align: center;">
+            <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 13px 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);">
+              Acompanhar Meu Pedido
+            </a>
+          </div>
+        `
+      });
 
       await sendGenericNotificationEmail({
         to: customerEmail,
@@ -2126,25 +2167,34 @@ async function sendOrderPlacedReceiptNotification({
     // 2. Envia para a Administração (Alerta de Novo Pedido no Site)
     const adminDest = config.purchaseNotificationEmail || config.receiptNotificationEmail;
     const adminSubject = `[Athena Loja Online] Novo Pedido Criado (#${orderId}) — ${customerName} (${formattedTotal})`;
-    const adminHtml = `
-      <div style="font-family: sans-serif; background-color: #0b1120; color: #f8fafc; padding: 30px 16px;">
-        <div style="max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 24px;">
-          <h2 style="color: #f59e0b; margin-top: 0;">Novo Pedido na Loja Online Athena</h2>
-          <p style="color: #cbd5e1; font-size: 13px;">O cliente <strong>${customerName}</strong> fechou o pedido <strong>#${orderId}</strong>.</p>
-          <ul style="font-size: 13px; color: #94a3b8; line-height: 1.6;">
-            <li><strong>Total:</strong> ${formattedTotal}</li>
-            <li><strong>Pagamento:</strong> ${paymentMethodDescription}</li>
-            <li><strong>E-mail:</strong> ${customerEmail}</li>
-            <li><strong>Telefone:</strong> ${customerPhone || 'Não informado'}</li>
-            <li><strong>CPF/CNPJ:</strong> ${customerCpfCnpj || 'Não informado'}</li>
-            <li><strong>Data:</strong> ${formattedDate}</li>
-          </ul>
-          <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 12px; margin-top: 10px;">
+    const adminHtml = buildAthenaEmailHtml({
+      maxWidth: 560,
+      badgeText: 'Alerta de Venda no Site',
+      badgeBg: '#e0f2fe',
+      badgeColor: '#0369a1',
+      badgeBorder: '#bae6fd',
+      title: 'Novo Pedido na Loja Online Athena',
+      bodyHtml: `
+        <p style="color: #334155; font-size: 14px; margin-bottom: 18px;">
+          O cliente <strong>${customerName}</strong> fechou o pedido <strong>#${orderId}</strong> na loja online.
+        </p>
+        <div style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 16px 20px; margin-bottom: 22px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 7px 0; color: #64748b;">Total do Pedido:</td><td style="padding: 7px 0; color: #0f172a; font-weight: 800; text-align: right;">${formattedTotal}</td></tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 7px 0; color: #64748b;">Pagamento:</td><td style="padding: 7px 0; color: #0f172a; font-weight: 700; text-align: right;">${paymentMethodDescription}</td></tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 7px 0; color: #64748b;">E-mail:</td><td style="padding: 7px 0; color: #334155; text-align: right;">${customerEmail}</td></tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 7px 0; color: #64748b;">Telefone:</td><td style="padding: 7px 0; color: #334155; text-align: right;">${customerPhone || 'Não informado'}</td></tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 7px 0; color: #64748b;">CPF/CNPJ:</td><td style="padding: 7px 0; color: #334155; text-align: right;">${customerCpfCnpj || 'Não informado'}</td></tr>
+            <tr><td style="padding: 7px 0; color: #64748b;">Data:</td><td style="padding: 7px 0; color: #334155; text-align: right;">${formattedDate}</td></tr>
+          </table>
+        </div>
+        <div style="text-align: center;">
+          <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; padding: 12px 24px; border-radius: 10px; text-decoration: none; font-weight: 800; font-size: 13px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);">
             Acessar Painel de Pedidos
           </a>
         </div>
-      </div>
-    `;
+      `
+    });
 
     await sendGenericNotificationEmail({
       to: adminDest,
@@ -2200,24 +2250,48 @@ async function sendTestNotificationEmail({ targetEmail, testType = 'general' }) 
   }
 
   // General connection test
-  const subject = '[Athena Teste] Verificação do Servidor SMTP & Alertas de Comprovantes';
-  const html = `
-    <div style="font-family: Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
-      <div style="max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; padding: 32px; text-align: center;">
-        <h1 style="color: #f59e0b; margin: 0 0 6px 0; font-size: 24px; font-weight: 800;">ATHENA</h1>
-        <p style="color: #94a3b8; font-size: 11px; margin: 0 0 24px 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1.5px;">Soluções Automotivas • Teste de Notificações</p>
-        <div style="background-color: #064e3b; border: 1px solid #059669; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-          <p style="margin: 0 0 6px 0; font-size: 16px; font-weight: 800; color: #34d399;">✅ Configuração Validada com Sucesso!</p>
-          <p style="margin: 0; font-size: 13px; color: #a7f3d0; line-height: 1.5;">
-            O servidor SMTP do Google está conectado e autorizado a enviar comprovantes de compras e resgates de pontos para este e-mail.
-          </p>
-        </div>
-        <p style="color: #94a3b8; font-size: 12px; margin: 0;">
-          Destinatário testado: <strong>${to}</strong> • Horário: ${formatBrtDate()}
+  const subject = '[Athena Teste] Validação de Envio & Notificações de Comprovantes';
+  const html = buildAthenaEmailHtml({
+    maxWidth: 560,
+    badgeText: 'Teste de Comunicação Transacional',
+    badgeBg: '#ecfdf5',
+    badgeColor: '#047857',
+    badgeBorder: '#a7f3d0',
+    title: 'Canal de E-mails Validado com Sucesso',
+    bodyHtml: `
+      <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 18px 20px; margin-bottom: 22px; text-align: left;">
+        <p style="margin: 0 0 6px 0; font-size: 15px; font-weight: 800; color: #065f46;">
+          ✅ Transmissão Operacional Concluída!
+        </p>
+        <p style="margin: 0; font-size: 13px; color: #047857; line-height: 1.5;">
+          O canal de e-mails transacionais da <strong>Athena Soluções Automotivas</strong> está 100% configurado e apto a enviar comprovantes de faturamento, pedidos da loja e resgates de fidelidade A-Points.
         </p>
       </div>
-    </div>
-  `;
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 8px 0; color: #64748b; font-weight: 600;">Destinatário de Teste:</td>
+            <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${to}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 8px 0; color: #64748b; font-weight: 600;">Data e Horário:</td>
+            <td style="padding: 8px 0; color: #0f172a; font-weight: 700; text-align: right;">${formatBrtDate()} (Brasília)</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #64748b; font-weight: 600;">Status do Disparo:</td>
+            <td style="padding: 8px 0; color: #059669; font-weight: 800; text-align: right;">✓ Autorizado e Entregue</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center;">
+        <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 10px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);">
+          Acessar Painel Admin Athena
+        </a>
+      </div>
+    `
+  });
   return await sendGenericNotificationEmail({ to, subject, htmlContent: html });
 }
 
