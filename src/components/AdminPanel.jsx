@@ -4861,10 +4861,10 @@ export default function AdminPanel({
                     <div>
                       <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                         <Zap className="w-4 h-4 text-amber-500" />
-                        Provedores HTTP em Nuvem (Solução para Render.com)
+                        Provedores de E-mail via API HTTP (Resend / Brevo)
                       </h4>
                       <p className="text-[11px] text-slate-500">
-                        Evita o erro "Connection timeout" (o plano gratuito do Render bloqueia portas SMTP 587/465).
+                        Envio direto via HTTPS (Porta 443) com alta velocidade de entrega.
                       </p>
                     </div>
                     <button
@@ -4875,17 +4875,6 @@ export default function AdminPanel({
                       <span>{showApiSettings ? 'Ocultar Chaves' : 'Configurar Resend / Brevo'}</span>
                       {showApiSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
-                  </div>
-
-                  {/* Informational Banner about Render.com SMTP Port Block */}
-                  <div className="mt-3 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 space-y-1">
-                    <p className="font-bold flex items-center gap-1.5">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Por que o Gmail SMTP dá "Connection timeout" no Render?</span>
-                    </p>
-                    <p className="text-[11px] text-amber-800 leading-relaxed">
-                      O plano gratuito do <strong>Render.com</strong> bloqueia conexões de saída nas portas 25, 465 e 587 para evitar tráfego de spam. Para disparar e-mails sem bloqueios e sem custos, cadastre uma chave gratuita de API HTTP do <strong>Resend</strong> (100 envios/dia grátis) ou <strong>Brevo</strong> (300 envios/dia grátis) abaixo. Ambos operam via porta 443 (HTTPS), que é 100% liberada no Render.
-                    </p>
                   </div>
 
                   {showApiSettings && (
