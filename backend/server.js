@@ -2165,24 +2165,72 @@ app.post('/api/upload/delete', authenticateToken, async (req, res) => {
       (process.env.R2_PUBLIC_URL && url.includes(new URL(process.env.R2_PUBLIC_URL).hostname))
     );
 
+    let deleted = false;
     if (isR2Url) {
-      const deleted = await deleteFromR2(url);
-      return res.json({ success: deleted, provider: 'cloudflare-r2' });
-    }
-
-    // 2. Se for Cloudinary, tenta excluir pelo public_id
-    if (url.includes('cloudinary.com')) {
+      deleted = await deleteFromR2(url);
+    } else if (url.includes('cloudinary.com')) {
       try {
         const parts = url.split('/');
         const fileWithExt = parts.slice(-2).join('/');
         const publicId = fileWithExt.replace(/\.[^/.]+$/, '');
         await cloudinary.uploader.destroy(publicId);
+        deleted = true;
       } catch (cErr) {
         console.warn('Aviso ao excluir do Cloudinary:', cErr.message);
       }
     }
 
-    return res.json({ success: true });
+    // 2. Limpa automaticamente referências desta foto nos produtos do banco para evitar imagens quebradas
+    let cleanedCount = 0;
+    if (pool) {
+      try {
+        await pool.query(`
+          UPDATE products
+          SET image = CASE 
+            WHEN array_length(images, 1) > 1 AND images[1] = $1 THEN COALESCE(images[2], '')
+            WHEN array_length(images, 1) > 1 THEN COALESCE(images[1], '')
+            ELSE ''
+          END
+          WHERE image = $1
+        `, [url]);
+
+        const updateRes = await pool.query(`
+          UPDATE products
+          SET images = array_remove(images, $1)
+          WHERE $1 = ANY(images)
+        `, [url]);
+        cleanedCount = updateRes.rowCount || 0;
+      } catch (dbErr) {
+        console.warn('Aviso ao desvincular imagem de produtos no PG:', dbErr.message);
+      }
+    }
+
+    const db = readDbJson();
+    let updatedDb = false;
+    (db.products || []).forEach(prod => {
+      let changed = false;
+      if (Array.isArray(prod.images) && prod.images.includes(url)) {
+        prod.images = prod.images.filter(u => u !== url);
+        changed = true;
+      }
+      if (prod.image === url) {
+        prod.image = (Array.isArray(prod.images) && prod.images[0]) || '';
+        changed = true;
+      }
+      if (changed) {
+        cleanedCount++;
+        updatedDb = true;
+      }
+    });
+    if (updatedDb) {
+      writeDbJson(db);
+    }
+
+    return res.json({ 
+      success: true, 
+      provider: isR2Url ? 'cloudflare-r2' : 'storage',
+      affectedProducts: cleanedCount
+    });
   } catch (error) {
     console.error('Erro ao excluir mídia do storage:', error);
     return res.status(500).json({ error: 'Erro ao remover imagem do storage.' });
@@ -5402,6 +5450,102 @@ app.post('/api/admin/users/:id/send-reset-email', authenticateToken, requireStaf
   } catch (err) {
     console.error('Erro ao reenviar e-mail de redefinição pelo admin:', err);
     return res.status(500).json({ error: 'Erro ao enviar e-mail de redefinição.' });
+  }
+});
+
+// Admin / CRM: Buscar Perfil Completo, Histórico de Pedidos e Extrato de Pontos do Cliente
+app.get('/api/admin/users/:id/history', authenticateToken, requireStaff, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    let targetUser = null;
+    let orders = [];
+    let transactions = [];
+
+    if (pool) {
+      try {
+        const uRes = await pool.query(`
+          SELECT id, name, email, role, phone, document, company_name as "companyName", 
+                 COALESCE(a_points, 0) as "aPoints", 
+                 COALESCE(must_change_password, false) as "mustChangePassword", 
+                 created_at as "createdAt", updated_at as "updatedAt"
+          FROM users WHERE id = $1
+        `, [targetId]);
+        if (uRes.rows.length > 0) targetUser = uRes.rows[0];
+
+        if (targetUser) {
+          const userEmail = (targetUser.email || '').trim().toLowerCase();
+          const userDoc = (targetUser.document || '').replace(/\D/g, '');
+
+          const oRes = await pool.query(`
+            SELECT id, user_id as "userId", user_email as "userEmail", user_name as "userName", 
+                   items, total_amount::float as "totalAmount", status, notes, created_at as "createdAt"
+            FROM orders 
+            WHERE user_id = $1 OR user_email = $2
+            ORDER BY created_at DESC
+          `, [targetId, userEmail]);
+          orders = oRes.rows || [];
+
+          const tRes = await pool.query(`
+            SELECT id, order_id as "orderId", order_value as "orderValue", 
+                   points_earned as "pointsEarned", source, type, status, 
+                   reward_id as "rewardId", notes, created_at as "createdAt"
+            FROM a_points_transactions
+            WHERE user_id = $1 OR customer_email = $2 OR (customer_document = $3 AND $3 != '')
+            ORDER BY created_at DESC
+          `, [targetId, userEmail, userDoc]);
+          transactions = tRes.rows || [];
+        }
+      } catch (pgErr) {
+        console.error('Erro ao buscar histórico no PG:', pgErr.message);
+      }
+    }
+
+    if (!targetUser) {
+      const db = readDbJson();
+      targetUser = (db.users || []).find(u => u.id === targetId);
+      if (targetUser) {
+        const userEmail = (targetUser.email || '').trim().toLowerCase();
+        const userDoc = (targetUser.document || '').replace(/\D/g, '');
+
+        orders = (db.orders || []).filter(o => 
+          o.userId === targetId || (userEmail && (o.userEmail || '').toLowerCase() === userEmail)
+        );
+
+        transactions = (db.aPointsTransactions || []).filter(t => 
+          t.userId === targetId || 
+          (userEmail && (t.customerEmail || '').toLowerCase() === userEmail) ||
+          (userDoc && (t.customerDocument || '').replace(/\D/g, '') === userDoc)
+        ).reverse();
+      }
+    }
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Cliente não encontrado.' });
+    }
+
+    const totalSpent = orders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+    const pointsEarnedTotal = transactions
+      .filter(t => Number(t.pointsEarned) > 0)
+      .reduce((sum, t) => sum + Number(t.pointsEarned), 0);
+    const pointsRedeemedTotal = transactions
+      .filter(t => Number(t.pointsEarned) < 0)
+      .reduce((sum, t) => sum + Math.abs(Number(t.pointsEarned)), 0);
+
+    return res.json({
+      user: targetUser,
+      orders,
+      transactions,
+      summary: {
+        totalOrders: orders.length,
+        totalSpent,
+        pointsEarnedTotal,
+        pointsRedeemedTotal,
+        currentPoints: Number(targetUser.aPoints || 0)
+      }
+    });
+  } catch (err) {
+    console.error('Erro ao consultar histórico do cliente:', err);
+    return res.status(500).json({ error: 'Erro ao buscar dados do cliente.' });
   }
 });
 

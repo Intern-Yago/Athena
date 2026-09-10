@@ -76,6 +76,7 @@ import RichTextEditor from './RichTextEditor';
 import FormattedDescription from './FormattedDescription';
 import CouponManager from './CouponManager';
 import ImageLibraryModal from './ImageLibraryModal';
+import CustomerDetailModal from './CustomerDetailModal';
 import { safeStorageSet, saveSession } from '../utils/storage';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
@@ -473,6 +474,7 @@ export default function AdminPanel({
   const [copiedTempPass, setCopiedTempPass] = useState(false);
   const [generatingTempForId, setGeneratingTempForId] = useState(null);
   const [sendingResetForId, setSendingResetForId] = useState(null);
+  const [selectedCustomerForModal, setSelectedCustomerForModal] = useState(null);
 
   // Separated lists
   const employeesList = React.useMemo(() => (usersList || []).filter(u => u.role !== 'cliente'), [usersList]);
@@ -4094,7 +4096,15 @@ export default function AdminPanel({
                         return (
                           <tr key={client.id} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-3.5 px-4">
-                              <div className="font-bold text-slate-900 text-sm">{client.name}</div>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCustomerForModal(client)}
+                                className="font-bold text-slate-900 hover:text-amber-600 transition-colors text-sm flex items-center gap-1.5 group cursor-pointer text-left"
+                                title="Abrir perfil detalhado, compras e pontos"
+                              >
+                                <span>{client.name}</span>
+                                <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500 shrink-0" />
+                              </button>
                               <div className="text-[10px] text-slate-400">
                                 {client.createdAt ? `Desde ${new Date(client.createdAt).toLocaleDateString('pt-BR')}` : 'Cadastro direto'}
                               </div>
@@ -4126,10 +4136,15 @@ export default function AdminPanel({
                             </td>
 
                             <td className="py-3.5 px-4 text-center">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCustomerForModal(client)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs cursor-pointer transition-colors"
+                                title="Ver extrato completo de pontos"
+                              >
                                 <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                                 <span>{Number(client.aPoints || 0)} pts</span>
-                              </span>
+                              </button>
                             </td>
 
                             <td className="py-3.5 px-4 text-center">
@@ -4147,54 +4162,15 @@ export default function AdminPanel({
                             </td>
 
                             <td className="py-3.5 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {/* Points Adjustment */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPointsModalUser(client);
-                                    setPointsAdjustment('');
-                                    setPointsReason('');
-                                  }}
-                                  className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1 font-bold text-amber-800 hover:text-amber-950 hover:bg-amber-50 border border-amber-300 cursor-pointer"
-                                  title="Ajustar ou bonificar pontos do cliente"
-                                >
-                                  <Coins className="w-3.5 h-3.5 text-amber-600" />
-                                  <span>Pontos</span>
-                                </button>
-
-                                {/* Send Reset Email */}
-                                <button
-                                  type="button"
-                                  disabled={isSendingReset}
-                                  onClick={() => handleSendResetEmail(client)}
-                                  className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1 font-bold text-slate-700 hover:text-slate-900 border border-slate-300 disabled:opacity-50 cursor-pointer"
-                                  title="Disparar e-mail com código de 6 dígitos para redefinição de senha"
-                                >
-                                  {isSendingReset ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  ) : (
-                                    <Mail className="w-3.5 h-3.5 text-slate-600" />
-                                  )}
-                                  <span className="hidden sm:inline">E-mail</span>
-                                </button>
-
-                                {/* Generate Immediate Temporary Password */}
-                                <button
-                                  type="button"
-                                  disabled={isGenerating}
-                                  onClick={() => handleGenerateTempPassword(client)}
-                                  className="py-1.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-colors flex items-center gap-1 disabled:opacity-50 shadow-xs cursor-pointer"
-                                  title="Gerar senha temporária imediata para suporte ao cliente por telefone/WhatsApp"
-                                >
-                                  {isGenerating ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  ) : (
-                                    <KeyRound className="w-3.5 h-3.5 text-slate-950" />
-                                  )}
-                                  <span>Senha Provisória</span>
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCustomerForModal(client)}
+                                className="inline-flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 font-bold text-xs shadow-xs cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                title="Ver perfil completo, histórico de compras, extrato de pontos e suporte"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Ver Histórico</span>
+                              </button>
                             </td>
                           </tr>
                         );
@@ -7608,6 +7584,7 @@ export default function AdminPanel({
           isOpen={isLibraryModalOpen}
           onClose={() => setIsLibraryModalOpen(false)}
           isStandalone={!isProductModalOpen}
+          products={products}
           currentImages={isProductModalOpen ? (Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])) : []}
           currentCover={isProductModalOpen ? (productForm.image || '') : ''}
           onSelectImage={isProductModalOpen ? (url) => {
@@ -7649,6 +7626,23 @@ export default function AdminPanel({
           API_BASE_URL={API_BASE_URL}
           getAuthHeaders={getAuthHeaders}
           showNotification={showNotification}
+        />
+
+        {/* CUSTOMER DETAIL & CRM HISTORY MODAL */}
+        <CustomerDetailModal
+          isOpen={Boolean(selectedCustomerForModal)}
+          customer={selectedCustomerForModal}
+          onClose={() => setSelectedCustomerForModal(null)}
+          API_BASE_URL={API_BASE_URL}
+          getAuthHeaders={getAuthHeaders}
+          showNotification={showNotification}
+          onPointsAdjusted={(userId, newBalance) => {
+            setUsersList(prev => prev.map(u => u.id === userId ? { ...u, aPoints: newBalance } : u));
+          }}
+          onCustomerUpdated={(updated) => {
+            setUsersList(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+          }}
+          onDeleteCustomer={handleDeleteUser}
         />
 
       </div>
