@@ -1065,6 +1065,7 @@ export default function AdminPanel({
         onConfirm: () => {
           initialProductFormRef.current = null;
           setIsProductModalOpen(false);
+          setIsLibraryModalOpen(false);
           setEditingProduct(null);
           setProductModalHistory([]);
         }
@@ -1072,6 +1073,7 @@ export default function AdminPanel({
     } else {
       initialProductFormRef.current = null;
       setIsProductModalOpen(false);
+      setIsLibraryModalOpen(false);
       setEditingProduct(null);
       setProductModalHistory([]);
     }
@@ -2634,6 +2636,7 @@ export default function AdminPanel({
 
     initialProductFormRef.current = null;
     setIsProductModalOpen(false);
+    setIsLibraryModalOpen(false);
     setEditingProduct(null);
   };
 
@@ -2687,6 +2690,10 @@ export default function AdminPanel({
       if (e.key === 'Escape') {
         if (confirmModal?.isOpen) {
           closeConfirmation();
+          return;
+        }
+        if (isLibraryModalOpen) {
+          setIsLibraryModalOpen(false);
           return;
         }
         if (previewingImage) {
@@ -2755,6 +2762,7 @@ export default function AdminPanel({
     isUserModalOpen,
     isQuickCatModalOpen,
     isPdfModalOpen,
+    isLibraryModalOpen,
     confirmModal?.isOpen,
     previewingImage,
     editingAttachmentId,
@@ -2993,11 +3001,23 @@ export default function AdminPanel({
               {/* PDF Catalog Button */}
               <button
                 onClick={() => setIsPdfModalOpen(true)}
-                className="btn-secondary text-xs sm:text-sm font-bold py-3 px-4 shadow-md shrink-0 bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700"
+                className="btn-secondary text-xs sm:text-sm font-bold py-3 px-4 shadow-md shrink-0 bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700 cursor-pointer"
               >
                 <Printer className="w-4 h-4 text-amber-400" />
                 <span>Gerar Catálogo PDF</span>
               </button>
+
+              {canEditContent && (
+                <button
+                  type="button"
+                  onClick={() => setIsLibraryModalOpen(true)}
+                  className="btn-secondary text-xs sm:text-sm font-bold py-3 px-4 shadow-md shrink-0 bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700 cursor-pointer"
+                  title="Abrir Biblioteca de Fotos do Cloudflare R2"
+                >
+                  <Images className="w-4 h-4 text-amber-400" />
+                  <span>Biblioteca R2</span>
+                </button>
+              )}
 
               {canEditContent && (
                 <button
@@ -3260,6 +3280,18 @@ export default function AdminPanel({
                   <Printer className="w-3.5 h-3.5 text-amber-600" />
                   <span>Gerar Catálogo PDF</span>
                 </button>
+
+                {canEditContent && (
+                  <button
+                    type="button"
+                    onClick={() => setIsLibraryModalOpen(true)}
+                    className="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center gap-2 transition-colors border border-amber-200 cursor-pointer"
+                    title="Abrir Biblioteca de Fotos do Cloudflare R2"
+                  >
+                    <Images className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Biblioteca R2</span>
+                  </button>
+                )}
 
                 {canEditContent && (
                   <button
@@ -5427,53 +5459,6 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* CLOUDFLARE R2 IMAGE LIBRARY MODAL */}
-        <ImageLibraryModal
-          isOpen={isLibraryModalOpen}
-          onClose={() => setIsLibraryModalOpen(false)}
-          currentImages={Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])}
-          currentCover={productForm.image || ''}
-          onSelectImage={(url) => {
-            setProductForm((prev) => {
-              const current = Array.isArray(prev.images) ? [...prev.images] : [];
-              const updated = current.includes(url) ? current : [...current, url];
-              return {
-                ...prev,
-                image: prev.image || url,
-                images: updated
-              };
-            });
-            showNotification('Foto adicionada à galeria do equipamento!', 'success');
-          }}
-          onRemoveImageFromProduct={(url) => {
-            setProductForm((prev) => {
-              const current = Array.isArray(prev.images) ? prev.images : [];
-              const updated = current.filter(u => u !== url);
-              return {
-                ...prev,
-                image: prev.image === url ? (updated[0] || '') : prev.image,
-                images: updated
-              };
-            });
-            showNotification('Foto removida da galeria do equipamento.', 'info');
-          }}
-          onSetAsCover={(url) => {
-            setProductForm((prev) => {
-              const current = Array.isArray(prev.images) ? prev.images : [];
-              const updated = current.includes(url) ? current : [url, ...current];
-              return {
-                ...prev,
-                image: url,
-                images: updated
-              };
-            });
-            showNotification('Foto definida como capa principal!', 'success');
-          }}
-          API_BASE_URL={API_BASE_URL}
-          getAuthHeaders={getAuthHeaders}
-          showNotification={showNotification}
-        />
-
         {/* FULL PRODUCT FORM MODAL - BALANCED WIDE 2-COLUMN LAYOUT */}
         {isProductModalOpen && canEditContent && (
           <div className="modal-backdrop !p-2 sm:!p-4 md:!p-6" onClick={handleRequestCloseProductModal}>
@@ -7617,6 +7602,54 @@ export default function AdminPanel({
             </div>
           </div>
         )}
+
+        {/* CLOUDFLARE R2 IMAGE LIBRARY MODAL (Mounted at root level for flawless stacking over product modal) */}
+        <ImageLibraryModal
+          isOpen={isLibraryModalOpen}
+          onClose={() => setIsLibraryModalOpen(false)}
+          isStandalone={!isProductModalOpen}
+          currentImages={isProductModalOpen ? (Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])) : []}
+          currentCover={isProductModalOpen ? (productForm.image || '') : ''}
+          onSelectImage={isProductModalOpen ? (url) => {
+            setProductForm((prev) => {
+              const current = Array.isArray(prev.images) ? [...prev.images] : [];
+              const updated = current.includes(url) ? current : [...current, url];
+              return {
+                ...prev,
+                image: prev.image || url,
+                images: updated
+              };
+            });
+            showNotification('Foto adicionada à galeria do equipamento!', 'success');
+          } : undefined}
+          onRemoveImageFromProduct={isProductModalOpen ? (url) => {
+            setProductForm((prev) => {
+              const current = Array.isArray(prev.images) ? prev.images : [];
+              const updated = current.filter(u => u !== url);
+              return {
+                ...prev,
+                image: prev.image === url ? (updated[0] || '') : prev.image,
+                images: updated
+              };
+            });
+            showNotification('Foto removida da galeria do equipamento.', 'info');
+          } : undefined}
+          onSetAsCover={isProductModalOpen ? (url) => {
+            setProductForm((prev) => {
+              const current = Array.isArray(prev.images) ? prev.images : [];
+              const updated = current.includes(url) ? current : [url, ...current];
+              return {
+                ...prev,
+                image: url,
+                images: updated
+              };
+            });
+            showNotification('Foto definida como capa principal!', 'success');
+          } : undefined}
+          API_BASE_URL={API_BASE_URL}
+          getAuthHeaders={getAuthHeaders}
+          showNotification={showNotification}
+        />
 
       </div>
     </div>
