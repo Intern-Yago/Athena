@@ -39,14 +39,14 @@ if (SMTP_PASS) {
       pass: SMTP_PASS
     },
     family: 4, // FORÇA IPv4: Previne Connection Timeout no Render e servidores Linux
-    connectionTimeout: 20000,
-    greetingTimeout: 15000,
-    socketTimeout: 30000,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
     tls: {
       rejectUnauthorized: false
     }
   });
-  console.log('Google SMTP (Gmail Port 587 IPv4) configurado com sucesso para:', SMTP_USER, '| Remetente:', SMTP_FROM);
+  console.log('Google SMTP (Gmail Port 587 IPv4) configurado para:', SMTP_USER, '| Remetente:', SMTP_FROM);
 } else {
   console.log('Google SMTP em modo log (Defina GMAIL_APP_PASSWORD no .env para envio real).');
 }
@@ -77,23 +77,19 @@ async function sendPasswordResetEmail(toEmail, resetCode, userName = 'Cliente') 
     </div>
   `;
 
-  if (mailTransporter) {
-    try {
-      await mailTransporter.sendMail({
-        from: SMTP_FROM,
-        to: toEmail,
-        replyTo: 'contato@athenaconsultoria.com.br',
-        subject: 'Código de Recuperação de Senha — Athena Soluções Automotivas',
-        html: htmlContent
-      });
-      return { success: true, method: 'smtp' };
-    } catch (err) {
-      console.error('Erro no envio SMTP:', err.message);
-    }
+  const result = await sendDispatchedEmail({
+    to: toEmail,
+    subject: 'Código de Recuperação de Senha — Athena Soluções Automotivas',
+    html: htmlContent,
+    replyTo: 'contato@athenaconsultoria.com.br'
+  });
+
+  if (result.success && result.provider !== 'log') {
+    return { success: true, method: result.provider };
   }
 
   console.log(`[DEBUG CODIGO DE RECUPERACAO] E-mail: ${toEmail} | Codigo: ${resetCode}`);
-  return { success: true, method: 'log', code: resetCode };
+  return { success: true, method: 'log', code: resetCode, error: result.error };
 }
 
 // Generate 6-Character Alphanumeric Code (Letters & Numbers Mixed)
@@ -152,23 +148,19 @@ async function sendVerificationEmail(toEmail, code, userName = 'Cliente') {
     </div>
   `;
 
-  if (mailTransporter) {
-    try {
-      await mailTransporter.sendMail({
-        from: SMTP_FROM,
-        to: toEmail,
-        replyTo: 'contato@athenaconsultoria.com.br',
-        subject: `Código de Verificação Athena: ${code}`,
-        html: htmlContent
-      });
-      return { success: true, method: 'smtp' };
-    } catch (err) {
-      console.error('Erro no envio SMTP de verificação:', err.message);
-    }
+  const result = await sendDispatchedEmail({
+    to: toEmail,
+    subject: `Código de Verificação Athena: ${code}`,
+    html: htmlContent,
+    replyTo: 'contato@athenaconsultoria.com.br'
+  });
+
+  if (result.success && result.provider !== 'log') {
+    return { success: true, method: result.provider };
   }
 
   console.log(`[VERIFICACAO EMAIL ATHENA] E-mail: ${toEmail} | Codigo: ${code} (Validade: 30 minutos)`);
-  return { success: true, method: 'log', code };
+  return { success: true, method: 'log', code, error: result.error };
 }
 
 // -------------------------------------------------------------
@@ -1257,41 +1249,187 @@ async function getNotificationSettings() {
   const enabledStr = (await getSystemSetting('email_notifications_enabled', 'true')).trim().toLowerCase();
   const sendCustomerCopyStr = (await getSystemSetting('send_customer_copy', 'true')).trim().toLowerCase();
 
+  const rawResend = process.env.RESEND_API_KEY || (await getSystemSetting('resend_api_key', '')) || '';
+  const resendApiKey = rawResend.trim();
+  const resendFromEmail = (await getSystemSetting('resend_from_email', process.env.RESEND_FROM || '')).trim();
+
+  const rawBrevo = process.env.BREVO_API_KEY || (await getSystemSetting('brevo_api_key', '')) || '';
+  const brevoApiKey = rawBrevo.trim();
+  const brevoSenderEmail = (await getSystemSetting('brevo_sender_email', process.env.BREVO_SENDER || 'athena.consultoria.automotiva@gmail.com')).trim();
+
+  let activeProvider = 'log';
+  if (resendApiKey) activeProvider = 'resend';
+  else if (brevoApiKey) activeProvider = 'brevo';
+  else if (mailTransporter) activeProvider = 'smtp';
+
   return {
     receiptNotificationEmail: receiptEmail || defaultAdmin,
     loyaltyNotificationEmail: loyaltyEmail,
     purchaseNotificationEmail: purchaseEmail,
     emailNotificationsEnabled: enabledStr !== 'false',
-    sendCustomerCopy: sendCustomerCopyStr !== 'false'
+    sendCustomerCopy: sendCustomerCopyStr !== 'false',
+    resendApiKey: resendApiKey ? (resendApiKey.slice(0, 5) + '••••••••' + resendApiKey.slice(-4)) : '',
+    hasResendApiKey: Boolean(resendApiKey),
+    resendFromEmail,
+    brevoApiKey: brevoApiKey ? (brevoApiKey.slice(0, 5) + '••••••••' + brevoApiKey.slice(-4)) : '',
+    hasBrevoApiKey: Boolean(brevoApiKey),
+    brevoSenderEmail,
+    activeProvider,
+    smtpConfigured: !!mailTransporter,
+    smtpUser: SMTP_USER,
+    smtpSender: SMTP_FROM
   };
 }
 
-async function sendGenericNotificationEmail({ to, subject, htmlContent, replyTo }) {
+// -------------------------------------------------------------
+// CENTRAL EMAIL DISPATCHER (HTTP REST APIs & SMTP Fallback)
+// Suporta Resend API e Brevo API (HTTP Porta 443 - Imunes a bloqueios de portas SMTP do Render Free tier)
+// com fallback para Nodemailer SMTP do Gmail (Porta 587)
+// -------------------------------------------------------------
+async function sendDispatchedEmail({ to, subject, html, replyTo, from }) {
   const recipients = normalizeEmailList(to);
   if (!recipients) {
     console.log('[EMAIL] Nenhum destinatário válido informado para:', subject);
     return { success: false, reason: 'no_recipient' };
   }
 
+  // 1. Provedor Resend API (HTTP Port 443 - Recomendado para nuvem / Render)
+  let resendKey = process.env.RESEND_API_KEY || '';
+  if (!resendKey) {
+    try {
+      resendKey = (await getSystemSetting('resend_api_key', '')) || '';
+    } catch (_) {}
+  }
+  resendKey = resendKey.trim();
+
+  if (resendKey) {
+    try {
+      const toList = recipients.split(',').map(e => e.trim()).filter(Boolean);
+      let resendFrom = process.env.RESEND_FROM || '';
+      if (!resendFrom) {
+        try {
+          resendFrom = (await getSystemSetting('resend_from_email', '')) || '';
+        } catch (_) {}
+      }
+      resendFrom = resendFrom.trim() || 'Athena Soluções Automotivas <onboarding@resend.dev>';
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: toList,
+          subject,
+          html,
+          reply_to: replyTo || 'contato@athenaconsultoria.com.br'
+        })
+      });
+
+      const resData = await response.json();
+      if (response.ok && resData?.id) {
+        console.log(`[EMAIL RESEND SUCESSO] Para: ${recipients} | Assunto: ${subject} | ID: ${resData.id}`);
+        return { success: true, provider: 'resend', messageId: resData.id };
+      } else {
+        const errorMsg = resData?.message || resData?.error || JSON.stringify(resData);
+        console.error(`[EMAIL RESEND ERRO] Falha no envio para ${recipients}:`, errorMsg);
+        return { success: false, provider: 'resend', error: errorMsg };
+      }
+    } catch (rErr) {
+      console.error(`[EMAIL RESEND EXCEÇÃO] Falha na requisição:`, rErr.message);
+      return { success: false, provider: 'resend', error: rErr.message };
+    }
+  }
+
+  // 2. Provedor Brevo / Sendinblue API (HTTP Port 443)
+  let brevoKey = process.env.BREVO_API_KEY || '';
+  if (!brevoKey) {
+    try {
+      brevoKey = (await getSystemSetting('brevo_api_key', '')) || '';
+    } catch (_) {}
+  }
+  brevoKey = brevoKey.trim();
+
+  if (brevoKey) {
+    try {
+      const toObjects = recipients.split(',').map(e => ({ email: e.trim() })).filter(x => x.email);
+      let brevoSender = process.env.BREVO_SENDER || '';
+      if (!brevoSender) {
+        try {
+          brevoSender = (await getSystemSetting('brevo_sender_email', '')) || '';
+        } catch (_) {}
+      }
+      brevoSender = brevoSender.trim() || SMTP_USER || 'athena.consultoria.automotiva@gmail.com';
+
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: 'Athena Soluções Automotivas',
+            email: brevoSender
+          },
+          to: toObjects,
+          subject,
+          htmlContent: html,
+          replyTo: { email: replyTo || 'contato@athenaconsultoria.com.br' }
+        })
+      });
+
+      const resData = await response.json();
+      if (response.ok && (resData?.messageId || resData?.messageIds)) {
+        console.log(`[EMAIL BREVO SUCESSO] Para: ${recipients} | Assunto: ${subject} | ID: ${resData.messageId || JSON.stringify(resData.messageIds)}`);
+        return { success: true, provider: 'brevo', messageId: resData.messageId || 'brevo-sent' };
+      } else {
+        const errorMsg = resData?.message || resData?.error || JSON.stringify(resData);
+        console.error(`[EMAIL BREVO ERRO] Falha no envio para ${recipients}:`, errorMsg);
+        return { success: false, provider: 'brevo', error: errorMsg };
+      }
+    } catch (bErr) {
+      console.error(`[EMAIL BREVO EXCEÇÃO] Falha na requisição:`, bErr.message);
+      return { success: false, provider: 'brevo', error: bErr.message };
+    }
+  }
+
+  // 3. Fallback: Servidor SMTP Nodemailer (Gmail / Hospedagem)
   if (mailTransporter) {
     try {
       const info = await mailTransporter.sendMail({
-        from: SMTP_FROM,
+        from: from || SMTP_FROM,
         to: recipients,
         replyTo: replyTo || 'contato@athenaconsultoria.com.br',
         subject,
-        html: htmlContent
+        html
       });
-      console.log(`[EMAIL ENVIADO COM SUCESSO] Para: ${recipients} | Assunto: ${subject} | ID: ${info.messageId}`);
-      return { success: true, messageId: info.messageId };
+      console.log(`[EMAIL SMTP ENVIADO COM SUCESSO] Para: ${recipients} | Assunto: ${subject} | ID: ${info.messageId}`);
+      return { success: true, provider: 'smtp', messageId: info.messageId };
     } catch (err) {
-      console.error(`[EMAIL ERRO] Falha no envio para ${recipients}:`, err.message);
-      return { success: false, error: err.message };
+      const isTimeout = err.message && (err.message.includes('timeout') || err.message.includes('ETIMEDOUT') || err.code === 'ETIMEDOUT');
+      let friendlyError = err.message;
+      if (isTimeout) {
+        friendlyError = `Connection timeout no SMTP (Portas 587/465 bloqueadas na nuvem Render Free tier). Para enviar sem bloqueio, cadastre uma chave gratuita do Resend ou Brevo no painel em Configurações.`;
+      }
+      console.error(`[EMAIL ERRO] Falha no envio para ${recipients}:`, friendlyError);
+      return { success: false, provider: 'smtp', error: friendlyError, isTimeout };
     }
   }
 
   console.log(`[DEBUG EMAIL LOG] Para: ${recipients} | Assunto: ${subject}`);
-  return { success: true, method: 'log' };
+  return { success: true, provider: 'log', method: 'log' };
+}
+
+async function sendGenericNotificationEmail({ to, subject, htmlContent, replyTo }) {
+  return await sendDispatchedEmail({
+    to,
+    subject,
+    html: htmlContent,
+    replyTo
+  });
 }
 
 // -------------------------------------------------------------
@@ -5665,16 +5803,24 @@ app.post('/api/admin/settings/notifications', authenticateToken, requireAdmin, a
     if (sendCustomerCopy !== undefined) {
       await setSystemSetting('send_customer_copy', sendCustomerCopy ? 'true' : 'false', 'Envia cópia do comprovante para o e-mail do cliente');
     }
+    if (req.body.resendApiKey !== undefined && !req.body.resendApiKey.includes('••••')) {
+      await setSystemSetting('resend_api_key', req.body.resendApiKey.trim(), 'Chave de API Resend HTTP (Porta 443)');
+    }
+    if (req.body.resendFromEmail !== undefined) {
+      await setSystemSetting('resend_from_email', req.body.resendFromEmail.trim(), 'Remetente Resend');
+    }
+    if (req.body.brevoApiKey !== undefined && !req.body.brevoApiKey.includes('••••')) {
+      await setSystemSetting('brevo_api_key', req.body.brevoApiKey.trim(), 'Chave de API Brevo HTTP (Porta 443)');
+    }
+    if (req.body.brevoSenderEmail !== undefined) {
+      await setSystemSetting('brevo_sender_email', req.body.brevoSenderEmail.trim(), 'Remetente Brevo');
+    }
 
     const updatedConfig = await getNotificationSettings();
     return res.json({
       success: true,
       message: 'Configurações de e-mail atualizadas com sucesso!',
-      settings: {
-        ...updatedConfig,
-        smtpConfigured: !!mailTransporter,
-        smtpSender: SMTP_FROM
-      }
+      settings: updatedConfig
     });
   } catch (err) {
     console.error('Erro ao atualizar configurações de notificação:', err);
@@ -5698,12 +5844,19 @@ app.post('/api/admin/settings/test-email', authenticateToken, requireAdmin, asyn
       return res.status(400).json({ error: 'Destinatário inválido informado.' });
     }
     if (!result.success && result.error) {
-      return res.status(500).json({ error: `Erro no servidor SMTP: ${result.error}` });
+      const errHeader = result.provider ? `Erro no envio (${result.provider.toUpperCase()})` : 'Erro no envio';
+      return res.status(500).json({ 
+        error: `${errHeader}: ${result.error}`,
+        provider: result.provider,
+        isTimeout: result.isTimeout
+      });
     }
 
+    const providerLabel = result.provider ? result.provider.toUpperCase() : 'servidor';
     return res.json({
       success: true,
-      message: `E-mail de teste (${testType || 'geral'}) enviado com sucesso para "${destination}"!`
+      provider: result.provider,
+      message: `E-mail de teste (${testType || 'geral'}) enviado com sucesso para "${destination}" via ${providerLabel}!`
     });
   } catch (err) {
     console.error('Erro ao enviar e-mail de teste:', err);

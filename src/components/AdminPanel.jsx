@@ -801,13 +801,21 @@ export default function AdminPanel({
     emailNotificationsEnabled: true,
     sendCustomerCopy: true,
     smtpConfigured: true,
-    smtpSender: ''
+    smtpSender: '',
+    resendApiKey: '',
+    hasResendApiKey: false,
+    resendFromEmail: '',
+    brevoApiKey: '',
+    hasBrevoApiKey: false,
+    brevoSenderEmail: '',
+    activeProvider: 'smtp'
   });
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState('');
   const [showAdvancedEmailSettings, setShowAdvancedEmailSettings] = useState(false);
+  const [showApiSettings, setShowApiSettings] = useState(false);
 
   // Product Form State
   const [productForm, setProductForm] = useState(
@@ -2954,9 +2962,17 @@ export default function AdminPanel({
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Falha ao enviar e-mail de teste.');
+      if (!res.ok) {
+        if (data.isTimeout || (data.error && data.error.includes('timeout'))) {
+          setShowApiSettings(true);
+        }
+        throw new Error(data.error || 'Falha ao enviar e-mail de teste.');
+      }
       showNotification(data.message || `E-mail de teste enviado para ${target}!`, 'success');
     } catch (err) {
+      if (err.message && (err.message.includes('timeout') || err.message.includes('bloqueadas'))) {
+        setShowApiSettings(true);
+      }
       showNotification(err.message, 'error');
     } finally {
       setTestingEmail(false);
@@ -4743,13 +4759,23 @@ export default function AdminPanel({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {notificationSettings.smtpConfigured ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  {notificationSettings.activeProvider === 'resend' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Google SMTP Conectado
+                      Resend API Ativo (Porta 443)
+                    </span>
+                  ) : notificationSettings.activeProvider === 'brevo' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Brevo API Ativo (Porta 443)
+                    </span>
+                  ) : notificationSettings.smtpConfigured ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      Google SMTP (Porta 587)
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
                       Modo Registro / Log
                     </span>
                   )}
@@ -4827,6 +4853,140 @@ export default function AdminPanel({
                       )}
                     </button>
                   </div>
+                </div>
+
+                {/* HTTP Cloud Providers Section (Solução para Render.com / Nuvem) */}
+                <div className="border-t border-slate-100 pt-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-amber-500" />
+                        Provedores HTTP em Nuvem (Solução para Render.com)
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Evita o erro "Connection timeout" (o plano gratuito do Render bloqueia portas SMTP 587/465).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowApiSettings(!showApiSettings)}
+                      className="text-xs font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 cursor-pointer bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl border border-amber-200 transition-colors shrink-0"
+                    >
+                      <span>{showApiSettings ? 'Ocultar Chaves' : 'Configurar Resend / Brevo'}</span>
+                      {showApiSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {/* Informational Banner about Render.com SMTP Port Block */}
+                  <div className="mt-3 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 space-y-1">
+                    <p className="font-bold flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Por que o Gmail SMTP dá "Connection timeout" no Render?</span>
+                    </p>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      O plano gratuito do <strong>Render.com</strong> bloqueia conexões de saída nas portas 25, 465 e 587 para evitar tráfego de spam. Para disparar e-mails sem bloqueios e sem custos, cadastre uma chave gratuita de API HTTP do <strong>Resend</strong> (100 envios/dia grátis) ou <strong>Brevo</strong> (300 envios/dia grátis) abaixo. Ambos operam via porta 443 (HTTPS), que é 100% liberada no Render.
+                    </p>
+                  </div>
+
+                  {showApiSettings && (
+                    <div className="mt-4 p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-5 animate-in fade-in duration-200">
+                      {/* Resend API Block */}
+                      <div className="space-y-3 pb-4 border-b border-slate-200">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span>Opção 1: Resend API (Recomendado)</span>
+                          </label>
+                          <a 
+                            href="https://resend.com/signup" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-[11px] font-bold text-amber-600 hover:text-amber-800 flex items-center gap-1"
+                          >
+                            <span>Obter chave gratuita no Resend (100 e-mails/dia)</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-600 block">
+                              Chave de API (RESEND_API_KEY)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={notificationSettings.hasResendApiKey ? 'Chave salva (digite para alterar)' : 're_123456789...'}
+                              value={notificationSettings.resendApiKey || ''}
+                              onChange={(e) => setNotificationSettings({ ...notificationSettings, resendApiKey: e.target.value })}
+                              className="w-full bg-white border border-slate-300 focus:border-amber-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none font-mono"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-600 block">
+                              Remetente Resend (Opcional)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Athena <onboarding@resend.dev> ou seu domínio"
+                              value={notificationSettings.resendFromEmail || ''}
+                              onChange={(e) => setNotificationSettings({ ...notificationSettings, resendFromEmail: e.target.value })}
+                              className="w-full bg-white border border-slate-300 focus:border-amber-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          Para testes imediatos para seu próprio e-mail, pode deixar vazio (usará <code>onboarding@resend.dev</code>). Para enviar para clientes, adicione seu domínio próprio no painel do Resend.
+                        </p>
+                      </div>
+
+                      {/* Brevo API Block */}
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+                            <span>Opção 2: Brevo / Sendinblue API</span>
+                          </label>
+                          <a 
+                            href="https://www.brevo.com/" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-[11px] font-bold text-sky-600 hover:text-sky-800 flex items-center gap-1"
+                          >
+                            <span>Criar conta gratuita no Brevo (300 e-mails/dia)</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-600 block">
+                              Chave de API (BREVO_API_KEY)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={notificationSettings.hasBrevoApiKey ? 'Chave salva (digite para alterar)' : 'xkeysib-...'}
+                              value={notificationSettings.brevoApiKey || ''}
+                              onChange={(e) => setNotificationSettings({ ...notificationSettings, brevoApiKey: e.target.value })}
+                              className="w-full bg-white border border-slate-300 focus:border-sky-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none font-mono"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-600 block">
+                              E-mail Remetente no Brevo
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="athena.consultoria.automotiva@gmail.com"
+                              value={notificationSettings.brevoSenderEmail || ''}
+                              onChange={(e) => setNotificationSettings({ ...notificationSettings, brevoSenderEmail: e.target.value })}
+                              className="w-full bg-white border border-slate-300 focus:border-sky-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          300 e-mails/dia grátis. Permite enviar utilizando seu Gmail verificado como remetente pela API REST do Brevo sem restrições de porta.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Advanced Options Accordion */}
