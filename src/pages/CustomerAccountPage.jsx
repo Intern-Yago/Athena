@@ -27,7 +27,8 @@ import {
   Sparkles,
   Coins,
   Gift,
-  TrendingUp
+  TrendingUp,
+  X
 } from 'lucide-react';
 import { saveSession } from '../utils/storage';
 import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
@@ -96,6 +97,7 @@ export default function CustomerAccountPage({
   const [loadingPoints, setLoadingPoints] = useState(false);
   const [redeemingReward, setRedeemingReward] = useState(null);
   const [redeemSuccess, setRedeemSuccess] = useState(null);
+  const [confirmRedeemReward, setConfirmRedeemReward] = useState(null);
 
   const docInfo = useMemo(() => {
     return formatCpfCnpj(profileForm.document);
@@ -228,7 +230,7 @@ export default function CustomerAccountPage({
     fetchPoints();
   }, [currentUser, API_BASE_URL]);
 
-  const handleRedeemReward = async (reward) => {
+  const handleRedeemReward = (reward) => {
     if (!currentUser?.token) {
       showNotification?.('Faça login para resgatar sua recompensa.', 'error');
       return;
@@ -241,10 +243,12 @@ export default function CustomerAccountPage({
       return;
     }
 
-    if (!window.confirm(`Deseja confirmar o resgate de "${reward.name}" por ${cost} A-Points?`)) {
-      return;
-    }
+    // Abre o modal personalizado em vez de window.confirm
+    setConfirmRedeemReward(reward);
+  };
 
+  const executeRedeemReward = async (reward) => {
+    if (!reward) return;
     setRedeemingReward(reward.id);
     try {
       const res = await fetch(`${API_BASE_URL}/rewards/redeem`, {
@@ -269,6 +273,7 @@ export default function CustomerAccountPage({
         onUpdateUser({ ...currentUser, a_points: data.remainingPoints, aPoints: data.remainingPoints });
       }
       fetchPoints();
+      setConfirmRedeemReward(null);
     } catch (err) {
       showNotification?.(err.message || 'Erro ao resgatar recompensa.', 'error');
     } finally {
@@ -1432,6 +1437,119 @@ export default function CustomerAccountPage({
         )}
 
       </div>
+
+      {/* MODAL PERSONALIZADO DE CONFIRMAÇÃO DE RESGATE (Substitui o window.confirm) */}
+      {confirmRedeemReward && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-slate-100">
+            
+            {/* Header com gradiente sutil */}
+            <div className="p-5 sm:p-6 border-b border-slate-800 bg-linear-to-b from-amber-500/10 to-transparent flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                  <Gift className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">Confirmar Resgate</h3>
+                  <p className="text-xs text-slate-400">Programa de Fidelidade A-Points</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmRedeemReward(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center gap-4">
+                {confirmRedeemReward.image ? (
+                  <img
+                    src={confirmRedeemReward.image}
+                    alt={confirmRedeemReward.name}
+                    className="w-16 h-16 rounded-xl object-cover bg-white shrink-0 border border-slate-800"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                    <Gift className="w-8 h-8" />
+                  </div>
+                )}
+                <div className="space-y-1 min-w-0">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                    {confirmRedeemReward.category || 'Recompensa Exclusiva'}
+                  </span>
+                  <h4 className="text-sm font-bold text-white leading-snug truncate">
+                    {confirmRedeemReward.name}
+                  </h4>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-black bg-red-500/10 text-red-400 border border-red-500/20">
+                    - {confirmRedeemReward.pointsCost || confirmRedeemReward.points_cost} A-Points
+                  </span>
+                </div>
+              </div>
+
+              {/* Comparativo de Saldo */}
+              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 text-xs space-y-2">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Seu saldo atual:</span>
+                  <span className="font-bold text-white">
+                    {pointsData.pointsAvailable ?? pointsData.points ?? 0} pts
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Custo deste resgate:</span>
+                  <span className="font-bold text-red-400">
+                    - {confirmRedeemReward.pointsCost || confirmRedeemReward.points_cost} pts
+                  </span>
+                </div>
+                <div className="border-t border-slate-800 pt-2 flex items-center justify-between font-bold">
+                  <span className="text-slate-300">Saldo após resgate:</span>
+                  <span className="text-emerald-400 font-extrabold text-sm">
+                    {Math.max(0, (pointsData.pointsAvailable ?? pointsData.points ?? 0) - (confirmRedeemReward.pointsCost || confirmRedeemReward.points_cost))} pts
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400 leading-relaxed text-center">
+                Ao confirmar, os pontos serão debitados da sua conta e um comprovante formal com protocolo será enviado para o seu e-mail.
+              </p>
+            </div>
+
+            {/* Ações */}
+            <div className="p-4 sm:p-6 border-t border-slate-800 bg-slate-900/50 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmRedeemReward(null)}
+                disabled={redeemingReward === confirmRedeemReward.id}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors cursor-pointer text-center"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => executeRedeemReward(confirmRedeemReward)}
+                disabled={redeemingReward === confirmRedeemReward.id}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition-colors shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {redeemingReward === confirmRedeemReward.id ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Processando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Confirmar Resgate</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
