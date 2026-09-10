@@ -451,6 +451,22 @@ export default function AdminPanel({
   const canEditContent = userRole === 'admin' || userRole === 'editor' || userRole === 'edicao';
   const isStaff = ['admin', 'vendedor', 'editor', 'edicao'].includes(userRole);
 
+  // Authorization Headers helper
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(currentUser?.token ? { 'Authorization': `Bearer ${currentUser.token}` } : {})
+  });
+
+  // Employees & Users Management State
+  const [usersList, setUsersList] = useState([]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'vendedor'
+  });
+
   // Clients & Password Support State
   const [clientSearch, setClientSearch] = useState('');
   const [tempPasswordModal, setTempPasswordModal] = useState(null); // { user, tempPassword, message }
@@ -528,22 +544,6 @@ export default function AdminPanel({
       setSendingResetForId(null);
     }
   };
-
-  // Authorization Headers helper
-  const getAuthHeaders = () => ({
-    'Content-Type': 'application/json',
-    ...(currentUser?.token ? { 'Authorization': `Bearer ${currentUser.token}` } : {})
-  });
-
-  // Employees Management State
-  const [usersList, setUsersList] = useState([]);
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [userForm, setUserForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'vendedor'
-  });
 
   // A-Points Adjustment State
   const [pointsModalUser, setPointsModalUser] = useState(null);
