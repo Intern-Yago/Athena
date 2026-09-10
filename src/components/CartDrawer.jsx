@@ -227,7 +227,7 @@ export function CartDrawer() {
                         if (item.aPoints && Number(item.aPoints) > 0) {
                           return acc + (Number(item.aPoints) * (Number(item.quantity) || 1));
                         }
-                        return acc + Math.floor(((Number(item.price) || 0) * (Number(item.quantity) || 1)) / 10);
+                        return acc + Math.floor(((Number(item.price) || 0) * (Number(item.quantity) || 1)) / 50);
                       }, 0)} pts
                     </span>
                   </div>

@@ -10,7 +10,7 @@ export default function APointsBanner({ onNavigate, currentUser }) {
       <div className="container-custom py-2">
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-slate-700 text-xs">
           <p className="leading-relaxed">
-            <strong className="text-slate-900 font-semibold">Programa A-Points:</strong> Suas compras de equipamentos geram pontos que podem ser utilizados em novos pedidos.
+            <strong className="text-slate-900 font-semibold">Programa A-Points:</strong> Suas compras faturadas geram 1 A-Point a cada R$ 50 para resgatar em ferramentas, produtos e vantagens.
           </p>
           <button
             type="button"
@@ -29,10 +29,10 @@ export default function APointsBanner({ onNavigate, currentUser }) {
       <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-slate-700 text-xs">
         <div className="space-y-0.5">
           <p className="font-bold text-slate-900 text-xs sm:text-sm">
-            Programa de Pontos Athena
+            Programa de Fidelidade Athena
           </p>
           <p className="text-slate-600 leading-relaxed max-w-2xl">
-            Suas compras de equipamentos geram A-Points para você utilizar em futuros pedidos. Crie sua conta para acompanhar seu saldo e resgates.
+            A cada R$ 50 faturados você acumula 1 A-Point para trocar por ferramentas e produtos exclusivos do catálogo. Crie sua conta para acompanhar saldo e resgates.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

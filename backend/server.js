@@ -910,7 +910,7 @@ async function initDb() {
         );
       `);
 
-      // Create A-Points Transactions Table
+      // Create A-Points Transactions Table & Ledger Extensions
       await pool.query(`
         CREATE TABLE IF NOT EXISTS a_points_transactions (
           id VARCHAR(100) PRIMARY KEY,
@@ -922,9 +922,90 @@ async function initDb() {
           order_value NUMERIC(12,2) DEFAULT 0,
           points_earned INTEGER DEFAULT 0,
           source VARCHAR(50) DEFAULT 'omie',
+          type VARCHAR(30) DEFAULT 'EARN',
+          status VARCHAR(30) DEFAULT 'available',
+          reward_id VARCHAR(100),
+          expires_at TIMESTAMP,
+          points_reversed INTEGER DEFAULT 0,
+          notes TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Ensure extensions on existing tables
+        ALTER TABLE public.a_points_transactions ADD COLUMN IF NOT EXISTS type VARCHAR(30) DEFAULT 'EARN';
+        ALTER TABLE public.a_points_transactions ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'available';
+        ALTER TABLE public.a_points_transactions ADD COLUMN IF NOT EXISTS reward_id VARCHAR(100);
+        ALTER TABLE public.a_points_transactions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
+        ALTER TABLE public.a_points_transactions ADD COLUMN IF NOT EXISTS points_reversed INTEGER DEFAULT 0;
+        ALTER TABLE public.a_points_transactions ADD COLUMN IF NOT EXISTS notes TEXT;
+
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_product_id BIGINT;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_code VARCHAR(100);
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_last_sync TIMESTAMP;
+
+        -- Create Loyalty Rewards Table
+        CREATE TABLE IF NOT EXISTS loyalty_rewards (
+          id VARCHAR(100) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          description TEXT,
+          category VARCHAR(100) DEFAULT 'accessories',
+          points_cost INTEGER NOT NULL,
+          cash_cost NUMERIC(12,2) DEFAULT 0,
+          image TEXT,
+          stock_quantity INTEGER DEFAULT -1,
+          product_id VARCHAR(100) REFERENCES products(id) ON DELETE SET NULL,
+          is_active BOOLEAN DEFAULT TRUE,
+          "order" INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        -- Create System Settings Table
+        CREATE TABLE IF NOT EXISTS system_settings (
+          key VARCHAR(100) PRIMARY KEY,
+          value TEXT NOT NULL,
+          description TEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
       `);
+
+      // Seed starter loyalty rewards if table is empty
+      try {
+        const rewardCheck = await pool.query('SELECT COUNT(*) FROM loyalty_rewards');
+        if (parseInt(rewardCheck.rows[0].count, 10) === 0) {
+          await pool.query(`
+            INSERT INTO loyalty_rewards (id, name, description, category, points_cost, cash_cost, image, "order") VALUES
+            ('rw_espuma_cera', 'Espuma Aplicadora de Cera 100mm', 'Espuma macia de alta densidade para aplicação uniforme de ceras e selantes.', 'consumables', 50, 0, 'https://images.athenaconsultoria.com.br/produtos/espuma-aplicadora.webp', 1),
+            ('rw_toalha_microfibra', 'Toalha de Microfibra Especial 40x40cm', 'Toalha de alta gramatura anti-risco para secagem e acabamento automotivo.', 'accessories', 100, 0, 'https://images.athenaconsultoria.com.br/produtos/toalha-microfibra.webp', 2),
+            ('rw_luva_microfibra', 'Luva de Lavagem Automotiva em Microfibra', 'Luva anatômica de microfibra macia com punho elástico para lavagem segura.', 'accessories', 150, 0, 'https://images.athenaconsultoria.com.br/produtos/luva-lavagem.webp', 3),
+            ('rw_kit_soquetes', 'Jogo de Soquetes e Bits Especiais 10 Peças', 'Conjunto compacto de ferramentas em cromo-vanádio para bancada e oficina.', 'tools', 300, 0, 'https://images.athenaconsultoria.com.br/produtos/jogo-soquetes.webp', 4),
+            ('rw_cupom_300', 'Voucher R$ 300 em Novos Equipamentos', 'Desconto direto de R$ 300 na aquisição de elevadores, desmontadoras ou scanners.', 'vouchers', 600, 0, 'https://images.athenaconsultoria.com.br/produtos/voucher-300.webp', 5),
+            ('rw_cupom_600', 'Voucher R$ 600 em Equipamentos Premium', 'Desconto direto de R$ 600 na compra de alinhadores 3D ou recicladoras de ar condicionado.', 'vouchers', 1200, 0, 'https://images.athenaconsultoria.com.br/produtos/voucher-600.webp', 6);
+          `);
+        }
+      } catch (errRew) {
+        console.warn('Aviso ao popular loyalty_rewards:', errRew.message);
+      }
+
+      // Seed default notification settings if not existing
+      try {
+        const defaultAdmin = process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br';
+        const defaultSettings = [
+          { key: 'receipt_notification_email', value: defaultAdmin, desc: 'E-mail para recebimento de comprovantes de compras e resgates' },
+          { key: 'loyalty_notification_email', value: '', desc: 'E-mail específico para alertas de resgate de fidelidade (opcional)' },
+          { key: 'purchase_notification_email', value: '', desc: 'E-mail específico para alertas de compras / faturamento (opcional)' },
+          { key: 'email_notifications_enabled', value: 'true', desc: 'Habilita envio de alertas por e-mail' },
+          { key: 'send_customer_copy', value: 'true', desc: 'Envia cópia do comprovante para o e-mail do cliente' }
+        ];
+
+        for (const s of defaultSettings) {
+          await pool.query(`
+            INSERT INTO system_settings (key, value, description)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (key) DO NOTHING
+          `, [s.key, s.value, s.desc]);
+        }
+      } catch (errSet) {
+        console.warn('Aviso ao inicializar system_settings:', errSet.message);
+      }
 
       // Ensure Row Level Security (RLS) on all public tables in Supabase
       try {
@@ -936,8 +1017,10 @@ async function initDb() {
           ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
           ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
           ALTER TABLE public.a_points_transactions ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.loyalty_rewards ENABLE ROW LEVEL SECURITY;
           ALTER TABLE public.email_verifications ENABLE ROW LEVEL SECURITY;
           ALTER TABLE public.password_resets ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
         `);
       } catch (rlsErr) {
         console.warn('Aviso ao aplicar RLS:', rlsErr.message);
@@ -1077,6 +1160,573 @@ function writeDbJson(data) {
 }
 
 initDb();
+
+// =============================================================
+// SYSTEM SETTINGS & NOTIFICATION SERVICES
+// =============================================================
+
+function normalizeEmailList(raw) {
+  if (!raw) return '';
+  return String(raw)
+    .split(/[,;]+/)
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e.length > 3 && e.includes('@'))
+    .join(', ');
+}
+
+function formatBrlNumber(val) {
+  return Number(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function formatBrtDate(d = new Date()) {
+  try {
+    return new Date(d).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    return new Date(d).toISOString();
+  }
+}
+
+async function getSystemSetting(key, defaultValue = '') {
+  if (pool) {
+    try {
+      const res = await pool.query('SELECT value FROM system_settings WHERE key = $1 LIMIT 1', [key]);
+      if (res.rows.length > 0 && res.rows[0].value !== null) {
+        return res.rows[0].value;
+      }
+    } catch (e) {
+      console.warn(`[SETTINGS] Falha ao consultar configuração "${key}":`, e.message);
+    }
+  }
+  const db = readDbJson();
+  if (db.systemSettings && db.systemSettings[key] !== undefined) {
+    return db.systemSettings[key];
+  }
+  return defaultValue;
+}
+
+async function setSystemSetting(key, value, description = '') {
+  const strVal = String(value ?? '');
+  if (pool) {
+    try {
+      await pool.query(`
+        INSERT INTO system_settings (key, value, description, updated_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = EXCLUDED.value, description = COALESCE(EXCLUDED.description, system_settings.description), updated_at = NOW()
+      `, [key, strVal, description]);
+    } catch (e) {
+      console.error(`[SETTINGS] Falha ao salvar configuração "${key}":`, e.message);
+    }
+  }
+  const db = readDbJson();
+  if (!db.systemSettings) db.systemSettings = {};
+  db.systemSettings[key] = strVal;
+  writeDbJson(db);
+}
+
+async function getNotificationSettings() {
+  const defaultAdmin = process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br';
+  const receiptEmail = (await getSystemSetting('receipt_notification_email', defaultAdmin)).trim();
+  const loyaltyEmail = (await getSystemSetting('loyalty_notification_email', '')).trim();
+  const purchaseEmail = (await getSystemSetting('purchase_notification_email', '')).trim();
+  const enabledStr = (await getSystemSetting('email_notifications_enabled', 'true')).trim().toLowerCase();
+  const sendCustomerCopyStr = (await getSystemSetting('send_customer_copy', 'true')).trim().toLowerCase();
+
+  return {
+    receiptNotificationEmail: receiptEmail || defaultAdmin,
+    loyaltyNotificationEmail: loyaltyEmail,
+    purchaseNotificationEmail: purchaseEmail,
+    emailNotificationsEnabled: enabledStr !== 'false',
+    sendCustomerCopy: sendCustomerCopyStr !== 'false'
+  };
+}
+
+async function sendGenericNotificationEmail({ to, subject, htmlContent, replyTo }) {
+  const recipients = normalizeEmailList(to);
+  if (!recipients) {
+    console.log('[EMAIL] Nenhum destinatário válido informado para:', subject);
+    return { success: false, reason: 'no_recipient' };
+  }
+
+  if (mailTransporter) {
+    try {
+      const info = await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: recipients,
+        replyTo: replyTo || 'contato@athenaconsultoria.com.br',
+        subject,
+        html: htmlContent
+      });
+      console.log(`[EMAIL ENVIADO COM SUCESSO] Para: ${recipients} | Assunto: ${subject} | ID: ${info.messageId}`);
+      return { success: true, messageId: info.messageId };
+    } catch (err) {
+      console.error(`[EMAIL ERRO] Falha no envio para ${recipients}:`, err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
+  console.log(`[DEBUG EMAIL LOG] Para: ${recipients} | Assunto: ${subject}`);
+  return { success: true, method: 'log' };
+}
+
+// -------------------------------------------------------------
+// COMPROVANTE DE RESGATE DE PONTOS (LOYALTY REDEMPTION)
+// -------------------------------------------------------------
+async function sendLoyaltyRedemptionReceiptNotification({
+  txId,
+  reward,
+  customerName = 'Cliente',
+  customerCpfCnpj = '',
+  customerEmail = '',
+  customerPhone = '',
+  previousPoints = 0,
+  remainingPoints = 0,
+  notes = ''
+}) {
+  try {
+    const config = await getNotificationSettings();
+    if (!config.emailNotificationsEnabled) {
+      console.log('[NOTIFICAÇÕES] Disparos por e-mail desativados nas configurações.');
+      return { skipped: true, reason: 'disabled' };
+    }
+
+    const adminDestination = config.loyaltyNotificationEmail || config.receiptNotificationEmail;
+    const cleanPhone = (customerPhone || '').replace(/\D/g, '');
+    const waLink = cleanPhone.length >= 10 
+      ? `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(`Olá, ${customerName}! Recebemos a sua solicitação de resgate da recompensa "${reward.name}" no Programa de Fidelidade Athena (Protocolo: ${txId}).`)}`
+      : null;
+    const formattedDate = formatBrtDate();
+
+    // 1. E-mail detalhado para a Administração / Equipe Athena
+    const adminSubject = `[Athena Fidelidade] Resgate de Recompensa: ${reward.name} — ${customerName}`;
+    const adminHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5);">
+          
+          <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px 32px 24px 32px; border-bottom: 1px solid #334155; text-align: center;">
+            <span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; background-color: #d97706; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px;">
+              Resgate de Fidelidade A-Points
+            </span>
+            <h1 style="color: #f59e0b; margin: 0 0 6px 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px;">ATHENA</h1>
+            <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Soluções Automotivas • Notificação de Resgate</p>
+          </div>
+
+          <div style="padding: 32px;">
+            <div style="background-color: #0f172a; border-radius: 14px; border-left: 4px solid #f59e0b; padding: 18px 20px; margin-bottom: 24px;">
+              <p style="margin: 0; color: #f8fafc; font-size: 14px; font-weight: 600; line-height: 1.5;">
+                Novo resgate de recompensa efetuado no site por <strong>${customerName}</strong>.
+              </p>
+              <p style="margin: 6px 0 0 0; color: #94a3b8; font-size: 12px;">
+                Protocolo da Operação: <code style="color: #fbbf24; background-color: #1e293b; padding: 2px 6px; border-radius: 6px;">${txId}</code>
+              </p>
+            </div>
+
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 24px; font-size: 13px;">
+              <tbody>
+                <tr style="background-color: #0f172a;">
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-top-left-radius: 10px; border-bottom: 1px solid #334155; width: 40%;">Item Resgatado</td>
+                  <td style="padding: 12px 16px; color: #fbbf24; font-weight: 800; border-top-right-radius: 10px; border-bottom: 1px solid #334155;">${reward.name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Custo em Pontos</td>
+                  <td style="padding: 12px 16px; color: #ef4444; font-weight: 800; border-bottom: 1px solid #334155;">- ${reward.points_cost} A-Points</td>
+                </tr>
+                <tr style="background-color: #0f172a;">
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Saldo Anterior</td>
+                  <td style="padding: 12px 16px; color: #cbd5e1; font-weight: 600; border-bottom: 1px solid #334155;">${previousPoints} pontos</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Novo Saldo Disponível</td>
+                  <td style="padding: 12px 16px; color: #10b981; font-weight: 800; border-bottom: 1px solid #334155;">${remainingPoints} pontos</td>
+                </tr>
+                <tr style="background-color: #0f172a;">
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Cliente</td>
+                  <td style="padding: 12px 16px; color: #ffffff; font-weight: 700; border-bottom: 1px solid #334155;">${customerName}</td>
+                </tr>
+                ${customerCpfCnpj ? `
+                <tr>
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">CPF / CNPJ</td>
+                  <td style="padding: 12px 16px; color: #cbd5e1; font-family: monospace; border-bottom: 1px solid #334155;">${customerCpfCnpj}</td>
+                </tr>` : ''}
+                ${customerEmail ? `
+                <tr style="background-color: #0f172a;">
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">E-mail do Cliente</td>
+                  <td style="padding: 12px 16px; color: #cbd5e1; border-bottom: 1px solid #334155;">${customerEmail}</td>
+                </tr>` : ''}
+                ${customerPhone ? `
+                <tr>
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Telefone / WhatsApp</td>
+                  <td style="padding: 12px 16px; color: #cbd5e1; border-bottom: 1px solid #334155;">${customerPhone}</td>
+                </tr>` : ''}
+                <tr style="background-color: #0f172a;">
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom-left-radius: 10px;">Data e Horário</td>
+                  <td style="padding: 12px 16px; color: #94a3b8; border-bottom-right-radius: 10px;">${formattedDate} (Brasília)</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style="background-color: #1e1b4b; border: 1px solid #4338ca; border-radius: 14px; padding: 18px 20px; margin-bottom: 24px;">
+              <p style="margin: 0; color: #a5b4fc; font-size: 13px; font-weight: 700;">
+                📌 Próxima ação recomendada:
+              </p>
+              <p style="margin: 6px 0 0 0; color: #e0e7ff; font-size: 12px; line-height: 1.5;">
+                Entre em contato com o cliente para providenciar a entrega ou envio do brinde, ou incluir a bonificação/voucher em seu próximo faturamento comercial.
+              </p>
+            </div>
+
+            <div style="text-align: center;">
+              ${waLink ? `
+                <a href="${waLink}" style="display: inline-block; background-color: #25d366; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 24px; border-radius: 12px; margin-right: 8px; margin-bottom: 8px;">
+                  💬 Falar no WhatsApp com o Cliente
+                </a>
+              ` : ''}
+              <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 24px; border-radius: 12px; margin-bottom: 8px;">
+                Acessar Painel Admin Athena
+              </a>
+            </div>
+          </div>
+
+          <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
+            <p style="color: #64748b; font-size: 11px; margin: 0;">
+              Athena Soluções Automotivas • SIA Trecho 3, Brasília - DF • (61) 98348-5671
+            </p>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    await sendGenericNotificationEmail({
+      to: adminDestination,
+      subject: adminSubject,
+      htmlContent: adminHtml
+    });
+
+    // 2. Cópia de Comprovante para o Cliente
+    if (config.sendCustomerCopy && customerEmail && customerEmail.includes('@')) {
+      const custSubject = `Comprovante de Resgate — Athena Soluções Automotivas (#${txId.slice(-6)})`;
+      const custHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
+          <div style="max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden;">
+            
+            <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px; text-align: center; border-bottom: 1px solid #334155;">
+              <span style="display: inline-block; padding: 4px 12px; border-radius: 9999px; background-color: #10b981; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 12px;">
+                Resgate Confirmado com Sucesso
+              </span>
+              <h1 style="color: #f59e0b; margin: 0 0 4px 0; font-size: 24px; font-weight: 900;">ATHENA</h1>
+              <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1.5px;">Soluções Automotivas</p>
+            </div>
+
+            <div style="padding: 28px;">
+              <p style="margin: 0 0 16px 0; font-size: 15px; color: #f8fafc;">
+                Olá, <strong>${customerName}</strong>!
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+                Recebemos com sucesso a solicitação de resgate da sua recompensa com seus A-Points! Guarde este comprovante para seu controle.
+              </p>
+
+              <div style="background-color: #0f172a; border-radius: 14px; padding: 20px; border: 1px solid #334155; margin-bottom: 24px;">
+                <p style="margin: 0 0 10px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Detalhes do Benefício</p>
+                <p style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; color: #fbbf24;">${reward.name}</p>
+                <p style="margin: 0 0 12px 0; font-size: 13px; color: #ef4444; font-weight: 700;">- ${reward.points_cost} A-Points debitados</p>
+                <hr style="border: none; border-top: 1px solid #334155; margin: 12px 0;" />
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
+                  <span>Seu saldo atual: <strong style="color: #10b981;">${remainingPoints} pontos</strong></span>
+                  <span>Protocolo: <strong style="color: #ffffff;">${txId}</strong></span>
+                </div>
+              </div>
+
+              <div style="background-color: #064e3b; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; border: 1px solid #059669;">
+                <p style="margin: 0; color: #a7f3d0; font-size: 12px; line-height: 1.5;">
+                  🚀 <strong>O que acontece agora?</strong> Nossa equipe comercial entrará em contato para alinhar o recebimento do seu brinde ou aplicação do voucher em sua próxima compra.
+                </p>
+              </div>
+
+              <div style="text-align: center;">
+                <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 12px;">
+                  Acessar Minha Conta Athena
+                </a>
+              </div>
+            </div>
+
+            <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
+              <p style="color: #64748b; font-size: 11px; margin: 0;">
+                Athena Soluções Automotivas • Dúvidas? Contate-nos pelo WhatsApp: (61) 98348-5671
+              </p>
+            </div>
+
+          </div>
+        </div>
+      `;
+
+      await sendGenericNotificationEmail({
+        to: customerEmail,
+        subject: custSubject,
+        htmlContent: custHtml
+      });
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('[ERRO AO DISPARAR EMAIL RESGATE]:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+// -------------------------------------------------------------
+// COMPROVANTE DE COMPRA & ACÚMULO DE PONTOS (PURCHASE & EARN)
+// -------------------------------------------------------------
+async function sendPurchaseReceiptNotification({
+  orderId = '',
+  orderTotal = 0,
+  eligibleAmount = 0,
+  pointsEarned = 0,
+  customerName = 'Cliente',
+  customerCpfCnpj = '',
+  customerEmail = '',
+  customerPhone = '',
+  source = 'Omie ERP',
+  status = 'faturado',
+  notes = ''
+}) {
+  try {
+    const config = await getNotificationSettings();
+    if (!config.emailNotificationsEnabled) {
+      console.log('[NOTIFICAÇÕES] Disparos por e-mail desativados nas configurações.');
+      return { skipped: true, reason: 'disabled' };
+    }
+
+    const adminDestination = config.purchaseNotificationEmail || config.receiptNotificationEmail;
+    const formattedDate = formatBrtDate();
+    const formattedTotal = formatBrlNumber(orderTotal);
+    const formattedEligible = formatBrlNumber(eligibleAmount || orderTotal);
+
+    // 1. E-mail de Comprovante de Compra para Administração
+    const adminSubject = `[Athena Comprovante] Compra Faturada (#${orderId}) +${pointsEarned} pts — ${customerName || 'Cliente'}`;
+    const adminHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5);">
+          
+          <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px 32px 24px 32px; border-bottom: 1px solid #334155; text-align: center;">
+            <span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; background-color: #059669; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px;">
+              Comprovante de Compra & Acúmulo de Pontos
+            </span>
+            <h1 style="color: #f59e0b; margin: 0 0 6px 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px;">ATHENA</h1>
+            <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Soluções Automotivas • Comprovante de Faturamento</p>
+          </div>
+
+          <div style="padding: 32px;">
+            <div style="background-color: #0f172a; border-radius: 14px; border-left: 4px solid #10b981; padding: 18px 20px; margin-bottom: 24px;">
+              <p style="margin: 0; color: #f8fafc; font-size: 14px; font-weight: 600; line-height: 1.5;">
+                Nova venda confirmada de <strong>${customerName || 'Cliente'}</strong>.
+              </p>
+              <p style="margin: 6px 0 0 0; color: #94a3b8; font-size: 12px;">
+                Identificador do Pedido: <code style="color: #10b981; background-color: #1e293b; padding: 2px 6px; border-radius: 6px;">#${orderId}</code> • Origem: <strong>${source}</strong>
+              </p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+              <div style="background-color: #0f172a; border-radius: 14px; padding: 18px; border: 1px solid #334155; text-align: center;">
+                <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700;">Valor Total Faturado</p>
+                <p style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 900;">${formattedTotal}</p>
+              </div>
+              <div style="background-color: #0f172a; border-radius: 14px; padding: 18px; border: 1px solid #334155; text-align: center;">
+                <p style="margin: 0 0 6px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700;">A-Points Gerados</p>
+                <p style="margin: 0; color: #10b981; font-size: 22px; font-weight: 900;">+${pointsEarned} pts</p>
+              </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 24px; font-size: 13px;">
+              <tbody>
+                <tr style="background-color: #0f172a;">
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-top-left-radius: 10px; border-bottom: 1px solid #334155; width: 40%;">Número do Pedido</td>
+                  <td style="padding: 12px 16px; color: #ffffff; font-weight: 800; border-top-right-radius: 10px; border-bottom: 1px solid #334155;">#${orderId}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Valor Elegível (sem frete)</td>
+                  <td style="padding: 12px 16px; color: #cbd5e1; font-weight: 600; border-bottom: 1px solid #334155;">${formattedEligible}</td>
+                </tr>
+                <tr style="background-color: #0f172a;">
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Regra de Pontuação</td>
+                  <td style="padding: 12px 16px; color: #fbbf24; font-weight: 600; border-bottom: 1px solid #334155;">R$ 50,00 = 1 A-Point</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Cliente</td>
+                  <td style="padding: 12px 16px; color: #ffffff; font-weight: 700; border-bottom: 1px solid #334155;">${customerName}</td>
+                </tr>
+                ${customerCpfCnpj ? `
+                <tr style="background-color: #0f172a;">
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">CPF / CNPJ</td>
+                  <td style="padding: 12px 16px; color: #cbd5e1; font-family: monospace; border-bottom: 1px solid #334155;">${customerCpfCnpj}</td>
+                </tr>` : ''}
+                ${customerEmail ? `
+                <tr>
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">E-mail do Cliente</td>
+                  <td style="padding: 12px 16px; color: #cbd5e1; border-bottom: 1px solid #334155;">${customerEmail}</td>
+                </tr>` : ''}
+                ${customerPhone ? `
+                <tr style="background-color: #0f172a;">
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155;">Telefone</td>
+                  <td style="padding: 12px 16px; color: #cbd5e1; border-bottom: 1px solid #334155;">${customerPhone}</td>
+                </tr>` : ''}
+                <tr>
+                  <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom-left-radius: 10px;">Data e Horário</td>
+                  <td style="padding: 12px 16px; color: #94a3b8; border-bottom-right-radius: 10px;">${formattedDate} (Brasília)</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style="text-align: center;">
+              <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 12px;">
+                Ver Transações no Painel Admin
+              </a>
+            </div>
+          </div>
+
+          <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
+            <p style="color: #64748b; font-size: 11px; margin: 0;">
+              Athena Soluções Automotivas • SIA Trecho 3, Brasília - DF • (61) 98348-5671
+            </p>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    await sendGenericNotificationEmail({
+      to: adminDestination,
+      subject: adminSubject,
+      htmlContent: adminHtml
+    });
+
+    // 2. Cópia / Notificação de Pontos para o Cliente
+    if (config.sendCustomerCopy && customerEmail && customerEmail.includes('@') && pointsEarned > 0) {
+      const custSubject = `Seus A-Points Chegaram! Comprovante da Compra #${orderId}`;
+      const custHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
+          <div style="max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden;">
+            
+            <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px; text-align: center; border-bottom: 1px solid #334155;">
+              <span style="display: inline-block; padding: 4px 12px; border-radius: 9999px; background-color: #10b981; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 12px;">
+                Pontos de Fidelidade Creditados
+              </span>
+              <h1 style="color: #f59e0b; margin: 0 0 4px 0; font-size: 24px; font-weight: 900;">ATHENA</h1>
+              <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1.5px;">Soluções Automotivas</p>
+            </div>
+
+            <div style="padding: 28px;">
+              <p style="margin: 0 0 16px 0; font-size: 15px; color: #f8fafc;">
+                Olá, <strong>${customerName}</strong>!
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+                Sua compra recente no valor de <strong>${formattedTotal}</strong> foi confirmada e creditou novos pontos em sua conta Athena!
+              </p>
+
+              <div style="background-color: #0f172a; border-radius: 14px; padding: 22px; border: 1px solid #334155; text-align: center; margin-bottom: 24px;">
+                <p style="margin: 0 0 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Você acumulou</p>
+                <p style="margin: 0 0 6px 0; font-size: 32px; font-weight: 900; color: #10b981;">+${pointsEarned} A-Points</p>
+                <p style="margin: 0; font-size: 12px; color: #cbd5e1;">(R$ 50,00 em compras = 1 A-Point)</p>
+              </div>
+
+              <div style="text-align: center;">
+                <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 12px;">
+                  Ver Meu Saldo & Catálogo de Prêmios
+                </a>
+              </div>
+            </div>
+
+            <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
+              <p style="color: #64748b; font-size: 11px; margin: 0;">
+                Athena Soluções Automotivas • SIA Trecho 3, Brasília - DF • (61) 98348-5671
+              </p>
+            </div>
+
+          </div>
+        </div>
+      `;
+
+      await sendGenericNotificationEmail({
+        to: customerEmail,
+        subject: custSubject,
+        htmlContent: custHtml
+      });
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('[ERRO AO DISPARAR EMAIL DE COMPRA]:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+// -------------------------------------------------------------
+// ENVIO DE E-MAIL DE TESTE (PAINEL ADMIN)
+// -------------------------------------------------------------
+async function sendTestNotificationEmail({ targetEmail, testType = 'general' }) {
+  const defaultAdmin = process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br';
+  const to = targetEmail || defaultAdmin;
+
+  if (testType === 'redemption') {
+    return await sendLoyaltyRedemptionReceiptNotification({
+      txId: `apt_teste_${Date.now().toString(36)}`,
+      reward: {
+        id: 'rw_teste_espuma',
+        name: 'Espuma Aplicadora de Cera 100mm (SIMULAÇÃO DE TESTE)',
+        points_cost: 50
+      },
+      customerName: 'Cliente Exemplo Ltda',
+      customerCpfCnpj: '01.234.567/0001-89',
+      customerEmail: to,
+      customerPhone: '(61) 98765-4321',
+      previousPoints: 250,
+      remainingPoints: 200,
+      notes: 'Disparo de teste executado através do Painel Admin Athena'
+    });
+  }
+
+  if (testType === 'purchase') {
+    return await sendPurchaseReceiptNotification({
+      orderId: 'TESTE-9999',
+      orderTotal: 2500.00,
+      eligibleAmount: 2500.00,
+      pointsEarned: 50,
+      customerName: 'Cliente Exemplo Ltda',
+      customerCpfCnpj: '01.234.567/0001-89',
+      customerEmail: to,
+      customerPhone: '(61) 98765-4321',
+      source: 'Omie ERP (Simulação de Teste)',
+      status: 'faturado'
+    });
+  }
+
+  // General connection test
+  const subject = '[Athena Teste] Verificação do Servidor SMTP & Alertas de Comprovantes';
+  const html = `
+    <div style="font-family: Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
+      <div style="max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; padding: 32px; text-align: center;">
+        <h1 style="color: #f59e0b; margin: 0 0 6px 0; font-size: 24px; font-weight: 800;">ATHENA</h1>
+        <p style="color: #94a3b8; font-size: 11px; margin: 0 0 24px 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1.5px;">Soluções Automotivas • Teste de Notificações</p>
+        <div style="background-color: #064e3b; border: 1px solid #059669; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+          <p style="margin: 0 0 6px 0; font-size: 16px; font-weight: 800; color: #34d399;">✅ Configuração Validada com Sucesso!</p>
+          <p style="margin: 0; font-size: 13px; color: #a7f3d0; line-height: 1.5;">
+            O servidor SMTP do Google está conectado e autorizado a enviar comprovantes de compras e resgates de pontos para este e-mail.
+          </p>
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+          Destinatário testado: <strong>${to}</strong> • Horário: ${formatBrtDate()}
+        </p>
+      </div>
+    </div>
+  `;
+  return await sendGenericNotificationEmail({ to, subject, htmlContent: html });
+}
 
 // -------------------------------------------------------------
 // CLOUDFLARE R2 / CLOUDINARY UPLOAD ENDPOINT (AUTO-WEBP)
@@ -2897,7 +3547,7 @@ async function callOmieApi(endpointUrl, callMethod, paramObj) {
   return response.data;
 }
 
-// Universal Helper: Credit or Adjust A-Points
+// Universal Helper: Credit, Debit or Adjust A-Points (Full Ledger Architecture)
 async function creditCustomerAPoints({ 
   orderId = '', 
   orderTotal = 0, 
@@ -2905,59 +3555,106 @@ async function creditCustomerAPoints({
   customerEmail = '', 
   customerCpfCnpj = '', 
   customerName = '', 
-  source = 'loja' 
+  customerPhone = '',
+  source = 'omie',
+  type = 'EARN',
+  status = 'available',
+  rewardId = null,
+  expiresAt = null,
+  notes = ''
 }) {
   try {
-    const cleanEmail = (customerEmail || '').trim().toLowerCase();
+    let cleanEmail = (customerEmail || '').trim().toLowerCase();
     const cleanDoc = (customerCpfCnpj || '').replace(/\D/g, '');
-    const pointsEarned = points != null ? Number(points) : Math.floor(Number(orderTotal || 0) / 10);
+    
+    // Regra Oficial do Programa: R$ 50,00 faturados = 1 ponto
+    let pointsAmount = points != null 
+      ? Number(points) 
+      : Math.floor(Number(orderTotal || 0) / 50);
 
-    if (pointsEarned === 0) return { credited: false, reason: 'zero_points' };
+    // No caso de estorno (REVERSE), garante valor negativo
+    if (type === 'REVERSE') {
+      pointsAmount = -Math.abs(pointsAmount);
+    }
 
-    // Prevent duplicate credits for the same order
-    if (orderId && !String(orderId).startsWith('ajuste')) {
+    if (pointsAmount === 0 && type !== 'EXPIRE') {
+      return { credited: false, reason: 'zero_points' };
+    }
+
+    // Validade padrão: 12 meses para acúmulos (EARN e BONUS)
+    const finalExpiresAt = expiresAt || (
+      ['EARN', 'BONUS'].includes(type)
+        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        : null
+    );
+
+    // Evita duplicidade de acúmulo para o mesmo pedido e mesmo tipo
+    if (orderId && !String(orderId).startsWith('ajuste') && type === 'EARN') {
       if (pool) {
         try {
-          const checkTx = await pool.query('SELECT id FROM a_points_transactions WHERE order_id = $1 LIMIT 1', [String(orderId)]);
+          const checkTx = await pool.query(
+            "SELECT id FROM a_points_transactions WHERE order_id = $1 AND type = 'EARN' LIMIT 1", 
+            [String(orderId)]
+          );
           if (checkTx.rows.length > 0) {
-            console.log(`[A-POINTS] Pontos já creditados anteriormente para o pedido ${orderId}`);
+            console.log(`[A-POINTS] Pontos de compra já creditados para o pedido ${orderId}`);
             return { credited: false, reason: 'already_credited' };
           }
         } catch (e) {}
       } else {
         const db = readDbJson();
-        if ((db.aPointsTransactions || []).some(t => t.orderId === String(orderId))) {
-          console.log(`[A-POINTS] Pontos já creditados anteriormente para o pedido ${orderId}`);
+        if ((db.aPointsTransactions || []).some(t => t.orderId === String(orderId) && t.type === 'EARN')) {
+          console.log(`[A-POINTS] Pontos de compra já creditados para o pedido ${orderId}`);
           return { credited: false, reason: 'already_credited' };
         }
       }
     }
 
     const txId = `apt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    console.log(`[A-POINTS] Crediting ${pointsEarned} points for "${customerName}" (${cleanEmail || cleanDoc}) source: ${source} order: ${orderId}`);
+    console.log(`[A-POINTS] ${type} | ${pointsAmount > 0 ? '+' : ''}${pointsAmount} pts para "${customerName}" (${cleanEmail || cleanDoc}) source: ${source} order: ${orderId}`);
 
     if (pool) {
       try {
-        let matchedUserId = null;
+        let matchedUser = null;
         if (cleanEmail) {
-          const uRes = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1', [cleanEmail]);
-          if (uRes.rows.length > 0) matchedUserId = uRes.rows[0].id;
+          const uRes = await pool.query('SELECT id, name, email, phone, document, a_points FROM users WHERE LOWER(email) = $1 LIMIT 1', [cleanEmail]);
+          if (uRes.rows.length > 0) matchedUser = uRes.rows[0];
         }
-        if (!matchedUserId && cleanDoc) {
-          const uRes = await pool.query("SELECT id FROM users WHERE REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $1 LIMIT 1", [cleanDoc]);
-          if (uRes.rows.length > 0) matchedUserId = uRes.rows[0].id;
+        if (!matchedUser && cleanDoc) {
+          const uRes = await pool.query("SELECT id, name, email, phone, document, a_points FROM users WHERE REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $1 LIMIT 1", [cleanDoc]);
+          if (uRes.rows.length > 0) matchedUser = uRes.rows[0];
+        }
+
+        const matchedUserId = matchedUser ? matchedUser.id : null;
+        if (matchedUser) {
+          if (!customerName) customerName = matchedUser.name;
+          if (!customerPhone && matchedUser.phone) customerPhone = matchedUser.phone;
+          if (!cleanEmail && matchedUser.email) cleanEmail = matchedUser.email.toLowerCase();
         }
 
         await pool.query(`
-          INSERT INTO a_points_transactions (id, user_id, customer_document, customer_email, customer_name, order_id, order_value, points_earned, source)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        `, [txId, matchedUserId, cleanDoc, cleanEmail, customerName, String(orderId || ''), Number(orderTotal || 0), pointsEarned, source]);
+          INSERT INTO a_points_transactions (
+            id, user_id, customer_document, customer_email, customer_name, 
+            order_id, order_value, points_earned, source, type, status, 
+            reward_id, expires_at, notes
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        `, [
+          txId, matchedUserId, cleanDoc, cleanEmail, customerName, 
+          String(orderId || ''), Number(orderTotal || 0), pointsAmount, source, 
+          type, status, rewardId, finalExpiresAt, notes
+        ]);
 
-        if (matchedUserId) {
-          await pool.query('UPDATE users SET a_points = COALESCE(a_points, 0) + $1 WHERE id = $2', [pointsEarned, matchedUserId]);
+        // Se a transação já estiver disponível, atualiza o saldo do usuário
+        if (matchedUserId && status === 'available') {
+          await pool.query(`
+            UPDATE users 
+            SET a_points = GREATEST(0, COALESCE(a_points, 0) + $1) 
+            WHERE id = $2
+          `, [pointsAmount, matchedUserId]);
         }
       } catch (e) {
-        console.error('[A-POINTS] Error saving A-Points to Postgres:', e.message);
+        console.error('[A-POINTS] Erro ao salvar transação de fidelidade no Postgres:', e.message);
       }
     }
 
@@ -2969,48 +3666,80 @@ async function creditCustomerAPoints({
       customerDocument: cleanDoc,
       customerEmail: cleanEmail,
       customerName,
+      customerPhone,
       orderId: String(orderId || ''),
       orderValue: Number(orderTotal || 0),
-      pointsEarned,
+      pointsEarned: pointsAmount,
       source,
+      type,
+      status,
+      rewardId,
+      expiresAt: finalExpiresAt,
+      notes,
       createdAt: new Date().toISOString()
     });
 
-    if (db.users) {
+    if (db.users && status === 'available') {
       const u = db.users.find(usr => 
         (cleanEmail && usr.email && usr.email.toLowerCase() === cleanEmail) ||
         (cleanDoc && usr.document && usr.document.replace(/\D/g, '') === cleanDoc)
       );
       if (u) {
-        u.aPoints = (u.aPoints || 0) + pointsEarned;
+        u.aPoints = Math.max(0, (u.aPoints || 0) + pointsAmount);
       }
     }
     writeDbJson(db);
 
-    return { credited: true, pointsEarned, txId };
+    // Se for compra faturada com pontos gerados, envia comprovante de compra e acúmulo por e-mail
+    if (type === 'EARN' && pointsAmount > 0) {
+      sendPurchaseReceiptNotification({
+        orderId: String(orderId || ''),
+        orderTotal: Number(orderTotal || 0),
+        eligibleAmount: Number(orderTotal || 0),
+        pointsEarned: pointsAmount,
+        customerName: customerName || 'Cliente',
+        customerCpfCnpj: cleanDoc,
+        customerEmail: cleanEmail,
+        customerPhone,
+        source: source === 'omie' ? 'Omie ERP (Vendas / Balcão)' : (source === 'site_asaas' ? 'Loja Online Athena' : source),
+        status,
+        notes
+      }).catch(errNotif => console.error('[A-POINTS NOTIFICATION ERROR]:', errNotif.message));
+    }
+
+    return { credited: true, pointsEarned: pointsAmount, txId, type, status };
   } catch (err) {
-    console.error('[A-POINTS] Error in creditCustomerAPoints:', err.message);
+    console.error('[A-POINTS] Erro em creditCustomerAPoints:', err.message);
     return { credited: false, error: err.message };
   }
 }
 
-// Function to process an Omie sale event and credit A-Points
+// Function to process an Omie sale or cancellation event
 async function processOmieSaleEvent(body) {
   try {
     console.log('[OMIE WEBHOOK] Processing payload:', JSON.stringify(body));
-    const topic = body.topic || '';
+    const topic = (body.topic || '').toLowerCase();
     const event = body.event || body.data || body;
 
     const orderId = event.idPedido || event.codigo_pedido || event.codigo_pedido_integracao || body.idPedido;
     let clientId = event.idCliente || event.codigo_cliente || body.idCliente;
     let orderTotal = Number(event.valorTotal || event.valor_total || event.valorTotalPedido || 0);
+    let freightAmount = 0;
 
     let customerCpfCnpj = '';
     let customerEmail = '';
     let customerName = '';
+    let customerPhone = '';
 
-    // If orderId is available and we don't have orderTotal or customer details, consult Omie
-    if (orderId && (!orderTotal || !clientId)) {
+    // Verifica se é evento de cancelamento ou estorno
+    const isCancellation = 
+      topic.includes('cancelad') || 
+      topic.includes('devolv') || 
+      topic.includes('excluid') || 
+      event.etapa === '90';
+
+    // Consulta detalhes do pedido no Omie para dados de produtos e frete
+    if (orderId && (!orderTotal || !clientId || isCancellation)) {
       try {
         const orderData = await callOmieApi(
           'https://app.omie.com.br/api/v1/produtos/pedido/',
@@ -3020,13 +3749,14 @@ async function processOmieSaleEvent(body) {
         if (orderData) {
           if (!orderTotal) orderTotal = Number(orderData.total_pedido?.valor_total_pedido || 0);
           if (!clientId) clientId = orderData.cabecalho?.codigo_cliente;
+          freightAmount = Number(orderData.total_pedido?.valor_frete || 0);
         }
       } catch (e) {
-        console.warn('[OMIE] Could not fetch order details from Omie:', e.message);
+        console.warn('[OMIE] Não foi possível obter detalhes do pedido no Omie:', e.message);
       }
     }
 
-    // If clientId is available, consult customer in Omie to get CPF/CNPJ and Email
+    // Consulta dados cadastrais do cliente no Omie (CPF/CNPJ e Email)
     if (clientId) {
       try {
         const clientData = await callOmieApi(
@@ -3038,24 +3768,51 @@ async function processOmieSaleEvent(body) {
           customerCpfCnpj = (clientData.cnpj_cpf || '').replace(/\D/g, '');
           customerEmail = (clientData.email || '').trim().toLowerCase();
           customerName = clientData.nome_fantasia || clientData.razao_social || '';
+          const phoneDdd = (clientData.telefone1_ddd || '').trim();
+          const phoneNum = (clientData.telefone1_numero || '').trim();
+          customerPhone = phoneDdd && phoneNum ? `(${phoneDdd}) ${phoneNum}` : (phoneNum || clientData.contato || '');
         }
       } catch (e) {
-        console.warn('[OMIE] Could not fetch customer details from Omie:', e.message);
+        console.warn('[OMIE] Não foi possível obter detalhes do cliente no Omie:', e.message);
       }
     }
 
-    // Credit Points via Universal Helper
-    await creditCustomerAPoints({
-      orderId,
-      orderTotal,
-      customerEmail,
-      customerCpfCnpj,
-      customerName,
-      source: 'omie'
-    });
+    // Valor elegível da compra (exclui frete conforme regra de fidelidade)
+    const eligibleAmount = Math.max(0, orderTotal - freightAmount);
+
+    if (isCancellation) {
+      // Evento de estorno / reversão de pontos
+      console.log(`[OMIE WEBHOOK] Estorno detectado para o pedido ${orderId}. Revertendo pontos...`);
+      await creditCustomerAPoints({
+        orderId,
+        orderTotal: eligibleAmount,
+        customerEmail,
+        customerCpfCnpj,
+        customerName,
+        customerPhone,
+        source: 'omie',
+        type: 'REVERSE',
+        status: 'available',
+        notes: `Estorno automático via webhook Omie (${topic || 'Cancelamento'})`
+      });
+    } else {
+      // Evento de acúmulo de pontos regular (R$ 50 = 1 ponto)
+      await creditCustomerAPoints({
+        orderId,
+        orderTotal: eligibleAmount,
+        customerEmail,
+        customerCpfCnpj,
+        customerName,
+        customerPhone,
+        source: 'omie',
+        type: 'EARN',
+        status: 'available',
+        notes: `Faturamento no Omie ERP (Total elegível: R$ ${eligibleAmount.toFixed(2)})`
+      });
+    }
 
   } catch (err) {
-    console.error('[OMIE] Error processing webhook event:', err);
+    console.error('[OMIE] Erro ao processar evento de webhook:', err);
   }
 }
 
@@ -3064,16 +3821,16 @@ app.get('/api/webhooks/omie', (req, res) => {
   res.json({
     status: 'online',
     message: 'Athena Omie Webhook Receiver is ready to process sales events.',
-    service: 'A-Points Loyalty System'
+    service: 'A-Points Loyalty System (R$ 50 = 1 pt)'
   });
 });
 
 // Omie Webhook Receiver (POST)
 app.post('/api/webhooks/omie', async (req, res) => {
-  // Always return 200 OK immediately so Omie confirms successful delivery
+  // Retorna 200 OK imediatamente para o Omie confirmar entrega com sucesso
   res.status(200).json({ received: true, timestamp: new Date().toISOString() });
 
-  // Process event in background
+  // Processa em segundo plano
   processOmieSaleEvent(req.body);
 });
 
@@ -3098,44 +3855,616 @@ app.get('/api/omie/status', async (req, res) => {
   }
 });
 
-// User points endpoint
+// -------------------------------------------------------------
+// ENDPOINTS DO PROGRAMA DE FIDELIDADE (A-POINTS) & RESGATES
+// -------------------------------------------------------------
+
+// User points & transactions endpoint (Área do Cliente)
 app.get('/api/points/me', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const userEmail = (req.user.email || '').toLowerCase();
     const userDoc = (req.user.document || '').replace(/\D/g, '');
 
-    let points = 0;
+    let pointsAvailable = 0;
+    let pointsPending = 0;
     let transactions = [];
+    let rewards = [];
 
     if (pool) {
       try {
         const uRes = await pool.query('SELECT a_points FROM users WHERE id = $1', [userId]);
-        if (uRes.rows.length > 0) points = uRes.rows[0].a_points || 0;
+        if (uRes.rows.length > 0) pointsAvailable = uRes.rows[0].a_points || 0;
 
         const tRes = await pool.query(`
-          SELECT id, order_id as "orderId", order_value as "orderValue", points_earned as "pointsEarned", source, created_at as "createdAt"
+          SELECT id, order_id as "orderId", order_value as "orderValue", 
+                 points_earned as "pointsEarned", source, type, status, 
+                 reward_id as "rewardId", expires_at as "expiresAt", notes,
+                 created_at as "createdAt"
           FROM a_points_transactions
           WHERE user_id = $1 OR customer_email = $2 OR (customer_document = $3 AND $3 != '')
           ORDER BY created_at DESC
           LIMIT 50
         `, [userId, userEmail, userDoc]);
         transactions = tRes.rows;
-      } catch (e) {}
+
+        // Calcula pontos pendentes se houver
+        const pendingRows = transactions.filter(t => t.status === 'pending' && Number(t.pointsEarned) > 0);
+        pointsPending = pendingRows.reduce((acc, t) => acc + Number(t.pointsEarned), 0);
+
+        // Busca recompensas ativas
+        const rRes = await pool.query(`
+          SELECT id, name, description, category, points_cost as "pointsCost", 
+                 cash_cost as "cashCost", image, is_active as "isActive", "order"
+          FROM loyalty_rewards
+          WHERE is_active = TRUE
+          ORDER BY "order" ASC, points_cost ASC
+        `);
+        rewards = rRes.rows;
+      } catch (e) {
+        console.error('Erro ao buscar pontos no PG:', e.message);
+      }
     } else {
       const db = readDbJson();
       const u = (db.users || []).find(usr => usr.id === userId);
-      points = u?.aPoints || 0;
+      pointsAvailable = u?.aPoints || 0;
       transactions = (db.aPointsTransactions || []).filter(t => 
         t.userId === userId || 
         (userEmail && t.customerEmail === userEmail) ||
         (userDoc && t.customerDocument === userDoc)
       ).reverse().slice(0, 50);
+
+      pointsPending = transactions
+        .filter(t => t.status === 'pending' && Number(t.pointsEarned) > 0)
+        .reduce((acc, t) => acc + Number(t.pointsEarned), 0);
     }
 
-    return res.json({ points, transactions });
+    return res.json({ 
+      points: pointsAvailable, 
+      pointsAvailable,
+      pointsPending, 
+      transactions,
+      rewards
+    });
   } catch (e) {
     return res.status(500).json({ error: e.message });
+  }
+});
+
+// Catálogo Público de Recompensas
+app.get('/api/rewards', async (req, res) => {
+  try {
+    if (pool) {
+      const result = await pool.query(`
+        SELECT id, name, description, category, points_cost as "pointsCost", 
+               cash_cost as "cashCost", image, stock_quantity as "stockQuantity",
+               is_active as "isActive", "order"
+        FROM loyalty_rewards
+        WHERE is_active = TRUE
+        ORDER BY "order" ASC, points_cost ASC
+      `);
+      return res.json(result.rows);
+    }
+    return res.json([
+      { id: 'rw_espuma_cera', name: 'Espuma Aplicadora de Cera 100mm', pointsCost: 50, cashCost: 0, category: 'consumables' },
+      { id: 'rw_toalha_microfibra', name: 'Toalha de Microfibra Especial 40x40cm', pointsCost: 100, cashCost: 0, category: 'accessories' },
+      { id: 'rw_luva_microfibra', name: 'Luva de Lavagem em Microfibra', pointsCost: 150, cashCost: 0, category: 'accessories' },
+      { id: 'rw_cupom_300', name: 'Voucher R$ 300 em Novos Equipamentos', pointsCost: 600, cashCost: 0, category: 'vouchers' }
+    ]);
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao listar recompensas.' });
+  }
+});
+
+// Endpoint de Resgate de Recompensa (Cliente autenticado)
+app.post('/api/rewards/redeem', authenticateToken, async (req, res) => {
+  try {
+    const { rewardId } = req.body;
+    if (!rewardId) {
+      return res.status(400).json({ error: 'Informe a recompensa desejada.' });
+    }
+
+    const userId = req.user.id;
+    let userPoints = 0;
+    let reward = null;
+
+    if (pool) {
+      const uRes = await pool.query('SELECT a_points, email, name, document, phone FROM users WHERE id = $1', [userId]);
+      if (uRes.rows.length === 0) return res.status(404).json({ error: 'Usuário não encontrado.' });
+      userPoints = Number(uRes.rows[0].a_points || 0);
+
+      const rRes = await pool.query('SELECT * FROM loyalty_rewards WHERE id = $1 AND is_active = TRUE', [rewardId]);
+      if (rRes.rows.length === 0) return res.status(404).json({ error: 'Recompensa não disponível.' });
+      reward = rRes.rows[0];
+
+      if (userPoints < reward.points_cost) {
+        return res.status(400).json({ 
+          error: `Saldo insuficiente. Você possui ${userPoints} pontos e a recompensa requer ${reward.points_cost} pontos.` 
+        });
+      }
+
+      // Debita pontos via ledger
+      const debitResult = await creditCustomerAPoints({
+        orderId: `RESGATE_${reward.id.slice(0, 10)}`,
+        orderTotal: 0,
+        points: -reward.points_cost,
+        customerEmail: uRes.rows[0].email,
+        customerCpfCnpj: uRes.rows[0].document,
+        customerName: uRes.rows[0].name,
+        customerPhone: uRes.rows[0].phone || '',
+        source: 'resgate_site',
+        type: 'REDEEM',
+        status: 'available',
+        rewardId: reward.id,
+        notes: `Resgate de benefício: ${reward.name}`
+      });
+
+      const updatedPoints = Math.max(0, userPoints - reward.points_cost);
+
+      // Dispara envio de comprovante de resgate de fidelidade por e-mail
+      sendLoyaltyRedemptionReceiptNotification({
+        txId: debitResult.txId,
+        reward,
+        customerName: uRes.rows[0].name || 'Cliente',
+        customerCpfCnpj: uRes.rows[0].document || '',
+        customerEmail: uRes.rows[0].email || '',
+        customerPhone: uRes.rows[0].phone || '',
+        previousPoints: userPoints,
+        remainingPoints: updatedPoints,
+        notes: `Resgate de benefício: ${reward.name}`
+      }).catch(errNotif => console.error('[RESGATE NOTIFICATION ERROR]:', errNotif.message));
+
+      return res.json({
+        success: true,
+        message: `Resgate de "${reward.name}" realizado com sucesso!`,
+        reward: {
+          id: reward.id,
+          name: reward.name,
+          pointsCost: reward.points_cost,
+          cashCost: reward.cash_cost
+        },
+        remainingPoints: updatedPoints,
+        transactionId: debitResult.txId
+      });
+    }
+
+    return res.status(500).json({ error: 'Operação temporariamente indisponível.' });
+  } catch (err) {
+    console.error('Erro ao resgatar recompensa:', err);
+    return res.status(500).json({ error: err.message || 'Erro ao processar resgate.' });
+  }
+});
+
+// -------------------------------------------------------------
+// HERMES AGENT & AUTOMATIONS GATEWAY API
+// -------------------------------------------------------------
+
+function validateHermesAuth(req, res, next) {
+  const secretKey = process.env.HERMES_SECRET_KEY;
+  if (!secretKey) {
+    // Permite acesso se chave não estiver configurada no .env
+    return next();
+  }
+  const providedKey = req.headers['x-hermes-key'] || req.query.key || req.headers['authorization']?.replace('Bearer ', '');
+  if (providedKey !== secretKey) {
+    return res.status(401).json({ error: 'Acesso não autorizado para o Hermes. Chave inválida ou não informada.' });
+  }
+  next();
+}
+
+// Hermes Healthcheck & Status
+app.get('/api/hermes/status', validateHermesAuth, async (req, res) => {
+  try {
+    let clientsCount = 0;
+    let rewardsCount = 0;
+    let productsCount = 0;
+
+    if (pool) {
+      const cRes = await pool.query('SELECT COUNT(*) FROM users');
+      clientsCount = parseInt(cRes.rows[0].count, 10);
+      const rRes = await pool.query('SELECT COUNT(*) FROM loyalty_rewards WHERE is_active = TRUE');
+      rewardsCount = parseInt(rRes.rows[0].count, 10);
+      const pRes = await pool.query('SELECT COUNT(*) FROM products WHERE status = $1', ['published']);
+      productsCount = parseInt(pRes.rows[0].count, 10);
+    }
+
+    return res.json({
+      status: 'online',
+      service: 'Athena Hermes Intelligence Bridge',
+      version: '2.0.0',
+      timestamp: new Date().toISOString(),
+      stats: {
+        totalClients: clientsCount,
+        activeRewards: rewardsCount,
+        publishedProducts: productsCount
+      },
+      pointsRatio: 'R$ 50 = 1 A-Point',
+      endpoints: [
+        'GET /api/hermes/status',
+        'GET /api/hermes/customers',
+        'GET /api/hermes/customers/:identifier',
+        'GET /api/hermes/rewards',
+        'GET /api/hermes/products',
+        'GET /api/hermes/loyalty/insights'
+      ]
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Hermes: Listar e Pesquisar Clientes com Saldo de Pontos
+app.get('/api/hermes/customers', validateHermesAuth, async (req, res) => {
+  try {
+    const { search = '', minPoints = 0, limit = 50 } = req.query;
+    const cleanSearch = String(search).trim().toLowerCase();
+    const cleanDoc = cleanSearch.replace(/\D/g, '');
+    const numLimit = Math.min(100, Math.max(1, Number(limit) || 50));
+    const numMinPoints = Number(minPoints) || 0;
+
+    if (pool) {
+      let query = `
+        SELECT id, name, company_name as "companyName", email, phone, document, 
+               COALESCE(a_points, 0) as "aPoints", created_at as "createdAt", updated_at as "updatedAt"
+        FROM users
+        WHERE COALESCE(a_points, 0) >= $1
+      `;
+      const params = [numMinPoints];
+
+      if (cleanSearch) {
+        params.push(`%${cleanSearch}%`);
+        const searchIdx = params.length;
+        if (cleanDoc.length >= 4) {
+          params.push(`%${cleanDoc}%`);
+          const docIdx = params.length;
+          query += ` AND (LOWER(name) LIKE $${searchIdx} OR LOWER(email) LIKE $${searchIdx} OR REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') LIKE $${docIdx} OR phone LIKE $${searchIdx})`;
+        } else {
+          query += ` AND (LOWER(name) LIKE $${searchIdx} OR LOWER(email) LIKE $${searchIdx} OR phone LIKE $${searchIdx})`;
+        }
+      }
+
+      query += ` ORDER BY a_points DESC, updated_at DESC LIMIT ${numLimit}`;
+      const result = await pool.query(query, params);
+      return res.json({
+        total: result.rows.length,
+        customers: result.rows
+      });
+    }
+
+    const db = readDbJson();
+    let customers = (db.users || []).map(u => ({
+      id: u.id,
+      name: u.name,
+      companyName: u.companyName || '',
+      email: u.email,
+      phone: u.phone || '',
+      document: u.document || '',
+      aPoints: u.aPoints || 0
+    }));
+
+    if (numMinPoints > 0) {
+      customers = customers.filter(c => c.aPoints >= numMinPoints);
+    }
+    if (cleanSearch) {
+      customers = customers.filter(c => 
+        (c.name && c.name.toLowerCase().includes(cleanSearch)) ||
+        (c.email && c.email.toLowerCase().includes(cleanSearch)) ||
+        (c.document && c.document.includes(cleanDoc || cleanSearch))
+      );
+    }
+    return res.json({ total: customers.length, customers: customers.slice(0, numLimit) });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Erro ao buscar clientes para o Hermes.' });
+  }
+});
+
+// Hermes: Consulta Aprofundada de um Cliente Específico (com recompensas e extrato)
+app.get('/api/hermes/customers/:identifier', validateHermesAuth, async (req, res) => {
+  try {
+    const rawId = req.params.identifier;
+    const cleanEmail = rawId.trim().toLowerCase();
+    const cleanDigits = rawId.replace(/\D/g, '');
+
+    let customer = null;
+    let recentTransactions = [];
+    let activeRewards = [];
+
+    if (pool) {
+      // 1. Busca usuário por ID, Email, Documento ou Telefone
+      const uRes = await pool.query(`
+        SELECT id, name, company_name as "companyName", email, phone, document, 
+               COALESCE(a_points, 0) as "aPoints", created_at as "createdAt", updated_at as "updatedAt"
+        FROM users
+        WHERE id = $1 
+           OR LOWER(email) = $2 
+           OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $3)
+           OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(REPLACE(phone, '(', ''), ')', ''), '-', ''), ' ', '') LIKE '%' || $3)
+        LIMIT 1
+      `, [rawId, cleanEmail, cleanDigits]);
+
+      if (uRes.rows.length === 0) {
+        return res.status(404).json({ error: `Cliente "${rawId}" não localizado na base Athena.` });
+      }
+      customer = uRes.rows[0];
+
+      // 2. Extrato recente de pontos
+      const tRes = await pool.query(`
+        SELECT id, order_id as "orderId", order_value as "orderValue", points_earned as "pointsEarned", 
+               source, type, status, notes, created_at as "createdAt"
+        FROM a_points_transactions
+        WHERE user_id = $1 OR customer_email = $2 OR customer_document = $3
+        ORDER BY created_at DESC
+        LIMIT 10
+      `, [customer.id, customer.email, customer.document?.replace(/\D/g, '') || '']);
+      recentTransactions = tRes.rows;
+
+      // 3. Catálogo de recompensas
+      const rRes = await pool.query(`
+        SELECT id, name, description, category, points_cost as "pointsCost", image
+        FROM loyalty_rewards
+        WHERE is_active = TRUE
+        ORDER BY points_cost ASC
+      `);
+      activeRewards = rRes.rows;
+    } else {
+      const db = readDbJson();
+      customer = (db.users || []).find(u => 
+        u.id === rawId || 
+        (u.email && u.email.toLowerCase() === cleanEmail) ||
+        (cleanDigits && u.document && u.document.replace(/\D/g, '') === cleanDigits)
+      );
+      if (!customer) return res.status(404).json({ error: `Cliente "${rawId}" não localizado.` });
+    }
+
+    const customerPoints = Number(customer.aPoints || 0);
+
+    // Recompensas que ele já pode resgatar agora
+    const canRedeemNow = activeRewards.filter(r => r.pointsCost <= customerPoints);
+    
+    // Próxima recompensa que ele pode alcançar
+    const nextReward = activeRewards.find(r => r.pointsCost > customerPoints);
+    const pointsToNext = nextReward ? (nextReward.pointsCost - customerPoints) : 0;
+
+    return res.json({
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        companyName: customer.companyName,
+        email: customer.email,
+        phone: customer.phone,
+        document: customer.document,
+        aPoints: customerPoints
+      },
+      loyaltySummary: {
+        currentBalance: customerPoints,
+        canRedeemCount: canRedeemNow.length,
+        canRedeemItems: canRedeemNow,
+        nextGoalReward: nextReward ? {
+          reward: nextReward,
+          pointsNeeded: pointsToNext,
+          spendNeededInBrl: pointsToNext * 50 // R$ 50 = 1 pt
+        } : null
+      },
+      recentTransactions
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Hermes: Catálogo de Recompensas de Fidelidade
+app.get('/api/hermes/rewards', validateHermesAuth, async (req, res) => {
+  try {
+    if (pool) {
+      const result = await pool.query(`
+        SELECT id, name, description, category, points_cost as "pointsCost", 
+               cash_cost as "cashCost", image, stock_quantity as "stockQuantity"
+        FROM loyalty_rewards
+        WHERE is_active = TRUE
+        ORDER BY points_cost ASC
+      `);
+      return res.json({
+        total: result.rows.length,
+        rewards: result.rows
+      });
+    }
+    return res.json({
+      total: 4,
+      rewards: [
+        { id: 'rw_espuma_cera', name: 'Espuma Aplicadora de Cera 100mm', pointsCost: 50, category: 'consumables' },
+        { id: 'rw_toalha_microfibra', name: 'Toalha de Microfibra Especial 40x40cm', pointsCost: 100, category: 'accessories' },
+        { id: 'rw_luva_microfibra', name: 'Luva de Lavagem em Microfibra', pointsCost: 150, category: 'accessories' },
+        { id: 'rw_cupom_300', name: 'Voucher R$ 300 em Novos Equipamentos', pointsCost: 600, category: 'vouchers' }
+      ]
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Hermes: Busca Rápida de Produtos no Catálogo Athena
+app.get('/api/hermes/products', validateHermesAuth, async (req, res) => {
+  try {
+    const { search = '', limit = 20 } = req.query;
+    const cleanSearch = String(search).trim().toLowerCase();
+    const numLimit = Math.min(50, Math.max(1, Number(limit) || 20));
+
+    if (pool) {
+      let query = `
+        SELECT p.id, p.name, p.slug, p.price, p.price_negotiable as "priceNegotiable", 
+               p.badge, p.image, p.in_stock as "inStock", c.name as "categoryName", b.name as "brandName"
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        WHERE p.status = 'published'
+      `;
+      const params = [];
+      if (cleanSearch) {
+        params.push(`%${cleanSearch}%`);
+        query += ` AND (LOWER(p.name) LIKE $1 OR LOWER(c.name) LIKE $1 OR LOWER(b.name) LIKE $1)`;
+      }
+      query += ` ORDER BY p.name ASC LIMIT ${numLimit}`;
+      const result = await pool.query(query, params);
+      
+      const productsWithUrls = result.rows.map(prod => ({
+        ...prod,
+        url: `https://athenaconsultoria.com.br/produto/${prod.slug || prod.id}`
+      }));
+
+      return res.json({
+        total: productsWithUrls.length,
+        products: productsWithUrls
+      });
+    }
+
+    const db = readDbJson();
+    let prods = (db.products || []).filter(p => p.status === 'published');
+    if (cleanSearch) {
+      prods = prods.filter(p => p.name && p.name.toLowerCase().includes(cleanSearch));
+    }
+    return res.json({
+      total: prods.length,
+      products: prods.slice(0, numLimit).map(p => ({
+        ...p,
+        url: `https://athenaconsultoria.com.br/produto/${p.slug || p.id}`
+      }))
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Hermes: Oportunidades e Automações de Fidelidade
+app.get('/api/hermes/loyalty/insights', validateHermesAuth, async (req, res) => {
+  try {
+    let inactiveWithPoints = [];
+    let nearReward = [];
+    let topLoyaltyClients = [];
+
+    if (pool) {
+      // 1. Clientes inativos com saldo acumulado (potencial de reativação)
+      const inactRes = await pool.query(`
+        SELECT id, name, email, phone, document, a_points as "aPoints", updated_at as "lastActivity"
+        FROM users
+        WHERE a_points >= 50
+        ORDER BY a_points DESC
+        LIMIT 20
+      `);
+      inactiveWithPoints = inactRes.rows;
+
+      // 2. Clientes próximos do primeiro patamar de recompensa (100 pontos)
+      const nearRes = await pool.query(`
+        SELECT id, name, email, phone, a_points as "aPoints", (100 - a_points) as "pointsNeeded"
+        FROM users
+        WHERE a_points >= 60 AND a_points < 100
+        ORDER BY a_points DESC
+        LIMIT 20
+      `);
+      nearReward = nearRes.rows;
+
+      // 3. Clientes VIP de alto valor
+      const vipRes = await pool.query(`
+        SELECT id, name, email, company_name as "companyName", phone, a_points as "aPoints"
+        FROM users
+        WHERE a_points >= 500
+        ORDER BY a_points DESC
+        LIMIT 20
+      `);
+      topLoyaltyClients = vipRes.rows;
+    }
+
+    return res.json({
+      status: 'active',
+      generatedAt: new Date().toISOString(),
+      stats: {
+        totalInactiveWithPoints: inactiveWithPoints.length,
+        totalNearReward: nearReward.length,
+        totalVipClients: topLoyaltyClients.length
+      },
+      inactiveWithPoints,
+      nearReward,
+      topLoyaltyClients
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao gerar dados para o Hermes.' });
+  }
+});
+
+// -------------------------------------------------------------
+// RECONCILIAÇÃO E SINCRONIZAÇÃO OMIE ERP
+// -------------------------------------------------------------
+
+// Status da sincronização dos produtos Omie ↔ Site
+app.get('/api/admin/omie/sync-status', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    let totalProducts = 0;
+    let linkedProducts = 0;
+    let unlinkedProducts = [];
+
+    if (pool) {
+      const totRes = await pool.query('SELECT COUNT(*) FROM products');
+      totalProducts = parseInt(totRes.rows[0].count, 10);
+
+      const linkRes = await pool.query('SELECT COUNT(*) FROM products WHERE omie_product_id IS NOT NULL');
+      linkedProducts = parseInt(linkRes.rows[0].count, 10);
+
+      const unRes = await pool.query(`
+        SELECT id, name, brand_id as "brandId", price::float
+        FROM products 
+        WHERE omie_product_id IS NULL
+        ORDER BY name ASC
+        LIMIT 50
+      `);
+      unlinkedProducts = unRes.rows;
+    }
+
+    return res.json({
+      totalProducts,
+      linkedProducts,
+      unlinkedCount: Math.max(0, totalProducts - linkedProducts),
+      matchPercentage: totalProducts > 0 ? ((linkedProducts / totalProducts) * 100).toFixed(1) : 0,
+      unlinkedProducts
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Dispara reconciliação de produtos sob demanda
+app.post('/api/admin/omie/reconcile', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { reconcileProducts } = require('./scripts/reconcile_omie_products.cjs');
+    const result = await reconcileProducts({ isDryRun: false });
+    return res.json({
+      success: true,
+      message: `Reconciliação executada com sucesso! ${result.matchedCount} produtos vinculados.`,
+      result
+    });
+  } catch (err) {
+    console.error('Erro ao executar reconciliação:', err);
+    return res.status(500).json({ error: err.message || 'Erro ao executar reconciliação.' });
+  }
+});
+
+// Vínculo manual individual de produto
+app.post('/api/admin/omie/link-product', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { athenaProductId, omieProductId, omieCode } = req.body;
+    if (!athenaProductId || !omieProductId) {
+      return res.status(400).json({ error: 'IDs de produto Athena e Omie são obrigatórios.' });
+    }
+
+    if (pool) {
+      await pool.query(`
+        UPDATE products
+        SET omie_product_id = $1, omie_code = $2, omie_last_sync = CURRENT_TIMESTAMP
+        WHERE id = $3
+      `, [omieProductId, omieCode || '', athenaProductId]);
+    }
+
+    return res.json({ success: true, message: 'Produto vinculado com sucesso!' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -3176,7 +4505,7 @@ app.get('/api/admin/points/transactions', authenticateToken, requireAdmin, async
           SELECT id, user_id as "userId", customer_document as "customerDocument", 
                  customer_email as "customerEmail", customer_name as "customerName", 
                  order_id as "orderId", order_value as "orderValue", points_earned as "pointsEarned", 
-                 source, created_at as "createdAt"
+                 source, type, status, reward_id as "rewardId", notes, created_at as "createdAt"
           FROM a_points_transactions
           ORDER BY created_at DESC
           LIMIT 100
@@ -3234,6 +4563,98 @@ app.post('/api/admin/points/adjust', authenticateToken, requireAdmin, async (req
     return res.json({ success: true, message: 'Pontos atualizados com sucesso!', result });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Erro ao ajustar pontos.' });
+  }
+});
+
+// -------------------------------------------------------------
+// ADMIN: NOTIFICATION & RECEIPT EMAIL SETTINGS
+// -------------------------------------------------------------
+
+// Obter configurações de e-mail e comprovantes
+app.get('/api/admin/settings/notifications', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const config = await getNotificationSettings();
+    return res.json({
+      ...config,
+      smtpConfigured: !!mailTransporter,
+      smtpSender: SMTP_FROM,
+      hermesSecretKey: process.env.HERMES_SECRET_KEY || 'athena_hermes_prod_2026_key',
+      hermesApiUrl: 'https://athenaconsultoria.com.br/api/hermes'
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao obter configurações de e-mail.' });
+  }
+});
+
+// Atualizar configurações de e-mail e comprovantes
+app.post('/api/admin/settings/notifications', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { 
+      receiptNotificationEmail, 
+      loyaltyNotificationEmail, 
+      purchaseNotificationEmail, 
+      emailNotificationsEnabled,
+      sendCustomerCopy 
+    } = req.body;
+
+    if (receiptNotificationEmail !== undefined) {
+      await setSystemSetting('receipt_notification_email', normalizeEmailList(receiptNotificationEmail), 'E-mail para recebimento de comprovantes de compras e resgates');
+    }
+    if (loyaltyNotificationEmail !== undefined) {
+      await setSystemSetting('loyalty_notification_email', normalizeEmailList(loyaltyNotificationEmail), 'E-mail específico para alertas de resgate de fidelidade (opcional)');
+    }
+    if (purchaseNotificationEmail !== undefined) {
+      await setSystemSetting('purchase_notification_email', normalizeEmailList(purchaseNotificationEmail), 'E-mail específico para alertas de compras / faturamento (opcional)');
+    }
+    if (emailNotificationsEnabled !== undefined) {
+      await setSystemSetting('email_notifications_enabled', emailNotificationsEnabled ? 'true' : 'false', 'Habilita envio de alertas por e-mail');
+    }
+    if (sendCustomerCopy !== undefined) {
+      await setSystemSetting('send_customer_copy', sendCustomerCopy ? 'true' : 'false', 'Envia cópia do comprovante para o e-mail do cliente');
+    }
+
+    const updatedConfig = await getNotificationSettings();
+    return res.json({
+      success: true,
+      message: 'Configurações de e-mail atualizadas com sucesso!',
+      settings: {
+        ...updatedConfig,
+        smtpConfigured: !!mailTransporter,
+        smtpSender: SMTP_FROM
+      }
+    });
+  } catch (err) {
+    console.error('Erro ao atualizar configurações de notificação:', err);
+    return res.status(500).json({ error: err.message || 'Erro ao atualizar configurações.' });
+  }
+});
+
+// Disparo de teste para verificar entrega na caixa de entrada
+app.post('/api/admin/settings/test-email', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { targetEmail, testType } = req.body;
+    const config = await getNotificationSettings();
+    const destination = targetEmail || config.receiptNotificationEmail;
+
+    if (!destination) {
+      return res.status(400).json({ error: 'Informe um e-mail de destino para o teste.' });
+    }
+
+    const result = await sendTestNotificationEmail({ targetEmail: destination, testType: testType || 'general' });
+    if (!result.success && result.reason === 'no_recipient') {
+      return res.status(400).json({ error: 'Destinatário inválido informado.' });
+    }
+    if (!result.success && result.error) {
+      return res.status(500).json({ error: `Erro no servidor SMTP: ${result.error}` });
+    }
+
+    return res.json({
+      success: true,
+      message: `E-mail de teste (${testType || 'geral'}) enviado com sucesso para "${destination}"!`
+    });
+  } catch (err) {
+    console.error('Erro ao enviar e-mail de teste:', err);
+    return res.status(500).json({ error: err.message || 'Falha ao enviar e-mail de teste.' });
   }
 });
 

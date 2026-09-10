@@ -25,7 +25,7 @@ export default function ProductCard({
 
   const earnedPoints = (product.aPoints && Number(product.aPoints) > 0) 
     ? Number(product.aPoints) 
-    : (hasPrice ? Math.floor(product.price / 10) : 0);
+    : (hasPrice ? Math.floor(product.price / 50) : 0);
 
   const formattedPrice = product.price 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)

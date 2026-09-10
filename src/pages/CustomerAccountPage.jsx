@@ -85,12 +85,17 @@ export default function CustomerAccountPage({
   const [cnpjSuccessMsg, setCnpjSuccessMsg] = useState(null);
   const [cnpjErrorMsg, setCnpjErrorMsg] = useState(null);
 
-  // Points State
+  // Points State & Rewards
   const [pointsData, setPointsData] = useState({ 
-    points: currentUser?.a_points || currentUser?.aPoints || 0, 
-    transactions: [] 
+    points: currentUser?.a_points || currentUser?.aPoints || 0,
+    pointsAvailable: currentUser?.a_points || currentUser?.aPoints || 0,
+    pointsPending: 0,
+    transactions: [],
+    rewards: []
   });
   const [loadingPoints, setLoadingPoints] = useState(false);
+  const [redeemingReward, setRedeemingReward] = useState(null);
+  const [redeemSuccess, setRedeemSuccess] = useState(null);
 
   const docInfo = useMemo(() => {
     return formatCpfCnpj(profileForm.document);
@@ -170,8 +175,7 @@ export default function CustomerAccountPage({
   }, [currentUser]);
 
   // Fetch Customer Orders
-  useEffect(() => {
-    const fetchCustomerOrders = async () => {
+  const fetchCustomerOrders = async () => {
       if (!currentUser?.token) {
         setLoadingOrders(false);
         return;
@@ -196,59 +200,81 @@ export default function CustomerAccountPage({
       } finally {
         setLoadingOrders(false);
       }
-    };
+  };
 
-    const fetchPoints = async () => {
-      if (!currentUser?.token) return;
-      setLoadingPoints(true);
-      try {
-        const res = await fetch(`${API_BASE_URL}/points/me`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentUser.token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setUserPoints(Number(data.points) || 0);
-          setPointsTransactions(Array.isArray(data.transactions) ? data.transactions : []);
+  const fetchPoints = async () => {
+    if (!currentUser?.token) return;
+    setLoadingPoints(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/points/me`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
         }
-      } catch (e) {
-        console.warn('Erro ao carregar pontos do cliente:', e.message);
-      } finally {
-        setLoadingPoints(false);
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPointsData(data || { points: 0, pointsAvailable: 0, pointsPending: 0, transactions: [], rewards: [] });
       }
-    };
+    } catch (err) {
+      console.warn('Erro ao carregar A-Points:', err);
+    } finally {
+      setLoadingPoints(false);
+    }
+  };
 
+  useEffect(() => {
     fetchCustomerOrders();
     fetchPoints();
   }, [currentUser, API_BASE_URL]);
 
-  // Fetch Customer Points & Loyalty Transactions
-  useEffect(() => {
-    const fetchPoints = async () => {
-      if (!currentUser?.token) return;
-      setLoadingPoints(true);
-      try {
-        const res = await fetch(`${API_BASE_URL}/points/me`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentUser.token}`
-          }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setPointsData(data || { points: 0, transactions: [] });
-        }
-      } catch (err) {
-        console.warn('Erro ao carregar A-Points:', err);
-      } finally {
-        setLoadingPoints(false);
-      }
-    };
+  const handleRedeemReward = async (reward) => {
+    if (!currentUser?.token) {
+      showNotification?.('Faça login para resgatar sua recompensa.', 'error');
+      return;
+    }
+    const currentBal = Number(pointsData.pointsAvailable ?? pointsData.points ?? 0);
+    const cost = Number(reward.pointsCost || reward.points_cost || 0);
 
-    fetchPoints();
-  }, [currentUser, API_BASE_URL]);
+    if (currentBal < cost) {
+      showNotification?.(`Saldo insuficiente. Você possui ${currentBal} pontos e a recompensa requer ${cost} pontos.`, 'error');
+      return;
+    }
+
+    if (!window.confirm(`Deseja confirmar o resgate de "${reward.name}" por ${cost} A-Points?`)) {
+      return;
+    }
+
+    setRedeemingReward(reward.id);
+    try {
+      const res = await fetch(`${API_BASE_URL}/rewards/redeem`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
+        },
+        body: JSON.stringify({ rewardId: reward.id })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao processar resgate.');
+
+      showNotification?.(data.message || 'Resgate realizado com sucesso!', 'success');
+      setRedeemSuccess({
+        reward,
+        remainingPoints: data.remainingPoints,
+        txId: data.transactionId
+      });
+
+      if (currentUser?.id && onUpdateUser) {
+        onUpdateUser({ ...currentUser, a_points: data.remainingPoints, aPoints: data.remainingPoints });
+      }
+      fetchPoints();
+    } catch (err) {
+      showNotification?.(err.message || 'Erro ao resgatar recompensa.', 'error');
+    } finally {
+      setRedeemingReward(null);
+    }
+  };
 
   // Auto Search CEP via ViaCEP
   const handleCepBlur = async () => {
@@ -692,11 +718,11 @@ export default function CustomerAccountPage({
 
         {/* TAB: PROGRAMA DE FIDELIDADE (MEUS A-POINTS) */}
         {activeTab === 'points' && (
-          <div className="max-w-3xl mx-auto space-y-5 animate-in fade-in">
+          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
             <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
               
               {/* Sober Minimalist Header */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                   Programa de Fidelidade Athena
@@ -705,103 +731,303 @@ export default function CustomerAccountPage({
                   Meus A-Points
                 </h2>
                 <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
-                  A cada R$ 10,00 faturados em compras de equipamentos, você recebe 1 A-Point automaticamente. Seus pontos acumulados podem ser usados em futuros pedidos e serviços.
+                  A cada <strong>R$ 50,00 faturados</strong> em compras elegíveis de equipamentos e ferramentas, você recebe <strong>1 A-Point</strong> automaticamente. Seus pontos são válidos por 12 meses e podem ser trocados por produtos do catálogo de recompensas ou abatimentos comerciais.
                 </p>
               </div>
 
-              {/* Minimalist Balance Card */}
-              <div className="bg-slate-900 rounded-2xl p-6 sm:p-7 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 border border-slate-800">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-slate-400">Saldo Disponível</p>
-                  <div className="flex items-baseline gap-2.5">
-                    <span className="text-4xl sm:text-5xl font-black text-amber-400 font-mono tracking-tight">
-                      {pointsData.points || currentUser?.a_points || currentUser?.aPoints || 0}
-                    </span>
-                    <span className="text-sm font-bold text-slate-300">
-                      A-Points Acumulados
-                    </span>
+              {/* Balance Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Saldo Disponível */}
+                <div className="bg-slate-900 rounded-2xl p-6 text-white flex flex-col justify-between gap-4 border border-slate-800 shadow-sm">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-slate-400">Saldo Disponível para Resgate</p>
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-4xl sm:text-5xl font-black text-amber-400 font-mono tracking-tight">
+                        {pointsData.pointsAvailable ?? pointsData.points ?? currentUser?.a_points ?? 0}
+                      </span>
+                      <span className="text-sm font-bold text-slate-300">
+                        A-Points
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Pontos liberados para troca em produtos do catálogo ou desconto em novos pedidos.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    Equivale a descontos e vantagens exclusivas na aquisição de novos equipamentos.
-                  </p>
+
+                  <a
+                    href={`https://wa.me/5561983485671?text=Ol%C3%A1%21+Sou+o+cliente+${encodeURIComponent(currentUser?.name || '')}+e+gostaria+de+consultar+o+resgate+dos+meus+${pointsData.pointsAvailable ?? pointsData.points ?? 0}+A-Points+no+meu+pr%C3%B3ximo+pedido.`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs border border-amber-400"
+                  >
+                    <MessageCircle className="w-4 h-4 text-slate-950" />
+                    <span>Resgatar com Consultor no WhatsApp</span>
+                  </a>
                 </div>
 
-                <a
-                  href={`https://wa.me/5561983485671?text=Ol%C3%A1%21+Sou+o+cliente+${encodeURIComponent(currentUser?.name || '')}+e+gostaria+de+consultar+o+resgate+dos+meus+${pointsData.points || currentUser?.a_points || currentUser?.aPoints || 0}+A-Points+no+meu+pr%C3%B3ximo+pedido.`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs border border-amber-400 shrink-0"
-                >
-                  <MessageCircle className="w-4 h-4 text-slate-950" />
-                  <span>Consulte com seu consultor</span>
-                </a>
+                {/* Saldo Pendente ou Benefício Estimado */}
+                <div className="bg-slate-50 rounded-2xl p-6 text-slate-900 flex flex-col justify-between gap-4 border border-slate-200">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-500">Pontos em Processamento</p>
+                      {pointsData.pointsPending > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Em validação
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Atualizado
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-4xl sm:text-5xl font-black text-slate-800 font-mono tracking-tight">
+                        {pointsData.pointsPending || 0}
+                      </span>
+                      <span className="text-sm font-bold text-slate-500">
+                        Pontos Pendentes
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      {pointsData.pointsPending > 0
+                        ? 'Pontos de compras recentes aguardando prazo de liquidação/faturamento.'
+                        : 'Você não possui pontos pendentes. Suas compras faturadas no ERP são creditadas aqui automaticamente.'}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600">
+                    <span>Validade dos pontos:</span>
+                    <strong className="font-bold text-slate-900">12 meses a partir do crédito</strong>
+                  </div>
+                </div>
               </div>
 
-              {/* 3 Minimalist Rule Cards */}
+              {/* 3 Regras Estratégicas */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
                   <div className="flex items-center gap-2 text-slate-900">
                     <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-                    <h3 className="text-xs font-black">1 pt a cada R$ 10</h3>
+                    <h3 className="text-xs font-black">R$ 50 = 1 A-Point</h3>
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    R$ 1.000 = 100 pontos acumulados automaticamente.
+                    Sem limite artificial de pontos por pedido. Quanto mais você compra, mais acumula.
                   </p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
                   <div className="flex items-center gap-2 text-slate-900">
-                    <FileText className="w-4 h-4 text-amber-600 shrink-0" />
-                    <h3 className="text-xs font-black">Crédito Retroativo</h3>
+                    <Gift className="w-4 h-4 text-amber-600 shrink-0" />
+                    <h3 className="text-xs font-black">Catálogo de Recompensas</h3>
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Vinculado ao seu CPF/CNPJ informado no faturamento.
+                    Resgate produtos, ferramentas e consumíveis sem desembolso financeiro adicional.
                   </p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
                   <div className="flex items-center gap-2 text-slate-900">
-                    <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-                    <h3 className="text-xs font-black">Resgate em Pedidos</h3>
+                    <Coins className="w-4 h-4 text-amber-600 shrink-0" />
+                    <h3 className="text-xs font-black">Pontos + Dinheiro</h3>
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Consulte com seu consultor para abater valores em novas compras.
+                    Utilize seus pontos para abater parcelas e valores em equipamentos de maior porte.
                   </p>
                 </div>
               </div>
 
-              {/* Points Activity History (Minimalist Table) */}
-              <div className="pt-2 border-t border-slate-100 space-y-3">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Extrato de Movimentações
-                </h4>
+              {/* Mensagem de sucesso de resgate se houver */}
+              {redeemSuccess && (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-black">Resgate registrado com sucesso!</p>
+                      <p className="text-[11px] text-emerald-800">
+                        Item: <strong>{redeemSuccess.reward.name}</strong> • Saldo restante: <strong>{redeemSuccess.remainingPoints} pts</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={`https://wa.me/5561983485671?text=Ol%C3%A1%21+Acabei+de+resgatar+a+recompensa+*${encodeURIComponent(redeemSuccess.reward.name)}*+pelo+site+com+meus+pontos+(Protocolo%3A+${redeemSuccess.txId}).+Como+fa%C3%A7o+para+receber%3F`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0"
+                  >
+                    Confirmar Envio no WhatsApp &rarr;
+                  </a>
+                </div>
+              )}
+
+              {/* CATÁLOGO DE RECOMPENSAS */}
+              <div className="pt-4 border-t border-slate-100 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                      <Gift className="w-4 h-4 text-amber-600" /> Catálogo de Recompensas
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Escolha produtos e vantagens para resgatar com seus pontos disponíveis.
+                    </p>
+                  </div>
+                  <span className="text-xs font-extrabold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/70">
+                    Saldo: {pointsData.pointsAvailable ?? pointsData.points ?? 0} pts
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {((pointsData.rewards && pointsData.rewards.length > 0) ? pointsData.rewards : [
+                    { id: 'rw_espuma_cera', name: 'Espuma Aplicadora de Cera 100mm', pointsCost: 50, description: 'Espuma macia para aplicação uniforme de ceras e selantes.' },
+                    { id: 'rw_toalha_microfibra', name: 'Toalha de Microfibra Especial 40x40cm', pointsCost: 100, description: 'Toalha de alta gramatura anti-risco para secagem e acabamento.' },
+                    { id: 'rw_luva_microfibra', name: 'Luva de Lavagem em Microfibra', pointsCost: 150, description: 'Luva anatômica macia para limpeza segura de veículos.' },
+                    { id: 'rw_kit_soquetes', name: 'Jogo de Soquetes e Bits 10 Peças', pointsCost: 300, description: 'Conjunto compacto de ferramentas para bancada e oficina.' },
+                    { id: 'rw_cupom_300', name: 'Voucher R$ 300 em Equipamentos', pointsCost: 600, description: 'Abatimento direto na compra de elevadores, desmontadoras ou scanners.' },
+                    { id: 'rw_cupom_600', name: 'Voucher R$ 600 em Equipamentos Premium', pointsCost: 1200, description: 'Abatimento especial na compra de alinhadores 3D ou recicladoras.' }
+                  ]).map((reward) => {
+                    const cost = Number(reward.pointsCost || reward.points_cost || 0);
+                    const userBalance = Number(pointsData.pointsAvailable ?? pointsData.points ?? 0);
+                    const canRedeem = userBalance >= cost;
+                    const diff = cost - userBalance;
+
+                    return (
+                      <div 
+                        key={reward.id}
+                        className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-amber-300 transition-all shadow-xs flex flex-col justify-between gap-3"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono font-black text-xs text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                              {cost} pts
+                            </span>
+                            {reward.cashCost > 0 && (
+                              <span className="text-[10px] font-bold text-slate-500">
+                                + R$ {Number(reward.cashCost).toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-xs font-black text-slate-900 leading-snug">
+                            {reward.name}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                            {reward.description}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100">
+                          {canRedeem ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRedeemReward(reward)}
+                              disabled={redeemingReward === reward.id}
+                              className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              {redeemingReward === reward.id ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Processando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Gift className="w-3.5 h-3.5 text-amber-400" />
+                                  <span>Resgatar Recompensa</span>
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <div className="w-full py-1.5 px-2.5 rounded-xl bg-slate-100 text-slate-400 font-medium text-[11px] text-center">
+                              Faltam {diff} pts
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* EXTRATO DE MOVIMENTAÇÕES (LEDGER COMPLETO) */}
+              <div className="pt-4 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Extrato de Movimentações
+                  </h4>
+                  <span className="text-[10px] text-slate-400">
+                    Histórico auditável de compras, resgates e estornos
+                  </span>
+                </div>
+
                 {loadingPoints ? (
                   <div className="p-6 text-center text-xs text-slate-400">
                     <Loader2 className="w-5 h-5 animate-spin mx-auto text-amber-600 mb-2" />
                     Carregando extrato de pontos...
                   </div>
                 ) : pointsData.transactions && pointsData.transactions.length > 0 ? (
-                  <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
-                    {pointsData.transactions.map((tx, idx) => (
-                      <div key={idx} className="p-3.5 flex items-center justify-between text-xs bg-white hover:bg-slate-50/80 transition-colors">
-                        <div>
-                          <p className="font-extrabold text-slate-900">
-                            {tx.orderId ? `Pedido #${tx.orderId}` : 'Crédito de Equipamentos'}
-                          </p>
-                          <p className="text-[10px] text-slate-400">
-                            {new Date(tx.createdAt || Date.now()).toLocaleDateString('pt-BR')}
-                            {tx.orderValue > 0 && ` • Valor: R$ ${Number(tx.orderValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                          </p>
+                  <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden shadow-2xs">
+                    {pointsData.transactions.map((tx, idx) => {
+                      const pts = Number(tx.pointsEarned || tx.points_earned || 0);
+                      const isNegative = pts < 0 || tx.type === 'REDEEM' || tx.type === 'REVERSE';
+                      const isPending = tx.status === 'pending';
+
+                      return (
+                        <div key={idx} className="p-3.5 flex items-center justify-between text-xs bg-white hover:bg-slate-50/80 transition-colors gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-extrabold text-slate-900 truncate">
+                                {tx.type === 'REDEEM' ? 'Resgate de Recompensa' :
+                                 tx.type === 'REVERSE' ? 'Estorno / Devolução de Venda' :
+                                 tx.type === 'BONUS' ? 'Bônus de Campanha Promocional' :
+                                 tx.orderId ? `Compra Faturada #${tx.orderId}` : 'Crédito de Equipamentos'}
+                              </p>
+
+                              {/* Type Badge */}
+                              {tx.type === 'REDEEM' && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-blue-100 text-blue-800">
+                                  Resgate
+                                </span>
+                              )}
+                              {tx.type === 'REVERSE' && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-red-100 text-red-800">
+                                  Estorno
+                                </span>
+                              )}
+                              {tx.type === 'BONUS' && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-100 text-purple-800">
+                                  Bônus
+                                </span>
+                              )}
+                              {isPending && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800">
+                                  Pendente
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              {new Date(tx.createdAt || tx.created_at || Date.now()).toLocaleDateString('pt-BR')}
+                              {tx.orderValue > 0 && ` • Compra: R$ ${Number(tx.orderValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                              {tx.notes && ` • ${tx.notes}`}
+                              {tx.expiresAt && ` • Validade: ${new Date(tx.expiresAt).toLocaleDateString('pt-BR')}`}
+                            </p>
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            <span className={`font-mono font-black text-xs px-2.5 py-1 rounded-lg border ${
+                              isNegative 
+                                ? 'text-red-700 bg-red-50 border-red-200' 
+                                : isPending
+                                ? 'text-amber-700 bg-amber-50 border-amber-200'
+                                : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            }`}>
+                              {pts > 0 ? `+${pts}` : pts} pts
+                            </span>
+                          </div>
                         </div>
-                        <span className="font-mono font-black text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                          +{tx.pointsEarned} pts
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="p-6 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                    Nenhuma movimentação de A-Points registrada ainda. Seus pedidos faturados serão creditados automaticamente aqui.
+                  <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 space-y-1">
+                    <p className="font-bold text-slate-700">Nenhuma movimentação de A-Points registrada ainda.</p>
+                    <p>Seus pedidos faturados no ERP Omie geram 1 ponto a cada R$ 50 e aparecerão aqui automaticamente.</p>
                   </div>
                 )}
               </div>

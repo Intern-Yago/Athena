@@ -82,7 +82,7 @@ export default function InstallmentModal({
         return acc + (Number(it.aPoints) * (Number(it.quantity) || 1));
       }
       const val = (Number(it.price) || 0) * (Number(it.quantity) || 1);
-      return acc + Math.floor(val / 10);
+      return acc + Math.floor(val / 50);
     }, 0);
   }, [activeItems]);
 
