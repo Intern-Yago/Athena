@@ -98,6 +98,19 @@ export default function CustomerAccountPage({
   const [redeemingReward, setRedeemingReward] = useState(null);
   const [redeemSuccess, setRedeemSuccess] = useState(null);
   const [confirmRedeemReward, setConfirmRedeemReward] = useState(null);
+  const [redeemDeliveryMethod, setRedeemDeliveryMethod] = useState('shipping'); // 'shipping' | 'pickup' | 'with_order'
+  const [redeemAddress, setRedeemAddress] = useState({
+    cep: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: ''
+  });
+  const [redeemNotes, setRedeemNotes] = useState('');
+  const [searchingRedeemCep, setSearchingRedeemCep] = useState(false);
+  const [saveAsDefaultAddress, setSaveAsDefaultAddress] = useState(true);
 
   const docInfo = useMemo(() => {
     return formatCpfCnpj(profileForm.document);
@@ -243,12 +256,61 @@ export default function CustomerAccountPage({
       return;
     }
 
-    // Abre o modal personalizado em vez de window.confirm
+    // Inicializa formulário de recebimento / entrega do brinde
+    setRedeemDeliveryMethod('shipping');
+    setRedeemAddress({
+      cep: currentUser?.address?.cep || addressForm.cep || '',
+      street: currentUser?.address?.street || addressForm.street || '',
+      number: currentUser?.address?.number || addressForm.number || '',
+      complement: currentUser?.address?.complement || addressForm.complement || '',
+      neighborhood: currentUser?.address?.neighborhood || addressForm.neighborhood || '',
+      city: currentUser?.address?.city || addressForm.city || '',
+      state: currentUser?.address?.state || addressForm.state || ''
+    });
+    setRedeemNotes('');
     setConfirmRedeemReward(reward);
+  };
+
+  // Busca de CEP dentro do modal de resgate
+  const handleRedeemCepBlur = async () => {
+    const cleanCep = (redeemAddress.cep || '').replace(/\D/g, '');
+    if (cleanCep.length === 8) {
+      setSearchingRedeemCep(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setRedeemAddress((prev) => ({
+            ...prev,
+            street: data.logradouro || prev.street,
+            neighborhood: data.bairro || prev.neighborhood,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state
+          }));
+          showNotification?.('Endereço preenchido automaticamente via CEP!', 'success');
+        } else {
+          showNotification?.('CEP não localizado. Preencha os campos manualmente.', 'info');
+        }
+      } catch (e) {
+        console.warn('Erro ao consultar ViaCEP no modal:', e);
+      } finally {
+        setSearchingRedeemCep(false);
+      }
+    }
   };
 
   const executeRedeemReward = async (reward) => {
     if (!reward) return;
+
+    const isVoucher = reward.category === 'vouchers' || reward.id.startsWith('rw_cupom');
+
+    if (!isVoucher && redeemDeliveryMethod === 'shipping') {
+      if (!redeemAddress.cep || !redeemAddress.street || !redeemAddress.number || !redeemAddress.neighborhood || !redeemAddress.city || !redeemAddress.state) {
+        showNotification?.('Por favor, preencha todos os campos obrigatórios do endereço (CEP, logradouro, número, bairro, cidade e UF).', 'error');
+        return;
+      }
+    }
+
     setRedeemingReward(reward.id);
     try {
       const res = await fetch(`${API_BASE_URL}/rewards/redeem`, {
@@ -257,7 +319,13 @@ export default function CustomerAccountPage({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${currentUser.token}`
         },
-        body: JSON.stringify({ rewardId: reward.id })
+        body: JSON.stringify({ 
+          rewardId: reward.id,
+          deliveryMethod: isVoucher ? 'voucher' : redeemDeliveryMethod,
+          shippingAddress: (!isVoucher && redeemDeliveryMethod === 'shipping') ? redeemAddress : null,
+          deliveryNotes: redeemNotes,
+          saveAsDefaultAddress
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao processar resgate.');
@@ -266,11 +334,17 @@ export default function CustomerAccountPage({
       setRedeemSuccess({
         reward,
         remainingPoints: data.remainingPoints,
-        txId: data.transactionId
+        txId: data.transactionId,
+        deliveryMethod: isVoucher ? 'voucher' : redeemDeliveryMethod
       });
 
       if (currentUser?.id && onUpdateUser) {
-        onUpdateUser({ ...currentUser, a_points: data.remainingPoints, aPoints: data.remainingPoints });
+        const updatedUserData = { ...currentUser, a_points: data.remainingPoints, aPoints: data.remainingPoints };
+        if (!isVoucher && redeemDeliveryMethod === 'shipping' && saveAsDefaultAddress) {
+          updatedUserData.address = redeemAddress;
+          setAddressForm(redeemAddress);
+        }
+        onUpdateUser(updatedUserData);
       }
       fetchPoints();
       setConfirmRedeemReward(null);
@@ -1438,118 +1512,376 @@ export default function CustomerAccountPage({
 
       </div>
 
-      {/* MODAL PERSONALIZADO DE CONFIRMAÇÃO DE RESGATE (Substitui o window.confirm) */}
-      {confirmRedeemReward && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-slate-100">
-            
-            {/* Header com gradiente sutil */}
-            <div className="p-5 sm:p-6 border-b border-slate-800 bg-linear-to-b from-amber-500/10 to-transparent flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-                  <Gift className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-white">Confirmar Resgate</h3>
-                  <p className="text-xs text-slate-400">Programa de Fidelidade A-Points</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setConfirmRedeemReward(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* MODAL PERSONALIZADO DE CONFIRMAÇÃO DE RESGATE & ESCOLHA DE ENTREGA */}
+      {confirmRedeemReward && (() => {
+        const isVoucher = confirmRedeemReward.category === 'vouchers' || confirmRedeemReward.id.startsWith('rw_cupom');
+        const cost = confirmRedeemReward.pointsCost || confirmRedeemReward.points_cost || 0;
+        const currentBal = pointsData.pointsAvailable ?? pointsData.points ?? 0;
+        const afterBal = Math.max(0, currentBal - cost);
 
-            {/* Conteúdo */}
-            <div className="p-5 sm:p-6 space-y-4">
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center gap-4">
-                {confirmRedeemReward.image ? (
-                  <img
-                    src={confirmRedeemReward.image}
-                    alt={confirmRedeemReward.name}
-                    className="w-16 h-16 rounded-xl object-cover bg-white shrink-0 border border-slate-800"
-                  />
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-slate-100">
+              
+              {/* Header com gradiente */}
+              <div className="p-4 sm:p-5 border-b border-slate-800 bg-linear-to-b from-amber-500/10 to-transparent flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <Gift className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">Confirmar Resgate</h3>
+                    <p className="text-xs text-slate-400">
+                      {isVoucher ? 'Voucher Digital A-Points' : 'Envio e Entrega do Brinde'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConfirmRedeemReward(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Corpo com Scroll */}
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs">
+                
+                {/* Item Resgatado Card */}
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center gap-3.5">
+                  {confirmRedeemReward.image ? (
+                    <img
+                      src={confirmRedeemReward.image}
+                      alt={confirmRedeemReward.name}
+                      className="w-14 h-14 rounded-xl object-cover bg-white shrink-0 border border-slate-800"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                      <Gift className="w-7 h-7" />
+                    </div>
+                  )}
+                  <div className="space-y-1 min-w-0">
+                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                      {confirmRedeemReward.category || 'Recompensa Fidelidade'}
+                    </span>
+                    <h4 className="text-sm font-bold text-white leading-snug truncate">
+                      {confirmRedeemReward.name}
+                    </h4>
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black bg-red-500/10 text-red-400 border border-red-500/20">
+                      - {cost} A-Points
+                    </span>
+                  </div>
+                </div>
+
+                {/* Comparativo de Saldo */}
+                <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span>Seu saldo atual:</span>
+                    <span className="font-bold text-white">{currentBal} pts</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span>Custo deste resgate:</span>
+                    <span className="font-bold text-red-400">- {cost} pts</span>
+                  </div>
+                  <div className="border-t border-slate-800 pt-1.5 flex items-center justify-between font-bold">
+                    <span className="text-slate-300">Saldo restante após resgate:</span>
+                    <span className="text-emerald-400 font-extrabold text-sm">{afterBal} pts</span>
+                  </div>
+                </div>
+
+                {/* Seção de Entrega (se for item físico) */}
+                {!isVoucher ? (
+                  <div className="space-y-3 pt-1">
+                    <label className="text-xs font-bold text-slate-200 block uppercase tracking-wider">
+                      Como deseja receber seu brinde? *
+                    </label>
+
+                    {/* 3 Opções de Entrega */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRedeemDeliveryMethod('shipping')}
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-1 transition-all cursor-pointer ${
+                          redeemDeliveryMethod === 'shipping'
+                            ? 'bg-amber-500/10 border-amber-500 text-amber-300 font-bold ring-1 ring-amber-500'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Package className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs">Enviar no Endereço</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-normal leading-tight">
+                          Correios / Transportadora
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setRedeemDeliveryMethod('pickup')}
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-1 transition-all cursor-pointer ${
+                          redeemDeliveryMethod === 'pickup'
+                            ? 'bg-amber-500/10 border-amber-500 text-amber-300 font-bold ring-1 ring-amber-500'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Building className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs">Retirar no Balcão</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-normal leading-tight">
+                          Sede Athena (DF)
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setRedeemDeliveryMethod('with_order')}
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-1 transition-all cursor-pointer ${
+                          redeemDeliveryMethod === 'with_order'
+                            ? 'bg-amber-500/10 border-amber-500 text-amber-300 font-bold ring-1 ring-amber-500'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Truck className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs">Próximo Pedido</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-normal leading-tight">
+                          Junto com vendedor
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Formulário de Endereço (se 'shipping') */}
+                    {redeemDeliveryMethod === 'shipping' && (
+                      <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 animate-in fade-in">
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
+                          <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5" /> Endereço de Entrega
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {searchingRedeemCep ? 'Buscando CEP...' : 'Preenchimento automático via CEP'}
+                          </span>
+                        </div>
+
+                        {/* CEP com Busca */}
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                            CEP *
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={redeemAddress.cep}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, cep: e.target.value })}
+                              onBlur={handleRedeemCepBlur}
+                              placeholder="70000-000"
+                              maxLength={9}
+                              className="flex-1 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-amber-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleRedeemCepBlur}
+                              disabled={searchingRedeemCep}
+                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition-colors cursor-pointer shrink-0"
+                            >
+                              {searchingRedeemCep ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Buscar'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Rua e Número */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="col-span-2">
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Logradouro / Rua *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.street}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, street: e.target.value })}
+                              placeholder="Rua, Avenida, Setor..."
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Número *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.number}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, number: e.target.value })}
+                              placeholder="Ex: 100"
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Complemento e Bairro */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Complemento
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.complement}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, complement: e.target.value })}
+                              placeholder="Galpão, Sala..."
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Bairro *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.neighborhood}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, neighborhood: e.target.value })}
+                              placeholder="Bairro ou Setor"
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Cidade e UF */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="col-span-2">
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Cidade *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.city}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, city: e.target.value })}
+                              placeholder="Cidade"
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              UF *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.state}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, state: e.target.value.toUpperCase() })}
+                              placeholder="DF"
+                              maxLength={2}
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs uppercase font-mono focus:outline-none focus:border-amber-500 text-center"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Checkbox Salvar Padrão */}
+                        <label className="flex items-center gap-2 pt-1 text-[11px] text-slate-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={saveAsDefaultAddress}
+                            onChange={(e) => setSaveAsDefaultAddress(e.target.checked)}
+                            className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0 cursor-pointer"
+                          />
+                          <span>Salvar como meu endereço padrão de entrega na Athena</span>
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Alerta de Retirada na Sede */}
+                    {redeemDeliveryMethod === 'pickup' && (
+                      <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/30 text-slate-300 space-y-1.5 animate-in fade-in">
+                        <p className="font-bold text-amber-400 flex items-center gap-1.5">
+                          <Building className="w-4 h-4" /> Retirada no Balcão da Sede Athena
+                        </p>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Sede Física: <strong>Brasília / DF (Arniqueira / Park Way)</strong>.<br />
+                          Horário de Atendimento: Segunda a Sexta, das 08h às 18h.<br />
+                          Após a confirmação, seu brinde é reservado e nosso time avisará no seu WhatsApp quando estiver pronto para retirada.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Alerta de Despacho com Próximo Pedido */}
+                    {redeemDeliveryMethod === 'with_order' && (
+                      <div className="p-3.5 rounded-2xl bg-slate-950 border border-sky-500/30 text-slate-300 space-y-1.5 animate-in fade-in">
+                        <p className="font-bold text-sky-400 flex items-center gap-1.5">
+                          <Truck className="w-4 h-4" /> Envio Junto com seu Próximo Pedido
+                        </p>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Se você já está negociando um equipamento ou vai realizar uma compra com seu consultor, o brinde será anexado na mesma remessa de entrega técnica sem custo de frete.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Observação Adicional */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                        Observações de Entrega (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={redeemNotes}
+                        onChange={(e) => setRedeemNotes(e.target.value)}
+                        placeholder="Ex: Deixar na portaria, entregar aos cuidados do chefe de oficina..."
+                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                  </div>
                 ) : (
-                  <div className="w-16 h-16 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                    <Gift className="w-8 h-8" />
+                  /* Voucher Digital Info */
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-slate-300 space-y-2">
+                    <p className="font-bold text-amber-400 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" /> Voucher Digital Vinculado
+                    </p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Este voucher ficará disponível no seu extrato e nosso consultor poderá aplicar a bonificação diretamente como abatimento na proposta ou faturamento do seu próximo equipamento no Omie ERP.
+                    </p>
                   </div>
                 )}
-                <div className="space-y-1 min-w-0">
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
-                    {confirmRedeemReward.category || 'Recompensa Exclusiva'}
-                  </span>
-                  <h4 className="text-sm font-bold text-white leading-snug truncate">
-                    {confirmRedeemReward.name}
-                  </h4>
-                  <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-black bg-red-500/10 text-red-400 border border-red-500/20">
-                    - {confirmRedeemReward.pointsCost || confirmRedeemReward.points_cost} A-Points
-                  </span>
-                </div>
+
+                <p className="text-[11px] text-slate-500 leading-relaxed text-center pt-1">
+                  Ao confirmar, os pontos serão debitados da sua conta e um comprovante oficial com protocolo e detalhes de entrega será enviado para o seu e-mail.
+                </p>
               </div>
 
-              {/* Comparativo de Saldo */}
-              <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 text-xs space-y-2">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Seu saldo atual:</span>
-                  <span className="font-bold text-white">
-                    {pointsData.pointsAvailable ?? pointsData.points ?? 0} pts
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Custo deste resgate:</span>
-                  <span className="font-bold text-red-400">
-                    - {confirmRedeemReward.pointsCost || confirmRedeemReward.points_cost} pts
-                  </span>
-                </div>
-                <div className="border-t border-slate-800 pt-2 flex items-center justify-between font-bold">
-                  <span className="text-slate-300">Saldo após resgate:</span>
-                  <span className="text-emerald-400 font-extrabold text-sm">
-                    {Math.max(0, (pointsData.pointsAvailable ?? pointsData.points ?? 0) - (confirmRedeemReward.pointsCost || confirmRedeemReward.points_cost))} pts
-                  </span>
-                </div>
+              {/* Ações (Footer fixo) */}
+              <div className="p-4 sm:p-5 border-t border-slate-800 bg-slate-900/80 flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setConfirmRedeemReward(null)}
+                  disabled={redeemingReward === confirmRedeemReward.id}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors cursor-pointer text-center"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => executeRedeemReward(confirmRedeemReward)}
+                  disabled={redeemingReward === confirmRedeemReward.id}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition-colors shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {redeemingReward === confirmRedeemReward.id ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Processando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Confirmar Resgate</span>
+                    </>
+                  )}
+                </button>
               </div>
 
-              <p className="text-[11px] text-slate-400 leading-relaxed text-center">
-                Ao confirmar, os pontos serão debitados da sua conta e um comprovante formal com protocolo será enviado para o seu e-mail.
-              </p>
             </div>
-
-            {/* Ações */}
-            <div className="p-4 sm:p-6 border-t border-slate-800 bg-slate-900/50 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmRedeemReward(null)}
-                disabled={redeemingReward === confirmRedeemReward.id}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors cursor-pointer text-center"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => executeRedeemReward(confirmRedeemReward)}
-                disabled={redeemingReward === confirmRedeemReward.id}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition-colors shadow-md flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {redeemingReward === confirmRedeemReward.id ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Processando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Confirmar Resgate</span>
-                  </>
-                )}
-              </button>
-            </div>
-
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

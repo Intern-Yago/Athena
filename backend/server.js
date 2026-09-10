@@ -258,6 +258,14 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// Require Staff / Internal Collaborator Role Middleware (Admin, Vendedor, Editor)
+function requireStaff(req, res, next) {
+  if (!req.user || !['admin', 'vendedor', 'editor', 'edicao'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Permissão negada. Acesso restrito à equipe interna.' });
+  }
+  next();
+}
+
 // Enable trust proxy for Render / Cloudflare / Heroku load balancers
 app.set('trust proxy', 1);
 
@@ -845,6 +853,7 @@ async function initDb() {
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS address JSONB;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS a_points INTEGER DEFAULT 0;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
       `);
 
@@ -1297,6 +1306,10 @@ async function sendLoyaltyRedemptionReceiptNotification({
   customerPhone = '',
   previousPoints = 0,
   remainingPoints = 0,
+  deliveryMethod = 'shipping',
+  shippingAddress = null,
+  addressSummary = '',
+  deliveryNotes = '',
   notes = ''
 }) {
   try {
@@ -1312,6 +1325,34 @@ async function sendLoyaltyRedemptionReceiptNotification({
       ? `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(`Olá, ${customerName}! Recebemos a sua solicitação de resgate da recompensa "${reward.name}" no Programa de Fidelidade Athena (Protocolo: ${txId}).`)}`
       : null;
     const formattedDate = formatBrtDate();
+
+    // Formatação de Entrega / Despacho
+    let deliveryLabel = 'Envio para Endereço';
+    let deliveryActionText = 'Separe o item no estoque e providencie a remessa para o endereço de entrega indicado.';
+    let isVoucher = reward?.category === 'vouchers' || deliveryMethod === 'commercial_discount' || deliveryMethod === 'voucher';
+
+    if (deliveryMethod === 'pickup') {
+      deliveryLabel = 'Retirada na Sede Athena (Arniqueira / Park Way - DF)';
+      deliveryActionText = 'Aguarde o comparecimento do cliente na sede física da Athena para retirada do item no balcão, ou confirme agendamento via WhatsApp.';
+    } else if (deliveryMethod === 'with_order') {
+      deliveryLabel = 'Despachar Junto com Próximo Pedido de Equipamentos';
+      deliveryActionText = 'Avise o vendedor responsável para incluir este brinde na nota/remessa do próximo pedido faturado do cliente.';
+    } else if (isVoucher) {
+      deliveryLabel = 'Voucher Digital / Abatimento Comercial';
+      deliveryActionText = 'Abatimento registrado no extrato do cliente. Confirme a dedução correspondente no pedido de venda do Omie ERP.';
+    }
+
+    // Resolve endereço formatado se não foi passado como string
+    let resolvedAddress = addressSummary;
+    if (!resolvedAddress && shippingAddress && typeof shippingAddress === 'object') {
+      const p = [];
+      if (shippingAddress.street) p.push(`${shippingAddress.street}, ${shippingAddress.number || 'S/N'}${shippingAddress.complement ? ' (' + shippingAddress.complement + ')' : ''}`);
+      if (shippingAddress.neighborhood) p.push(shippingAddress.neighborhood);
+      if (shippingAddress.city && shippingAddress.state) p.push(`${shippingAddress.city} - ${shippingAddress.state}`);
+      else if (shippingAddress.city) p.push(shippingAddress.city);
+      if (shippingAddress.cep) p.push(`CEP: ${shippingAddress.cep}`);
+      resolvedAddress = p.join(' • ');
+    }
 
     // 1. E-mail detalhado para a Administração / Equipe Athena
     const adminSubject = `[Athena Fidelidade] Resgate de Recompensa: ${reward.name} — ${customerName}`;
@@ -1337,7 +1378,7 @@ async function sendLoyaltyRedemptionReceiptNotification({
               </p>
             </div>
 
-            <table style="width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 24px; font-size: 13px;">
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 20px; font-size: 13px;">
               <tbody>
                 <tr style="background-color: #0f172a;">
                   <td style="padding: 12px 16px; color: #94a3b8; font-weight: 600; border-top-left-radius: 10px; border-bottom: 1px solid #334155; width: 40%;">Item Resgatado</td>
@@ -1381,12 +1422,38 @@ async function sendLoyaltyRedemptionReceiptNotification({
               </tbody>
             </table>
 
+            {/* DADOS DE ENTREGA / DESPACHO */}
+            <div style="background-color: #0f172a; border-radius: 14px; border: 1px solid #334155; padding: 20px; margin-bottom: 20px;">
+              <p style="margin: 0 0 10px 0; color: #fbbf24; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+                🚚 Dados de Entrega / Despacho
+              </p>
+              <div style="margin-bottom: 10px;">
+                <span style="color: #94a3b8; font-size: 12px; font-weight: 600;">Modalidade Escolhida:</span>
+                <span style="display: inline-block; margin-left: 6px; padding: 3px 10px; border-radius: 6px; background-color: #1e293b; color: #38bdf8; font-size: 12px; font-weight: 800; border: 1px solid #38bdf8/30;">
+                  ${deliveryLabel}
+                </span>
+              </div>
+              ${deliveryMethod === 'shipping' && resolvedAddress ? `
+                <div style="background-color: #1e293b; border-radius: 10px; padding: 12px 14px; margin-top: 8px;">
+                  <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px;">Endereço de Destino:</span>
+                  <p style="margin: 0; color: #f8fafc; font-size: 13px; font-weight: 600; line-height: 1.5;">
+                    ${resolvedAddress}
+                  </p>
+                </div>
+              ` : ''}
+              ${deliveryNotes ? `
+                <p style="margin: 10px 0 0 0; font-size: 12px; color: #cbd5e1; font-style: italic; background-color: #1e293b; padding: 10px 12px; border-radius: 8px;">
+                  <strong style="color: #fbbf24;">Observação do Cliente:</strong> "${deliveryNotes}"
+                </p>
+              ` : ''}
+            </div>
+
             <div style="background-color: #1e1b4b; border: 1px solid #4338ca; border-radius: 14px; padding: 18px 20px; margin-bottom: 24px;">
               <p style="margin: 0; color: #a5b4fc; font-size: 13px; font-weight: 700;">
                 📌 Próxima ação recomendada:
               </p>
               <p style="margin: 6px 0 0 0; color: #e0e7ff; font-size: 12px; line-height: 1.5;">
-                Entre em contato com o cliente para providenciar a entrega ou envio do brinde, ou incluir a bonificação/voucher em seu próximo faturamento comercial.
+                ${deliveryActionText}
               </p>
             </div>
 
@@ -1441,7 +1508,7 @@ async function sendLoyaltyRedemptionReceiptNotification({
                 Recebemos com sucesso a solicitação de resgate da sua recompensa com seus A-Points! Guarde este comprovante para seu controle.
               </p>
 
-              <div style="background-color: #0f172a; border-radius: 14px; padding: 20px; border: 1px solid #334155; margin-bottom: 24px;">
+              <div style="background-color: #0f172a; border-radius: 14px; padding: 20px; border: 1px solid #334155; margin-bottom: 20px;">
                 <p style="margin: 0 0 10px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Detalhes do Benefício</p>
                 <p style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; color: #fbbf24;">${reward.name}</p>
                 <p style="margin: 0 0 12px 0; font-size: 13px; color: #ef4444; font-weight: 700;">- ${reward.points_cost} A-Points debitados</p>
@@ -1452,9 +1519,20 @@ async function sendLoyaltyRedemptionReceiptNotification({
                 </div>
               </div>
 
+              {/* Box de Entrega no Comprovante do Cliente */}
+              <div style="background-color: #0f172a; border-radius: 14px; border: 1px solid #334155; padding: 18px; margin-bottom: 20px;">
+                <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Forma de Recebimento</p>
+                <p style="margin: 0 0 6px 0; font-size: 14px; font-weight: 700; color: #38bdf8;">${deliveryLabel}</p>
+                ${deliveryMethod === 'shipping' && resolvedAddress ? `
+                  <p style="margin: 4px 0 0 0; font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                    ${resolvedAddress}
+                  </p>
+                ` : ''}
+              </div>
+
               <div style="background-color: #064e3b; border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; border: 1px solid #059669;">
                 <p style="margin: 0; color: #a7f3d0; font-size: 12px; line-height: 1.5;">
-                  🚀 <strong>O que acontece agora?</strong> Nossa equipe comercial entrará em contato para alinhar o recebimento do seu brinde ou aplicação do voucher em sua próxima compra.
+                  🚀 <strong>O que acontece agora?</strong> Nossa equipe logística e comercial já recebeu sua solicitação para providenciar o envio ou entrega conforme a forma escolhida.
                 </p>
               </div>
 
@@ -2163,7 +2241,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     let foundUser = null;
     if (pool) {
       try {
-        const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role, phone, document, company_name as "companyName", address, is_verified as "isVerified" FROM users WHERE email = $1', [inputEmail]);
+        const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role, phone, document, company_name as "companyName", address, is_verified as "isVerified", COALESCE(must_change_password, false) as "mustChangePassword" FROM users WHERE email = $1', [inputEmail]);
         if (result.rows && result.rows.length > 0) {
           foundUser = result.rows[0];
         }
@@ -2187,7 +2265,8 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
           document: user.document || '',
           companyName: user.companyName || user.company_name || '',
           address: user.address || null,
-          isVerified: Boolean(user.isVerified || user.is_verified || false)
+          isVerified: Boolean(user.isVerified || user.is_verified || false),
+          mustChangePassword: Boolean(user.mustChangePassword || user.must_change_password || false)
         };
       }
     }
@@ -2231,6 +2310,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         companyName: foundUser.companyName || '',
         address: foundUser.address || null,
         isVerified,
+        mustChangePassword: Boolean(foundUser.mustChangePassword || foundUser.must_change_password || false),
         token,
         expiresAt
       });
@@ -2577,6 +2657,50 @@ app.post('/api/auth/reset-password', async (req, res) => {
   } catch (err) {
     console.error('Erro ao redefinir senha:', err);
     return res.status(500).json({ error: 'Erro interno ao redefinir senha.' });
+  }
+});
+
+// Force Change Temporary Password (After Support Reset)
+app.post('/api/auth/force-change-password', authenticateToken, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword) {
+      return res.status(400).json({ error: 'A nova senha definitiva é obrigatória.' });
+    }
+
+    const pwdCheck = validatePasswordStandard(newPassword);
+    if (!pwdCheck.valid) {
+      return res.status(400).json({ error: pwdCheck.message });
+    }
+
+    const userId = req.user.id;
+    const newHash = bcrypt.hashSync(newPassword, 10);
+
+    if (pool) {
+      try {
+        await pool.query('UPDATE users SET password_hash = $1, must_change_password = FALSE, updated_at = NOW() WHERE id = $2', [newHash, userId]);
+      } catch (e) {
+        console.error('Erro ao atualizar senha definitiva no PostgreSQL:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    const uIdx = (db.users || []).findIndex(u => u.id === userId);
+    if (uIdx !== -1) {
+      db.users[uIdx].passwordHash = newHash;
+      db.users[uIdx].password_hash = newHash;
+      db.users[uIdx].mustChangePassword = false;
+      db.users[uIdx].must_change_password = false;
+      writeDbJson(db);
+    }
+
+    return res.json({
+      success: true,
+      message: 'Senha definitiva definida com sucesso! Você já pode navegar normalmente no site.'
+    });
+  } catch (err) {
+    console.error('Erro ao processar troca obrigatória de senha:', err);
+    return res.status(500).json({ error: 'Erro ao cadastrar nova senha definitiva.' });
   }
 });
 
@@ -4265,7 +4389,14 @@ app.get('/api/rewards', async (req, res) => {
 // Endpoint de Resgate de Recompensa (Cliente autenticado)
 app.post('/api/rewards/redeem', authenticateToken, async (req, res) => {
   try {
-    const { rewardId } = req.body;
+    const { 
+      rewardId, 
+      deliveryMethod = 'shipping', 
+      shippingAddress = null, 
+      deliveryNotes = '',
+      saveAsDefaultAddress = true 
+    } = req.body;
+
     if (!rewardId) {
       return res.status(400).json({ error: 'Informe a recompensa desejada.' });
     }
@@ -4275,7 +4406,7 @@ app.post('/api/rewards/redeem', authenticateToken, async (req, res) => {
     let reward = null;
 
     if (pool) {
-      const uRes = await pool.query('SELECT a_points, email, name, document, phone FROM users WHERE id = $1', [userId]);
+      const uRes = await pool.query('SELECT a_points, email, name, document, phone, address FROM users WHERE id = $1', [userId]);
       if (uRes.rows.length === 0) return res.status(404).json({ error: 'Usuário não encontrado.' });
       userPoints = Number(uRes.rows[0].a_points || 0);
 
@@ -4287,6 +4418,40 @@ app.post('/api/rewards/redeem', authenticateToken, async (req, res) => {
         return res.status(400).json({ 
           error: `Saldo insuficiente. Você possui ${userPoints} pontos e a recompensa requer ${reward.points_cost} pontos.` 
         });
+      }
+
+      // Se passou endereço e marcou salvar endereço padrão, atualiza no cadastro do usuário
+      if (shippingAddress && typeof shippingAddress === 'object' && shippingAddress.street && saveAsDefaultAddress) {
+        try {
+          await pool.query('UPDATE users SET address = $1 WHERE id = $2', [JSON.stringify(shippingAddress), userId]);
+        } catch (errAddr) {
+          console.warn('[REDEEM] Não foi possível salvar endereço padrão do usuário:', errAddr.message);
+        }
+      }
+
+      // Constrói resumo textual do endereço para o log e ledger
+      let addressSummary = '';
+      if (shippingAddress && typeof shippingAddress === 'object') {
+        const parts = [];
+        if (shippingAddress.street) parts.push(`${shippingAddress.street}, ${shippingAddress.number || 'S/N'}${shippingAddress.complement ? ' (' + shippingAddress.complement + ')' : ''}`);
+        if (shippingAddress.neighborhood) parts.push(shippingAddress.neighborhood);
+        if (shippingAddress.city && shippingAddress.state) parts.push(`${shippingAddress.city}/${shippingAddress.state}`);
+        else if (shippingAddress.city) parts.push(shippingAddress.city);
+        if (shippingAddress.cep) parts.push(`CEP ${shippingAddress.cep}`);
+        addressSummary = parts.join(' - ');
+      }
+
+      let deliveryLabel = 'Envio para Endereço';
+      if (deliveryMethod === 'pickup') deliveryLabel = 'Retirada na Sede Athena (DF)';
+      if (deliveryMethod === 'with_order') deliveryLabel = 'Despachar com Próximo Pedido';
+      if (reward.category === 'vouchers') deliveryLabel = 'Voucher Digital';
+
+      let finalNotes = `Resgate: ${reward.name} | Entrega: ${deliveryLabel}`;
+      if (deliveryMethod === 'shipping' && addressSummary) {
+        finalNotes += ` | Endereço: ${addressSummary}`;
+      }
+      if (deliveryNotes && String(deliveryNotes).trim()) {
+        finalNotes += ` | Obs: ${String(deliveryNotes).trim()}`;
       }
 
       // Debita pontos via ledger
@@ -4302,7 +4467,7 @@ app.post('/api/rewards/redeem', authenticateToken, async (req, res) => {
         type: 'REDEEM',
         status: 'available',
         rewardId: reward.id,
-        notes: `Resgate de benefício: ${reward.name}`
+        notes: finalNotes
       });
 
       const updatedPoints = Math.max(0, userPoints - reward.points_cost);
@@ -4317,7 +4482,11 @@ app.post('/api/rewards/redeem', authenticateToken, async (req, res) => {
         customerPhone: uRes.rows[0].phone || '',
         previousPoints: userPoints,
         remainingPoints: updatedPoints,
-        notes: `Resgate de benefício: ${reward.name}`
+        deliveryMethod,
+        shippingAddress,
+        addressSummary,
+        deliveryNotes,
+        notes: finalNotes
       }).catch(errNotif => console.error('[RESGATE NOTIFICATION ERROR]:', errNotif.message));
 
       return res.json({
@@ -4330,7 +4499,9 @@ app.post('/api/rewards/redeem', authenticateToken, async (req, res) => {
           cashCost: reward.cash_cost
         },
         remainingPoints: updatedPoints,
-        transactionId: debitResult.txId
+        transactionId: debitResult.txId,
+        deliveryMethod,
+        addressSummary
       });
     }
 
@@ -4389,6 +4560,7 @@ app.get('/api/hermes/status', validateHermesAuth, async (req, res) => {
         'GET /api/hermes/status',
         'GET /api/hermes/customers',
         'GET /api/hermes/customers/:identifier',
+        'POST /api/hermes/customers/:identifier/debit',
         'GET /api/hermes/rewards',
         'GET /api/hermes/products',
         'GET /api/hermes/loyalty/insights'
@@ -4601,6 +4773,248 @@ app.get('/api/hermes/customers/:identifier', validateHermesAuth, async (req, res
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// Hermes: Debitar Pontos Comercial / Desconto Negociado por Vendedor
+app.post('/api/hermes/customers/:identifier/debit', validateHermesAuth, async (req, res) => {
+  try {
+    const rawId = req.params.identifier;
+    const { points, reason, orderId, salesperson = 'Vendedor Hermes' } = req.body;
+
+    const pointsToDebit = parseInt(points, 10);
+    if (!pointsToDebit || pointsToDebit <= 0) {
+      return res.status(400).json({ error: 'Informe uma quantidade válida de pontos para débito (maior que zero).' });
+    }
+
+    const cleanEmail = rawId.trim().toLowerCase();
+    const cleanDigits = rawId.replace(/\D/g, '');
+
+    let customer = null;
+
+    if (pool) {
+      const uRes = await pool.query(`
+        SELECT id, name, company_name as "companyName", email, phone, document, 
+               COALESCE(a_points, 0) as "aPoints"
+        FROM users
+        WHERE id = $1 
+           OR LOWER(email) = $2 
+           OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $3)
+           OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(REPLACE(phone, '(', ''), ')', ''), '-', ''), ' ', '') LIKE '%' || $3)
+           OR (LENGTH($1) >= 3 AND (LOWER(name) ILIKE '%' || LOWER($1) || '%' OR LOWER(company_name) ILIKE '%' || LOWER($1) || '%'))
+        ORDER BY 
+           CASE 
+             WHEN id = $1 THEN 1
+             WHEN LOWER(email) = $2 THEN 2
+             WHEN ($3 <> '' AND REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $3) THEN 3
+             ELSE 4
+           END
+        LIMIT 1
+      `, [rawId, cleanEmail, cleanDigits]);
+
+      if (uRes.rows.length === 0) {
+        return res.status(404).json({ error: `Cliente "${rawId}" não foi localizado no sistema Athena.` });
+      }
+
+      customer = uRes.rows[0];
+    } else {
+      const db = readDbJson();
+      customer = (db.users || []).find(u => 
+        u.id === rawId || 
+        (u.email && u.email.toLowerCase() === cleanEmail) || 
+        (cleanDigits && u.document && u.document.replace(/\D/g, '') === cleanDigits)
+      );
+      if (!customer) {
+        return res.status(404).json({ error: `Cliente "${rawId}" não foi localizado.` });
+      }
+      customer.aPoints = Number(customer.aPoints || 0);
+    }
+
+    const currentPoints = Number(customer.aPoints || customer.a_points || 0);
+    if (currentPoints < pointsToDebit) {
+      return res.status(400).json({
+        error: `Saldo insuficiente para débito. O cliente possui ${currentPoints} A-Points, mas a solicitação tentou debitar ${pointsToDebit} pontos.`,
+        currentPoints,
+        requestedDebit: pointsToDebit
+      });
+    }
+
+    const discountEstimate = (pointsToDebit / 2).toFixed(2); // Regra de equivalência padrão: 2 pts = R$ 1,00
+    const finalReason = reason || `Desconto comercial negociado via Hermes (${salesperson}): R$ ${discountEstimate}`;
+    const txOrderId = orderId ? `PED_OMIE_${orderId}` : `DESC_COMERCIAL_${Date.now()}`;
+
+    const debitResult = await creditCustomerAPoints({
+      orderId: txOrderId,
+      orderTotal: 0,
+      points: -pointsToDebit,
+      customerEmail: customer.email,
+      customerCpfCnpj: customer.document,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      source: 'vendedor_hermes',
+      type: 'DISCOUNT',
+      status: 'available',
+      notes: `${finalReason} | Autorizado por: ${salesperson}`
+    });
+
+    const remainingPoints = Math.max(0, currentPoints - pointsToDebit);
+
+    // Dispara envio de notificação por e-mail para auditoria e controle
+    sendLoyaltyRedemptionReceiptNotification({
+      txId: debitResult.txId,
+      reward: {
+        name: `Abatimento Comercial / Desconto (${pointsToDebit} pts)`,
+        points_cost: pointsToDebit,
+        category: 'vouchers'
+      },
+      customerName: customer.name || 'Cliente',
+      customerCpfCnpj: customer.document || '',
+      customerEmail: customer.email || '',
+      customerPhone: customer.phone || '',
+      previousPoints: currentPoints,
+      remainingPoints,
+      deliveryMethod: 'commercial_discount',
+      notes: `${finalReason} | Pedido Omie: ${orderId || 'Negociação Direta'}`
+    }).catch(errNotif => console.error('[HERMES DEBIT NOTIF ERROR]:', errNotif.message));
+
+    return res.json({
+      success: true,
+      protocol: debitResult.txId,
+      message: `Sucesso: ${pointsToDebit} A-Points foram debitados da conta de ${customer.name}. Saldo restante: ${remainingPoints} pontos. Protocolo: ${debitResult.txId}`,
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        companyName: customer.companyName,
+        email: customer.email,
+        document: customer.document
+      },
+      debitedPoints: pointsToDebit,
+      previousPoints: currentPoints,
+      remainingPoints,
+      orderId: orderId || null,
+      reason: finalReason
+    });
+  } catch (err) {
+    console.error('Erro ao debitar pontos via Hermes:', err);
+    return res.status(500).json({ error: err.message || 'Erro ao processar débito de pontos.' });
+  }
+});
+
+// Admin / Vendedor: Debitar Pontos Comercial Assistido
+app.post('/api/admin/loyalty/debit', authenticateToken, async (req, res) => {
+  try {
+    const userRole = req.user?.role;
+    if (!['admin', 'vendedor'].includes(userRole)) {
+      return res.status(403).json({ error: 'Acesso restrito à equipe comercial e administrativa.' });
+    }
+
+    const { customerId, customerIdentifier, points, reason, orderId } = req.body;
+    const pointsToDebit = parseInt(points, 10);
+    if (!pointsToDebit || pointsToDebit <= 0) {
+      return res.status(400).json({ error: 'Informe uma quantidade válida de pontos para débito (maior que zero).' });
+    }
+
+    const targetId = customerId || customerIdentifier;
+    if (!targetId) {
+      return res.status(400).json({ error: 'Informe o cliente para o débito de pontos.' });
+    }
+
+    const cleanEmail = String(targetId).trim().toLowerCase();
+    const cleanDigits = String(targetId).replace(/\D/g, '');
+
+    let customer = null;
+    if (pool) {
+      const uRes = await pool.query(`
+        SELECT id, name, company_name as "companyName", email, phone, document, 
+               COALESCE(a_points, 0) as "aPoints"
+        FROM users
+        WHERE id = $1 
+           OR LOWER(email) = $2 
+           OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $3)
+           OR (LENGTH($1) >= 3 AND (LOWER(name) ILIKE '%' || LOWER($1) || '%' OR LOWER(company_name) ILIKE '%' || LOWER($1) || '%'))
+        LIMIT 1
+      `, [String(targetId), cleanEmail, cleanDigits]);
+
+      if (uRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Cliente não encontrado.' });
+      }
+      customer = uRes.rows[0];
+    } else {
+      const db = readDbJson();
+      customer = (db.users || []).find(u => 
+        u.id === targetId || 
+        (u.email && u.email.toLowerCase() === cleanEmail) || 
+        (cleanDigits && u.document && u.document.replace(/\D/g, '') === cleanDigits)
+      );
+      if (!customer) return res.status(404).json({ error: 'Cliente não encontrado.' });
+      customer.aPoints = Number(customer.aPoints || 0);
+    }
+
+    const currentPoints = Number(customer.aPoints || customer.a_points || 0);
+    if (currentPoints < pointsToDebit) {
+      return res.status(400).json({
+        error: `Saldo insuficiente. O cliente possui ${currentPoints} A-Points e a operação tentou debitar ${pointsToDebit} pontos.`
+      });
+    }
+
+    const operatorName = req.user?.name || req.user?.email || 'Mesa de Vendas';
+    const discountEstimate = (pointsToDebit / 2).toFixed(2);
+    const finalReason = reason || `Desconto comercial negociado no balcão/vendas (R$ ${discountEstimate})`;
+    const txOrderId = orderId ? `PED_OMIE_${orderId}` : `DESC_ADMIN_${Date.now()}`;
+
+    const debitResult = await creditCustomerAPoints({
+      orderId: txOrderId,
+      orderTotal: 0,
+      points: -pointsToDebit,
+      customerEmail: customer.email,
+      customerCpfCnpj: customer.document,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      source: 'admin_comercial',
+      type: 'DISCOUNT',
+      status: 'available',
+      notes: `${finalReason} | Operador: ${operatorName}`
+    });
+
+    const remainingPoints = Math.max(0, currentPoints - pointsToDebit);
+
+    // Dispara notificação por email
+    sendLoyaltyRedemptionReceiptNotification({
+      txId: debitResult.txId,
+      reward: {
+        name: `Abatimento Comercial / Desconto (${pointsToDebit} pts)`,
+        points_cost: pointsToDebit,
+        category: 'vouchers'
+      },
+      customerName: customer.name || 'Cliente',
+      customerCpfCnpj: customer.document || '',
+      customerEmail: customer.email || '',
+      customerPhone: customer.phone || '',
+      previousPoints: currentPoints,
+      remainingPoints,
+      deliveryMethod: 'commercial_discount',
+      notes: `${finalReason} | Pedido Omie: ${orderId || 'Venda Assistida'}`
+    }).catch(errNotif => console.error('[ADMIN DEBIT NOTIF ERROR]:', errNotif.message));
+
+    return res.json({
+      success: true,
+      protocol: debitResult.txId,
+      message: `${pointsToDebit} A-Points debitados com sucesso de ${customer.name}. Novo saldo: ${remainingPoints} pts.`,
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        document: customer.document
+      },
+      debitedPoints: pointsToDebit,
+      previousPoints: currentPoints,
+      remainingPoints,
+      orderId: orderId || null,
+      reason: finalReason
+    });
+  } catch (err) {
+    console.error('Erro ao debitar pontos no admin:', err);
+    return res.status(500).json({ error: err.message || 'Erro ao processar débito.' });
   }
 });
 
@@ -4828,11 +5242,11 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   });
 });
 
-// List Users (Restricted to Administrator)
-app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
+// List Users (Restricted to Staff: Admin, Vendedor, Editor)
+app.get('/api/users', authenticateToken, requireStaff, async (req, res) => {
   if (pool) {
     try {
-      const result = await pool.query('SELECT id, name, email, role, phone, document, company_name as "companyName", a_points as "aPoints", created_at as "createdAt" FROM users ORDER BY created_at DESC');
+      const result = await pool.query('SELECT id, name, email, role, phone, document, company_name as "companyName", a_points as "aPoints", COALESCE(must_change_password, false) as "mustChangePassword", created_at as "createdAt" FROM users ORDER BY created_at DESC');
       if (result.rows && result.rows.length > 0) {
         return res.json(result.rows);
       }
@@ -4843,9 +5257,129 @@ app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   const db = readDbJson();
   const cleanUsers = (db.users || []).map(({ passwordHash, password_hash, ...rest }) => ({
     ...rest,
-    aPoints: rest.aPoints || rest.a_points || 0
+    aPoints: rest.aPoints || rest.a_points || 0,
+    mustChangePassword: Boolean(rest.mustChangePassword || rest.must_change_password || false)
   }));
   res.json(cleanUsers);
+});
+
+// Suporte / Admin: Gerar Senha Temporária para Cliente (Força troca no próximo login)
+app.post('/api/admin/users/:id/generate-temp-password', authenticateToken, requireStaff, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    let targetUser = null;
+
+    if (pool) {
+      const uRes = await pool.query('SELECT id, name, email, role FROM users WHERE id = $1', [targetId]);
+      if (uRes.rows.length > 0) targetUser = uRes.rows[0];
+    } else {
+      const db = readDbJson();
+      targetUser = (db.users || []).find(u => u.id === targetId);
+    }
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Usuário não encontrado no sistema.' });
+    }
+
+    // Não permite resetar master admin ou outro admin por vendedor
+    if (targetUser.role === 'admin' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Você não tem permissão para alterar a senha de um administrador.' });
+    }
+
+    // Gera senha temporária amigável e segura (ex: Athena@4928)
+    const randomPin = Math.floor(1000 + Math.random() * 9000);
+    const tempPass = `Athena@${randomPin}`;
+    const tempHash = bcrypt.hashSync(tempPass, 10);
+
+    if (pool) {
+      try {
+        await pool.query('UPDATE users SET password_hash = $1, must_change_password = TRUE, updated_at = NOW() WHERE id = $2', [tempHash, targetId]);
+      } catch (e) {
+        console.error('Erro ao salvar senha temporária no PG:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    const uIdx = (db.users || []).findIndex(u => u.id === targetId);
+    if (uIdx !== -1) {
+      db.users[uIdx].passwordHash = tempHash;
+      db.users[uIdx].password_hash = tempHash;
+      db.users[uIdx].mustChangePassword = true;
+      db.users[uIdx].must_change_password = true;
+      writeDbJson(db);
+    }
+
+    return res.json({
+      success: true,
+      temporaryPassword: tempPass,
+      userId: targetUser.id,
+      userName: targetUser.name,
+      userEmail: targetUser.email,
+      message: `Senha temporária gerada com sucesso para ${targetUser.name}: ${tempPass}`
+    });
+  } catch (err) {
+    console.error('Erro ao gerar senha temporária no admin:', err);
+    return res.status(500).json({ error: 'Erro ao gerar senha temporária.' });
+  }
+});
+
+// Suporte / Admin: Reenviar E-mail com Código de Redefinição de Senha
+app.post('/api/admin/users/:id/send-reset-email', authenticateToken, requireStaff, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    let targetUser = null;
+
+    if (pool) {
+      const uRes = await pool.query('SELECT id, name, email, role FROM users WHERE id = $1', [targetId]);
+      if (uRes.rows.length > 0) targetUser = uRes.rows[0];
+    } else {
+      const db = readDbJson();
+      targetUser = (db.users || []).find(u => u.id === targetId);
+    }
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    const inputEmail = targetUser.email.trim().toLowerCase();
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const resetId = `reset_${Date.now()}`;
+
+    if (pool) {
+      try {
+        await pool.query(`
+          INSERT INTO password_resets (id, email, token, expires_at, used)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [resetId, inputEmail, resetCode, expiresAt, false]);
+      } catch (e) {
+        console.error('Erro ao salvar reset de senha pelo admin:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    if (!db.password_resets) db.password_resets = [];
+    db.password_resets.push({
+      id: resetId,
+      email: inputEmail,
+      token: resetCode,
+      expiresAt: expiresAt.toISOString(),
+      used: false
+    });
+    writeDbJson(db);
+
+    const emailResult = await sendPasswordResetEmail(inputEmail, resetCode, targetUser.name);
+
+    return res.json({
+      success: true,
+      message: `E-mail de recuperação enviado com sucesso para ${inputEmail}!`,
+      delivery: emailResult.method,
+      ...(emailResult.method === 'log' ? { devCode: resetCode } : {})
+    });
+  } catch (err) {
+    console.error('Erro ao reenviar e-mail de redefinição pelo admin:', err);
+    return res.status(500).json({ error: 'Erro ao enviar e-mail de redefinição.' });
+  }
 });
 
 // Admin: List All A-Points Transactions

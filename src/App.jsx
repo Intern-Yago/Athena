@@ -21,6 +21,7 @@ import CartDrawer from './components/CartDrawer';
 import InstallmentModal from './components/InstallmentModal';
 import APointsBanner from './components/APointsBanner';
 import EmailVerificationModal from './components/EmailVerificationModal';
+import ForceChangePasswordModal from './components/ForceChangePasswordModal';
 import LegalPage from './pages/LegalPage';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import { CartProvider, useCart } from './context/CartContext';
@@ -1078,6 +1079,21 @@ export default function App() {
             onLogout={(msg) => {
               setIsVerificationModalOpen(false);
               pendingVerificationActionRef.current = null;
+              handleLogout(msg);
+            }}
+            API_BASE_URL={API_BASE_URL}
+            showNotification={showNotification}
+          />
+
+          {/* Force Change Password Modal for Support Temporary Passwords */}
+          <ForceChangePasswordModal
+            isOpen={Boolean(currentUser?.mustChangePassword)}
+            currentUser={currentUser}
+            onSuccess={(updatedUser) => {
+              saveSession(updatedUser);
+              setCurrentUser(updatedUser);
+            }}
+            onLogout={(msg) => {
               handleLogout(msg);
             }}
             API_BASE_URL={API_BASE_URL}

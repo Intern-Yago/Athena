@@ -60,7 +60,14 @@ import {
   Mail,
   Send,
   Inbox,
-  Bell
+  Bell,
+  ShieldCheck,
+  Menu,
+  KeyRound,
+  Copy,
+  Phone,
+  Building2,
+  MessageCircle
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl, getVideoEmbedInfo } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
@@ -436,6 +443,88 @@ export default function AdminPanel({
   const userRole = currentUser?.role || 'admin';
   const isAdminRole = userRole === 'admin';
   const canEditContent = userRole === 'admin' || userRole === 'editor' || userRole === 'edicao';
+  const isStaff = ['admin', 'vendedor', 'editor', 'edicao'].includes(userRole);
+
+  // Lateral Sidebar mobile menu state
+  const [mobileAdminMenuOpen, setMobileAdminMenuOpen] = useState(false);
+
+  // Clients & Password Support State
+  const [clientSearch, setClientSearch] = useState('');
+  const [tempPasswordModal, setTempPasswordModal] = useState(null); // { user, tempPassword, message }
+  const [copiedTempPass, setCopiedTempPass] = useState(false);
+  const [generatingTempForId, setGeneratingTempForId] = useState(null);
+  const [sendingResetForId, setSendingResetForId] = useState(null);
+
+  // Separated lists
+  const employeesList = React.useMemo(() => (usersList || []).filter(u => u.role !== 'cliente'), [usersList]);
+  const clientsList = React.useMemo(() => (usersList || []).filter(u => u.role === 'cliente'), [usersList]);
+
+  const filteredClients = React.useMemo(() => {
+    const q = (clientSearch || '').trim().toLowerCase();
+    if (!q) return clientsList;
+    const cleanDoc = q.replace(/\D/g, '');
+    return clientsList.filter(c => {
+      const matchName = c.name && c.name.toLowerCase().includes(q);
+      const matchEmail = c.email && c.email.toLowerCase().includes(q);
+      const matchPhone = c.phone && c.phone.toLowerCase().includes(q);
+      const matchDoc = cleanDoc && c.document && c.document.replace(/\D/g, '').includes(cleanDoc);
+      return matchName || matchEmail || matchPhone || matchDoc;
+    });
+  }, [clientsList, clientSearch]);
+
+  const handleGenerateTempPassword = async (user) => {
+    if (!user?.id) return;
+    const confirmed = window.confirm(
+      `Confirma gerar uma senha temporária imediata para "${user.name}" (${user.email})?\n\n` +
+      `• A senha atual será substituída por uma chave de acesso provisória.\n` +
+      `• Ao logar com ela, o cliente será OBRIGADO a cadastrar uma nova senha definitiva.`
+    );
+    if (!confirmed) return;
+
+    setGeneratingTempForId(user.id);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/users/${user.id}/generate-temp-password`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao gerar senha temporária.');
+      }
+      setTempPasswordModal({
+        user,
+        tempPassword: data.temporaryPassword,
+        message: data.message
+      });
+      setCopiedTempPass(false);
+      showNotification && showNotification(`Senha provisória gerada para ${user.name}!`, 'success');
+      fetchUsers();
+    } catch (err) {
+      showNotification && showNotification(err.message, 'error');
+    } finally {
+      setGeneratingTempForId(null);
+    }
+  };
+
+  const handleSendResetEmail = async (user) => {
+    if (!user?.id) return;
+    setSendingResetForId(user.id);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/users/${user.id}/send-reset-email`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao enviar e-mail de redefinição.');
+      }
+      showNotification && showNotification(data.message || `E-mail com código enviado para ${user.email}!`, 'success');
+    } catch (err) {
+      showNotification && showNotification(err.message, 'error');
+    } finally {
+      setSendingResetForId(null);
+    }
+  };
 
   // Authorization Headers helper
   const getAuthHeaders = () => ({
@@ -511,10 +600,10 @@ export default function AdminPanel({
   };
 
   useEffect(() => {
-    if (isAdminRole) {
+    if (isStaff) {
       fetchUsers();
     }
-  }, [isAdminRole]);
+  }, [isStaff]);
 
   // Omie ERP Reconciliation & Loyalty State
   const [omieSyncStatus, setOmieSyncStatus] = useState(null);
@@ -578,6 +667,68 @@ export default function AdminPanel({
       fetchOmieSyncStatus();
     } catch (err) {
       showNotification(err.message, 'error');
+    }
+  };
+
+  // Assisted Commercial Debit State (Mesa de Vendas / Balcão Omie)
+  const [debitCustomerSearch, setDebitCustomerSearch] = useState('');
+  const [selectedDebitCustomer, setSelectedDebitCustomer] = useState(null);
+  const [debitPointsAmount, setDebitPointsAmount] = useState('');
+  const [debitReason, setDebitReason] = useState('');
+  const [debitOmieOrder, setDebitOmieOrder] = useState('');
+  const [isProcessingDebit, setIsProcessingDebit] = useState(false);
+  const [debitSuccessBanner, setDebitSuccessBanner] = useState(null);
+
+  const handleExecuteCommercialDebit = async (e) => {
+    e.preventDefault();
+    if (!selectedDebitCustomer || !debitPointsAmount) {
+      showNotification && showNotification('Selecione um cliente e informe a pontuação a debitar.', 'error');
+      return;
+    }
+
+    const numPoints = parseInt(debitPointsAmount, 10);
+    if (!numPoints || numPoints <= 0) {
+      showNotification && showNotification('A pontuação deve ser maior que zero.', 'error');
+      return;
+    }
+
+    const customerBalance = Number(selectedDebitCustomer.aPoints || selectedDebitCustomer.a_points || 0);
+    if (customerBalance < numPoints) {
+      showNotification && showNotification(`Saldo insuficiente. O cliente possui apenas ${customerBalance} pts.`, 'error');
+      return;
+    }
+
+    setIsProcessingDebit(true);
+    setDebitSuccessBanner(null);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/loyalty/debit`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          customerId: selectedDebitCustomer.id,
+          points: numPoints,
+          reason: debitReason || `Desconto comercial negociado no pedido Omie ${debitOmieOrder || 'direto'}`,
+          orderId: debitOmieOrder || null
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showNotification && showNotification(data.message || 'Pontos debitados com sucesso!', 'success');
+        setDebitSuccessBanner(data);
+        setDebitPointsAmount('');
+        setDebitReason('');
+        setDebitOmieOrder('');
+        fetchUsers();
+        setSelectedDebitCustomer(prev => prev ? ({ ...prev, aPoints: data.remainingPoints, a_points: data.remainingPoints }) : null);
+      } else {
+        showNotification && showNotification(data.error || 'Erro ao processar débito.', 'error');
+      }
+    } catch (err) {
+      showNotification && showNotification('Falha de conexão com o servidor.', 'error');
+    } finally {
+      setIsProcessingDebit(false);
     }
   };
 
@@ -2827,100 +2978,263 @@ export default function AdminPanel({
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setActiveAdminTab('products')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
-              activeAdminTab === 'products'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            <span>Produtos ({products.length})</span>
-          </button>
+        {/* Main 2-Column Responsive Dashboard Layout (Lateral Sidebar + Main View) */}
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          
+          {/* Mobile Navigation Toggle Header (visible only on mobile/tablets) */}
+          <div className="lg:hidden w-full bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold">
+                {activeAdminTab === 'products' && <Package className="w-4 h-4" />}
+                {activeAdminTab === 'categories' && <Layers className="w-4 h-4" />}
+                {activeAdminTab === 'brands' && <Tag className="w-4 h-4" />}
+                {activeAdminTab === 'coupons' && <Gift className="w-4 h-4" />}
+                {activeAdminTab === 'clients' && <Users className="w-4 h-4" />}
+                {activeAdminTab === 'users' && <ShieldCheck className="w-4 h-4" />}
+                {activeAdminTab === 'omie' && <RefreshCw className="w-4 h-4" />}
+                {activeAdminTab === 'settings' && <Lock className="w-4 h-4" />}
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-black text-slate-900 leading-tight">
+                  {activeAdminTab === 'products' && `Produtos (${products.length})`}
+                  {activeAdminTab === 'categories' && `Categorias (${categories.length})`}
+                  {activeAdminTab === 'brands' && `Marcas (${brands.length})`}
+                  {activeAdminTab === 'coupons' && 'Cupons & Vouchers'}
+                  {activeAdminTab === 'clients' && `Clientes do Site (${clientsList.length})`}
+                  {activeAdminTab === 'users' && `Equipe & Acessos (${employeesList.length})`}
+                  {activeAdminTab === 'omie' && 'Omie ERP & Fidelidade'}
+                  {activeAdminTab === 'settings' && 'Configurações & Senha'}
+                </div>
+                <div className="text-[10px] text-slate-400">Painel Administrativo</div>
+              </div>
+            </div>
 
-          <button
-            onClick={() => setActiveAdminTab('categories')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
-              activeAdminTab === 'categories'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Categorias ({categories.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveAdminTab('brands')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
-              activeAdminTab === 'brands'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Tag className="w-4 h-4" />
-            <span>Marcas ({brands.length})</span>
-          </button>
-
-          {/* Cupons & Vouchers Tab */}
-          <button
-            onClick={() => setActiveAdminTab('coupons')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
-              activeAdminTab === 'coupons'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Gift className="w-4 h-4" />
-            <span>Cupons & Vouchers</span>
-          </button>
-
-          {/* ADMIN ONLY: Employees & Access Management Tab */}
-          {isAdminRole && (
             <button
-              onClick={() => setActiveAdminTab('users')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                activeAdminTab === 'users'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
+              type="button"
+              onClick={() => setMobileAdminMenuOpen(!mobileAdminMenuOpen)}
+              className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 font-bold"
             >
-              <Users className="w-4 h-4" />
-              <span>Funcionários ({usersList.length})</span>
+              <Menu className="w-4 h-4 text-slate-700" />
+              <span>Menu</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${mobileAdminMenuOpen ? 'rotate-180' : ''}`} />
             </button>
-          )}
+          </div>
 
-          {/* ADMIN ONLY: Omie ERP & Loyalty Sync Tab */}
-          {isAdminRole && (
-            <button
-              onClick={() => setActiveAdminTab('omie')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                activeAdminTab === 'omie'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>Omie ERP & Fidelidade</span>
-            </button>
-          )}
+          {/* Lateral Sidebar Navigation */}
+          <aside className={`w-full lg:w-64 xl:w-72 shrink-0 ${mobileAdminMenuOpen ? 'block' : 'hidden lg:block'}`}>
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-4 space-y-5 lg:sticky lg:top-24">
+              
+              {/* User Profile Mini Card */}
+              <div className="p-3 rounded-2xl bg-slate-900 text-white flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
+                  {(currentUser?.name || 'A')[0].toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-black truncate">{currentUser?.name || 'Administrador'}</div>
+                  <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider truncate">
+                    {userRole === 'admin' ? 'Administrador Geral' : userRole === 'vendedor' ? 'Vendedor' : 'Gestor de Conteúdo'}
+                  </div>
+                </div>
+              </div>
 
-          {/* Settings & Password Tab */}
-          <button
-            onClick={() => setActiveAdminTab('settings')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-colors whitespace-nowrap ${
-              activeAdminTab === 'settings'
-                ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-            }`}
-          >
-            <Lock className="w-4 h-4" />
-            <span>Configurações & Senha</span>
-          </button>
-        </div>
+              {/* Group 1: Catálogo & Loja */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 py-1">
+                  Catálogo & Loja
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('products'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'products'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Package className="w-4 h-4 shrink-0" />
+                    <span>Produtos</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'products' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {products.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('categories'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'categories'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Layers className="w-4 h-4 shrink-0" />
+                    <span>Categorias</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'categories' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {categories.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('brands'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'brands'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Tag className="w-4 h-4 shrink-0" />
+                    <span>Marcas</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'brands' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {brands.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('coupons'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'coupons'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Gift className="w-4 h-4 shrink-0" />
+                    <span>Cupons & Vouchers</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Group 2: Clientes & Fidelidade */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 py-1">
+                  Clientes & Fidelidade
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('clients'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'clients'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className="w-4 h-4 shrink-0" />
+                    <span>Clientes do Site</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'clients' ? 'bg-slate-950/20 text-slate-950' : 'bg-purple-100 text-purple-800'
+                  }`}>
+                    {clientsList.length}
+                  </span>
+                </button>
+
+                {isAdminRole && (
+                  <button
+                    type="button"
+                    onClick={() => { setActiveAdminTab('omie'); setMobileAdminMenuOpen(false); }}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                      activeAdminTab === 'omie'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <RefreshCw className="w-4 h-4 shrink-0" />
+                      <span>Omie ERP & Pontos</span>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              {/* Group 3: Administração & Sistema */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 py-1">
+                  Administração & Equipe
+                </div>
+
+                {isAdminRole && (
+                  <button
+                    type="button"
+                    onClick={() => { setActiveAdminTab('users'); setMobileAdminMenuOpen(false); }}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                      activeAdminTab === 'users'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="w-4 h-4 shrink-0" />
+                      <span>Equipe & Acessos</span>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                      activeAdminTab === 'users' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {employeesList.length}
+                    </span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('settings'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'settings'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Lock className="w-4 h-4 shrink-0" />
+                    <span>Configurações & Senha</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Sidebar Quick Action Shortcuts */}
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPdfModalOpen(true)}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition-colors border border-slate-200 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Gerar Catálogo PDF</span>
+                </button>
+
+                {canEditContent && (
+                  <button
+                    type="button"
+                    onClick={openNewProductModal}
+                    className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Novo Equipamento</span>
+                  </button>
+                )}
+              </div>
+
+            </div>
+          </aside>
+
+          {/* Main Content Area */}
+          <main className="flex-1 min-w-0 w-full space-y-6">
 
         {/* PRODUCTS MANAGEMENT TAB WITH PAGINATION */}
         {activeAdminTab === 'products' && (() => {
@@ -3621,95 +3935,299 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* EMPLOYEES & ACCESS CONTROL TAB (ADMIN ONLY) */}
-        {activeAdminTab === 'users' && isAdminRole && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-amber-600" />
-                  Gerenciamento de Funcionários & Níveis de Acesso
-                </h3>
-                <p className="text-xs text-slate-500">Cadastre contas de funcionários e revogue o acesso quando necessário.</p>
+        {/* CLIENTS / PORTAL USERS MANAGEMENT & SUPPORT TAB */}
+        {activeAdminTab === 'clients' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700 shadow-2xs">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">
+                      Clientes do Site & Recuperação de Acesso
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Consulte clientes cadastrados no portal, saldo de fidelidade A-Points e preste suporte imediato de recuperação de senha.
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <button onClick={() => setIsUserModalOpen(true)} className="btn-gold text-xs font-bold py-2 px-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-200">
+                  Total de Clientes: <strong className="text-purple-700">{clientsList.length}</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Search & Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  placeholder="Buscar por nome, e-mail, telefone ou CPF/CNPJ..."
+                  className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white transition-colors"
+                />
+                {clientSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setClientSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="text-[11px] font-medium text-slate-400">
+                Mostrando <strong className="text-slate-700">{filteredClients.length}</strong> de {clientsList.length} clientes
+              </div>
+            </div>
+
+            {/* Customers Table */}
+            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-100 uppercase text-[10px] text-slate-600 border-b border-slate-200 font-black tracking-wider">
+                    <tr>
+                      <th className="py-3.5 px-4">Cliente / Cadastro</th>
+                      <th className="py-3.5 px-4">Contato & Documento</th>
+                      <th className="py-3.5 px-4 text-center">Saldo A-Points</th>
+                      <th className="py-3.5 px-4 text-center">Status de Acesso</th>
+                      <th className="py-3.5 px-4 text-right">Suporte ao Cliente</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredClients.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="py-12 text-center text-slate-400 text-xs">
+                          {clientSearch ? 'Nenhum cliente encontrado para os termos pesquisados.' : 'Nenhum cliente cadastrado no portal Athena até o momento.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredClients.map((client) => {
+                        const isTemp = Boolean(client.mustChangePassword);
+                        const isGenerating = generatingTempForId === client.id;
+                        const isSendingReset = sendingResetForId === client.id;
+
+                        return (
+                          <tr key={client.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-slate-900 text-sm">{client.name}</div>
+                              <div className="text-[10px] text-slate-400">
+                                {client.createdAt ? `Desde ${new Date(client.createdAt).toLocaleDateString('pt-BR')}` : 'Cadastro direto'}
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4">
+                              <div className="font-mono text-slate-700 font-medium select-all">{client.email}</div>
+                              <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
+                                {client.phone ? (
+                                  <a
+                                    href={`https://wa.me/55${client.phone.replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                                    title="Conversar no WhatsApp"
+                                  >
+                                    <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                                    <span>{client.phone}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-400 text-[10px]">Sem telefone</span>
+                                )}
+                                {client.document && (
+                                  <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono text-[10px] border border-slate-200">
+                                    {client.document}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                                <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span>{Number(client.aPoints || 0)} pts</span>
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4 text-center">
+                              {isTemp ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Cliente acessando com senha temporária. O sistema obrigará a troca de senha no próximo login.">
+                                  <KeyRound className="w-3 h-3 text-amber-700" />
+                                  <span>Senha Provisória Ativa</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                  <Check className="w-3 h-3 text-emerald-600" />
+                                  <span>Acesso Normal</span>
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {/* Points Adjustment */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPointsModalUser(client);
+                                    setPointsAdjustment('');
+                                    setPointsReason('');
+                                  }}
+                                  className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1 font-bold text-amber-800 hover:text-amber-950 hover:bg-amber-50 border border-amber-300 cursor-pointer"
+                                  title="Ajustar ou bonificar pontos do cliente"
+                                >
+                                  <Coins className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Pontos</span>
+                                </button>
+
+                                {/* Send Reset Email */}
+                                <button
+                                  type="button"
+                                  disabled={isSendingReset}
+                                  onClick={() => handleSendResetEmail(client)}
+                                  className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1 font-bold text-slate-700 hover:text-slate-900 border border-slate-300 disabled:opacity-50 cursor-pointer"
+                                  title="Disparar e-mail com código de 6 dígitos para redefinição de senha"
+                                >
+                                  {isSendingReset ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Mail className="w-3.5 h-3.5 text-slate-600" />
+                                  )}
+                                  <span className="hidden sm:inline">E-mail</span>
+                                </button>
+
+                                {/* Generate Immediate Temporary Password */}
+                                <button
+                                  type="button"
+                                  disabled={isGenerating}
+                                  onClick={() => handleGenerateTempPassword(client)}
+                                  className="py-1.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-colors flex items-center gap-1 disabled:opacity-50 shadow-xs cursor-pointer"
+                                  title="Gerar senha temporária imediata para suporte ao cliente por telefone/WhatsApp"
+                                >
+                                  {isGenerating ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <KeyRound className="w-3.5 h-3.5 text-slate-950" />
+                                  )}
+                                  <span>Senha Provisória</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* EMPLOYEES & ACCESS CONTROL TAB (ADMIN ONLY - INTERNAL STAFF ONLY) */}
+        {activeAdminTab === 'users' && isAdminRole && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-amber-600" />
+                  Gerenciamento da Equipe & Níveis de Acesso
+                </h3>
+                <p className="text-xs text-slate-500">Cadastre contas de colaboradores internos (Administradores, Editores, Vendedores) e controle permissões.</p>
+              </div>
+
+              <button onClick={() => setIsUserModalOpen(true)} className="btn-gold text-xs font-bold py-2.5 px-4 cursor-pointer">
                 <Plus className="w-3.5 h-3.5" /> Cadastrar Funcionário
               </button>
             </div>
 
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
               <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-100 uppercase text-[11px] text-slate-600 border-b border-slate-200 font-bold">
+                <thead className="bg-slate-100 uppercase text-[10px] text-slate-600 border-b border-slate-200 font-black tracking-wider">
                   <tr>
-                    <th className="py-3 px-4">Usuário</th>
-                    <th className="py-3 px-4">E-mail</th>
-                    <th className="py-3 px-4">Nível de Permissão</th>
-                    <th className="py-3 px-4 text-center">Saldo A-Points</th>
-                    <th className="py-3 px-4 text-right">Ações</th>
+                    <th className="py-3.5 px-4">Colaborador</th>
+                    <th className="py-3.5 px-4">E-mail Corporativo</th>
+                    <th className="py-3.5 px-4">Nível de Permissão</th>
+                    <th className="py-3.5 px-4 text-center">Saldo A-Points</th>
+                    <th className="py-3.5 px-4 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {usersList.map((user) => {
-                    const roleLabels = {
-                      admin: { label: 'Administrador Geral', color: 'bg-amber-100 text-amber-900 border-amber-300' },
-                      editor: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
-                      edicao: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
-                      vendedor: { label: 'Vendedor (Somente Leitura & PDF)', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' },
-                      cliente: { label: 'Cliente (Portal)', color: 'bg-purple-100 text-purple-900 border-purple-300' }
-                    };
-                    const roleObj = roleLabels[user.role] || roleLabels.vendedor;
+                  {employeesList.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-slate-400 text-xs">
+                        Nenhum funcionário cadastrado.
+                      </td>
+                    </tr>
+                  ) : (
+                    employeesList.map((user) => {
+                      const roleLabels = {
+                        admin: { label: 'Administrador Geral', color: 'bg-amber-100 text-amber-900 border-amber-300' },
+                        editor: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
+                        edicao: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
+                        vendedor: { label: 'Vendedor (Somente Leitura & PDF)', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' }
+                      };
+                      const roleObj = roleLabels[user.role] || roleLabels.vendedor;
 
-                    return (
-                      <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 px-4 font-bold text-slate-900">
-                          {user.name}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-slate-600">
-                          {user.email}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${roleObj.color}`}>
-                            {roleObj.label}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
-                            <Coins className="w-3 h-3 text-amber-600 shrink-0" />
-                            {Number(user.aPoints || 0)} pts
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPointsModalUser(user);
-                                setPointsAdjustment('');
-                                setPointsReason('');
-                              }}
-                              className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 font-bold text-amber-800 hover:text-amber-950 hover:bg-amber-50 border border-amber-300"
-                              title="Ajustar ou bonificar pontos do usuário"
-                            >
-                              <Coins className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Pontos</span>
-                            </button>
-                            {user.id !== currentUser?.id ? (
+                      return (
+                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3.5 px-4 font-bold text-slate-900">
+                            {user.name}
+                          </td>
+                          <td className="py-3.5 px-4 font-mono text-slate-600">
+                            {user.email}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${roleObj.color}`}>
+                              {roleObj.label}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                              <Coins className="w-3 h-3 text-amber-600 shrink-0" />
+                              {Number(user.aPoints || 0)} pts
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               <button
-                                onClick={() => handleDeleteUser(user.id, user.name)}
-                                className="btn-danger text-xs py-1.5 px-2.5"
-                                title="Revogar Acesso / Apagar"
+                                type="button"
+                                onClick={() => {
+                                  setPointsModalUser(user);
+                                  setPointsAdjustment('');
+                                  setPointsReason('');
+                                }}
+                                className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 font-bold text-amber-800 hover:text-amber-950 hover:bg-amber-50 border border-amber-300 cursor-pointer"
+                                title="Ajustar ou bonificar pontos do usuário"
                               >
-                                <UserX className="w-3.5 h-3.5" /> Revogar
+                                <Coins className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Pontos</span>
                               </button>
-                            ) : (
-                              <span className="text-[10px] text-slate-400 font-semibold italic px-2">Você</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                              {user.id !== currentUser?.id ? (
+                                <button
+                                  onClick={() => handleDeleteUser(user.id, user.name)}
+                                  className="btn-danger text-xs py-1.5 px-2.5 cursor-pointer"
+                                  title="Revogar Acesso / Apagar"
+                                >
+                                  <UserX className="w-3.5 h-3.5" /> Revogar
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-semibold italic px-2">Você</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -3863,6 +4381,205 @@ export default function AdminPanel({
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* MESA DE VENDAS: ABATIMENTO COMERCIAL / DÉBITO DE PONTOS ASSISTIDO */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-700 shrink-0">
+                    <Coins className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">
+                      Mesa de Vendas: Abatimento Comercial de A-Points
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Aplique descontos negociados via WhatsApp/telefone debitando os pontos do cliente e registrando no pedido do Omie ERP.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-200">
+                    Equivalência Sugerida: 2 pts = R$ 1,00
+                  </span>
+                </div>
+              </div>
+
+              {/* Banner de Sucesso */}
+              {debitSuccessBanner && (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start justify-between gap-3 text-xs">
+                  <div className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm text-emerald-950">
+                        {debitSuccessBanner.message}
+                      </p>
+                      <p className="text-emerald-800 text-[11px] mt-0.5">
+                        Protocolo de Auditoria: <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-emerald-900 border border-emerald-200">{debitSuccessBanner.protocol}</code>
+                        {debitSuccessBanner.orderId && ` • Referência: ${debitSuccessBanner.orderId}`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDebitSuccessBanner(null)}
+                    className="text-emerald-600 hover:text-emerald-800 p-1 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              <form onSubmit={handleExecuteCommercialDebit} className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                  {/* Seleção do Cliente (col-span-5) */}
+                  <div className="lg:col-span-5 space-y-2">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Localizar Cliente (Nome, E-mail ou CNPJ) *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={debitCustomerSearch}
+                        onChange={(e) => {
+                          setDebitCustomerSearch(e.target.value);
+                          if (selectedDebitCustomer) setSelectedDebitCustomer(null);
+                        }}
+                        placeholder="Digite para buscar..."
+                        className="w-full text-xs px-3 py-2 pl-8 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500"
+                      />
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                    </div>
+
+                    {/* Lista rápida de clientes encontrados */}
+                    {debitCustomerSearch && !selectedDebitCustomer && (
+                      <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl bg-white divide-y divide-slate-100 shadow-sm text-xs">
+                        {usersList
+                          .filter(u => 
+                            (u.name && u.name.toLowerCase().includes(debitCustomerSearch.toLowerCase())) ||
+                            (u.email && u.email.toLowerCase().includes(debitCustomerSearch.toLowerCase())) ||
+                            (u.document && u.document.includes(debitCustomerSearch.replace(/\D/g, ''))) ||
+                            (u.companyName && u.companyName.toLowerCase().includes(debitCustomerSearch.toLowerCase()))
+                          )
+                          .slice(0, 8)
+                          .map(u => (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDebitCustomer(u);
+                                setDebitCustomerSearch(`${u.name} (${u.email})`);
+                              }}
+                              className="w-full text-left p-2.5 hover:bg-amber-50 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 truncate">{u.name}</p>
+                                <p className="text-[11px] text-slate-500 truncate">{u.companyName ? `${u.companyName} • ` : ''}{u.email}</p>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 shrink-0">
+                                {Number(u.aPoints || u.a_points || 0)} pts
+                              </span>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+
+                    {/* Card de Cliente Selecionado */}
+                    {selectedDebitCustomer && (
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-slate-900">{selectedDebitCustomer.name}</p>
+                          <p className="text-[11px] text-slate-500">{selectedDebitCustomer.email} {selectedDebitCustomer.document ? `• ${selectedDebitCustomer.document}` : ''}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Saldo Atual</span>
+                          <span className="text-base font-black text-emerald-700 font-mono">
+                            {Number(selectedDebitCustomer.aPoints || selectedDebitCustomer.a_points || 0)} pts
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pontos & Desconto (col-span-3) */}
+                  <div className="lg:col-span-3 space-y-2">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Pontos a Debitar *
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="1"
+                      value={debitPointsAmount}
+                      onChange={(e) => setDebitPointsAmount(e.target.value)}
+                      placeholder="Ex: 600"
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500 font-mono font-bold"
+                    />
+                    {Number(debitPointsAmount) > 0 && (
+                      <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] space-y-0.5">
+                        <p className="font-bold text-amber-900">
+                          Desconto: R$ {(Number(debitPointsAmount) / 2).toFixed(2)}
+                        </p>
+                        {selectedDebitCustomer && (
+                          <p className="text-slate-600 text-[10px]">
+                            Saldo pós-débito: <strong className="text-emerald-700">{Math.max(0, Number(selectedDebitCustomer.aPoints || selectedDebitCustomer.a_points || 0) - Number(debitPointsAmount))} pts</strong>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pedido Omie & Motivo (col-span-4) */}
+                  <div className="lg:col-span-4 space-y-2">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Nº Pedido / Proposta Omie
+                      </label>
+                      <input
+                        type="text"
+                        value={debitOmieOrder}
+                        onChange={(e) => setDebitOmieOrder(e.target.value)}
+                        placeholder="Ex: #1420 ou PED-89"
+                        className="w-full text-xs px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Motivo Comercial
+                      </label>
+                      <input
+                        type="text"
+                        value={debitReason}
+                        onChange={(e) => setDebitReason(e.target.value)}
+                        placeholder="Ex: Desconto na compra de elevador"
+                        className="w-full text-xs px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end">
+                  <button
+                    type="submit"
+                    disabled={isProcessingDebit || !selectedDebitCustomer || !debitPointsAmount}
+                    className="btn-gold text-xs font-bold py-2.5 px-6 flex items-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
+                  >
+                    {isProcessingDebit ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Processando Débito...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Coins className="w-4 h-4" />
+                        <span>Debitar Pontos e Enviar Comprovante</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
 
             {/* Unlinked Products Management Table */}
@@ -4403,6 +5120,9 @@ export default function AdminPanel({
           />
         )}
 
+          </main>
+        </div>
+
         {/* NEW EMPLOYEE MODAL (ADMIN ONLY) */}
         {isUserModalOpen && (
           <div className="modal-backdrop" onClick={() => setIsUserModalOpen(false)}>
@@ -4554,6 +5274,112 @@ export default function AdminPanel({
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* TEMPORARY PASSWORD DISPLAY MODAL FOR SUPPORT AGENTS */}
+        {tempPasswordModal && (
+          <div className="modal-backdrop" onClick={() => setTempPasswordModal(null)}>
+            <div className="modal-content max-w-md p-6 bg-white border-slate-200 rounded-3xl shadow-2xl relative space-y-5" onClick={(e) => e.stopPropagation()}>
+              <button 
+                type="button"
+                onClick={() => setTempPasswordModal(null)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center space-y-2 pt-2">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-800 flex items-center justify-center mx-auto border border-amber-500/30">
+                  <KeyRound className="w-6 h-6 text-amber-600" />
+                </div>
+                <h3 className="text-base font-black text-slate-900">
+                  Senha Provisória Gerada com Sucesso!
+                </h3>
+                <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
+                  Repasse esta chave ao cliente. Ao realizar o login no site, ele será <strong className="text-amber-700 font-bold">obrigado a cadastrar uma nova senha definitiva</strong>.
+                </p>
+              </div>
+
+              {/* Customer summary */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium">Cliente:</span>
+                  <span className="font-bold text-slate-900">{tempPasswordModal.user.name}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium">E-mail:</span>
+                  <span className="font-mono text-slate-700">{tempPasswordModal.user.email}</span>
+                </div>
+                {tempPasswordModal.user.phone && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-medium">WhatsApp / Tel:</span>
+                    <span className="font-medium text-slate-700">{tempPasswordModal.user.phone}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Monospace Password Highlight */}
+              <div className="p-4 rounded-2xl bg-slate-950 text-white text-center space-y-1.5 border border-slate-800 shadow-inner">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                  Senha Temporária de Acesso
+                </span>
+                <div className="text-3xl font-black font-mono tracking-widest text-amber-400 select-all py-1">
+                  {tempPasswordModal.tempPassword}
+                </div>
+                <span className="text-[10px] text-slate-400 block">
+                  Substitui a senha anterior e força tela de troca no login
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(tempPasswordModal.tempPassword);
+                    setCopiedTempPass(true);
+                    setTimeout(() => setCopiedTempPass(false), 2500);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  {copiedTempPass ? (
+                    <>
+                      <Check className="w-4 h-4 text-slate-950" />
+                      <span>Senha Copiada com Sucesso! ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>Copiar Somente a Senha</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const msg = `Olá ${tempPasswordModal.user.name}, segue sua senha temporária de acesso ao Portal Athena:\n\n🔑 Senha: ${tempPasswordModal.tempPassword}\n\nAo entrar com ela no site, o sistema solicitará que você cadastre sua nova senha definitiva pessoal.\n\nAcesse: https://athenaconsultoria.com.br`;
+                    navigator.clipboard.writeText(msg);
+                    showNotification && showNotification('Mensagem completa para WhatsApp copiada!', 'success');
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer border border-slate-300"
+                >
+                  <MessageCircle className="w-4 h-4 text-emerald-600" />
+                  <span>Copiar Mensagem Pronta para WhatsApp</span>
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setTempPasswordModal(null)}
+                  className="w-full py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Concluir e Fechar
+                </button>
+              </div>
             </div>
           </div>
         )}
