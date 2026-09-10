@@ -21,6 +21,8 @@ import CartDrawer from './components/CartDrawer';
 import InstallmentModal from './components/InstallmentModal';
 import APointsBanner from './components/APointsBanner';
 import EmailVerificationModal from './components/EmailVerificationModal';
+import LegalPage from './pages/LegalPage';
+import CookieConsentBanner from './components/CookieConsentBanner';
 import { CartProvider, useCart } from './context/CartContext';
 
 import { INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
@@ -870,6 +872,18 @@ export default function App() {
       return <AboutPage />;
     }
 
+    if (currentRoute === 'termos-de-uso' || currentRoute === 'termos' || currentRoute === 'terms') {
+      return <LegalPage initialTab="terms" onNavigate={navigateTo} />;
+    }
+
+    if (currentRoute === 'politica-de-privacidade' || currentRoute === 'privacidade' || currentRoute === 'privacy') {
+      return <LegalPage initialTab="privacy" onNavigate={navigateTo} />;
+    }
+
+    if (currentRoute === 'politica-de-cookies' || currentRoute === 'cookies') {
+      return <LegalPage initialTab="cookies" onNavigate={navigateTo} />;
+    }
+
     if (currentRoute === 'admin') {
       // Guard admin route: if not logged in, redirect to login page!
       if (!currentUser) {
@@ -1077,6 +1091,9 @@ export default function App() {
           <div className="pb-14 md:pb-0">
             <Footer setActiveTab={navigateTo} currentUser={currentUser} />
           </div>
+
+          {/* Cookie & LGPD Consent Floating Banner */}
+          <CookieConsentBanner onNavigate={navigateTo} />
 
         </div>
       </CartProvider>

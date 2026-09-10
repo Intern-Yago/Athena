@@ -169,14 +169,43 @@ export default function Footer({ setActiveTab, currentUser }) {
 
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <div className="flex flex-wrap items-center gap-3">
+        {/* Bottom Bar: Direitos, Termos & LGPD */}
+        <div className="pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-3 gap-y-2 text-[11px]">
             <p>© {new Date().getFullYear()} Athena Soluções Automotivas. Todos os direitos reservados.</p>
-            <span>•</span>
+            <span className="hidden sm:inline text-slate-600">•</span>
+            <button
+              onClick={() => { setActiveTab('termos-de-uso'); scrollToTop(); }}
+              className="hover:text-amber-400 transition-colors cursor-pointer"
+            >
+              Termos de Uso
+            </button>
+            <span className="text-slate-600">•</span>
+            <button
+              onClick={() => { setActiveTab('politica-de-privacidade'); scrollToTop(); }}
+              className="hover:text-amber-400 transition-colors cursor-pointer"
+            >
+              Privacidade (LGPD)
+            </button>
+            <span className="text-slate-600">•</span>
+            <button
+              onClick={() => { setActiveTab('politica-de-cookies'); scrollToTop(); }}
+              className="hover:text-amber-400 transition-colors cursor-pointer"
+            >
+              Cookies
+            </button>
+            <span className="text-slate-600">•</span>
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('athena:open-cookie-preferences'))}
+              className="text-amber-400/90 hover:text-amber-300 font-semibold transition-colors cursor-pointer inline-flex items-center gap-1"
+              title="Ajustar consentimento de cookies"
+            >
+              <span>Preferências de Cookies</span>
+            </button>
+            <span className="text-slate-600">•</span>
             <button
               onClick={() => { setActiveTab('admin'); scrollToTop(); }}
-              className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
+              className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1 cursor-pointer transition-colors"
               title="Acesso Restrito à Equipe Athena"
             >
               <Lock className="w-3 h-3" />
@@ -186,7 +215,7 @@ export default function Footer({ setActiveTab, currentUser }) {
           
           <button 
             onClick={scrollToTop}
-            className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-amber-400 hover:border-amber-500 transition-all flex items-center justify-center gap-1 text-[11px] cursor-pointer"
+            className="p-2 px-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-amber-400 hover:border-amber-500 transition-all flex items-center justify-center gap-1 text-[11px] cursor-pointer shrink-0"
           >
             <span>Voltar ao Topo</span>
             <ArrowUp className="w-3.5 h-3.5" />

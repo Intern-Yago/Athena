@@ -31,13 +31,22 @@ const SMTP_FROM = process.env.SMTP_FROM || '"Athena Soluções Automotivas" <no-
 let mailTransporter = null;
 if (SMTP_PASS) {
   mailTransporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // STARTTLS na porta 587
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS
+    },
+    family: 4, // FORÇA IPv4: Previne Connection Timeout no Render e servidores Linux
+    connectionTimeout: 20000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
+    tls: {
+      rejectUnauthorized: false
     }
   });
-  console.log('Google SMTP (Gmail) configurado com sucesso para:', SMTP_USER, '| Remetente:', SMTP_FROM);
+  console.log('Google SMTP (Gmail Port 587 IPv4) configurado com sucesso para:', SMTP_USER, '| Remetente:', SMTP_FROM);
 } else {
   console.log('Google SMTP em modo log (Defina GMAIL_APP_PASSWORD no .env para envio real).');
 }
@@ -1606,45 +1615,284 @@ async function sendPurchaseReceiptNotification({
       htmlContent: adminHtml
     });
 
-    // 2. Cópia / Notificação de Pontos para o Cliente
-    if (config.sendCustomerCopy && customerEmail && customerEmail.includes('@') && pointsEarned > 0) {
-      const custSubject = `Seus A-Points Chegaram! Comprovante da Compra #${orderId}`;
+    // 2. Cópia / Notificação de Compra e Pontos para o Cliente
+    // REGRA DE HOMOLOGAÇÃO: Vendas do Omie ERP são redirecionadas para yagovictorbotafogo@gmail.com para testes.
+    // Compras feitas na loja online do site são enviadas diretamente para o cliente real.
+    const isOmieSource = String(source || '').toLowerCase().includes('omie');
+    const actualCustomerRecipient = isOmieSource ? 'yagovictorbotafogo@gmail.com' : customerEmail;
+
+    if (config.sendCustomerCopy && actualCustomerRecipient && actualCustomerRecipient.includes('@')) {
+      const custSubject = isOmieSource
+        ? `[HOMOLOGAÇÃO OMIE] Comprovante de Compra & A-Points (#${orderId}) — ${customerName}`
+        : `Comprovante de Compra & Seus A-Points (#${orderId}) — Athena Soluções Automotivas`;
+
+      const omieTestBadge = isOmieSource ? `
+        <div style="background-color: #1e3a8a; border: 1px solid #3b82f6; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px; color: #ffffff;">
+          <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; color: #93c5fd; letter-spacing: 0.5px;">
+            🧪 Modo de Homologação / Teste Omie ERP
+          </p>
+          <p style="margin: 0; font-size: 12px; line-height: 1.4; color: #e0f2fe;">
+            Este comprovante foi redirecionado para seu e-mail para validação de conformidade.<br/>
+            <strong>Cliente no ERP:</strong> ${customerName} | <strong>E-mail cadastrado:</strong> ${customerEmail || 'Não informado'} | <strong>Doc:</strong> ${customerCpfCnpj || 'N/A'}
+          </p>
+        </div>
+      ` : '';
+
+      const pointsBlockHtml = pointsEarned > 0 ? `
+        <div style="background-color: #0f172a; border-radius: 14px; padding: 22px; border: 1px solid #334155; text-align: center; margin-bottom: 24px;">
+          <p style="margin: 0 0 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Você acumulou no Programa de Fidelidade</p>
+          <p style="margin: 0 0 6px 0; font-size: 34px; font-weight: 900; color: #10b981;">+${pointsEarned} A-Points</p>
+          <p style="margin: 0; font-size: 12px; color: #cbd5e1;">(Regra: R$ 50,00 faturados = 1 A-Point)</p>
+        </div>
+      ` : `
+        <div style="background-color: #0f172a; border-radius: 14px; padding: 18px; border: 1px solid #334155; text-align: center; margin-bottom: 24px;">
+          <p style="margin: 0 0 4px 0; font-size: 13px; color: #f8fafc; font-weight: 700;">Compra Registrada com Sucesso</p>
+          <p style="margin: 0; font-size: 12px; color: #94a3b8;">A cada R$ 50,00 faturados você acumula 1 ponto no programa A-Points.</p>
+        </div>
+      `;
+
       const custHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
-          <div style="max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden;">
+          <div style="max-width: 580px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5);">
             
             <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px; text-align: center; border-bottom: 1px solid #334155;">
-              <span style="display: inline-block; padding: 4px 12px; border-radius: 9999px; background-color: #10b981; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 12px;">
-                Pontos de Fidelidade Creditados
+              <span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; background-color: #10b981; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
+                Comprovante de Compra Confirmada
               </span>
-              <h1 style="color: #f59e0b; margin: 0 0 4px 0; font-size: 24px; font-weight: 900;">ATHENA</h1>
-              <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 1.5px;">Soluções Automotivas</p>
+              <h1 style="color: #f59e0b; margin: 0 0 4px 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px;">ATHENA</h1>
+              <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Soluções Automotivas • Comprovante do Cliente</p>
             </div>
 
-            <div style="padding: 28px;">
-              <p style="margin: 0 0 16px 0; font-size: 15px; color: #f8fafc;">
+            <div style="padding: 28px 32px;">
+              ${omieTestBadge}
+
+              <p style="margin: 0 0 12px 0; font-size: 16px; color: #f8fafc;">
                 Olá, <strong>${customerName}</strong>!
               </p>
-              <p style="margin: 0 0 20px 0; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-                Sua compra recente no valor de <strong>${formattedTotal}</strong> foi confirmada e creditou novos pontos em sua conta Athena!
+              <p style="margin: 0 0 22px 0; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+                Seu faturamento recente no valor de <strong>${formattedTotal}</strong> foi processado e confirmado com sucesso. Guarde este comprovante para seu acompanhamento e controle.
               </p>
 
-              <div style="background-color: #0f172a; border-radius: 14px; padding: 22px; border: 1px solid #334155; text-align: center; margin-bottom: 24px;">
-                <p style="margin: 0 0 6px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Você acumulou</p>
-                <p style="margin: 0 0 6px 0; font-size: 32px; font-weight: 900; color: #10b981;">+${pointsEarned} A-Points</p>
-                <p style="margin: 0; font-size: 12px; color: #cbd5e1;">(R$ 50,00 em compras = 1 A-Point)</p>
+              ${pointsBlockHtml}
+
+              <div style="background-color: #0f172a; border-radius: 14px; padding: 18px 20px; border: 1px solid #334155; margin-bottom: 24px;">
+                <p style="margin: 0 0 10px 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Resumo do Pedido</p>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
+                  <span style="color: #94a3b8;">Número do Pedido / NF:</span>
+                  <span style="color: #ffffff; font-weight: 700;">#${orderId}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
+                  <span style="color: #94a3b8;">Valor Total:</span>
+                  <span style="color: #ffffff; font-weight: 800;">${formattedTotal}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
+                  <span style="color: #94a3b8;">Canal de Faturamento:</span>
+                  <span style="color: #cbd5e1;">${source}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; border-top: 1px solid #1e293b; pt-2; margin-top: 8px;">
+                  <span>Data de Confirmação:</span>
+                  <span>${formattedDate} (Brasília)</span>
+                </div>
               </div>
 
-              <div style="text-align: center;">
-                <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 12px;">
-                  Ver Meu Saldo & Catálogo de Prêmios
+              <div style="text-align: center; margin-bottom: 12px;">
+                <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 13px 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                  Acessar Minha Conta & Catálogo de Prêmios
                 </a>
               </div>
             </div>
 
             <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
-              <p style="color: #64748b; font-size: 11px; margin: 0;">
-                Athena Soluções Automotivas • SIA Trecho 3, Brasília - DF • (61) 98348-5671
+              <p style="color: #64748b; font-size: 11px; margin: 0 0 4px 0;">
+                Athena Soluções Automotivas • ST SHA Arniqueira, Brasília - DF • (61) 98348-5671
+              </p>
+              <p style="color: #475569; font-size: 10px; margin: 0;">
+                Este e-mail foi enviado automaticamente por no-reply@athenaconsultoria.com.br
+              </p>
+            </div>
+
+          </div>
+        </div>
+      `;
+
+      await sendGenericNotificationEmail({
+        to: actualCustomerRecipient,
+        subject: custSubject,
+        htmlContent: custHtml
+      });
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('[ERRO AO DISPARAR EMAIL DE COMPRA]:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+// -------------------------------------------------------------
+// COMPROVANTE DE PEDIDO REALIZADO NO SITE (NOVO CHECKOUT ONLINE)
+// -------------------------------------------------------------
+async function sendOrderPlacedReceiptNotification({
+  orderId = '',
+  customerName = 'Cliente',
+  customerEmail = '',
+  customerPhone = '',
+  customerCpfCnpj = '',
+  items = [],
+  totalAmount = 0,
+  discountAmount = 0,
+  billingType = 'PIX',
+  pix = null,
+  bankSlipUrl = '',
+  invoiceUrl = ''
+}) {
+  try {
+    const config = await getNotificationSettings();
+    if (!config.emailNotificationsEnabled) return { skipped: true };
+
+    const formattedDate = formatBrtDate();
+    const formattedTotal = formatBrlNumber(totalAmount);
+    const estimatedPoints = Math.floor(totalAmount / 50);
+
+    let paymentMethodDescription = 'PIX Instantâneo';
+    if (billingType === 'CREDIT_CARD') paymentMethodDescription = 'Cartão de Crédito';
+    else if (billingType === 'BOLETO') paymentMethodDescription = 'Boleto Bancário';
+    else if (billingType === 'FREE') paymentMethodDescription = 'Pedido Bonificado / Gratuito';
+
+    // Itens HTML Table
+    const itemsRowsHtml = (items && items.length > 0)
+      ? items.map(it => `
+          <tr style="border-bottom: 1px solid #334155;">
+            <td style="padding: 10px 14px; color: #f8fafc; font-size: 13px;">
+              <strong>${it.name || it.description || 'Equipamento'}</strong>
+              ${it.sku ? `<br/><span style="font-size: 11px; color: #94a3b8;">SKU: ${it.sku}</span>` : ''}
+            </td>
+            <td style="padding: 10px 14px; color: #cbd5e1; font-size: 13px; text-align: center;">${it.quantity || 1}x</td>
+            <td style="padding: 10px 14px; color: #ffffff; font-size: 13px; font-weight: 700; text-align: right;">${formatBrlNumber((it.price || it.unitPrice || 0) * (it.quantity || 1))}</td>
+          </tr>
+        `).join('')
+      : `
+          <tr style="border-bottom: 1px solid #334155;">
+            <td style="padding: 10px 14px; color: #f8fafc; font-size: 13px;" colspan="2">Equipamentos e Serviços Automotivos</td>
+            <td style="padding: 10px 14px; color: #ffffff; font-size: 13px; font-weight: 700; text-align: right;">${formattedTotal}</td>
+          </tr>
+        `;
+
+    // Bloco específico de pagamento (PIX copia e cola, boleto etc)
+    let paymentDetailsHtml = '';
+    if (billingType === 'PIX' && pix?.payload) {
+      paymentDetailsHtml = `
+        <div style="background-color: #064e3b; border: 1px solid #059669; border-radius: 14px; padding: 20px; margin-bottom: 24px; text-align: center;">
+          <span style="display: inline-block; padding: 3px 10px; border-radius: 9999px; background-color: #10b981; color: #064e3b; font-size: 10px; font-weight: 800; text-transform: uppercase; margin-bottom: 10px;">
+            Pagamento via PIX
+          </span>
+          <p style="margin: 0 0 10px 0; font-size: 13px; color: #a7f3d0; font-weight: 700;">
+            Copie o código PIX abaixo e cole no seu aplicativo bancário:
+          </p>
+          <div style="background-color: #022c22; border: 1px dashed #10b981; border-radius: 8px; padding: 12px; margin-bottom: 12px; word-break: break-all; font-family: monospace; font-size: 11px; color: #6ee7b7; user-select: all;">
+            ${pix.payload}
+          </div>
+          <p style="margin: 0; font-size: 11px; color: #6ee7b7;">
+            ⏱ O pagamento é compensado instantaneamente e você receberá a confirmação em seguida!
+          </p>
+        </div>
+      `;
+    } else if (billingType === 'BOLETO' && bankSlipUrl) {
+      paymentDetailsHtml = `
+        <div style="background-color: #0f172a; border: 1px solid #334155; border-radius: 14px; padding: 20px; margin-bottom: 24px; text-align: center;">
+          <p style="margin: 0 0 12px 0; font-size: 13px; color: #f8fafc; font-weight: 700;">
+            Boleto Bancário Gerado com Sucesso
+          </p>
+          <a href="${bankSlipUrl}" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
+            📄 Abrir Boleto para Pagamento
+          </a>
+          <p style="margin: 10px 0 0 0; font-size: 11px; color: #94a3b8;">
+            A compensação bancária do boleto ocorre em até 1 a 2 dias úteis.
+          </p>
+        </div>
+      `;
+    }
+
+    // 1. Envia para o Cliente
+    if (config.sendCustomerCopy && customerEmail && customerEmail.includes('@')) {
+      const custSubject = `Recebemos seu Pedido #${orderId}! — Athena Soluções Automotivas`;
+      const custHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b1120; color: #f8fafc; padding: 40px 16px;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; overflow: hidden; box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.5);">
+            
+            <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px; text-align: center; border-bottom: 1px solid #334155;">
+              <span style="display: inline-block; padding: 5px 14px; border-radius: 9999px; background-color: #2563eb; color: #ffffff; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
+                Pedido Registrado na Loja Online
+              </span>
+              <h1 style="color: #f59e0b; margin: 0 0 4px 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px;">ATHENA</h1>
+              <p style="color: #94a3b8; font-size: 11px; margin: 0; text-transform: uppercase; font-weight: 700; letter-spacing: 2px;">Soluções Automotivas • Comprovante de Pedido</p>
+            </div>
+
+            <div style="padding: 28px 32px;">
+              <p style="margin: 0 0 12px 0; font-size: 16px; color: #f8fafc;">
+                Olá, <strong>${customerName}</strong>!
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+                Recebemos seu pedido <strong>#${orderId}</strong> em nossa loja online! Abaixo estão os detalhes dos produtos adquiridos e as informações de acompanhamento:
+              </p>
+
+              ${paymentDetailsHtml}
+
+              <!-- Tabela de Itens -->
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #0f172a; border-radius: 12px; overflow: hidden; border: 1px solid #334155;">
+                <thead>
+                  <tr style="background-color: #1e293b; border-bottom: 1px solid #334155;">
+                    <th style="padding: 10px 14px; text-align: left; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Produto</th>
+                    <th style="padding: 10px 14px; text-align: center; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Qtd</th>
+                    <th style="padding: 10px 14px; text-align: right; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsRowsHtml}
+                </tbody>
+              </table>
+
+              <!-- Totais -->
+              <div style="background-color: #0f172a; border-radius: 12px; padding: 16px 20px; border: 1px solid #334155; margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                  <span style="color: #94a3b8;">Forma de Pagamento:</span>
+                  <span style="color: #ffffff; font-weight: 700;">${paymentMethodDescription}</span>
+                </div>
+                ${discountAmount > 0 ? `
+                  <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+                    <span style="color: #10b981;">Desconto Aplicado:</span>
+                    <span style="color: #10b981; font-weight: 700;">- ${formatBrlNumber(discountAmount)}</span>
+                  </div>
+                ` : ''}
+                <div style="display: flex; justify-content: space-between; font-size: 16px; border-top: 1px solid #1e293b; padding-top: 8px; margin-top: 8px;">
+                  <span style="color: #ffffff; font-weight: 800;">Valor Total:</span>
+                  <span style="color: #fbbf24; font-weight: 900;">${formattedTotal}</span>
+                </div>
+              </div>
+
+              <!-- Estimativa A-Points -->
+              <div style="background-color: #1e1b4b; border: 1px solid #4338ca; border-radius: 14px; padding: 16px 20px; margin-bottom: 24px; text-align: center;">
+                <p style="margin: 0 0 4px 0; font-size: 13px; font-weight: 800; color: #c7d2fe;">
+                  🎁 Pontos a Ganhar no Programa A-Points:
+                </p>
+                <p style="margin: 0; font-size: 12px; color: #e0e7ff;">
+                  Após a aprovação do pagamento, você acumulará aproximadamente <strong style="color: #38bdf8;">+${estimatedPoints} A-Points</strong> para resgatar brindes e vantagens exclusivas!
+                </p>
+              </div>
+
+              <div style="text-align: center;">
+                <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 13px 30px; border-radius: 12px;">
+                  Acompanhar Meu Pedido
+                </a>
+              </div>
+            </div>
+
+            <div style="background-color: #0f172a; padding: 20px 32px; border-top: 1px solid #334155; text-align: center;">
+              <p style="color: #64748b; font-size: 11px; margin: 0 0 4px 0;">
+                Athena Soluções Automotivas • ST SHA Arniqueira, Brasília - DF • WhatsApp: (61) 98348-5671
+              </p>
+              <p style="color: #475569; font-size: 10px; margin: 0;">
+                Enviado automaticamente por no-reply@athenaconsultoria.com.br
               </p>
             </div>
 
@@ -1659,9 +1907,38 @@ async function sendPurchaseReceiptNotification({
       });
     }
 
+    // 2. Envia para a Administração (Alerta de Novo Pedido no Site)
+    const adminDest = config.purchaseNotificationEmail || config.receiptNotificationEmail;
+    const adminSubject = `[Athena Loja Online] Novo Pedido Criado (#${orderId}) — ${customerName} (${formattedTotal})`;
+    const adminHtml = `
+      <div style="font-family: sans-serif; background-color: #0b1120; color: #f8fafc; padding: 30px 16px;">
+        <div style="max-width: 560px; margin: 0 auto; background-color: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 24px;">
+          <h2 style="color: #f59e0b; margin-top: 0;">Novo Pedido na Loja Online Athena</h2>
+          <p style="color: #cbd5e1; font-size: 13px;">O cliente <strong>${customerName}</strong> fechou o pedido <strong>#${orderId}</strong>.</p>
+          <ul style="font-size: 13px; color: #94a3b8; line-height: 1.6;">
+            <li><strong>Total:</strong> ${formattedTotal}</li>
+            <li><strong>Pagamento:</strong> ${paymentMethodDescription}</li>
+            <li><strong>E-mail:</strong> ${customerEmail}</li>
+            <li><strong>Telefone:</strong> ${customerPhone || 'Não informado'}</li>
+            <li><strong>CPF/CNPJ:</strong> ${customerCpfCnpj || 'Não informado'}</li>
+            <li><strong>Data:</strong> ${formattedDate}</li>
+          </ul>
+          <a href="https://athenaconsultoria.com.br/admin" style="display: inline-block; background-color: #f59e0b; color: #0f172a; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 12px; margin-top: 10px;">
+            Acessar Painel de Pedidos
+          </a>
+        </div>
+      </div>
+    `;
+
+    await sendGenericNotificationEmail({
+      to: adminDest,
+      subject: adminSubject,
+      htmlContent: adminHtml
+    });
+
     return { success: true };
   } catch (err) {
-    console.error('[ERRO AO DISPARAR EMAIL DE COMPRA]:', err.message);
+    console.error('[ERRO AO DISPARAR EMAIL NOVO PEDIDO]:', err.message);
     return { success: false, error: err.message };
   }
 }
@@ -3289,6 +3566,19 @@ app.post('/api/payments/charge', async (req, res) => {
       }
       writeDbJson(db);
 
+      // Dispara comprovante de pedido registrado para o cliente e alerta para o admin
+      sendOrderPlacedReceiptNotification({
+        orderId,
+        customerName: customerName || 'Cliente Athena',
+        customerEmail: cleanEmail,
+        customerPhone: cleanPhone,
+        customerCpfCnpj: cleanDoc,
+        items: freeOrderRecord.items,
+        totalAmount: 0,
+        discountAmount,
+        billingType: 'FREE'
+      }).catch(e => console.error('[NOTIF PEDIDO GRATUITO ERRO]:', e.message));
+
       return res.status(201).json({
         id: orderId,
         status: 'CONFIRMED',
@@ -3420,6 +3710,22 @@ app.post('/api/payments/charge', async (req, res) => {
       }
     }
     writeDbJson(db);
+
+    // Dispara comprovante de pedido registrado para o cliente (com PIX/Boleto) e alerta para admin
+    sendOrderPlacedReceiptNotification({
+      orderId,
+      customerName: customerName || 'Cliente Athena',
+      customerEmail: cleanEmail,
+      customerPhone: cleanPhone,
+      customerCpfCnpj: cleanDoc,
+      items: orderRecord.items,
+      totalAmount: finalPayable,
+      discountAmount,
+      billingType: paymentData.billingType,
+      pix: pixData,
+      bankSlipUrl: paymentData.bankSlipUrl,
+      invoiceUrl: paymentData.invoiceUrl
+    }).catch(e => console.error('[NOTIF PEDIDO ONLINE ERRO]:', e.message));
 
     return res.status(201).json({
       id: paymentData.id,
@@ -4170,7 +4476,7 @@ app.get('/api/hermes/customers/:identifier', validateHermesAuth, async (req, res
     let activeRewards = [];
 
     if (pool) {
-      // 1. Busca usuário por ID, Email, Documento ou Telefone
+      // 1. Busca usuário por ID, Email, Documento, Telefone ou Nome/Razão Social
       const uRes = await pool.query(`
         SELECT id, name, company_name as "companyName", email, phone, document, 
                COALESCE(a_points, 0) as "aPoints", created_at as "createdAt", updated_at as "updatedAt"
@@ -4179,23 +4485,55 @@ app.get('/api/hermes/customers/:identifier', validateHermesAuth, async (req, res
            OR LOWER(email) = $2 
            OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $3)
            OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(REPLACE(phone, '(', ''), ')', ''), '-', ''), ' ', '') LIKE '%' || $3)
+           OR (LENGTH($1) >= 3 AND (LOWER(name) ILIKE '%' || LOWER($1) || '%' OR LOWER(company_name) ILIKE '%' || LOWER($1) || '%'))
+        ORDER BY 
+           CASE 
+             WHEN id = $1 THEN 1
+             WHEN LOWER(email) = $2 THEN 2
+             WHEN ($3 <> '' AND REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $3) THEN 3
+             ELSE 4
+           END
         LIMIT 1
       `, [rawId, cleanEmail, cleanDigits]);
 
       if (uRes.rows.length === 0) {
-        return res.status(404).json({ error: `Cliente "${rawId}" não localizado na base Athena.` });
+        // Tenta buscar se o identificador é um código de transação / protocolo de resgate (ex: apt_...)
+        const txCheck = await pool.query(`
+          SELECT user_id, customer_email, customer_document 
+          FROM a_points_transactions 
+          WHERE id = $1 OR order_id = $1 
+          LIMIT 1
+        `, [rawId]);
+        
+        if (txCheck.rows.length > 0) {
+          const txUser = txCheck.rows[0];
+          const uRes2 = await pool.query(`
+            SELECT id, name, company_name as "companyName", email, phone, document, COALESCE(a_points, 0) as "aPoints"
+            FROM users 
+            WHERE id = $1 OR (email <> '' AND LOWER(email) = LOWER($2))
+            LIMIT 1
+          `, [txUser.user_id, txUser.customer_email || '']);
+          if (uRes2.rows.length > 0) {
+            customer = uRes2.rows[0];
+          }
+        }
+      } else {
+        customer = uRes.rows[0];
       }
-      customer = uRes.rows[0];
+
+      if (!customer) {
+        return res.status(404).json({ error: `Cliente ou protocolo "${rawId}" não localizado na base Athena.` });
+      }
 
       // 2. Extrato recente de pontos
       const tRes = await pool.query(`
         SELECT id, order_id as "orderId", order_value as "orderValue", points_earned as "pointsEarned", 
                source, type, status, notes, created_at as "createdAt"
         FROM a_points_transactions
-        WHERE user_id = $1 OR customer_email = $2 OR customer_document = $3
+        WHERE user_id = $1 OR (customer_email <> '' AND LOWER(customer_email) = LOWER($2)) OR (customer_document <> '' AND customer_document = $3)
         ORDER BY created_at DESC
-        LIMIT 10
-      `, [customer.id, customer.email, customer.document?.replace(/\D/g, '') || '']);
+        LIMIT 15
+      `, [customer.id, customer.email || '', customer.document?.replace(/\D/g, '') || '']);
       recentTransactions = tRes.rows;
 
       // 3. Catálogo de recompensas
@@ -4211,7 +4549,8 @@ app.get('/api/hermes/customers/:identifier', validateHermesAuth, async (req, res
       customer = (db.users || []).find(u => 
         u.id === rawId || 
         (u.email && u.email.toLowerCase() === cleanEmail) ||
-        (cleanDigits && u.document && u.document.replace(/\D/g, '') === cleanDigits)
+        (cleanDigits && u.document && u.document.replace(/\D/g, '') === cleanDigits) ||
+        (rawId.length >= 3 && (u.name?.toLowerCase().includes(rawId.toLowerCase()) || u.companyName?.toLowerCase().includes(rawId.toLowerCase())))
       );
       if (!customer) return res.status(404).json({ error: `Cliente "${rawId}" não localizado.` });
     }
@@ -4224,6 +4563,10 @@ app.get('/api/hermes/customers/:identifier', validateHermesAuth, async (req, res
     // Próxima recompensa que ele pode alcançar
     const nextReward = activeRewards.find(r => r.pointsCost > customerPoints);
     const pointsToNext = nextReward ? (nextReward.pointsCost - customerPoints) : 0;
+
+    // Identifica resgates realizados
+    const lastRedemption = recentTransactions.find(t => t.type === 'REDEEM') || null;
+    const allRedemptions = recentTransactions.filter(t => t.type === 'REDEEM');
 
     return res.json({
       customer: {
@@ -4239,6 +4582,15 @@ app.get('/api/hermes/customers/:identifier', validateHermesAuth, async (req, res
         currentBalance: customerPoints,
         canRedeemCount: canRedeemNow.length,
         canRedeemItems: canRedeemNow,
+        hasRecentRedemption: !!lastRedemption,
+        lastRedemption: lastRedemption ? {
+          transactionId: lastRedemption.id,
+          pointsDebited: Math.abs(Number(lastRedemption.pointsEarned || 0)),
+          description: lastRedemption.notes,
+          redeemedAt: lastRedemption.createdAt,
+          status: lastRedemption.status
+        } : null,
+        totalRedemptionsCount: allRedemptions.length,
         nextGoalReward: nextReward ? {
           reward: nextReward,
           pointsNeeded: pointsToNext,
