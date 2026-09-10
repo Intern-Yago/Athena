@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const cloudinary = require('cloudinary').v2;
 const swaggerUi = require('swagger-ui-express');
 const basicAuth = require('express-basic-auth');
-const { isR2Configured, uploadToR2, deleteFromR2 } = require('./r2Service');
+const { isR2Configured, uploadToR2, deleteFromR2, listR2Objects, invalidateR2Cache } = require('./r2Service');
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -2133,6 +2133,22 @@ app.post('/api/upload', authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint para listar a biblioteca de imagens do Cloudflare R2 com paginação infinita e busca
+app.get('/api/upload/library', authenticateToken, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 36;
+    const search = (req.query.search || '').trim();
+    const folder = (req.query.folder || '').trim();
+
+    const result = await listR2Objects({ page, limit, search, folder });
+    return res.json(result);
+  } catch (error) {
+    console.error('Erro ao listar biblioteca de imagens:', error);
+    return res.status(500).json({ error: 'Falha ao buscar imagens da biblioteca.' });
+  }
+});
+
 // Endpoint para excluir imagem do Cloudflare R2
 app.post('/api/upload/delete', authenticateToken, async (req, res) => {
   try {
@@ -2141,8 +2157,15 @@ app.post('/api/upload/delete', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Nenhuma URL informada para exclusão.' });
     }
 
-    // 1. Tenta excluir do Cloudflare R2
-    if (isR2Configured && (url.includes('.r2.dev') || url.includes('.r2.cloudflarestorage.com'))) {
+    // 1. Tenta excluir do Cloudflare R2 (suporta domínio customizado e r2.dev)
+    const isR2Url = isR2Configured && (
+      url.includes('.r2.dev') ||
+      url.includes('.r2.cloudflarestorage.com') ||
+      url.includes('images.athenaconsultoria.com.br') ||
+      (process.env.R2_PUBLIC_URL && url.includes(new URL(process.env.R2_PUBLIC_URL).hostname))
+    );
+
+    if (isR2Url) {
       const deleted = await deleteFromR2(url);
       return res.json({ success: deleted, provider: 'cloudflare-r2' });
     }

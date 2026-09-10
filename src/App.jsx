@@ -117,6 +117,7 @@ export default function App() {
 
   const [currentRoute, setCurrentRoute] = useState(getRouteFromUrl);
   const [previousRoute, setPreviousRoute] = useState(null);
+  const [activeAdminTab, setActiveAdminTab] = useState('products');
 
   const getInitialSearchTerm = () => {
     const params = new URLSearchParams(window.location.search);
@@ -649,6 +650,8 @@ export default function App() {
               currentUser={currentUser}
               onLogout={handleLogout}
               API_BASE_URL={API_BASE_URL}
+              activeAdminTab={activeAdminTab}
+              setActiveAdminTab={setActiveAdminTab}
             />
           );
         }
@@ -921,6 +924,8 @@ export default function App() {
           currentUser={currentUser}
           onLogout={handleLogout}
           API_BASE_URL={API_BASE_URL}
+          activeAdminTab={activeAdminTab}
+          setActiveAdminTab={setActiveAdminTab}
         />
       );
     }
@@ -1005,6 +1010,13 @@ export default function App() {
             products={publicProducts}
             currentUser={currentUser}
             onLogout={handleLogout}
+            activeAdminTab={activeAdminTab}
+            onSelectAdminTab={(tab) => {
+              setActiveAdminTab(tab);
+              if (currentRoute !== 'admin') {
+                navigateTo('admin');
+              }
+            }}
           />
 
           {/* Main Page Content */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Layers, Tag, PackageCheck, Menu, ChevronDown, Info, X, User, LogOut, Shield, ShoppingCart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import MegaMenu from './MegaMenu';
@@ -17,11 +17,19 @@ export default function Header({
   brands,
   products,
   currentUser,
-  onLogout
+  onLogout,
+  activeAdminTab = 'products',
+  onSelectAdminTab
 }) {
   const { totalItemCount, setIsCartOpen } = useCart();
   const [activeMegaMenu, setActiveMegaMenu] = useState(null);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenMenu = () => setIsMobileDrawerOpen(true);
+    window.addEventListener('open-mobile-menu', handleOpenMenu);
+    return () => window.removeEventListener('open-mobile-menu', handleOpenMenu);
+  }, []);
 
   const toggleMegaMenu = (menuType) => {
     setActiveMegaMenu(activeMegaMenu === menuType ? null : menuType);
@@ -213,9 +221,14 @@ export default function Header({
               </button>
 
               <button
+                type="button"
                 onClick={() => setIsMobileDrawerOpen(true)}
-                className="p-1.5 rounded-xl bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 shadow-xs shrink-0 cursor-pointer"
-                title="Abrir Menu"
+                className={`p-1.5 rounded-xl shadow-xs shrink-0 cursor-pointer transition-all ${
+                  activeTab === 'admin'
+                    ? 'bg-amber-500 text-slate-950 hover:bg-amber-400 border border-amber-600 ring-2 ring-amber-400/40'
+                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200'
+                }`}
+                title={activeTab === 'admin' ? "Menu do Painel Admin" : "Abrir Menu"}
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -242,6 +255,8 @@ export default function Header({
         isOpen={isMobileDrawerOpen}
         onClose={() => setIsMobileDrawerOpen(false)}
         activeTab={activeTab}
+        activeAdminTab={activeAdminTab}
+        onSelectAdminTab={onSelectAdminTab}
         onNavigate={onNavigate}
         categories={categories}
         brands={brands}

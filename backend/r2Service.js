@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { S3Client, PutObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, HeadObjectCommand, ListObjectsV2Command, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const sharp = require('sharp');
 const crypto = require('crypto');
 
@@ -21,6 +21,18 @@ if (isR2Configured) {
       secretAccessKey: R2_SECRET_ACCESS_KEY,
     },
   });
+}
+
+// In-memory cache for listing bucket objects to optimize performance and responsiveness
+let r2ObjectsCache = {
+  items: null,
+  lastFetched: 0,
+  ttlMs: 45000 // 45 seconds TTL
+};
+
+function invalidateR2Cache() {
+  r2ObjectsCache.items = null;
+  r2ObjectsCache.lastFetched = 0;
 }
 
 /**
@@ -103,6 +115,9 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
 
   const publicUrl = `${R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
 
+  // Invalidate library cache so the newly uploaded file appears instantly
+  invalidateR2Cache();
+
   return {
     url: publicUrl,
     key,
@@ -130,11 +145,13 @@ async function deleteFromR2(urlOrKey) {
 
     if (!key) return false;
 
-    const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
     await r2Client.send(new DeleteObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: key,
     }));
+
+    // Invalidate library cache so the deleted file vanishes immediately
+    invalidateR2Cache();
 
     console.log(`[Cloudflare R2] Objeto excluído com sucesso: ${key}`);
     return true;
@@ -144,11 +161,112 @@ async function deleteFromR2(urlOrKey) {
   }
 }
 
+/**
+ * Lists image media from Cloudflare R2 bucket with fast in-memory caching, search, and pagination.
+ */
+async function listR2Objects({ page = 1, limit = 36, search = '', folder = '' } = {}) {
+  if (!isR2Configured || !r2Client) {
+    return { items: [], total: 0, page: 1, totalPages: 0, hasMore: false };
+  }
+
+  const now = Date.now();
+  let allItems = r2ObjectsCache.items;
+
+  if (!allItems || now - r2ObjectsCache.lastFetched > r2ObjectsCache.ttlMs) {
+    allItems = [];
+    let continuationToken = undefined;
+
+    try {
+      do {
+        const cmd = new ListObjectsV2Command({
+          Bucket: R2_BUCKET_NAME,
+          MaxKeys: 1000,
+          ContinuationToken: continuationToken
+        });
+        const response = await r2Client.send(cmd);
+        if (response.Contents && response.Contents.length > 0) {
+          for (const item of response.Contents) {
+            const lowerKey = item.Key.toLowerCase();
+            const isMedia = lowerKey.endsWith('.webp') ||
+                            lowerKey.endsWith('.jpg') ||
+                            lowerKey.endsWith('.jpeg') ||
+                            lowerKey.endsWith('.png') ||
+                            lowerKey.endsWith('.gif') ||
+                            lowerKey.endsWith('.avif') ||
+                            lowerKey.endsWith('.svg');
+            if (isMedia) {
+              const parts = item.Key.split('/');
+              const filename = parts[parts.length - 1];
+              const itemFolder = parts.length > 1 ? parts[0] : '';
+              allItems.push({
+                key: item.Key,
+                filename,
+                folder: itemFolder,
+                url: `${R2_PUBLIC_URL.replace(/\/$/, '')}/${item.Key}`,
+                size: item.Size,
+                lastModified: item.LastModified ? item.LastModified.toISOString() : new Date().toISOString()
+              });
+            }
+          }
+        }
+        continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+      } while (continuationToken);
+
+      // Sort newest first
+      allItems.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
+
+      r2ObjectsCache.items = allItems;
+      r2ObjectsCache.lastFetched = now;
+    } catch (err) {
+      console.error('[Cloudflare R2] Erro ao listar objetos:', err.message);
+      if (r2ObjectsCache.items) {
+        allItems = r2ObjectsCache.items;
+      } else {
+        return { items: [], total: 0, page: 1, totalPages: 0, hasMore: false };
+      }
+    }
+  }
+
+  let filtered = allItems;
+
+  if (folder) {
+    const fLower = folder.toLowerCase();
+    filtered = filtered.filter(item => item.folder.toLowerCase() === fLower);
+  }
+
+  if (search && search.trim()) {
+    const q = search.trim().toLowerCase();
+    filtered = filtered.filter(item =>
+      item.filename.toLowerCase().includes(q) ||
+      item.key.toLowerCase().includes(q)
+    );
+  }
+
+  const total = filtered.length;
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const pageSize = Math.min(100, Math.max(6, parseInt(limit, 10) || 36));
+  const totalPages = Math.ceil(total / pageSize);
+  const startIndex = (pageNum - 1) * pageSize;
+  const paginatedItems = filtered.slice(startIndex, startIndex + pageSize);
+  const hasMore = startIndex + pageSize < total;
+
+  return {
+    items: paginatedItems,
+    total,
+    page: pageNum,
+    limit: pageSize,
+    totalPages,
+    hasMore
+  };
+}
+
 module.exports = {
   isR2Configured,
   r2Client,
   uploadToR2,
   deleteFromR2,
+  listR2Objects,
+  invalidateR2Cache,
   R2_BUCKET_NAME,
   R2_PUBLIC_URL
 };

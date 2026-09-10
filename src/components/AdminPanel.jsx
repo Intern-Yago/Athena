@@ -67,13 +67,15 @@ import {
   Copy,
   Phone,
   Building2,
-  MessageCircle
+  MessageCircle,
+  Images
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl, getVideoEmbedInfo } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
 import RichTextEditor from './RichTextEditor';
 import FormattedDescription from './FormattedDescription';
 import CouponManager from './CouponManager';
+import ImageLibraryModal from './ImageLibraryModal';
 import { safeStorageSet, saveSession } from '../utils/storage';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
@@ -422,9 +424,13 @@ export default function AdminPanel({
   onNavigate,
   currentUser,
   onLogout,
-  API_BASE_URL
+  API_BASE_URL,
+  activeAdminTab: propActiveAdminTab,
+  setActiveAdminTab: propSetActiveAdminTab
 }) {
-  const [activeAdminTab, setActiveAdminTab] = useState('products');
+  const [internalActiveAdminTab, setInternalActiveAdminTab] = useState('products');
+  const activeAdminTab = propActiveAdminTab !== undefined ? propActiveAdminTab : internalActiveAdminTab;
+  const setActiveAdminTab = propSetActiveAdminTab || setInternalActiveAdminTab;
   const [imageSourceMode, setImageSourceMode] = useState('upload');
   const [productImageUrlInput, setProductImageUrlInput] = useState('');
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
@@ -444,9 +450,6 @@ export default function AdminPanel({
   const isAdminRole = userRole === 'admin';
   const canEditContent = userRole === 'admin' || userRole === 'editor' || userRole === 'edicao';
   const isStaff = ['admin', 'vendedor', 'editor', 'edicao'].includes(userRole);
-
-  // Lateral Sidebar mobile menu state
-  const [mobileAdminMenuOpen, setMobileAdminMenuOpen] = useState(false);
 
   // Clients & Password Support State
   const [clientSearch, setClientSearch] = useState('');
@@ -962,7 +965,10 @@ export default function AdminPanel({
     onConfirm: null
   });
 
-  const isAnyModalOpen = isProductModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage;
+  // Cloudflare R2 Image Library Modal State
+  const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+
+  const isAnyModalOpen = isProductModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage || isLibraryModalOpen;
 
   // Background body scroll lock while any modal is open
   useEffect(() => {
@@ -2037,14 +2043,15 @@ export default function AdminPanel({
       return;
     }
 
-    // 1. Create immediate local preview placeholder tasks
+    // 1. Create immediate local preview placeholder tasks with individual AbortControllers
     const newTasks = fileList.map((file, idx) => ({
       id: `up_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
       file,
       fileName: file.name,
       tempUrl: URL.createObjectURL(file),
       progress: 12,
-      status: 'uploading' // 'uploading' | 'done' | 'error'
+      status: 'uploading', // 'uploading' | 'done' | 'error'
+      abortController: new AbortController()
     }));
 
     setUploadingImages((prev) => [...prev, ...newTasks]);
@@ -2078,7 +2085,8 @@ export default function AdminPanel({
           const res = await fetch(`${API_BASE_URL}/upload`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ file: base64Data, folder: 'athena_produtos' })
+            body: JSON.stringify({ file: base64Data, folder: 'athena_produtos' }),
+            signal: task.abortController.signal
           });
 
           clearInterval(progressTimer);
@@ -2091,12 +2099,31 @@ export default function AdminPanel({
 
           const uploadedUrl = res.ok ? (await res.json()).url : base64Data;
 
-          // Mark complete 100%
-          setUploadingImages((prev) =>
-            prev.map((t) => (t.id === task.id ? { ...t, progress: 100, status: 'done' } : t))
-          );
+          // Check if this task was removed or cancelled while in flight
+          let wasAborted = false;
+          setUploadingImages((prev) => {
+            const exists = prev.some((t) => t.id === task.id);
+            if (!exists) {
+              wasAborted = true;
+              return prev;
+            }
+            return prev.map((t) => (t.id === task.id ? { ...t, progress: 100, status: 'done' } : t));
+          });
 
-          // Add to productForm images
+          // If the task was cancelled by user while in flight, delete uploaded photo immediately to prevent R2 inflation
+          if (wasAborted) {
+            if (uploadedUrl && (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://'))) {
+              fetch(`${API_BASE_URL}/upload/delete`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ url: uploadedUrl })
+              }).catch(() => {});
+            }
+            try { URL.revokeObjectURL(task.tempUrl); } catch (err) {}
+            return;
+          }
+
+          // Add to productForm images using FUNCTIONAL update to avoid stale closures
           setProductForm((prev) => {
             const currentImages = Array.isArray(prev.images) ? [...prev.images] : [];
             const newImages = currentImages.includes(uploadedUrl) ? currentImages : [...currentImages, uploadedUrl];
@@ -2117,6 +2144,10 @@ export default function AdminPanel({
 
         } catch (err) {
           clearInterval(progressTimer);
+          if (err.name === 'AbortError') {
+            // Cancelled cleanly by user, no error notification needed
+            return;
+          }
           setUploadingImages((prev) =>
             prev.map((t) => (t.id === task.id ? { ...t, status: 'error', error: 'Falha no upload' } : t))
           );
@@ -2125,6 +2156,19 @@ export default function AdminPanel({
       };
       reader.readAsDataURL(task.file);
     }
+  };
+
+  const cancelUploadTask = (taskId) => {
+    setUploadingImages((prev) => {
+      const task = prev.find((t) => t.id === taskId);
+      if (task && task.abortController) {
+        try { task.abortController.abort(); } catch (e) {}
+      }
+      if (task && task.tempUrl) {
+        try { URL.revokeObjectURL(task.tempUrl); } catch (e) {}
+      }
+      return prev.filter((t) => t.id !== taskId);
+    });
   };
 
   const handleImageFileUpload = (file) => {
@@ -2981,10 +3025,10 @@ export default function AdminPanel({
         {/* Main 2-Column Responsive Dashboard Layout (Lateral Sidebar + Main View) */}
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           
-          {/* Mobile Navigation Toggle Header (visible only on mobile/tablets) */}
-          <div className="lg:hidden w-full bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+          {/* Mobile Status Indicator & Quick Tab Switcher Trigger (Hidden on Desktop) */}
+          <div className="lg:hidden w-full bg-white px-4 py-2.5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold">
                 {activeAdminTab === 'products' && <Package className="w-4 h-4" />}
                 {activeAdminTab === 'categories' && <Layers className="w-4 h-4" />}
                 {activeAdminTab === 'brands' && <Tag className="w-4 h-4" />}
@@ -3005,23 +3049,22 @@ export default function AdminPanel({
                   {activeAdminTab === 'omie' && 'Omie ERP & Fidelidade'}
                   {activeAdminTab === 'settings' && 'Configurações & Senha'}
                 </div>
-                <div className="text-[10px] text-slate-400">Painel Administrativo</div>
+                <div className="text-[10px] text-slate-400">Painel do Administrador</div>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={() => setMobileAdminMenuOpen(!mobileAdminMenuOpen)}
-              className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 font-bold"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-mobile-menu'))}
+              className="text-[11px] font-extrabold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300/80 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
             >
-              <Menu className="w-4 h-4 text-slate-700" />
-              <span>Menu</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${mobileAdminMenuOpen ? 'rotate-180' : ''}`} />
+              <Menu className="w-3.5 h-3.5 text-amber-700" />
+              <span>Mudar Aba</span>
             </button>
           </div>
 
-          {/* Lateral Sidebar Navigation */}
-          <aside className={`w-full lg:w-64 xl:w-72 shrink-0 ${mobileAdminMenuOpen ? 'block' : 'hidden lg:block'}`}>
+          {/* Lateral Sidebar Navigation (Desktop only: hidden on mobile) */}
+          <aside className="hidden lg:block w-64 xl:w-72 shrink-0">
             <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-4 space-y-5 lg:sticky lg:top-24">
               
               {/* User Profile Mini Card */}
@@ -5384,6 +5427,53 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* CLOUDFLARE R2 IMAGE LIBRARY MODAL */}
+        <ImageLibraryModal
+          isOpen={isLibraryModalOpen}
+          onClose={() => setIsLibraryModalOpen(false)}
+          currentImages={Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])}
+          currentCover={productForm.image || ''}
+          onSelectImage={(url) => {
+            setProductForm((prev) => {
+              const current = Array.isArray(prev.images) ? [...prev.images] : [];
+              const updated = current.includes(url) ? current : [...current, url];
+              return {
+                ...prev,
+                image: prev.image || url,
+                images: updated
+              };
+            });
+            showNotification('Foto adicionada à galeria do equipamento!', 'success');
+          }}
+          onRemoveImageFromProduct={(url) => {
+            setProductForm((prev) => {
+              const current = Array.isArray(prev.images) ? prev.images : [];
+              const updated = current.filter(u => u !== url);
+              return {
+                ...prev,
+                image: prev.image === url ? (updated[0] || '') : prev.image,
+                images: updated
+              };
+            });
+            showNotification('Foto removida da galeria do equipamento.', 'info');
+          }}
+          onSetAsCover={(url) => {
+            setProductForm((prev) => {
+              const current = Array.isArray(prev.images) ? prev.images : [];
+              const updated = current.includes(url) ? current : [url, ...current];
+              return {
+                ...prev,
+                image: url,
+                images: updated
+              };
+            });
+            showNotification('Foto definida como capa principal!', 'success');
+          }}
+          API_BASE_URL={API_BASE_URL}
+          getAuthHeaders={getAuthHeaders}
+          showNotification={showNotification}
+        />
+
         {/* FULL PRODUCT FORM MODAL - BALANCED WIDE 2-COLUMN LAYOUT */}
         {isProductModalOpen && canEditContent && (
           <div className="modal-backdrop !p-2 sm:!p-4 md:!p-6" onClick={handleRequestCloseProductModal}>
@@ -5586,6 +5676,19 @@ export default function AdminPanel({
                           </div>
                           <p className="text-[11px] text-slate-500">Adicione imagens em alta qualidade para carrossel e zoom de detalhes.</p>
                         </div>
+
+                        {/* Botão Biblioteca de Imagens do R2 */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsLibraryModalOpen(true)}
+                            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 shadow-2xs cursor-pointer transition-colors"
+                            title="Abrir a Biblioteca de Imagens salvas no Cloudflare R2"
+                          >
+                            <Images className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Biblioteca</span>
+                          </button>
+                        </div>
                       </div>
 
                       {imageSourceMode === 'upload' ? (
@@ -5768,14 +5871,24 @@ export default function AdminPanel({
                                             confirmText: 'Sim, Remover Foto',
                                             type: 'danger',
                                             onConfirm: async () => {
-                                              const remainingImages = allImages.filter(img => img !== imgUrl);
-                                              setProductForm({
-                                                ...productForm,
-                                                image: isCover ? (remainingImages[0] || '') : productForm.image,
-                                                images: remainingImages
+                                              // Functional update prevents overwriting concurrently uploaded photos
+                                              setProductForm((prev) => {
+                                                const currentImgs = Array.isArray(prev.images) ? prev.images : [];
+                                                const remaining = currentImgs.filter(img => img !== imgUrl);
+                                                const newCover = (prev.image === imgUrl) ? (remaining[0] || '') : prev.image;
+                                                return {
+                                                  ...prev,
+                                                  image: newCover,
+                                                  images: remaining
+                                                };
                                               });
 
-                                              if (imgUrl && (imgUrl.includes('.r2.dev') || imgUrl.includes('.r2.cloudflarestorage.com') || imgUrl.includes('cloudinary.com'))) {
+                                              if (imgUrl && (
+                                                imgUrl.includes('.r2.dev') || 
+                                                imgUrl.includes('.r2.cloudflarestorage.com') || 
+                                                imgUrl.includes('cloudinary.com') ||
+                                                imgUrl.includes('images.athenaconsultoria.com.br')
+                                              )) {
                                                 try {
                                                   const apiUrl = API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
                                                   fetch(`${apiUrl}/upload/delete`, {
@@ -5821,6 +5934,14 @@ export default function AdminPanel({
                                           <span className="text-[10px] font-extrabold text-amber-300 mt-1 tracking-tight drop-shadow-xs">
                                             Enviando...
                                           </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => cancelUploadTask(task.id)}
+                                            className="text-[9px] text-slate-400 hover:text-red-300 mt-1 font-semibold underline cursor-pointer"
+                                            title="Cancelar upload desta foto"
+                                          >
+                                            Cancelar
+                                          </button>
                                         </>
                                       )}
                                       {task.status === 'done' && (
@@ -5841,10 +5962,10 @@ export default function AdminPanel({
                                           </span>
                                           <button
                                             type="button"
-                                            onClick={() => setUploadingImages(prev => prev.filter(t => t.id !== task.id))}
+                                            onClick={() => cancelUploadTask(task.id)}
                                             className="text-[9px] text-white underline mt-1 font-bold hover:text-red-200 cursor-pointer"
                                           >
-                                            Cancelar
+                                            Fechar
                                           </button>
                                         </div>
                                       )}
