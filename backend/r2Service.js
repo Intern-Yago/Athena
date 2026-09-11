@@ -78,9 +78,9 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
   if (!isPdf) {
     const originalSizeKb = (buffer.length / 1024).toFixed(1);
     try {
-      console.log(`[Sharp Engine] Processando imagem (${originalSizeKb} KB)... Convertendo para WebP (máx. 1200x1200px)...`);
+      console.log(`[Sharp Engine] Processando imagem (${originalSizeKb} KB)... Convertendo para WebP (máx. 1920x1920px)...`);
       finalBuffer = await sharp(buffer)
-        .resize(1200, 1200, {
+        .resize(1920, 1920, {
           fit: 'inside',
           withoutEnlargement: true
         })
