@@ -38,27 +38,49 @@ export default function FilterSidebar({
 
   const currentMaxPrice = maxPriceFilter !== null ? maxPriceFilter : priceBounds.max;
 
-  // DYNAMIC CROSS-FILTER ENGINE (Takes bidirectional relations into account)
-  const matchesBase = (p) => {
+  // OPTIMIZATION: Single pass pre-evaluation of base matching products (search + price)
+  // Instead of recalculating search matching O(categories * products + brands * products) times (~6,000 times),
+  // we evaluate each product exactly ONCE, then compute category and brand stats with O(1) hash maps.
+  const baseMatchingProducts = useMemo(() => {
     const rawTerm = searchTerm.trim();
-    const matchesPrice = maxPriceFilter === null || (p.price > 0 ? p.price <= maxPriceFilter : true);
-    if (!matchesPrice) return false;
-    if (!rawTerm) return true;
+    const categoriesMap = new Map((categories || []).map(c => [c.id, c]));
+    const brandsMap = new Map((brands || []).map(b => [b.id, b]));
 
-    return matchProductWithRelations(p, rawTerm, relationsMap, categories, brands).matches;
-  };
+    return (products || []).filter((p) => {
+      const matchesPrice = maxPriceFilter === null || (p.price > 0 ? p.price <= maxPriceFilter : true);
+      if (!matchesPrice) return false;
+      if (!rawTerm) return true;
+      return matchProductWithRelations(p, rawTerm, relationsMap, categoriesMap, brandsMap).matches;
+    });
+  }, [products, searchTerm, maxPriceFilter, relationsMap, categories, brands]);
 
-  // Compute stats and sorting for CATEGORIES
+  // Frequency map of category counts in single pass O(N)
+  const categoryCounts = useMemo(() => {
+    const counts = new Map();
+    for (let i = 0; i < baseMatchingProducts.length; i++) {
+      const p = baseMatchingProducts[i];
+      if (selectedBrands.length > 0 && !selectedBrands.includes(p.brandId)) continue;
+      counts.set(p.categoryId, (counts.get(p.categoryId) || 0) + 1);
+    }
+    return counts;
+  }, [baseMatchingProducts, selectedBrands]);
+
+  // Frequency map of brand counts in single pass O(N)
+  const brandCounts = useMemo(() => {
+    const counts = new Map();
+    for (let i = 0; i < baseMatchingProducts.length; i++) {
+      const p = baseMatchingProducts[i];
+      if (selectedCategories.length > 0 && !selectedCategories.includes(p.categoryId)) continue;
+      counts.set(p.brandId, (counts.get(p.brandId) || 0) + 1);
+    }
+    return counts;
+  }, [baseMatchingProducts, selectedCategories]);
+
+  // Compute stats and sorting for CATEGORIES using O(1) count lookups
   const categoryStats = useMemo(() => {
     const rawStats = categories.map((cat) => {
       const isChecked = selectedCategories.includes(cat.id);
-
-      const matchingCount = products.filter((p) => {
-        if (!matchesBase(p)) return false;
-        if (selectedBrands.length > 0 && !selectedBrands.includes(p.brandId)) return false;
-        return p.categoryId === cat.id;
-      }).length;
-
+      const matchingCount = categoryCounts.get(cat.id) || 0;
       const isDisabled = matchingCount === 0 && !isChecked;
 
       return {
@@ -84,19 +106,13 @@ export default function FilterSidebar({
       // Fallback: Alphabetical
       return a.name.localeCompare(b.name);
     });
-  }, [categories, products, selectedCategories, selectedBrands, maxPriceFilter, searchTerm]);
+  }, [categories, selectedCategories, categoryCounts]);
 
-  // Compute stats and sorting for BRANDS
+  // Compute stats and sorting for BRANDS using O(1) count lookups
   const brandStats = useMemo(() => {
     const rawStats = brands.map((b) => {
       const isChecked = selectedBrands.includes(b.id);
-
-      const matchingCount = products.filter((p) => {
-        if (!matchesBase(p)) return false;
-        if (selectedCategories.length > 0 && !selectedCategories.includes(p.categoryId)) return false;
-        return p.brandId === b.id;
-      }).length;
-
+      const matchingCount = brandCounts.get(b.id) || 0;
       const isDisabled = matchingCount === 0 && !isChecked;
 
       return {
@@ -122,7 +138,7 @@ export default function FilterSidebar({
       // Fallback: Alphabetical
       return a.name.localeCompare(b.name);
     });
-  }, [brands, products, selectedCategories, selectedBrands, maxPriceFilter, searchTerm]);
+  }, [brands, selectedBrands, brandCounts]);
 
   const toggleCategory = (catId) => {
     if (selectedCategories.includes(catId)) {

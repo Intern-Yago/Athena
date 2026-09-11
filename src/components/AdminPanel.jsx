@@ -7734,6 +7734,8 @@ export default function AdminPanel({
           onClose={() => setIsLibraryModalOpen(false)}
           isStandalone={!isProductModalOpen}
           products={products}
+          brands={brands}
+          categories={categories}
           currentImages={isProductModalOpen ? (Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])) : []}
           currentCover={isProductModalOpen ? (productForm.image || '') : ''}
           onSelectImage={isProductModalOpen ? (url) => {

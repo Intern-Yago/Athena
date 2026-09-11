@@ -36,9 +36,9 @@ export default function ProductImageGallery({ product }) {
         if (e.key === 'Escape') {
           setIsLightboxOpen(false);
         } else if (e.key === 'ArrowLeft') {
-          setCurrentIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
+          setCurrentIndex((prev) => Math.max(0, prev - 1));
         } else if (e.key === 'ArrowRight') {
-          setCurrentIndex((prev) => (prev + 1) % displayImages.length);
+          setCurrentIndex((prev) => Math.min(displayImages.length - 1, prev + 1));
         }
       };
       window.addEventListener('keydown', handleKeyDown);
@@ -72,12 +72,12 @@ export default function ProductImageGallery({ product }) {
 
   const handlePrev = (e) => {
     e?.stopPropagation();
-    setCurrentIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
+    setCurrentIndex((prev) => Math.max(0, prev - 1));
   };
 
   const handleNext = (e) => {
     e?.stopPropagation();
-    setCurrentIndex((prev) => (prev + 1) % displayImages.length);
+    setCurrentIndex((prev) => Math.min(displayImages.length - 1, prev + 1));
   };
 
   // Mouse move handler for Desktop PC Lens Magnifier Zoom
@@ -274,12 +274,12 @@ export default function ProductImageGallery({ product }) {
       {/* FULL SCREEN EXPANDED PHOTO LIGHTBOX MODAL */}
       {isLightboxOpen && (
         <div
-          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[99999] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-6 animate-in fade-in duration-200 select-none cursor-pointer"
           onClick={() => setIsLightboxOpen(false)}
         >
           {/* Top Header of Lightbox */}
           <div 
-            className="w-full max-w-5xl flex items-center justify-between text-white pb-3 border-b border-slate-800 z-10"
+            className="w-full max-w-5xl flex items-center justify-between text-white pb-3 border-b border-slate-800 z-10 cursor-default"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3">
@@ -296,7 +296,7 @@ export default function ProductImageGallery({ product }) {
             <button
               type="button"
               onClick={() => setIsLightboxOpen(false)}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
               title="Fechar visualizador (ESC)"
             >
               <X className="w-6 h-6" />
@@ -306,13 +306,12 @@ export default function ProductImageGallery({ product }) {
           {/* Main Full Image Viewport */}
           <div 
             className="flex-1 w-full max-w-5xl flex items-center justify-center relative p-2 my-auto"
-            onClick={(e) => e.stopPropagation()}
           >
-            {displayImages.length > 1 && (
+            {currentIndex > 0 && (
               <button
                 type="button"
                 onClick={handlePrev}
-                className="absolute left-2 sm:left-4 z-20 p-3 rounded-full bg-slate-900/80 hover:bg-amber-600 text-white shadow-xl transition-all active:scale-95"
+                className="absolute left-2 sm:left-4 z-20 p-3 rounded-full bg-slate-900/80 hover:bg-amber-600 text-white shadow-xl transition-all active:scale-95 cursor-pointer"
                 title="Foto Anterior (Seta Esquerda)"
               >
                 <ChevronLeft className="w-6 h-6" />
@@ -322,14 +321,15 @@ export default function ProductImageGallery({ product }) {
             <img
               src={currentImageUrl}
               alt={product?.name || 'Equipamento Athena'}
-              className="max-h-[75vh] max-w-full object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 select-none bg-white/5 p-2"
+              onClick={(e) => e.stopPropagation()}
+              className="max-h-[75vh] max-w-full object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 select-none bg-white/5 p-2 cursor-default"
             />
 
-            {displayImages.length > 1 && (
+            {currentIndex < displayImages.length - 1 && (
               <button
                 type="button"
                 onClick={handleNext}
-                className="absolute right-2 sm:right-4 z-20 p-3 rounded-full bg-slate-900/80 hover:bg-amber-600 text-white shadow-xl transition-all active:scale-95"
+                className="absolute right-2 sm:right-4 z-20 p-3 rounded-full bg-slate-900/80 hover:bg-amber-600 text-white shadow-xl transition-all active:scale-95 cursor-pointer"
                 title="Próxima Foto (Seta Direita)"
               >
                 <ChevronRight className="w-6 h-6" />

@@ -2362,86 +2362,136 @@ app.get('/api/upload/library', authenticateToken, async (req, res) => {
 });
 
 // Endpoint para excluir imagem do Cloudflare R2
+// Endpoint para excluir imagem (ou lote de imagens) do Cloudflare R2
 app.post('/api/upload/delete', authenticateToken, async (req, res) => {
   try {
-    const { url } = req.body;
-    if (!url) {
+    const rawUrls = req.body.urls || (req.body.url ? [req.body.url] : []);
+    const urls = Array.isArray(rawUrls) ? rawUrls.filter(Boolean) : [];
+    if (urls.length === 0) {
       return res.status(400).json({ error: 'Nenhuma URL informada para exclusão.' });
     }
 
-    // 1. Tenta excluir do Cloudflare R2 (suporta domínio customizado e r2.dev)
-    const isR2Url = isR2Configured && (
-      url.includes('.r2.dev') ||
-      url.includes('.r2.cloudflarestorage.com') ||
-      url.includes('images.athenaconsultoria.com.br') ||
-      (process.env.R2_PUBLIC_URL && url.includes(new URL(process.env.R2_PUBLIC_URL).hostname))
-    );
+    let totalDeleted = 0;
+    let cleanedProductsCount = 0;
+    let cleanedBrandsCount = 0;
 
-    let deleted = false;
-    if (isR2Url) {
-      deleted = await deleteFromR2(url);
-    } else if (url.includes('cloudinary.com')) {
-      try {
-        const parts = url.split('/');
-        const fileWithExt = parts.slice(-2).join('/');
-        const publicId = fileWithExt.replace(/\.[^/.]+$/, '');
-        await cloudinary.uploader.destroy(publicId);
-        deleted = true;
-      } catch (cErr) {
-        console.warn('Aviso ao excluir do Cloudinary:', cErr.message);
+    // 1. Tenta excluir do Cloudflare R2 / Storage
+    for (const url of urls) {
+      const isR2Url = isR2Configured && (
+        url.includes('.r2.dev') ||
+        url.includes('.r2.cloudflarestorage.com') ||
+        url.includes('images.athenaconsultoria.com.br') ||
+        (process.env.R2_PUBLIC_URL && url.includes(new URL(process.env.R2_PUBLIC_URL).hostname))
+      );
+
+      if (isR2Url) {
+        const ok = await deleteFromR2(url);
+        if (ok) totalDeleted++;
+      } else if (url.includes('cloudinary.com')) {
+        try {
+          const parts = url.split('/');
+          const fileWithExt = parts.slice(-2).join('/');
+          const publicId = fileWithExt.replace(/\.[^/.]+$/, '');
+          await cloudinary.uploader.destroy(publicId);
+          totalDeleted++;
+        } catch (cErr) {
+          console.warn('Aviso ao excluir do Cloudinary:', cErr.message);
+        }
       }
     }
 
-    // 2. Limpa automaticamente referências desta foto nos produtos do banco para evitar imagens quebradas
-    let cleanedCount = 0;
+    // 2. Extrai nomes de arquivos para desvincular produtos e marcas no banco com precisão de token
+    const filenames = urls.map(u => {
+      const clean = u.split('?')[0].split('#')[0];
+      return clean.split('/').pop() || '';
+    }).filter(f => f.length > 3);
+
     if (pool) {
       try {
-        await pool.query(`
-          UPDATE products
-          SET image = CASE 
-            WHEN array_length(images, 1) > 1 AND images[1] = $1 THEN COALESCE(images[2], '')
-            WHEN array_length(images, 1) > 1 THEN COALESCE(images[1], '')
-            ELSE ''
-          END
-          WHERE image = $1
-        `, [url]);
+        for (const url of urls) {
+          const clean = url.split('?')[0].split('#')[0];
+          const filename = clean.split('/').pop() || '';
 
-        const updateRes = await pool.query(`
-          UPDATE products
-          SET images = array_remove(images, $1)
-          WHERE $1 = ANY(images)
-        `, [url]);
-        cleanedCount = updateRes.rowCount || 0;
+          // Desvincula marcas
+          const brandRes = await pool.query(`
+            UPDATE brands 
+            SET logo = '' 
+            WHERE logo = $1 
+               OR ($2 != '' AND (logo LIKE '%' || $2 OR logo = $2))
+          `, [url, filename]);
+          cleanedBrandsCount += (brandRes.rowCount || 0);
+
+          // Desvincula produto (imagem principal)
+          await pool.query(`
+            UPDATE products
+            SET image = CASE 
+              WHEN array_length(images, 1) > 1 AND (images[1] = $1 OR ($2 != '' AND images[1] LIKE '%' || $2)) THEN COALESCE(images[2], '')
+              WHEN array_length(images, 1) > 1 THEN COALESCE(images[1], '')
+              ELSE ''
+            END
+            WHERE image = $1 OR ($2 != '' AND image LIKE '%' || $2)
+          `, [url, filename]);
+
+          // Desvincula produto (galeria de imagens)
+          const updateRes = await pool.query(`
+            UPDATE products
+            SET images = ARRAY(
+              SELECT elem FROM unnest(COALESCE(images, ARRAY[]::text[])) AS elem 
+              WHERE elem != $1 AND ($2 = '' OR elem NOT LIKE '%' || $2)
+            )
+            WHERE $1 = ANY(images) OR ($2 != '' AND EXISTS (SELECT 1 FROM unnest(images) elem WHERE elem LIKE '%' || $2))
+          `, [url, filename]);
+          cleanedProductsCount += (updateRes.rowCount || 0);
+        }
       } catch (dbErr) {
-        console.warn('Aviso ao desvincular imagem de produtos no PG:', dbErr.message);
+        console.warn('Aviso ao desvincular imagens de produtos/marcas no PG:', dbErr.message);
       }
     }
 
+    // Fallback/Sincronização com db.json
     const db = readDbJson();
     let updatedDb = false;
+
+    const matchesAnyDeleted = (testUrl) => {
+      if (!testUrl || typeof testUrl !== 'string') return false;
+      const cleanTest = testUrl.split('?')[0].split('#')[0];
+      const testFile = cleanTest.split('/').pop() || '';
+      return urls.includes(testUrl) || urls.includes(cleanTest) || (testFile.length > 3 && filenames.includes(testFile));
+    };
+
     (db.products || []).forEach(prod => {
       let changed = false;
-      if (Array.isArray(prod.images) && prod.images.includes(url)) {
-        prod.images = prod.images.filter(u => u !== url);
+      if (Array.isArray(prod.images) && prod.images.some(matchesAnyDeleted)) {
+        prod.images = prod.images.filter(u => !matchesAnyDeleted(u));
         changed = true;
       }
-      if (prod.image === url) {
+      if (matchesAnyDeleted(prod.image)) {
         prod.image = (Array.isArray(prod.images) && prod.images[0]) || '';
         changed = true;
       }
       if (changed) {
-        cleanedCount++;
+        cleanedProductsCount++;
         updatedDb = true;
       }
     });
+
+    (db.brands || []).forEach(brand => {
+      if (matchesAnyDeleted(brand.logo)) {
+        brand.logo = '';
+        cleanedBrandsCount++;
+        updatedDb = true;
+      }
+    });
+
     if (updatedDb) {
       writeDbJson(db);
     }
 
     return res.json({ 
       success: true, 
-      provider: isR2Url ? 'cloudflare-r2' : 'storage',
-      affectedProducts: cleanedCount
+      deletedCount: totalDeleted,
+      affectedProducts: cleanedProductsCount,
+      affectedBrands: cleanedBrandsCount
     });
   } catch (error) {
     console.error('Erro ao excluir mídia do storage:', error);

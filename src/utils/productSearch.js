@@ -167,6 +167,8 @@ export const computeTokenSimilarity = (qToken, tToken) => {
   else if (minLen >= 8) maxDist = 2;
 
   if (maxDist === 0) return 0;
+  // Mathematical prune: if lengths differ by more than maxDist, edit distance can NEVER be <= maxDist!
+  if (Math.abs(s1.length - s2.length) > maxDist) return 0;
 
   const dist = damerauLevenshtein(s1, s2);
   if (dist <= maxDist) {
@@ -186,6 +188,14 @@ export const getSearchTokens = (term) => {
 
 // Internal cache for product search profiles
 const profileCache = new Map();
+// Memoization cache for query evaluation: key = `${profile.id}:::${rawTerm}`
+const matchCache = new Map();
+const MAX_MATCH_CACHE_SIZE = 4000;
+
+export const clearProductSearchCache = () => {
+  profileCache.clear();
+  matchCache.clear();
+};
 
 /**
  * Builds a rich search profile for a single product
@@ -246,18 +256,45 @@ export const getProductSearchProfile = (prod, categories, brands) => {
   const brandNorm = normalizeSearchText(brandName);
   const catNorm = normalizeSearchText(catName);
 
+  const compoundsList = Array.from(compounds);
+  const nameWordsSet = new Set(nameWords);
+  const skuWordsSet = new Set(skuWords);
+  const brandWordsSet = new Set(brandWords);
+  const catWordsSet = new Set(catWords);
+  const specWordsSet = new Set(specWords);
+  const descWordsSet = new Set(descWords);
+  const compoundsSet = new Set(compoundsList);
+  const compoundsCleanSet = new Set(compoundsList.map((c) => cleanAlphanumeric(c)));
+  const allWordsSet = new Set([
+    ...nameWords,
+    ...skuWords,
+    ...brandWords,
+    ...catWords,
+    ...specWords,
+    ...descWords
+  ]);
+
   const profile = {
     id: prod.id,
     name: prod.name,
     nameClean: cleanAlphanumeric(prod.name),
     nameNorm: normalizeSearchText(prod.name),
     nameWords,
+    nameWordsSet,
     skuWords,
-    compounds: Array.from(compounds),
+    skuWordsSet,
+    compounds: compoundsList,
+    compoundsSet,
+    compoundsCleanSet,
     brandWords,
+    brandWordsSet,
     catWords,
+    catWordsSet,
     specWords,
+    specWordsSet,
     descWords,
+    descWordsSet,
+    allWordsSet,
     specsNorm,
     descNorm,
     brandNorm,
@@ -321,11 +358,33 @@ export const buildProductRelationsMap = (products) => {
  * Evaluates whether a product profile matches a raw query directly with tiered relevance.
  */
 export const evaluateDirectProductMatch = (profile, rawTerm) => {
+  if (!profile) {
+    return { matches: false, score: 0, matchType: 'none' };
+  }
+
   const normTerm = normalizeSearchText(rawTerm);
   const cleanTerm = cleanAlphanumeric(rawTerm);
   if (!normTerm) {
     return { matches: true, score: 1.0, matchType: 'all' };
   }
+
+  // Memoization lookup
+  const cacheKey = `${profile.id}:::${normTerm}`;
+  const cached = matchCache.get(cacheKey);
+  if (cached) return cached;
+
+  const cacheAndReturn = (res) => {
+    if (matchCache.size >= MAX_MATCH_CACHE_SIZE) {
+      const iter = matchCache.keys();
+      for (let i = 0; i < 1000; i++) {
+        const k = iter.next().value;
+        if (k) matchCache.delete(k);
+        else break;
+      }
+    }
+    matchCache.set(cacheKey, res);
+    return res;
+  };
 
   // 1. Direct full text substring match (exact)
   const isPureNumber = /^\d+$/.test(normTerm);
@@ -358,11 +417,11 @@ export const evaluateDirectProductMatch = (profile, rawTerm) => {
       matchType = 'specs_exact';
     }
 
-    return {
+    return cacheAndReturn({
       matches: true,
       score,
       matchType
-    };
+    });
   }
 
   // 2. Direct clean alphanumeric full match (e.g. WALFUN matching WAL-FUN in name or codes)
@@ -372,46 +431,53 @@ export const evaluateDirectProductMatch = (profile, rawTerm) => {
     } else {
       const inNameClean = profile.nameClean.includes(cleanTerm);
       if (inNameClean) {
-        return {
+        return cacheAndReturn({
           matches: true,
           score: 95,
           matchType: 'clean_name'
-        };
+        });
       }
       // Check if cleanTerm matches any compound code cleaned
+      if (profile.compoundsCleanSet?.has(cleanTerm)) {
+        return cacheAndReturn({
+          matches: true,
+          score: 95,
+          matchType: 'clean_code'
+        });
+      }
       for (const code of profile.compounds) {
         const codeClean = cleanAlphanumeric(code);
         if (codeClean === cleanTerm) {
-          return {
+          return cacheAndReturn({
             matches: true,
             score: 95,
             matchType: 'clean_code'
-          };
+          });
         }
       }
       // Check brand/category clean
       if (cleanAlphanumeric(profile.brandNorm).includes(cleanTerm) || cleanAlphanumeric(profile.catNorm).includes(cleanTerm)) {
-        return {
+        return cacheAndReturn({
           matches: true,
           score: 80,
           matchType: 'clean_brand'
-        };
+        });
       }
       // Check specs clean
       if (cleanAlphanumeric(profile.specsNorm).includes(cleanTerm)) {
-        return {
+        return cacheAndReturn({
           matches: true,
           score: 60,
           matchType: 'clean_specs'
-        };
+        });
       }
       // Fallback: description clean
       if (profile.fullClean.includes(cleanTerm)) {
-        return {
+        return cacheAndReturn({
           matches: true,
           score: 40,
           matchType: 'clean_desc'
-        };
+        });
       }
     }
   }
@@ -419,7 +485,7 @@ export const evaluateDirectProductMatch = (profile, rawTerm) => {
   // 3. Token-by-token similarity & field-weighted scoring
   const queryTokens = normTerm.split(/\s+/).filter(Boolean);
   if (queryTokens.length === 0) {
-    return { matches: true, score: 1.0, matchType: 'all' };
+    return cacheAndReturn({ matches: true, score: 1.0, matchType: 'all' });
   }
 
   let totalScore = 0;
@@ -429,52 +495,70 @@ export const evaluateDirectProductMatch = (profile, rawTerm) => {
     const qClean = cleanAlphanumeric(qToken);
     let bestTokenScore = 0;
 
-    // Check compound codes
-    for (const code of profile.compounds) {
-      const sim = computeTokenSimilarity(qToken, code);
-      if (sim * 3.0 > bestTokenScore) bestTokenScore = sim * 3.0;
+    // FAST PATH: Check if token exists exactly in any precomputed Set (instant O(1))
+    if (profile.nameWordsSet?.has(qToken) || profile.skuWordsSet?.has(qToken)) {
+      bestTokenScore = 3.0;
+    } else if (profile.compoundsSet?.has(qToken) || (qClean && profile.compoundsCleanSet?.has(qClean))) {
+      bestTokenScore = 3.0;
+    } else if (profile.brandWordsSet?.has(qToken)) {
+      bestTokenScore = 2.5;
+    } else if (profile.catWordsSet?.has(qToken)) {
+      bestTokenScore = 2.0;
+    } else if (profile.specWordsSet?.has(qToken)) {
+      bestTokenScore = 1.5;
+    } else if (profile.descWordsSet?.has(qToken)) {
+      bestTokenScore = 1.0;
     }
 
-    // Check name tokens (weight 3.0)
-    for (const w of profile.nameWords) {
-      const sim = computeTokenSimilarity(qToken, w);
-      if (sim * 3.0 > bestTokenScore) bestTokenScore = sim * 3.0;
-    }
+    // Only run fuzzy loops if exact match is NOT found
+    if (bestTokenScore === 0) {
+      // Check compound codes
+      for (const code of profile.compounds) {
+        const sim = computeTokenSimilarity(qToken, code);
+        if (sim * 3.0 > bestTokenScore) bestTokenScore = sim * 3.0;
+      }
 
-    // Check SKU tokens (weight 3.0)
-    for (const w of profile.skuWords) {
-      const sim = computeTokenSimilarity(qToken, w);
-      if (sim * 3.0 > bestTokenScore) bestTokenScore = sim * 3.0;
-    }
+      // Check name tokens (weight 3.0)
+      for (const w of profile.nameWords) {
+        const sim = computeTokenSimilarity(qToken, w);
+        if (sim * 3.0 > bestTokenScore) bestTokenScore = sim * 3.0;
+      }
 
-    // Check brand tokens (weight 2.5)
-    for (const w of profile.brandWords) {
-      const sim = computeTokenSimilarity(qToken, w);
-      if (sim * 2.5 > bestTokenScore) bestTokenScore = sim * 2.5;
-    }
+      // Check SKU tokens (weight 3.0)
+      for (const w of profile.skuWords) {
+        const sim = computeTokenSimilarity(qToken, w);
+        if (sim * 3.0 > bestTokenScore) bestTokenScore = sim * 3.0;
+      }
 
-    // Check category tokens (weight 2.0)
-    for (const w of profile.catWords) {
-      const sim = computeTokenSimilarity(qToken, w);
-      if (sim * 2.0 > bestTokenScore) bestTokenScore = sim * 2.0;
-    }
+      // Check brand tokens (weight 2.5)
+      for (const w of profile.brandWords) {
+        const sim = computeTokenSimilarity(qToken, w);
+        if (sim * 2.5 > bestTokenScore) bestTokenScore = sim * 2.5;
+      }
 
-    // Check specs tokens (weight 1.5)
-    for (const w of profile.specWords) {
-      const sim = computeTokenSimilarity(qToken, w);
-      if (sim * 1.5 > bestTokenScore) bestTokenScore = sim * 1.5;
-    }
+      // Check category tokens (weight 2.0)
+      for (const w of profile.catWords) {
+        const sim = computeTokenSimilarity(qToken, w);
+        if (sim * 2.0 > bestTokenScore) bestTokenScore = sim * 2.0;
+      }
 
-    // Check desc tokens (weight 1.0)
-    for (const w of profile.descWords) {
-      const sim = computeTokenSimilarity(qToken, w);
-      if (sim * 1.0 > bestTokenScore) bestTokenScore = sim * 1.0;
-    }
+      // Check specs tokens (weight 1.5)
+      for (const w of profile.specWords) {
+        const sim = computeTokenSimilarity(qToken, w);
+        if (sim * 1.5 > bestTokenScore) bestTokenScore = sim * 1.5;
+      }
 
-    // Check if clean token is substring of clean name
-    if (qClean.length >= 4 && profile.nameClean.includes(qClean)) {
-      const subScore = 2.8;
-      if (subScore > bestTokenScore) bestTokenScore = subScore;
+      // Check desc tokens (weight 1.0)
+      for (const w of profile.descWords) {
+        const sim = computeTokenSimilarity(qToken, w);
+        if (sim * 1.0 > bestTokenScore) bestTokenScore = sim * 1.0;
+      }
+
+      // Check if clean token is substring of clean name
+      if (qClean.length >= 4 && profile.nameClean.includes(qClean)) {
+        const subScore = 2.8;
+        if (subScore > bestTokenScore) bestTokenScore = subScore;
+      }
     }
 
     // Minimum required score per token for fuzzy inclusion (0.7 * base weight 1.0 = 0.70)
@@ -488,14 +572,14 @@ export const evaluateDirectProductMatch = (profile, rawTerm) => {
 
   if (allTokensMatch) {
     const avgScore = (totalScore / queryTokens.length) * 25; // Scale to 0-100 range
-    return {
+    return cacheAndReturn({
       matches: true,
       score: avgScore,
       matchType: 'fuzzy'
-    };
+    });
   }
 
-  return { matches: false, score: 0, matchType: 'none' };
+  return cacheAndReturn({ matches: false, score: 0, matchType: 'none' });
 };
 
 /**
