@@ -901,7 +901,7 @@ export default function ImageLibraryModal({
                             </button>
                           )}
 
-                          {!isStandalone && !isCover && (
+                          {!isStandalone && !isCover && onSetAsCover && (
                             <button
                               type="button"
                               onClick={() => onSetAsCover?.(item.url)}
@@ -1008,6 +1008,7 @@ export default function ImageLibraryModal({
       {expandedImage && (() => {
         const expandedIndex = displayedItems.findIndex(i => i.key === expandedImage.key);
         const usage = getItemUsage(expandedImage);
+        const isCover = isMediaMatch(expandedImage, currentCover);
 
         return (
           <div 
@@ -1140,27 +1141,27 @@ export default function ImageLibraryModal({
                           onClick={() => {
                             const matchInCurrent = (currentImages || []).find(u => isMediaMatch(expandedImage, u)) || expandedImage.url;
                             onRemoveImageFromProduct?.(matchInCurrent);
-                            showNotificationRef.current?.('Foto removida da galeria do equipamento.', 'info');
+                            showNotificationRef.current?.('Foto removida da seleção.', 'info');
                           }}
                           className="py-2 px-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs transition cursor-pointer"
                         >
-                          Remover do Equipamento
+                          {onSetAsCover ? 'Remover do Equipamento' : 'Remover Seleção'}
                         </button>
                       ) : (
                         <button
                           type="button"
                           onClick={() => {
                             onSelectImage?.(expandedImage.url);
-                            showNotificationRef.current?.('Foto adicionada ao equipamento!', 'success');
+                            showNotificationRef.current?.('Foto selecionada com sucesso!', 'success');
                           }}
                           className="py-2 px-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition flex items-center gap-1 cursor-pointer shadow-2xs"
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          <span>Adicionar ao Equipamento</span>
+                          <span>{onSetAsCover ? 'Adicionar ao Equipamento' : 'Selecionar Imagem'}</span>
                         </button>
                       )}
 
-                      {!isCover && (
+                      {!isCover && onSetAsCover && (
                         <button
                           type="button"
                           onClick={() => {
