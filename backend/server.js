@@ -1174,11 +1174,20 @@ async function initDb() {
       if (parseInt(brandCheck.rows[0].count, 10) === 0) {
         await pool.query(`
           INSERT INTO brands (id, name, slug, description, logo, website_url, "order") VALUES
-          ('brand_mahovi', 'Mahovi', 'mahovi', 'Líder nacional em elevadores automotivos, alinhadores 3D e desmontadoras.', 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80', 'https://mahovi.com.br', 1),
-          ('brand_delta', 'Delta Ferramentas', 'delta-ferramentas', 'Referência em equipamentos de teste, canetas de polaridade e teste de baterias.', 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=200&auto=format&fit=crop&q=80', 'https://deltaferramentas.com.br', 2),
-          ('brand_starkx', 'Stärkx', 'starkx', 'Scanners de diagnóstico profissional multimarca e testadores com IA Thinkcar.', 'https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=200&auto=format&fit=crop&q=80', 'https://starkx.com.br', 3),
-          ('brand_wolfcar', 'Wolfcar', 'wolfcar', 'Móveis modulares premium, bancadas em inox e armários para centro automotivo.', 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200&auto=format&fit=crop&q=80', 'https://wolfcar.com.br', 4),
-          ('brand_sigmatools', 'Sigma Tools', 'sigma-tools', 'Chaves de impacto pneumáticas, soquetes especiais em Cr-Mo e carrinhos ergonômicos.', 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?w=200&auto=format&fit=crop&q=80', 'https://sigmatools.com.br', 5);
+          ('brand_mahovi', 'Mahovi', 'mahovi', 'Líder nacional em elevadores automotivos, alinhadores 3D e desmontadoras.', 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/mahovi-d2fca4c6358b.webp', 'https://mahovi.com.br', 1),
+          ('brand_delta', 'Delta Ferramentas', 'delta', 'Referência em equipamentos de teste, canetas de polaridade e teste de baterias.', 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/delta-47d4582fff78.webp', 'https://deltaferramentas.com.br', 2),
+          ('brand_starkx', 'Stärkx', 'starkx', 'Scanners de diagnóstico profissional multimarca e testadores com IA Thinkcar.', 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/starkx-5e830ec912b7.webp', 'https://starkx.com.br', 3),
+          ('brand_wolfcar', 'Wolfcar', 'wolfcar', 'Móveis modulares premium, bancadas em inox e armários para centro automotivo.', 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/wolfcar-63a7bd61556f.webp', 'https://wolfcar.com.br', 4),
+          ('brand_sigmatools', 'Sigma Tools', 'sigma-tools', 'Chaves de impacto pneumáticas, soquetes especiais em Cr-Mo e carrinhos ergonômicos.', 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/sigma-tools-7ceda13e30aa.webp', 'https://sigmatools.com.br', 5);
+        `);
+      } else {
+        // Atualiza marcas existentes para garantir logos R2 oficiais
+        await pool.query(`
+          UPDATE brands SET logo = 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/mahovi-d2fca4c6358b.webp' WHERE (id = 'brand_mahovi' OR slug = 'mahovi') AND (logo LIKE '%unsplash%' OR logo = '' OR logo IS NULL);
+          UPDATE brands SET logo = 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/delta-47d4582fff78.webp' WHERE (id = 'brand_delta' OR slug = 'delta' OR slug = 'delta-ferramentas') AND (logo LIKE '%unsplash%' OR logo = '' OR logo IS NULL);
+          UPDATE brands SET logo = 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/starkx-5e830ec912b7.webp' WHERE (id = 'brand_starkx' OR slug = 'starkx') AND (logo LIKE '%unsplash%' OR logo = '' OR logo IS NULL);
+          UPDATE brands SET logo = 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/wolfcar-63a7bd61556f.webp' WHERE (id = 'brand_wolfcar' OR slug = 'wolfcar') AND (logo LIKE '%unsplash%' OR logo = '' OR logo IS NULL);
+          UPDATE brands SET logo = 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/sigma-tools-7ceda13e30aa.webp' WHERE (id = 'brand_sigmatools' OR slug = 'sigma-tools') AND (logo LIKE '%unsplash%' OR logo = '' OR logo IS NULL);
         `);
       }
 

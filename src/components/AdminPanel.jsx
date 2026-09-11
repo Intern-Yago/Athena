@@ -78,6 +78,7 @@ import FormattedDescription from './FormattedDescription';
 import CouponManager from './CouponManager';
 import ImageLibraryModal from './ImageLibraryModal';
 import CustomerDetailModal from './CustomerDetailModal';
+import SmartLinkPicker from './SmartLinkPicker';
 import { safeStorageSet, saveSession } from '../utils/storage';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
@@ -7987,28 +7988,25 @@ export default function AdminPanel({
                   )}
                 </div>
 
-                {/* Link Configuration Section */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
-                  <label className="text-xs font-bold text-slate-800 block">Link de Redirecionamento ao Clicar (Opcional)</label>
-                  <input
-                    type="text"
-                    placeholder="Ex: /categoria/scanners-automotivos ou /marca/launch ou https://wa.me/..."
-                    value={bannerForm.linkUrl}
-                    onChange={(e) => setBannerForm({ ...bannerForm, linkUrl: e.target.value })}
-                    className="form-input text-xs"
-                  />
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="checkbox"
-                      id="bannerTargetBlank"
-                      checked={bannerForm.targetBlank}
-                      onChange={(e) => setBannerForm({ ...bannerForm, targetBlank: e.target.checked })}
-                      className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
-                    />
-                    <label htmlFor="bannerTargetBlank" className="text-xs text-slate-600 cursor-pointer font-medium">
-                      Abrir link em nova aba (`_blank`)
+                {/* Link Configuration Section (Smart Tree & Autocomplete Picker) */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      Link de Redirecionamento ao Clicar (Opcional)
                     </label>
+                    <span className="text-[10px] text-slate-500 font-mono">Árvore / Autocomplete</span>
                   </div>
+
+                  <SmartLinkPicker
+                    value={bannerForm.linkUrl}
+                    onChange={(newUrl) => setBannerForm(prev => ({ ...prev, linkUrl: newUrl }))}
+                    targetBlank={bannerForm.targetBlank}
+                    onTargetBlankChange={(newBlank) => setBannerForm(prev => ({ ...prev, targetBlank: newBlank }))}
+                    products={products}
+                    categories={categories}
+                    brands={brands}
+                  />
                 </div>
 
                 {/* Active Toggle */}
@@ -8316,6 +8314,7 @@ export default function AdminPanel({
           products={products}
           brands={brands}
           categories={categories}
+          banners={banners}
           currentImages={
             isSelectingBannerMedia
               ? (isSelectingBannerMedia === 'desktop'

@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Info
 } from 'lucide-react';
+import { INITIAL_BRANDS } from '../data/initialData';
 
 /**
  * Normaliza e extrai tokens únicos de identificação de uma URL ou chave de arquivo.
@@ -92,6 +93,7 @@ export default function ImageLibraryModal({
   products = [],
   brands = [],
   categories = [],
+  banners = [],
   API_BASE_URL,
   getAuthHeaders,
   showNotification,
@@ -105,7 +107,7 @@ export default function ImageLibraryModal({
   const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [usageFilter, setUsageFilter] = useState('all'); // 'all' | 'in_use' | 'brands' | 'unused' | 'current_product'
+  const [usageFilter, setUsageFilter] = useState('all'); // 'all' | 'in_use' | 'brands' | 'banners' | 'unused' | 'current_product'
   const [expandedImage, setExpandedImage] = useState(null);
   const [deletingKey, setDeletingKey] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -125,7 +127,7 @@ export default function ImageLibraryModal({
 
   const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://athena-backend-hu1m.onrender.com/api';
 
-  // Mapa de registro global de uso: token (minúsculo) -> { brands: Set(nomes), products: Set(nomes), categories: Set(nomes) }
+  // Mapa de registro global de uso: token (minúsculo) -> { brands: Set(nomes), products: Set(nomes), categories: Set(nomes), banners: Set(nomes) }
   const mediaUsageRegistry = useMemo(() => {
     const registry = new Map();
 
@@ -133,12 +135,13 @@ export default function ImageLibraryModal({
       if (!token || !name) return;
       const key = token.toLowerCase();
       if (!registry.has(key)) {
-        registry.set(key, { brands: new Set(), products: new Set(), categories: new Set() });
+        registry.set(key, { brands: new Set(), products: new Set(), categories: new Set(), banners: new Set() });
       }
       const entry = registry.get(key);
       if (type === 'brand') entry.brands.add(name);
       else if (type === 'product') entry.products.add(name);
       else if (type === 'category') entry.categories.add(name);
+      else if (type === 'banner') entry.banners.add(name);
     };
 
     const registerUrl = (url, type, name) => {
@@ -152,10 +155,15 @@ export default function ImageLibraryModal({
       allUrls.forEach(url => registerUrl(url, 'product', prod.name));
     });
 
-    // Indexa marcas (logotipos oficiais)
-    (brands || []).forEach(brand => {
-      if (brand.logo) {
-        registerUrl(brand.logo, 'brand', brand.name);
+    // Indexa marcas (logotipos oficiais da prop brands + INITIAL_BRANDS)
+    const allBrandsToScan = [
+      ...INITIAL_BRANDS,
+      ...(Array.isArray(brands) ? brands : [])
+    ];
+    allBrandsToScan.forEach(brand => {
+      const logo = brand.logo || brand.image || brand.logo_url || brand.logoUrl;
+      if (logo) {
+        registerUrl(logo, 'brand', brand.name);
       }
     });
 
@@ -166,12 +174,21 @@ export default function ImageLibraryModal({
       if (cat.logo) registerUrl(cat.logo, 'category', cat.name);
     });
 
+    // Indexa banners da Home (Desktop e Mobile)
+    (banners || []).forEach((b, idx) => {
+      const bannerTitle = b.title || `Banner #${idx + 1}`;
+      const desktop = b.desktopImage || b.desktop_image;
+      const mobile = b.mobileImage || b.mobile_image;
+      if (desktop) registerUrl(desktop, 'banner', `${bannerTitle} (Desktop)`);
+      if (mobile) registerUrl(mobile, 'banner', `${bannerTitle} (Mobile)`);
+    });
+
     return registry;
-  }, [products, brands, categories]);
+  }, [products, brands, categories, banners]);
 
   // Consulta o uso detalhado de um item do R2
   const getItemUsage = useCallback((item) => {
-    if (!item) return { isUsed: false, brands: [], products: [], categories: [], isCurrentProduct: false };
+    if (!item) return { isUsed: false, brands: [], products: [], categories: [], banners: [], isCurrentProduct: false };
     const tokens = new Set([
       ...extractMediaTokens(item.url),
       ...extractMediaTokens(item.key),
@@ -181,6 +198,7 @@ export default function ImageLibraryModal({
     const matchedBrands = new Set();
     const matchedProducts = new Set();
     const matchedCategories = new Set();
+    const matchedBanners = new Set();
 
     tokens.forEach(tok => {
       const entry = mediaUsageRegistry.get(tok);
@@ -188,23 +206,57 @@ export default function ImageLibraryModal({
         entry.brands.forEach(b => matchedBrands.add(b));
         entry.products.forEach(p => matchedProducts.add(p));
         entry.categories.forEach(c => matchedCategories.add(c));
+        entry.banners.forEach(bn => matchedBanners.add(bn));
       }
     });
+
+    // 🛡️ BLINDAGEM DE MARCAS: Se a imagem está na pasta 'marcas' ou tem 'marcas/' no caminho/chave:
+    const itemKeyLower = (item.key || '').toLowerCase();
+    const itemUrlLower = (item.url || '').toLowerCase();
+    const itemFilenameLower = (item.filename || '').toLowerCase();
+    const itemFolderLower = (item.folder || '').toLowerCase();
+
+    const isBrandFolder = itemFolderLower === 'marcas' || itemKeyLower.startsWith('marcas/') || itemUrlLower.includes('/marcas/');
+    if (isBrandFolder) {
+      if (matchedBrands.size === 0) {
+        // Tenta associar pelo nome do arquivo (ex: mahovi, delta, starkx, wolfcar, sigmatools)
+        const allBrandsToScan = [...INITIAL_BRANDS, ...(Array.isArray(brands) ? brands : [])];
+        const foundBrand = allBrandsToScan.find(b => 
+          itemFilenameLower.includes((b.slug || '').toLowerCase()) ||
+          itemFilenameLower.includes((b.name || '').toLowerCase().replace(/[^a-z0-9]/g, ''))
+        );
+        if (foundBrand) {
+          matchedBrands.add(foundBrand.name);
+        } else {
+          matchedBrands.add('Marca / Logotipo');
+        }
+      }
+    }
+
+    // 🛡️ BLINDAGEM DE BANNERS: Se a imagem está na pasta 'banners' ou tem 'banners/' no caminho/chave:
+    const isBannerFolder = itemFolderLower === 'banners' || itemKeyLower.startsWith('banners/') || itemUrlLower.includes('/banners/');
+    if (isBannerFolder) {
+      if (matchedBanners.size === 0) {
+        matchedBanners.add('Banner da Home');
+      }
+    }
 
     const isCurrentProduct = (currentImages || []).some(imgUrl => isMediaMatch(item, imgUrl));
 
     const brandsList = Array.from(matchedBrands);
     const productsList = Array.from(matchedProducts);
     const categoriesList = Array.from(matchedCategories);
+    const bannersList = Array.from(matchedBanners);
 
     return {
-      isUsed: brandsList.length > 0 || productsList.length > 0 || categoriesList.length > 0,
+      isUsed: brandsList.length > 0 || productsList.length > 0 || categoriesList.length > 0 || bannersList.length > 0,
       brands: brandsList,
       products: productsList,
       categories: categoriesList,
+      banners: bannersList,
       isCurrentProduct
     };
-  }, [mediaUsageRegistry, currentImages]);
+  }, [mediaUsageRegistry, currentImages, brands]);
 
   // Debounce search query
   useEffect(() => {
@@ -512,6 +564,9 @@ export default function ImageLibraryModal({
       if (usageFilter === 'brands') {
         return usage.brands.length > 0;
       }
+      if (usageFilter === 'banners') {
+        return usage.banners.length > 0;
+      }
       if (usageFilter === 'unused') {
         return !usage.isUsed;
       }
@@ -525,6 +580,7 @@ export default function ImageLibraryModal({
   // Counts for tabs
   const countInUse = useMemo(() => items.filter(i => getItemUsage(i).products.length > 0).length, [items, getItemUsage]);
   const countBrands = useMemo(() => items.filter(i => getItemUsage(i).brands.length > 0).length, [items, getItemUsage]);
+  const countBanners = useMemo(() => items.filter(i => getItemUsage(i).banners.length > 0).length, [items, getItemUsage]);
   const countUnused = useMemo(() => items.filter(i => !getItemUsage(i).isUsed).length, [items, getItemUsage]);
   const countCurrentProduct = useMemo(() => items.filter(i => getItemUsage(i).isCurrentProduct).length, [items, getItemUsage]);
 
@@ -667,6 +723,23 @@ export default function ImageLibraryModal({
                 <span>Marcas / Logos</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${usageFilter === 'brands' ? 'bg-purple-950/50 text-white' : 'bg-slate-900 text-purple-400 font-bold'}`}>
                   {countBrands}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setUsageFilter('banners')}
+                className={`px-3 py-1 rounded-xl font-bold transition-all cursor-pointer shrink-0 text-xs flex items-center gap-1.5 ${
+                  usageFilter === 'banners'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'bg-slate-800/90 text-slate-300 hover:bg-slate-800'
+                }`}
+                title="Banners rotativos e imagens da Home Page"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Banners da Home</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${usageFilter === 'banners' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-900 text-amber-400 font-bold'}`}>
+                  {countBanners}
                 </span>
               </button>
 
@@ -818,8 +891,17 @@ export default function ImageLibraryModal({
                           </span>
                         )}
 
-                        {/* Status indicators (Brand / Product / Livre) */}
+                        {/* Status indicators (Brand / Banner / Product / Livre) */}
                         <div className="absolute top-1.5 right-1.5 flex flex-col items-end gap-1 z-10 max-w-[70%]">
+                          {usage.banners.length > 0 && (
+                            <span 
+                              className="px-1.5 py-0.5 rounded-md bg-amber-900/90 text-amber-200 font-bold text-[8px] flex items-center gap-1 shadow-2xs border border-amber-500/30 truncate max-w-full"
+                              title={`Banner da Home: ${usage.banners.join(', ')}`}
+                            >
+                              <Sparkles className="w-2.5 h-2.5 text-amber-300 shrink-0" />
+                              <span className="truncate">{usage.banners[0]}</span>
+                            </span>
+                          )}
                           {usage.brands.length > 0 && (
                             <span 
                               className="px-1.5 py-0.5 rounded-md bg-purple-900/90 text-purple-200 font-bold text-[8px] flex items-center gap-1 shadow-2xs border border-purple-500/30 truncate max-w-full"
@@ -1095,6 +1177,14 @@ export default function ImageLibraryModal({
 
               {/* Usage Details Info */}
               <div className="text-xs space-y-1.5">
+                {usage.banners.length > 0 && (
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2 text-amber-900">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span className="text-[11px]">
+                      Em uso no Banner da Home: <strong>{usage.banners.join(', ')}</strong>
+                    </span>
+                  </div>
+                )}
                 {usage.brands.length > 0 && (
                   <div className="p-2.5 rounded-xl bg-purple-50 border border-purple-200 flex items-center gap-2 text-purple-900">
                     <Tag className="w-4 h-4 text-purple-600 shrink-0" />
