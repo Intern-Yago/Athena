@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import HeroSlim from './components/HeroSlim';
+import HomeBannerCarousel from './components/HomeBannerCarousel';
 import Catalog from './components/Catalog';
 import AdminPanel from './components/AdminPanel';
 import Footer from './components/Footer';
@@ -96,6 +97,12 @@ export default function App() {
       return merged;
     }
     return INITIAL_BRANDS;
+  });
+
+  const [banners, setBanners] = useState(() => {
+    const saved = safeStorageGet('athena_banners', null);
+    if (Array.isArray(saved)) return saved;
+    return [];
   });
 
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -350,10 +357,11 @@ export default function App() {
   useEffect(() => {
     const fetchBackendData = async () => {
       try {
-        const [prodRes, catRes, brandRes] = await Promise.all([
+        const [prodRes, catRes, brandRes, bannerRes] = await Promise.all([
           fetch(`${API_BASE_URL}/products`),
           fetch(`${API_BASE_URL}/categories`),
-          fetch(`${API_BASE_URL}/brands`)
+          fetch(`${API_BASE_URL}/brands`),
+          fetch(`${API_BASE_URL}/banners?all=true`).catch(() => ({ ok: false }))
         ]);
 
         if (prodRes.ok && catRes.ok && brandRes.ok) {
@@ -365,6 +373,13 @@ export default function App() {
           setCategories(catData);
           setBrands(Array.isArray(brandData) ? brandData.map(normalizeBrand) : []);
           setIsBackendConnected(true);
+        }
+
+        if (bannerRes && bannerRes.ok) {
+          const bannerData = await bannerRes.json();
+          if (Array.isArray(bannerData)) {
+            setBanners(bannerData);
+          }
         }
       } catch (err) {
         setIsBackendConnected(false);
@@ -392,6 +407,12 @@ export default function App() {
       safeStorageSet('athena_brands', brands);
     }
   }, [brands]);
+
+  useEffect(() => {
+    if (banners && banners.length > 0) {
+      safeStorageSet('athena_banners', banners);
+    }
+  }, [banners]);
 
   const showNotification = (message, type = 'success') => {
     let cleanMsg = 'Notificação';
@@ -612,6 +633,85 @@ export default function App() {
     }
   };
 
+  const handleAddBanner = async (newBanner) => {
+    const bannerWithId = {
+      ...newBanner,
+      id: newBanner.id || `bnr_${Date.now()}`
+    };
+
+    setBanners((prev) => [...prev, bannerWithId]);
+    showNotification('Banner cadastrado com sucesso!', 'success');
+
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/banners`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(bannerWithId)
+        });
+        handleApiUnauthorized(res);
+        if (res.ok) {
+          const saved = await res.json();
+          setBanners((prev) => prev.map((b) => (b.id === bannerWithId.id ? saved : b)));
+        }
+      } catch (e) {
+        console.error('Erro backend banner:', e);
+      }
+    }
+  };
+
+  const handleUpdateBanner = async (updatedBanner) => {
+    setBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
+    showNotification('Banner atualizado com sucesso!', 'success');
+
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/banners/${updatedBanner.id}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(updatedBanner)
+        });
+        handleApiUnauthorized(res);
+      } catch (e) {
+        console.error('Erro backend banner:', e);
+      }
+    }
+  };
+
+  const handleDeleteBanner = async (bannerId) => {
+    setBanners((prev) => prev.filter((b) => b.id !== bannerId));
+    showNotification('Banner excluído com sucesso!', 'success');
+
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/banners/${bannerId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        handleApiUnauthorized(res);
+      } catch (e) {
+        console.error('Erro backend banner:', e);
+      }
+    }
+  };
+
+  const handleReorderBanners = async (orderedBanners) => {
+    setBanners(orderedBanners);
+
+    if (isBackendConnected) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/banners/reorder`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ banners: orderedBanners })
+        });
+        handleApiUnauthorized(res);
+      } catch (e) {
+        console.error('Erro backend banner reorder:', e);
+      }
+    }
+  };
+
   const handleEditProductFromCatalog = (product) => {
     setEditingProduct(product);
     navigateTo('admin');
@@ -643,6 +743,11 @@ export default function App() {
               onUpdateBrand={handleUpdateBrand}
               onDeleteBrand={handleDeleteBrand}
               onReorderBrands={handleReorderBrands}
+              banners={banners}
+              onAddBanner={handleAddBanner}
+              onUpdateBanner={handleUpdateBanner}
+              onDeleteBanner={handleDeleteBanner}
+              onReorderBanners={handleReorderBanners}
               showNotification={showNotification}
               editingProduct={editingProduct}
               setEditingProduct={setEditingProduct}
@@ -917,6 +1022,11 @@ export default function App() {
           onUpdateBrand={handleUpdateBrand}
           onDeleteBrand={handleDeleteBrand}
           onReorderBrands={handleReorderBrands}
+          banners={banners}
+          onAddBanner={handleAddBanner}
+          onUpdateBanner={handleUpdateBanner}
+          onDeleteBanner={handleDeleteBanner}
+          onReorderBanners={handleReorderBanners}
           showNotification={showNotification}
           editingProduct={editingProduct}
           setEditingProduct={setEditingProduct}
@@ -942,6 +1052,11 @@ export default function App() {
     if (!currentRoute || currentRoute === 'catalog' || currentRoute === 'catalogo' || currentRoute === 'inicio' || currentRoute === 'home') {
       return (
         <>
+          <HomeBannerCarousel
+            banners={banners}
+            onNavigate={navigateTo}
+          />
+
           <HeroSlim
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}

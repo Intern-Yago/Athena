@@ -11,6 +11,7 @@ import {
   Shield,
   Upload,
   Eye,
+  EyeOff,
   Sparkles,
   Link as LinkIcon,
   ToggleLeft,
@@ -419,6 +420,11 @@ export default function AdminPanel({
   onUpdateBrand,
   onDeleteBrand,
   onReorderBrands,
+  banners = [],
+  onAddBanner,
+  onUpdateBanner,
+  onDeleteBanner,
+  onReorderBanners,
   showNotification,
   editingProduct,
   setEditingProduct,
@@ -435,6 +441,21 @@ export default function AdminPanel({
   const [imageSourceMode, setImageSourceMode] = useState('upload');
   const [productImageUrlInput, setProductImageUrlInput] = useState('');
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+
+  // Home Banners State (Carousel Management)
+  const [editingBanner, setEditingBanner] = useState(null);
+  const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
+  const [bannerToDelete, setBannerToDelete] = useState(null);
+  const [isSelectingBannerMedia, setIsSelectingBannerMedia] = useState(null); // 'desktop' | 'mobile' | null
+  const [bannerForm, setBannerForm] = useState({
+    title: '',
+    desktopImage: '',
+    mobileImage: '',
+    linkUrl: '',
+    targetBlank: false,
+    isActive: true,
+    order: 0
+  });
 
   // Category Modal State (Creating / Editing)
   const [editingCategory, setEditingCategory] = useState(null);
@@ -978,7 +999,7 @@ export default function AdminPanel({
   // Cloudflare R2 Image Library Modal State
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
 
-  const isAnyModalOpen = isProductModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage || isLibraryModalOpen;
+  const isAnyModalOpen = isProductModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage || isLibraryModalOpen || isBannerModalOpen || !!bannerToDelete;
 
   // Background body scroll lock while any modal is open
   useEffect(() => {
@@ -2524,6 +2545,91 @@ export default function AdminPanel({
     setEditingBrand(null);
   };
 
+  // BANNER HANDLERS
+  const openNewBannerModal = () => {
+    setEditingBanner(null);
+    setBannerForm({
+      title: '',
+      desktopImage: '',
+      mobileImage: '',
+      linkUrl: '',
+      targetBlank: false,
+      isActive: true,
+      order: (banners || []).length + 1
+    });
+    setIsBannerModalOpen(true);
+  };
+
+  const openEditBannerModal = (bannerObj) => {
+    setEditingBanner(bannerObj);
+    setBannerForm({
+      title: bannerObj.title || '',
+      desktopImage: bannerObj.desktopImage || bannerObj.desktop_image || '',
+      mobileImage: bannerObj.mobileImage || bannerObj.mobile_image || '',
+      linkUrl: bannerObj.linkUrl || bannerObj.link_url || '',
+      targetBlank: Boolean(bannerObj.targetBlank !== undefined ? bannerObj.targetBlank : bannerObj.target_blank),
+      isActive: bannerObj.isActive !== undefined ? Boolean(bannerObj.isActive) : true,
+      order: bannerObj.order || 0
+    });
+    setIsBannerModalOpen(true);
+  };
+
+  const handleBannerSubmit = async (e) => {
+    e.preventDefault();
+    if (!bannerForm.desktopImage.trim()) {
+      showNotification('A imagem para Desktop é obrigatória.', 'error');
+      return;
+    }
+
+    const bannerData = {
+      id: editingBanner ? editingBanner.id : `bnr_${Date.now()}`,
+      title: bannerForm.title.trim() || 'Banner Athena',
+      desktopImage: bannerForm.desktopImage.trim(),
+      mobileImage: bannerForm.mobileImage.trim(),
+      linkUrl: bannerForm.linkUrl.trim(),
+      targetBlank: Boolean(bannerForm.targetBlank),
+      isActive: Boolean(bannerForm.isActive),
+      order: editingBanner ? (bannerForm.order || 0) : (banners || []).length + 1
+    };
+
+    if (editingBanner) {
+      if (onUpdateBanner) {
+        await onUpdateBanner(bannerData);
+      }
+    } else {
+      if (onAddBanner) {
+        await onAddBanner(bannerData);
+      }
+    }
+    setIsBannerModalOpen(false);
+    setEditingBanner(null);
+  };
+
+  const handleToggleBannerActive = async (banner) => {
+    const updated = {
+      ...banner,
+      isActive: !(banner.isActive !== false)
+    };
+    if (onUpdateBanner) {
+      await onUpdateBanner(updated);
+    }
+  };
+
+  const handleMoveBanner = async (index, direction) => {
+    const newBanners = [...(banners || [])];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= newBanners.length) return;
+
+    const temp = newBanners[index];
+    newBanners[index] = newBanners[targetIdx];
+    newBanners[targetIdx] = temp;
+
+    const reordered = newBanners.map((b, idx) => ({ ...b, order: idx + 1 }));
+    if (onReorderBanners) {
+      await onReorderBanners(reordered);
+    }
+  };
+
   const openNewCategoryModal = () => {
     setEditingCategory(null);
     setCategoryForm({
@@ -3070,6 +3176,7 @@ export default function AdminPanel({
                 {activeAdminTab === 'products' && <Package className="w-4 h-4" />}
                 {activeAdminTab === 'categories' && <Layers className="w-4 h-4" />}
                 {activeAdminTab === 'brands' && <Tag className="w-4 h-4" />}
+                {activeAdminTab === 'banners' && <Images className="w-4 h-4" />}
                 {activeAdminTab === 'coupons' && <Gift className="w-4 h-4" />}
                 {activeAdminTab === 'clients' && <Users className="w-4 h-4" />}
                 {activeAdminTab === 'users' && <ShieldCheck className="w-4 h-4" />}
@@ -3081,6 +3188,7 @@ export default function AdminPanel({
                   {activeAdminTab === 'products' && `Produtos (${products.length})`}
                   {activeAdminTab === 'categories' && `Categorias (${categories.length})`}
                   {activeAdminTab === 'brands' && `Marcas (${brands.length})`}
+                  {activeAdminTab === 'banners' && `Banners da Home (${(banners || []).length})`}
                   {activeAdminTab === 'coupons' && 'Cupons & Vouchers'}
                   {activeAdminTab === 'clients' && `Clientes do Site (${clientsList.length})`}
                   {activeAdminTab === 'users' && `Equipe & Acessos (${employeesList.length})`}
@@ -3181,6 +3289,26 @@ export default function AdminPanel({
                     activeAdminTab === 'brands' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
                   }`}>
                     {brands.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('banners'); if (typeof setMobileAdminMenuOpen === 'function') setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'banners'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Images className="w-4 h-4 shrink-0" />
+                    <span>Banners da Home</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'banners' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {(banners || []).length}
                   </span>
                 </button>
 
@@ -4025,6 +4153,230 @@ export default function AdminPanel({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* BANNERS DA HOME TAB */}
+        {activeAdminTab === 'banners' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Images className="w-5 h-5 text-amber-600" />
+                  Banners da Home (Carrossel Rotativo)
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Gerencie os banners exibidos no topo da página inicial com imagens dedicadas para Desktop e Celular (Mobile).
+                </p>
+              </div>
+
+              {canEditContent && (
+                <button
+                  type="button"
+                  onClick={openNewBannerModal}
+                  className="btn-gold text-xs font-bold py-2.5 px-4 flex items-center gap-1.5 cursor-pointer shadow-xs self-start sm:self-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Novo Banner</span>
+                </button>
+              )}
+            </div>
+
+            {/* Banner List */}
+            {(!banners || banners.length === 0) ? (
+              <div className="text-center py-12 px-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 space-y-3">
+                <Images className="w-10 h-10 text-slate-300 mx-auto" />
+                <p className="text-sm font-bold text-slate-700">Nenhum banner cadastrado</p>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Adicione banners para destacar lançamentos, promoções ou categorias no topo do site.
+                </p>
+                {canEditContent && (
+                  <button
+                    type="button"
+                    onClick={openNewBannerModal}
+                    className="btn-gold text-xs font-bold py-2 px-4 cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Cadastrar Primeiro Banner</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3.5">
+                {banners.map((b, idx) => {
+                  const desktopImg = b.desktopImage || b.desktop_image;
+                  const mobileImg = b.mobileImage || b.mobile_image;
+                  const isActive = b.isActive !== false;
+
+                  return (
+                    <div
+                      key={b.id || idx}
+                      className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                        isActive
+                          ? 'bg-slate-50/60 border-slate-200 hover:border-amber-300 hover:shadow-xs'
+                          : 'bg-slate-100/70 border-slate-200/80 opacity-70'
+                      }`}
+                    >
+                      {/* Left: Position Number & Image Previews */}
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <span className="w-7 h-7 rounded-full bg-amber-500/15 text-amber-800 font-black text-xs flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+
+                        {/* Dual Previews: Desktop & Mobile */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Desktop Thumbnail */}
+                          <div
+                            className="w-24 h-14 rounded-xl bg-slate-900 border border-slate-200 overflow-hidden relative group cursor-pointer"
+                            onClick={() => openEditBannerModal(b)}
+                            title="Preview Desktop (Clique para editar)"
+                          >
+                            <img
+                              src={desktopImg}
+                              alt={b.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=80';
+                              }}
+                            />
+                            <span className="absolute bottom-0.5 left-0.5 px-1 py-0.2 rounded bg-slate-950/80 text-white font-mono text-[8px] flex items-center gap-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" /> PC
+                            </span>
+                          </div>
+
+                          {/* Mobile Thumbnail */}
+                          <div
+                            className="w-12 h-14 rounded-xl bg-slate-900 border border-slate-200 overflow-hidden relative group cursor-pointer"
+                            onClick={() => openEditBannerModal(b)}
+                            title={mobileImg ? "Preview Celular (Mobile Dedicado)" : "Usa imagem desktop adaptada no celular"}
+                          >
+                            <img
+                              src={mobileImg || desktopImg}
+                              alt={`${b.title} Mobile`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=200&auto=format&fit=crop&q=80';
+                              }}
+                            />
+                            <span className="absolute bottom-0.5 left-0.5 px-1 py-0.2 rounded bg-slate-950/80 text-white font-mono text-[8px] flex items-center gap-0.5">
+                              <span className={`w-1.5 h-1.5 rounded-full inline-block ${mobileImg ? 'bg-emerald-400' : 'bg-slate-400'}`} /> Cel
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Title & Details */}
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-xs text-slate-900 truncate max-w-xs" title={b.title}>
+                              {b.title || 'Banner sem título'}
+                            </span>
+
+                            {isActive ? (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold inline-flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Ativo no Site
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold">
+                                Pausado
+                              </span>
+                            )}
+
+                            {mobileImg ? (
+                              <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-bold">
+                                Mobile Dedicado
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[9px]">
+                                Mobile Adaptado
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Link info */}
+                          <div className="text-[11px] text-slate-500 truncate flex items-center gap-1">
+                            {b.linkUrl || b.link_url ? (
+                              <span className="inline-flex items-center gap-1 text-sky-700 font-mono font-medium">
+                                <LinkIcon className="w-3 h-3 text-sky-600 shrink-0" />
+                                <span className="truncate max-w-sm">{b.linkUrl || b.link_url}</span>
+                                {(b.targetBlank || b.target_blank) && (
+                                  <ExternalLink className="w-2.5 h-2.5 text-slate-400 shrink-0" title="Abre em nova aba" />
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">Sem link de clique</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Actions */}
+                      {canEditContent && (
+                        <div className="flex items-center gap-1.5 self-end md:self-center shrink-0">
+                          {/* Reorder Up */}
+                          <button
+                            type="button"
+                            onClick={() => handleMoveBanner(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                            title="Mover para cima"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Reorder Down */}
+                          <button
+                            type="button"
+                            onClick={() => handleMoveBanner(idx, 'down')}
+                            disabled={idx === banners.length - 1}
+                            className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                            title="Mover para baixo"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Quick Toggle Active */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleBannerActive(b)}
+                            className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                              isActive
+                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-500 border-slate-200'
+                            }`}
+                            title={isActive ? 'Pausar exibição deste banner' : 'Ativar exibição deste banner'}
+                          >
+                            {isActive ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          </button>
+
+                          {/* Edit Button */}
+                          <button
+                            type="button"
+                            onClick={() => openEditBannerModal(b)}
+                            className="btn-secondary text-xs py-1.5 px-2.5 font-bold flex items-center gap-1 cursor-pointer"
+                            title="Editar banner"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Editar</span>
+                          </button>
+
+                          {/* Delete Button */}
+                          {isAdminRole && (
+                            <button
+                              type="button"
+                              onClick={() => setBannerToDelete(b)}
+                              className="btn-danger text-xs p-2 cursor-pointer"
+                              title="Excluir banner"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -7504,6 +7856,231 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* BANNER MODAL (Criação / Edição com suporte a Desktop e Mobile) */}
+        {isBannerModalOpen && canEditContent && (
+          <div className="modal-backdrop !z-[110]" onClick={() => setIsBannerModalOpen(false)}>
+            <div className="modal-content max-w-xl p-6 bg-white border-slate-200 relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <button 
+                type="button"
+                onClick={() => setIsBannerModalOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Images className="w-5 h-5 text-amber-600" />
+                {editingBanner ? 'Editar Banner da Home' : 'Cadastrar Novo Banner da Home'}
+              </h4>
+
+              <form onSubmit={handleBannerSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Título / Identificador do Banner</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Scanners Launch X431 — Tecnologia com IA"
+                    value={bannerForm.title}
+                    onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })}
+                    className="form-input text-xs"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Usado para identificação interna e como texto alternativo (SEO e acessibilidade).</p>
+                </div>
+
+                {/* Desktop Image Section */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-sky-500" />
+                      Imagem para Computador / Desktop *
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">1920x600 px (3:1 ou 16:9)</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://... ou escolha da biblioteca"
+                      value={bannerForm.desktopImage}
+                      onChange={(e) => setBannerForm({ ...bannerForm, desktopImage: e.target.value })}
+                      className="form-input text-xs flex-1"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSelectingBannerMedia('desktop');
+                        setIsLibraryModalOpen(true);
+                      }}
+                      className="btn-secondary text-xs py-2 px-3 font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <Images className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Biblioteca R2</span>
+                    </button>
+                  </div>
+
+                  {bannerForm.desktopImage && (
+                    <div className="w-full h-28 rounded-xl border border-slate-200 overflow-hidden bg-slate-900 relative">
+                      <img
+                        src={bannerForm.desktopImage}
+                        alt="Preview Desktop"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                      <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-slate-950/80 text-white font-mono text-[9px]">
+                        Preview Desktop
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mobile Image Section */}
+                <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-500" />
+                      Imagem para Celular / Mobile (Opcional)
+                    </label>
+                    <span className="text-[10px] text-purple-700 font-mono">800x800 ou 750x600 px</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      placeholder="Deixe vazio para usar a foto desktop adaptada"
+                      value={bannerForm.mobileImage}
+                      onChange={(e) => setBannerForm({ ...bannerForm, mobileImage: e.target.value })}
+                      className="form-input text-xs flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSelectingBannerMedia('mobile');
+                        setIsLibraryModalOpen(true);
+                      }}
+                      className="btn-secondary text-xs py-2 px-3 font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <Images className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Biblioteca R2</span>
+                    </button>
+                  </div>
+
+                  {bannerForm.mobileImage ? (
+                    <div className="w-32 h-32 rounded-xl border border-purple-200 overflow-hidden bg-slate-900 relative">
+                      <img
+                        src={bannerForm.mobileImage}
+                        alt="Preview Mobile"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                      <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-slate-950/80 text-white font-mono text-[9px]">
+                        Preview Celular
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-purple-800 leading-relaxed">
+                      💡 <strong>Dica:</strong> Em smartphones, banners horizontais widescreen podem ficar pequenos. Cadastrar uma imagem em formato quadrado ou vertical (800x800) deixa o banner espetacular na tela do celular!
+                    </p>
+                  )}
+                </div>
+
+                {/* Link Configuration Section */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <label className="text-xs font-bold text-slate-800 block">Link de Redirecionamento ao Clicar (Opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: /categoria/scanners-automotivos ou /marca/launch ou https://wa.me/..."
+                    value={bannerForm.linkUrl}
+                    onChange={(e) => setBannerForm({ ...bannerForm, linkUrl: e.target.value })}
+                    className="form-input text-xs"
+                  />
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="bannerTargetBlank"
+                      checked={bannerForm.targetBlank}
+                      onChange={(e) => setBannerForm({ ...bannerForm, targetBlank: e.target.checked })}
+                      className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                    />
+                    <label htmlFor="bannerTargetBlank" className="text-xs text-slate-600 cursor-pointer font-medium">
+                      Abrir link em nova aba (`_blank`)
+                    </label>
+                  </div>
+                </div>
+
+                {/* Active Toggle */}
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="bannerIsActive"
+                    checked={bannerForm.isActive}
+                    onChange={(e) => setBannerForm({ ...bannerForm, isActive: e.target.checked })}
+                    className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                  />
+                  <label htmlFor="bannerIsActive" className="text-xs font-bold text-slate-800 cursor-pointer">
+                    Banner Ativo (exibido no carrossel da Home)
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsBannerModalOpen(false)} 
+                    className="btn-secondary text-xs font-bold py-2 px-4 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn-gold text-xs font-bold py-2 px-5 cursor-pointer"
+                  >
+                    {editingBanner ? 'Salvar Alterações' : 'Criar Banner'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* BANNER DELETE CONFIRMATION MODAL */}
+        {bannerToDelete && (
+          <div className="modal-backdrop !z-[120]" onClick={() => setBannerToDelete(null)}>
+            <div className="modal-content max-w-sm p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <h4 className="text-base font-bold text-slate-900">Excluir Banner da Home?</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Tem certeza que deseja remover o banner <strong>"{bannerToDelete.title}"</strong> do carrossel da página inicial?
+                </p>
+                <div className="flex items-center justify-center gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setBannerToDelete(null)}
+                    className="btn-secondary text-xs font-bold py-2 px-4 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeleteBanner(bannerToDelete.id);
+                      setBannerToDelete(null);
+                    }}
+                    className="btn-danger text-xs font-bold py-2 px-4 cursor-pointer"
+                  >
+                    Sim, Excluir Banner
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* CATEGORY MODAL (CREATE / EDIT) */}
         {isCategoryModalOpen && canEditContent && (
           <div className="modal-backdrop !z-[110]" onClick={() => setIsCategoryModalOpen(false)}>
@@ -7728,52 +8305,91 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* CLOUDFLARE R2 IMAGE LIBRARY MODAL (Mounted at root level for flawless stacking over product modal) */}
+        {/* CLOUDFLARE R2 IMAGE LIBRARY MODAL (Mounted at root level for flawless stacking over product modal or banner modal) */}
         <ImageLibraryModal
           isOpen={isLibraryModalOpen}
-          onClose={() => setIsLibraryModalOpen(false)}
-          isStandalone={!isProductModalOpen}
+          onClose={() => {
+            setIsLibraryModalOpen(false);
+            setIsSelectingBannerMedia(null);
+          }}
+          isStandalone={!isProductModalOpen && !isSelectingBannerMedia}
           products={products}
           brands={brands}
           categories={categories}
-          currentImages={isProductModalOpen ? (Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])) : []}
-          currentCover={isProductModalOpen ? (productForm.image || '') : ''}
-          onSelectImage={isProductModalOpen ? (url) => {
-            setProductForm((prev) => {
-              const current = Array.isArray(prev.images) ? [...prev.images] : [];
-              const updated = current.includes(url) ? current : [...current, url];
-              return {
-                ...prev,
-                image: prev.image || url,
-                images: updated
-              };
-            });
-            showNotification('Foto adicionada à galeria do equipamento!', 'success');
-          } : undefined}
-          onRemoveImageFromProduct={isProductModalOpen ? (url) => {
-            setProductForm((prev) => {
-              const current = Array.isArray(prev.images) ? prev.images : [];
-              const updated = current.filter(u => u !== url);
-              return {
-                ...prev,
-                image: prev.image === url ? (updated[0] || '') : prev.image,
-                images: updated
-              };
-            });
-            showNotification('Foto removida da galeria do equipamento.', 'info');
-          } : undefined}
-          onSetAsCover={isProductModalOpen ? (url) => {
-            setProductForm((prev) => {
-              const current = Array.isArray(prev.images) ? prev.images : [];
-              const updated = current.includes(url) ? current : [url, ...current];
-              return {
-                ...prev,
-                image: url,
-                images: updated
-              };
-            });
-            showNotification('Foto definida como capa principal!', 'success');
-          } : undefined}
+          currentImages={
+            isSelectingBannerMedia
+              ? (isSelectingBannerMedia === 'desktop'
+                  ? (bannerForm.desktopImage ? [bannerForm.desktopImage] : [])
+                  : (bannerForm.mobileImage ? [bannerForm.mobileImage] : []))
+              : (isProductModalOpen ? (Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])) : [])
+          }
+          currentCover={
+            isSelectingBannerMedia
+              ? (isSelectingBannerMedia === 'desktop' ? bannerForm.desktopImage : bannerForm.mobileImage)
+              : (isProductModalOpen ? (productForm.image || '') : '')
+          }
+          onSelectImage={
+            isSelectingBannerMedia ? (url) => {
+              if (isSelectingBannerMedia === 'desktop') {
+                setBannerForm(prev => ({ ...prev, desktopImage: url }));
+                showNotification('Banner Desktop atualizado a partir da biblioteca R2!', 'success');
+              } else if (isSelectingBannerMedia === 'mobile') {
+                setBannerForm(prev => ({ ...prev, mobileImage: url }));
+                showNotification('Banner Mobile atualizado a partir da biblioteca R2!', 'success');
+              }
+              setIsSelectingBannerMedia(null);
+              setIsLibraryModalOpen(false);
+            } : (isProductModalOpen ? (url) => {
+              setProductForm((prev) => {
+                const current = Array.isArray(prev.images) ? [...prev.images] : [];
+                const updated = current.includes(url) ? current : [...current, url];
+                return {
+                  ...prev,
+                  image: prev.image || url,
+                  images: updated
+                };
+              });
+              showNotification('Foto adicionada à galeria do equipamento!', 'success');
+            } : undefined)
+          }
+          onRemoveImageFromProduct={
+            isSelectingBannerMedia ? () => {
+              if (isSelectingBannerMedia === 'desktop') {
+                setBannerForm(prev => ({ ...prev, desktopImage: '' }));
+                showNotification('Imagem Desktop do banner removida.', 'info');
+              } else if (isSelectingBannerMedia === 'mobile') {
+                setBannerForm(prev => ({ ...prev, mobileImage: '' }));
+                showNotification('Imagem Mobile do banner removida.', 'info');
+              }
+              setIsSelectingBannerMedia(null);
+              setIsLibraryModalOpen(false);
+            } : (isProductModalOpen ? (url) => {
+              setProductForm((prev) => {
+                const current = Array.isArray(prev.images) ? prev.images : [];
+                const updated = current.filter(u => u !== url);
+                return {
+                  ...prev,
+                  image: prev.image === url ? (updated[0] || '') : prev.image,
+                  images: updated
+                };
+              });
+              showNotification('Foto removida da galeria do equipamento.', 'info');
+            } : undefined)
+          }
+          onSetAsCover={
+            isProductModalOpen ? (url) => {
+              setProductForm((prev) => {
+                const current = Array.isArray(prev.images) ? prev.images : [];
+                const updated = current.includes(url) ? current : [url, ...current];
+                return {
+                  ...prev,
+                  image: url,
+                  images: updated
+                };
+              });
+              showNotification('Foto definida como capa principal!', 'success');
+            } : undefined
+          }
           API_BASE_URL={API_BASE_URL}
           getAuthHeaders={getAuthHeaders}
           showNotification={showNotification}

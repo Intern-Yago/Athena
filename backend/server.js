@@ -1069,7 +1069,35 @@ async function initDb() {
           description TEXT,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Create Home Banners Table
+        CREATE TABLE IF NOT EXISTS home_banners (
+          id VARCHAR(100) PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          desktop_image TEXT NOT NULL,
+          mobile_image TEXT,
+          link_url TEXT,
+          target_blank BOOLEAN DEFAULT FALSE,
+          is_active BOOLEAN DEFAULT TRUE,
+          "order" INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
       `);
+
+      // Seed starter home banners if table is empty
+      try {
+        const bannerCheck = await pool.query('SELECT COUNT(*) FROM home_banners');
+        if (parseInt(bannerCheck.rows[0].count, 10) === 0) {
+          await pool.query(`
+            INSERT INTO home_banners (id, title, desktop_image, mobile_image, link_url, target_blank, is_active, "order") VALUES
+            ('bnr_launch_scanners', 'Scanners Automotivos Profissionais Launch com IA', 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=1920&auto=format&fit=crop&q=80', 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80', '/marca/launch', false, true, 1),
+            ('bnr_elevadores_mahovi', 'Linha Completa de Elevadores Automotivos Hidráulicos', 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=1920&auto=format&fit=crop&q=80', 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80', '/categoria/elevadores-automotivos', false, true, 2);
+          `);
+        }
+      } catch (errBnr) {
+        console.warn('Aviso ao popular home_banners:', errBnr.message);
+      }
 
       // Seed starter loyalty rewards if table is empty
       try {
@@ -1247,9 +1275,34 @@ function readDbJson() {
     if (!Array.isArray(data.categories)) data.categories = [];
     if (!Array.isArray(data.brands)) data.brands = [];
     if (!Array.isArray(data.aPointsTransactions)) data.aPointsTransactions = [];
+    if (!Array.isArray(data.banners)) data.banners = [];
+    if (data.banners.length === 0) {
+      data.banners = [
+        {
+          id: 'bnr_launch_scanners',
+          title: 'Scanners Automotivos Profissionais Launch com IA',
+          desktopImage: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=1920&auto=format&fit=crop&q=80',
+          mobileImage: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80',
+          linkUrl: '/marca/launch',
+          targetBlank: false,
+          isActive: true,
+          order: 1
+        },
+        {
+          id: 'bnr_elevadores_mahovi',
+          title: 'Linha Completa de Elevadores Automotivos Hidráulicos',
+          desktopImage: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=1920&auto=format&fit=crop&q=80',
+          mobileImage: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&auto=format&fit=crop&q=80',
+          linkUrl: '/categoria/elevadores-automotivos',
+          targetBlank: false,
+          isActive: true,
+          order: 2
+        }
+      ];
+    }
     return data;
   } catch (e) {
-    return { users: [], categories: [], brands: [], products: [], coupons: [], orders: [], aPointsTransactions: [] };
+    return { users: [], categories: [], brands: [], products: [], coupons: [], orders: [], aPointsTransactions: [], banners: [] };
   }
 }
 
@@ -6307,6 +6360,148 @@ app.delete('/api/brands/:id', authenticateToken, async (req, res) => {
   }
   const db = readDbJson();
   db.brands = db.brands.filter((b) => b.id !== req.params.id);
+  writeDbJson(db);
+  res.json({ success: true, id: req.params.id });
+});
+
+// 2.5 HOME BANNERS (CAROUSEL)
+app.get('/api/banners', async (req, res) => {
+  const includeAll = req.query.all === 'true';
+  if (pool) {
+    try {
+      const query = includeAll
+        ? 'SELECT id, title, desktop_image as "desktopImage", mobile_image as "mobileImage", link_url as "linkUrl", target_blank as "targetBlank", is_active as "isActive", "order" FROM home_banners ORDER BY "order" ASC, created_at ASC'
+        : 'SELECT id, title, desktop_image as "desktopImage", mobile_image as "mobileImage", link_url as "linkUrl", target_blank as "targetBlank", is_active as "isActive", "order" FROM home_banners WHERE is_active = true ORDER BY "order" ASC, created_at ASC';
+      const result = await pool.query(query);
+      return res.json(result.rows);
+    } catch (e) {
+      console.error('Erro ao buscar banners no PostgreSQL:', e.message);
+    }
+  }
+  const db = readDbJson();
+  const list = db.banners || [];
+  const filtered = includeAll ? list : list.filter(b => b.isActive !== false);
+  filtered.sort((a, b) => (a.order || 0) - (b.order || 0));
+  res.json(filtered);
+});
+
+app.post('/api/banners', authenticateToken, async (req, res) => {
+  const newBanner = {
+    id: req.body.id || `bnr_${Date.now()}`,
+    title: req.body.title || 'Banner Athena',
+    desktopImage: req.body.desktopImage || req.body.desktop_image || '',
+    mobileImage: req.body.mobileImage || req.body.mobile_image || '',
+    linkUrl: req.body.linkUrl || req.body.link_url || '',
+    targetBlank: Boolean(req.body.targetBlank !== undefined ? req.body.targetBlank : req.body.target_blank),
+    isActive: req.body.isActive !== undefined ? Boolean(req.body.isActive) : true,
+    order: parseInt(req.body.order || 0, 10)
+  };
+
+  if (!newBanner.desktopImage) {
+    return res.status(400).json({ error: 'A imagem para desktop é obrigatória.' });
+  }
+
+  if (pool) {
+    try {
+      await pool.query(
+        `INSERT INTO home_banners (id, title, desktop_image, mobile_image, link_url, target_blank, is_active, "order")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (id) DO UPDATE SET title=$2, desktop_image=$3, mobile_image=$4, link_url=$5, target_blank=$6, is_active=$7, "order"=$8, updated_at=NOW()`,
+        [newBanner.id, newBanner.title, newBanner.desktopImage, newBanner.mobileImage, newBanner.linkUrl, newBanner.targetBlank, newBanner.isActive, newBanner.order]
+      );
+      return res.status(201).json(newBanner);
+    } catch (e) {
+      console.error('Erro ao criar banner no PostgreSQL:', e.message);
+    }
+  }
+  const db = readDbJson();
+  if (!Array.isArray(db.banners)) db.banners = [];
+  db.banners.push(newBanner);
+  writeDbJson(db);
+  res.status(201).json(newBanner);
+});
+
+app.put('/api/banners/reorder', authenticateToken, async (req, res) => {
+  const { banners: orderedBanners } = req.body;
+  if (!Array.isArray(orderedBanners)) {
+    return res.status(400).json({ error: 'Array de banners obrigatório.' });
+  }
+  if (pool) {
+    try {
+      for (let i = 0; i < orderedBanners.length; i++) {
+        const b = orderedBanners[i];
+        await pool.query('UPDATE home_banners SET "order" = $1 WHERE id = $2', [i + 1, b.id]);
+      }
+    } catch (e) {
+      console.error('Erro ao reordenar banners no PostgreSQL:', e.message);
+    }
+  }
+  const db = readDbJson();
+  if (!Array.isArray(db.banners)) db.banners = [];
+  const bnrMap = new Map(db.banners.map(b => [b.id, b]));
+  const reordered = [];
+  orderedBanners.forEach((b, idx) => {
+    const existing = bnrMap.get(b.id) || b;
+    existing.order = idx + 1;
+    reordered.push(existing);
+    bnrMap.delete(b.id);
+  });
+  bnrMap.forEach(b => reordered.push(b));
+  db.banners = reordered;
+  writeDbJson(db);
+  res.json({ success: true, count: orderedBanners.length });
+});
+
+app.put('/api/banners/:id', authenticateToken, async (req, res) => {
+  const updatedBanner = {
+    id: req.params.id,
+    title: req.body.title || 'Banner Athena',
+    desktopImage: req.body.desktopImage || req.body.desktop_image || '',
+    mobileImage: req.body.mobileImage || req.body.mobile_image || '',
+    linkUrl: req.body.linkUrl || req.body.link_url || '',
+    targetBlank: Boolean(req.body.targetBlank !== undefined ? req.body.targetBlank : req.body.target_blank),
+    isActive: req.body.isActive !== undefined ? Boolean(req.body.isActive) : true,
+    order: parseInt(req.body.order || 0, 10)
+  };
+
+  if (!updatedBanner.desktopImage) {
+    return res.status(400).json({ error: 'A imagem para desktop é obrigatória.' });
+  }
+
+  if (pool) {
+    try {
+      await pool.query(
+        `UPDATE home_banners SET title=$1, desktop_image=$2, mobile_image=$3, link_url=$4, target_blank=$5, is_active=$6, "order"=$7, updated_at=NOW() WHERE id=$8`,
+        [updatedBanner.title, updatedBanner.desktopImage, updatedBanner.mobileImage, updatedBanner.linkUrl, updatedBanner.targetBlank, updatedBanner.isActive, updatedBanner.order, req.params.id]
+      );
+      return res.json(updatedBanner);
+    } catch (e) {
+      console.error('Erro ao atualizar banner no PostgreSQL:', e.message);
+    }
+  }
+  const db = readDbJson();
+  if (!Array.isArray(db.banners)) db.banners = [];
+  const idx = db.banners.findIndex(b => b.id === req.params.id);
+  if (idx !== -1) {
+    db.banners[idx] = { ...db.banners[idx], ...updatedBanner };
+    writeDbJson(db);
+    return res.json(db.banners[idx]);
+  }
+  res.status(404).json({ error: 'Banner não encontrado.' });
+});
+
+app.delete('/api/banners/:id', authenticateToken, async (req, res) => {
+  if (pool) {
+    try {
+      await pool.query('DELETE FROM home_banners WHERE id = $1', [req.params.id]);
+      return res.json({ success: true, id: req.params.id });
+    } catch (e) {
+      console.error('Erro ao deletar banner no PostgreSQL:', e.message);
+    }
+  }
+  const db = readDbJson();
+  if (!Array.isArray(db.banners)) db.banners = [];
+  db.banners = db.banners.filter(b => b.id !== req.params.id);
   writeDbJson(db);
   res.json({ success: true, id: req.params.id });
 });
