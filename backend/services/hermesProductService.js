@@ -173,19 +173,22 @@ function mapDbRowToHermesProduct(row) {
   const isNegotiable = Boolean(row.priceNegotiable !== false);
   const canBuyOnline = priceNum > 0 && !isNegotiable;
 
-  let orientacao = "Equipamento sob consulta no catálogo público. Oriente o cliente a solicitar uma cotação oficial pelo botão de orçamento.";
+  let orientacao = "";
   if (canBuyOnline) {
     orientacao = `Disponível para compra direta no site com checkout online pelo valor público de R$ ${priceNum.toFixed(2)}.`;
+  } else if (priceNum > 0) {
+    orientacao = `No site público o produto é exibido como "Sob Consulta" e o botão de compra direta fica bloqueado para orçamento. Porém, quando você (Hermes) for perguntado sobre o valor pelo cliente, INFORME com clareza o preço de tabela/referência de R$ ${priceNum.toFixed(2)}, explicando que as condições comerciais finais (descontos, parcelamento, frete) são fechadas via cotação oficial no WhatsApp com nossos consultores.`;
   } else {
-    orientacao = `Produto configurado para Consulta de Orçamento (o valor é mantido sob consulta no catálogo e a venda requer cotação direta). Não divulgue preço fechado como compra direta no site; oriente o cliente a solicitar o orçamento oficial com os consultores Athena.`;
+    orientacao = `Equipamento sob consulta personalizada com a equipe de consultores técnicos da Athena. Solicite que o cliente entre em contato para cotação sob medida.`;
   }
 
   return {
     id: row.id,
     name: row.name,
     slug: row.slug,
-    precoVenda: canBuyOnline ? priceNum : null,
-    precoPublico: canBuyOnline ? `R$ ${priceNum.toFixed(2)}` : "Sob Consulta",
+    precoVenda: priceNum,
+    precoFormatado: priceNum > 0 ? `R$ ${priceNum.toFixed(2)}` : "Sob Consulta",
+    precoExibicaoSite: canBuyOnline ? `R$ ${priceNum.toFixed(2)}` : "Sob Consulta",
     estoqueQuantidade: stockNum,
     priceNegotiable: isNegotiable,
     isUnderQuote: isNegotiable,
@@ -310,8 +313,9 @@ async function upsertOmieProductToLocal(pool, omieItem) {
         id: existing.id,
         name: existing.name || omieName,
         slug: existing.slug,
-        precoVenda: canBuyOnline ? preco : null,
-        precoPublico: canBuyOnline ? `R$ ${preco.toFixed(2)}` : "Sob Consulta",
+        precoVenda: preco,
+        precoFormatado: preco > 0 ? `R$ ${preco.toFixed(2)}` : "Sob Consulta",
+        precoExibicaoSite: canBuyOnline ? `R$ ${preco.toFixed(2)}` : "Sob Consulta",
         estoqueQuantidade: estoque,
         priceNegotiable: isNegotiable,
         isUnderQuote: isNegotiable,
@@ -319,7 +323,9 @@ async function upsertOmieProductToLocal(pool, omieItem) {
         modalidadeVenda: canBuyOnline ? "compra_direta_site" : "consulta_orcamento",
         orientacaoHermes: canBuyOnline 
           ? `Disponível para compra direta no site com checkout online por R$ ${preco.toFixed(2)}.`
-          : `Item sob Consulta de Orçamento (o valor fica oculto no site como "Sob Consulta"). Não permite compra direta no site; oriente o cliente a solicitar orçamento.`,
+          : (preco > 0 
+              ? `No site público o valor é exibido como 'Sob Consulta' e não permite compra direta. Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${preco.toFixed(2)}, explicando que a formalização é feita via orçamento oficial com nossos consultores.`
+              : `Item sob Consulta de Orçamento. Oriente o cliente a solicitar orçamento.`),
         inStock: estoque > 0,
         omieCodigoProduto: String(omieId),
         omieCode: omieCode,
@@ -360,14 +366,17 @@ async function upsertOmieProductToLocal(pool, omieItem) {
       id: newId,
       name: omieName,
       slug: slug,
-      precoVenda: null,
-      precoPublico: "Sob Consulta",
+      precoVenda: preco,
+      precoFormatado: preco > 0 ? `R$ ${preco.toFixed(2)}` : "Sob Consulta",
+      precoExibicaoSite: "Sob Consulta",
       estoqueQuantidade: estoque,
       priceNegotiable: true, // Mantem "Consultar Orcamento" no frontend conforme regra de negocio
       isUnderQuote: true,
       canBuyOnline: false,
       modalidadeVenda: "consulta_orcamento",
-      orientacaoHermes: `Item sob Consulta de Orçamento (o valor fica oculto no site como "Sob Consulta"). Não permite compra direta no site; oriente o cliente a solicitar orçamento.`,
+      orientacaoHermes: preco > 0
+        ? `No site público o valor é exibido como 'Sob Consulta' e não permite compra direta. Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${preco.toFixed(2)}, explicando que a proposta formal e condições são fechadas via cotação oficial com nossos consultores.`
+        : `Item sob Consulta de Orçamento. Oriente o cliente a solicitar orçamento.`,
       inStock: estoque > 0,
       omieCodigoProduto: String(omieId),
       omieCode: omieCode,
