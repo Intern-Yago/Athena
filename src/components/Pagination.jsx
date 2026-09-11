@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 /**
@@ -55,50 +55,18 @@ export default function Pagination({
   totalItems = 0,
   itemsPerPage = 20,
   onPageChange,
-  siblingCount = 1,
-  itemName = 'equipamentos'
+  siblingCount = 1
 }) {
-  const [jumpPageInput, setJumpPageInput] = useState('');
-  const [jumpError, setJumpError] = useState(false);
-
   if (totalPages <= 1 && totalItems <= itemsPerPage) {
     return null;
   }
 
   const paginationRange = getPaginationRange(currentPage, totalPages, siblingCount);
 
-  // Range of items currently displayed
-  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
-
-  const handleJumpSubmit = (e) => {
-    e.preventDefault();
-    const target = parseInt(jumpPageInput, 10);
-    if (!isNaN(target) && target >= 1 && target <= totalPages) {
-      onPageChange(target);
-      setJumpPageInput('');
-      setJumpError(false);
-    } else {
-      setJumpError(true);
-      setTimeout(() => setJumpError(false), 2000);
-    }
-  };
-
   return (
-    <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 flex flex-col lg:flex-row items-center justify-between gap-4 text-xs shadow-xs transition-all">
-      {/* Left: Summary and badge */}
-      <div className="flex items-center gap-2.5 text-slate-600 font-medium">
-        <span>
-          Mostrando <strong className="text-slate-900 font-bold">{startItem}–{endItem}</strong> de{' '}
-          <strong className="text-slate-900 font-bold">{totalItems}</strong> {itemName}
-        </span>
-        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/70">
-          Pág. {currentPage} de {totalPages}
-        </span>
-      </div>
-
-      {/* Center/Right: Controls */}
-      <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 w-full lg:w-auto">
+    <div className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/90 flex items-center justify-center text-xs shadow-xs transition-all">
+      {/* Controls */}
+      <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 w-full">
         {/* First Page Button */}
         <button
           onClick={() => onPageChange(1)}
@@ -194,32 +162,6 @@ export default function Pagination({
           <ChevronsRight className="w-4 h-4" />
         </button>
       </div>
-
-      {/* Optional Direct Page Jump Input (Shown if totalPages > 7) */}
-      {totalPages > 7 && (
-        <form onSubmit={handleJumpSubmit} className="hidden xl:flex items-center gap-1.5 text-xs text-slate-500">
-          <span>Ir pág:</span>
-          <input
-            type="number"
-            min={1}
-            max={totalPages}
-            value={jumpPageInput}
-            onChange={(e) => setJumpPageInput(e.target.value)}
-            placeholder={String(currentPage)}
-            className={`w-12 py-1 px-1.5 text-center font-bold text-xs rounded-lg border bg-slate-50 text-slate-800 outline-none focus:bg-white focus:ring-1 transition-all ${
-              jumpError
-                ? 'border-red-500 ring-1 ring-red-500 bg-red-50'
-                : 'border-slate-300 focus:border-amber-500 focus:ring-amber-500'
-            }`}
-          />
-          <button
-            type="submit"
-            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg border border-slate-200 transition-colors"
-          >
-            Ir
-          </button>
-        </form>
-      )}
     </div>
   );
 }
