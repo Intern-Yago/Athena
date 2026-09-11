@@ -108,9 +108,9 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
   }
 
   return (
-    <div className="container-custom pt-4 sm:pt-6 pb-2 select-none">
+    <div className="w-full select-none overflow-hidden bg-slate-950 border-b border-slate-800/80">
       <div
-        className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-slate-200/80 bg-slate-950 group"
+        className="relative w-full overflow-hidden group"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onTouchStart={handleTouchStart}
@@ -145,7 +145,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
                     alt={banner.title || `Banner ${idx + 1}`}
                     loading={idx === 0 ? 'eager' : 'lazy'}
                     decoding="async"
-                    className="w-full h-auto max-h-[460px] object-cover block filter group-hover:brightness-[1.02] transition-[filter] duration-300"
+                    className="w-full h-auto max-h-[520px] 2xl:max-h-[620px] object-cover block filter group-hover:brightness-[1.01] transition-[filter] duration-300"
                     onError={(e) => {
                       e.target.src =
                         'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=1920&auto=format&fit=crop&q=80';
@@ -155,8 +155,8 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
 
                 {/* Sutil indicador de link no canto para banners com ação */}
                 {hasLink && (
-                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/70 hover:bg-amber-600 text-white p-1.5 rounded-lg backdrop-blur-xs shadow-md">
-                    <ExternalLink className="w-3.5 h-3.5" />
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/70 hover:bg-amber-600 text-white p-2 rounded-lg backdrop-blur-xs shadow-md">
+                    <ExternalLink className="w-4 h-4" />
                   </div>
                 )}
               </div>
@@ -173,7 +173,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
                 e.stopPropagation();
                 handlePrev();
               }}
-              className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-950/60 hover:bg-amber-500 text-white hover:text-slate-950 flex items-center justify-center backdrop-blur-sm border border-white/10 shadow-lg transition-all active:scale-95 cursor-pointer opacity-80 sm:opacity-0 group-hover:opacity-100"
+              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-950/60 hover:bg-amber-500 text-white hover:text-slate-950 flex items-center justify-center backdrop-blur-sm border border-white/15 shadow-xl transition-all active:scale-95 cursor-pointer opacity-90 sm:opacity-0 group-hover:opacity-100"
               title="Banner Anterior"
               aria-label="Banner Anterior"
             >
@@ -186,7 +186,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
                 e.stopPropagation();
                 handleNext();
               }}
-              className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-slate-950/60 hover:bg-amber-500 text-white hover:text-slate-950 flex items-center justify-center backdrop-blur-sm border border-white/10 shadow-lg transition-all active:scale-95 cursor-pointer opacity-80 sm:opacity-0 group-hover:opacity-100"
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-950/60 hover:bg-amber-500 text-white hover:text-slate-950 flex items-center justify-center backdrop-blur-sm border border-white/15 shadow-xl transition-all active:scale-95 cursor-pointer opacity-90 sm:opacity-0 group-hover:opacity-100"
               title="Próximo Banner"
               aria-label="Próximo Banner"
             >
@@ -194,7 +194,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
             </button>
 
             {/* Dots Indicadores na Base */}
-            <div className="absolute bottom-2.5 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-slate-950/50 backdrop-blur-md border border-white/10">
+            <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full bg-slate-950/60 backdrop-blur-md border border-white/15 shadow-md">
               {activeBanners.map((_, dotIdx) => (
                 <button
                   key={dotIdx}
@@ -205,7 +205,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
                   }}
                   className={`transition-all duration-300 rounded-full cursor-pointer ${
                     currentIndex === dotIdx
-                      ? 'w-6 sm:w-8 h-2 bg-amber-400 shadow-xs'
+                      ? 'w-7 sm:w-9 h-2 bg-amber-400 shadow-xs'
                       : 'w-2 sm:w-2.5 h-2 sm:h-2.5 bg-white/40 hover:bg-white/80'
                   }`}
                   title={`Ir para banner ${dotIdx + 1}`}
