@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
  * HomeBannerCarousel
@@ -117,10 +117,15 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Slides Track com transição lateral suave */}
+        {/* Slides Track com aceleração 3D por GPU (translate3d) para nitidez máxima sem blur */}
         <div
-          className="flex w-full transition-transform duration-650 ease-[cubic-bezier(0.25,1,0.5,1)]"
-          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+          className="flex w-full will-change-transform transition-transform duration-650 ease-[cubic-bezier(0.25,1,0.5,1)]"
+          style={{
+            transform: `translate3d(-${currentIndex * 100}%, 0, 0)`,
+            WebkitTransform: `translate3d(-${currentIndex * 100}%, 0, 0)`,
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden'
+          }}
         >
           {activeBanners.map((banner, idx) => {
             const desktopImg = banner.desktopImage || banner.desktop_image;
@@ -135,6 +140,10 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
                 }`}
                 onClick={() => hasLink && handleBannerClick(banner)}
                 title={banner.title || 'Banner Athena'}
+                style={{
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden'
+                }}
               >
                 <picture className="w-full block">
                   {mobileImg && mobileImg !== desktopImg && (
@@ -145,20 +154,19 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
                     alt={banner.title || `Banner ${idx + 1}`}
                     loading={idx === 0 ? 'eager' : 'lazy'}
                     decoding="async"
-                    className="w-full h-auto max-h-[520px] 2xl:max-h-[620px] object-cover block filter group-hover:brightness-[1.01] transition-[filter] duration-300"
+                    className="w-full h-auto max-h-[560px] 2xl:max-h-[680px] object-cover object-center block"
+                    style={{
+                      imageRendering: 'auto',
+                      WebkitFontSmoothing: 'subpixel-antialiased',
+                      transform: 'translateZ(0)',
+                      WebkitTransform: 'translateZ(0)'
+                    }}
                     onError={(e) => {
                       e.target.src =
                         'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=1920&auto=format&fit=crop&q=80';
                     }}
                   />
                 </picture>
-
-                {/* Sutil indicador de link no canto para banners com ação */}
-                {hasLink && (
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/70 hover:bg-amber-600 text-white p-2 rounded-lg backdrop-blur-xs shadow-md">
-                    <ExternalLink className="w-4 h-4" />
-                  </div>
-                )}
               </div>
             );
           })}

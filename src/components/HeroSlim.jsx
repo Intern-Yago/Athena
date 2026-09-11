@@ -34,35 +34,13 @@ export default function HeroSlim({
   };
 
   return (
-    <div className="relative bg-slate-950 text-white border-b border-slate-800 py-8 sm:py-12 overflow-hidden shadow-lg">
-      
-      {/* Background Image with High Visibility */}
-      <div className="absolute inset-0 z-0">
-        <img 
-          src="/hero-bg.jpg" 
-          alt="Oficina Automotiva Athena" 
-          className="w-full h-full object-cover object-center opacity-80 filter brightness-95 contrast-105 scale-105 transition-transform duration-1000"
-        />
-        {/* Soft Contrast Overlay for Image Depth & Text Legibility */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/35 to-slate-950/70" />
-      </div>
+    <div className="relative bg-[#0e1f4d] text-white border-b border-[#1c3374] py-4 sm:py-5 overflow-hidden shadow-md">
 
       <div className="container-custom relative z-10">
-        <div className="max-w-4xl mx-auto space-y-4 text-center">
-          
-          {/* Header Title with Special Class .hero-catalog-title (No capsule wrapper) */}
-          <div className="space-y-2">
-            <h1 className="hero-catalog-title text-2xl sm:text-4xl font-black tracking-tight">
-              Catálogo de Equipamentos Automotivos
-            </h1>
-
-            <p className="text-xs sm:text-sm text-slate-200 max-w-xl mx-auto font-semibold drop-shadow-md">
-              Elevadores hidráulicos, scanners de diagnóstico com IA, alinhadores 3D e ferramentas para o seu centro automotivo.
-            </p>
-          </div>
+        <div className="max-w-4xl mx-auto text-center">
 
           {/* Quick Search & Single-Line Category Carousel */}
-          <div className="space-y-3 max-w-3xl mx-auto pt-1">
+          <div className="space-y-3 max-w-3xl mx-auto">
             <SearchBar
               value={searchTerm}
               onChange={setSearchTerm}
@@ -76,7 +54,7 @@ export default function HeroSlim({
                 <button
                   type="button"
                   onClick={() => handleScroll('left')}
-                  className="absolute left-0 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-amber-600 text-white border border-slate-700 hover:border-amber-400 flex items-center justify-center shadow-xl -translate-x-2 sm:-translate-x-4 transition-all cursor-pointer"
+                  className="absolute left-0 z-20 w-8 h-8 rounded-full bg-[#091536]/90 hover:bg-amber-600 text-white border border-[#1c3374] hover:border-amber-400 flex items-center justify-center shadow-xl -translate-x-2 sm:-translate-x-4 transition-all cursor-pointer"
                   title="Ver categorias anteriores"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -95,7 +73,7 @@ export default function HeroSlim({
                   className={`px-4 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                     selectedCategory === 'all'
                       ? 'bg-amber-600 text-white border-amber-400 shadow-md scale-105'
-                      : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:bg-slate-800 hover:text-white hover:border-amber-400'
+                      : 'bg-[#091536]/90 text-slate-200 border-[#1c3374] hover:bg-[#132863] hover:text-white hover:border-amber-400'
                   }`}
                 >
                   Todas
@@ -108,7 +86,7 @@ export default function HeroSlim({
                     className={`px-4 py-1.5 rounded-full text-xs font-extrabold whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                       selectedCategory === cat.id
                         ? 'bg-amber-600 text-white border-amber-400 shadow-md scale-105'
-                        : 'bg-slate-900/90 text-slate-200 border-slate-700 hover:bg-slate-800 hover:text-white hover:border-amber-400'
+                        : 'bg-[#091536]/90 text-slate-200 border-[#1c3374] hover:bg-[#132863] hover:text-white hover:border-amber-400'
                     }`}
                   >
                     {cat.name}
@@ -121,7 +99,7 @@ export default function HeroSlim({
                 <button
                   type="button"
                   onClick={() => handleScroll('right')}
-                  className="absolute right-0 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-amber-600 text-white border border-slate-700 hover:border-amber-400 flex items-center justify-center shadow-xl translate-x-2 sm:translate-x-4 transition-all cursor-pointer"
+                  className="absolute right-0 z-20 w-8 h-8 rounded-full bg-[#091536]/90 hover:bg-amber-600 text-white border border-[#1c3374] hover:border-amber-400 flex items-center justify-center shadow-xl translate-x-2 sm:translate-x-4 transition-all cursor-pointer"
                   title="Ver mais categorias"
                 >
                   <ChevronRight className="w-4 h-4" />
