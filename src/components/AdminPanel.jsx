@@ -2729,7 +2729,7 @@ export default function AdminPanel({
     const finalProduct = {
       ...productForm,
       slug: finalSlug,
-      price: productForm.priceNegotiable ? 0 : parseFloat(productForm.price) || 0,
+      price: parseFloat(productForm.price) || 0,
       aPoints: productForm.aPoints !== '' && !isNaN(productForm.aPoints) ? parseInt(productForm.aPoints, 10) : null,
       badge: (productForm.badge || '').trim(),
       specs: cleanedSpecs,
@@ -6931,16 +6931,22 @@ export default function AdminPanel({
 
                       <div className="pt-2 border-t border-slate-100 space-y-3">
                         <div>
-                          <label className="text-xs font-bold text-slate-700 block mb-1">Preço Base à Vista / PIX (R$)</label>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Preço Base à Vista / PIX (R$)
+                          </label>
                           <input
                             type="number"
                             step="0.01"
                             placeholder="600.00"
-                            disabled={productForm.priceNegotiable}
                             value={productForm.price}
                             onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                            className="form-input text-xs disabled:opacity-40 font-mono"
+                            className="form-input text-xs font-mono"
                           />
+                          <span className="text-[11px] text-slate-500 block mt-0.5">
+                            {productForm.priceNegotiable
+                              ? 'Preço cadastrado internamente. Como "Consultar Orçamento" está ativo, o valor NÃO é exibido no site (permanece "Sob Consulta") e o cliente deve cotar.'
+                              : 'Preço ativo para Compra Direta no site (o valor é exibido e habilita botões Comprar Agora e Carrinho).'}
+                          </span>
                         </div>
 
                         <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -6952,7 +6958,7 @@ export default function AdminPanel({
                             className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
                           />
                           <label htmlFor="priceNegotiable" className="text-xs font-semibold text-slate-700 cursor-pointer">
-                            Preço Sob Consulta (Negociável)
+                            Consultar Orçamento (Oculta o preço no site, exibe "Sob Consulta" e impede compra direta)
                           </label>
                         </div>
 

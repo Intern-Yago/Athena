@@ -15,6 +15,12 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
+const { 
+  searchHermesProducts, 
+  hermesGeminiToolDeclaration, 
+  executeHermesGeminiTool 
+} = require('./services/hermesProductService');
+const { processOmieProductWebhook } = require('./services/omieWebhookService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1046,6 +1052,13 @@ async function initDb() {
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_product_id BIGINT;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_code VARCHAR(100);
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_last_sync TIMESTAMP;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_codigo_produto BIGINT;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS estoque_quantidade INTEGER DEFAULT 0;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS preco_venda NUMERIC(12,2) DEFAULT 0;
+
+        CREATE INDEX IF NOT EXISTS idx_products_omie_codigo_produto ON public.products(omie_codigo_produto);
+        CREATE INDEX IF NOT EXISTS idx_products_estoque_quantidade ON public.products(estoque_quantidade);
+        CREATE INDEX IF NOT EXISTS idx_products_preco_venda ON public.products(preco_venda);
 
         -- Create Loyalty Rewards Table
         CREATE TABLE IF NOT EXISTS loyalty_rewards (
@@ -1970,82 +1983,74 @@ async function sendPurchaseReceiptNotification({
 
     if (config.sendCustomerCopy && actualCustomerRecipient && actualCustomerRecipient.includes('@')) {
       const custSubject = isOmieSource
-        ? `[HOMOLOGAÇÃO OMIE] Comprovante de Compra & A-Points (#${orderId}) — ${customerName}`
-        : `Comprovante de Compra & Seus A-Points (#${orderId}) — Athena Soluções Automotivas`;
+        ? `[Athena Fidelidade] Você conquistou +${pointsEarned} A-Points com sua última compra! 🏆`
+        : `Você conquistou +${pointsEarned} A-Points com sua última compra! 🏆 — Athena Soluções Automotivas`;
 
       const omieTestBadge = isOmieSource ? `
-        <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; border-radius: 10px; padding: 14px 18px; margin-bottom: 22px;">
-          <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 800; text-transform: uppercase; color: #1d4ed8; letter-spacing: 0.5px;">
-            🧪 Modo de Homologação / Teste Omie ERP
+        <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;">
+          <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #1d4ed8; letter-spacing: 0.5px;">
+            🧪 Teste de Integração Omie ERP → A-Points
           </p>
-          <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #1e40af;">
-            Este comprovante foi enviado em cópia para validação técnica de layout.<br/>
-            <strong>Cliente ERP:</strong> ${customerName} | <strong>E-mail:</strong> ${customerEmail || 'Não informado'} | <strong>Doc:</strong> ${customerCpfCnpj || 'N/A'}
+          <p style="margin: 0; font-size: 12px; line-height: 1.4; color: #1e40af;">
+            Cópia de validação técnica enviada para: <strong>${actualCustomerRecipient}</strong><br/>
+            Cliente identificado no ERP: <strong>${customerName}</strong> (${customerEmail || 'E-mail não cadastrado no Omie'})
           </p>
         </div>
       ` : '';
 
-      const pointsBlockHtml = pointsEarned > 0 ? `
-        <div style="background-color: #fffbeb; border-radius: 14px; padding: 22px; border: 1px solid #fde68a; text-align: center; margin-bottom: 22px;">
-          <p style="margin: 0 0 6px 0; font-size: 12px; color: #92400e; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Você Acumulou no Programa de Fidelidade</p>
-          <p style="margin: 0 0 6px 0; font-size: 36px; font-weight: 900; color: #d97706;">+${pointsEarned} A-Points</p>
-          <p style="margin: 0; font-size: 12px; color: #b45309; font-weight: 600;">(Regra: R$ 50,00 faturados = 1 A-Point)</p>
-        </div>
-      ` : `
-        <div style="background-color: #f8fafc; border-radius: 12px; padding: 16px; border: 1px solid #e2e8f0; text-align: center; margin-bottom: 22px;">
-          <p style="margin: 0 0 4px 0; font-size: 13px; color: #0f172a; font-weight: 700;">Compra Registrada com Sucesso</p>
-          <p style="margin: 0; font-size: 12px; color: #64748b;">A cada R$ 50,00 faturados você acumula 1 ponto no programa A-Points.</p>
-        </div>
-      `;
-
       const custHtml = buildAthenaEmailHtml({
         maxWidth: 580,
-        badgeText: 'Comprovante de Compra Confirmada',
-        badgeBg: '#ecfdf5',
-        badgeColor: '#047857',
-        badgeBorder: '#a7f3d0',
-        title: 'Faturamento Confirmado',
+        badgeText: 'Programa de Fidelidade A-Points',
+        badgeBg: '#fffbeb',
+        badgeColor: '#b45309',
+        badgeBorder: '#fde68a',
+        title: `Novos A-Points na sua Conta! 🎉`,
+        subtitle: `Sua preferência pela Athena Soluções Automotivas vale recompensas exclusivas.`,
         bodyHtml: `
           ${omieTestBadge}
 
-          <p style="margin: 0 0 10px 0; font-size: 15px; color: #0f172a;">
+          <p style="margin: 0 0 14px 0; font-size: 15px; color: #0f172a; line-height: 1.6;">
             Olá, <strong>${customerName}</strong>!
           </p>
-          <p style="margin: 0 0 20px 0; font-size: 13px; color: #475569; line-height: 1.6;">
-            Seu faturamento recente no valor de <strong style="color: #0f172a;">${formattedTotal}</strong> foi processado e confirmado com sucesso. Guarde este comprovante para seu acompanhamento e controle.
+
+          <p style="margin: 0 0 20px 0; font-size: 14px; color: #475569; line-height: 1.6;">
+            Com a confirmação da sua última compra faturada (Pedido <strong>#${orderId}</strong>), você acabou de acumular novos pontos no nosso programa de fidelidade exclusivo!
           </p>
 
-          ${pointsBlockHtml}
-
-          <!-- Resumo do Pedido -->
-          <div style="background-color: #f8fafc; border-radius: 12px; padding: 18px 20px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
-            <p style="margin: 0 0 12px 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Resumo da Operação</p>
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 7px 0; color: #64748b;">Número do Pedido / NF:</td>
-                <td style="padding: 7px 0; color: #0f172a; font-weight: 700; text-align: right;">#${orderId}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 7px 0; color: #64748b;">Valor Total:</td>
-                <td style="padding: 7px 0; color: #0f172a; font-weight: 900; text-align: right;">${formattedTotal}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 7px 0; color: #64748b;">Canal de Faturamento:</td>
-                <td style="padding: 7px 0; color: #334155; text-align: right;">${source}</td>
-              </tr>
-              <tr>
-                <td style="padding: 7px 0; color: #94a3b8; font-size: 12px;">Data de Confirmação:</td>
-                <td style="padding: 7px 0; color: #64748b; font-size: 12px; text-align: right;">${formattedDate} (Brasília)</td>
-              </tr>
-            </table>
+          <!-- Card Dourado de Pontos Conquistados -->
+          <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius: 16px; padding: 26px 20px; border: 2px dashed #f59e0b; text-align: center; margin-bottom: 24px;">
+            <p style="margin: 0 0 6px 0; font-size: 11px; color: #92400e; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">
+              ✨ Pontos Adquiridos Nesta Compra
+            </p>
+            <p style="margin: 0 0 6px 0; font-size: 42px; font-weight: 900; color: #b45309; letter-spacing: -1px;">
+              +${pointsEarned} A-Points
+            </p>
+            <p style="margin: 0; font-size: 12px; color: #92400e; font-weight: 600;">
+              Regra Oficial Athena: a cada R$ 50,00 faturados = 1 A-Point acumulado
+            </p>
           </div>
 
-          <!-- Botão CTA -->
-          <div style="text-align: center; margin-bottom: 6px;">
-            <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 13px; padding: 13px 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);">
-              Acessar Minha Conta & Catálogo de Prêmios
+          <!-- Box Explicativo de Vantagens -->
+          <div style="background-color: #f8fafc; border-radius: 12px; padding: 18px 20px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
+            <p style="margin: 0 0 8px 0; font-size: 12px; color: #0f172a; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">
+              🎁 O que você pode fazer com seus A-Points:
+            </p>
+            <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #475569; line-height: 1.6;">
+              <li style="margin-bottom: 4px;">Trocar por <strong>ferramentas e equipamentos automotivos</strong> das melhores marcas.</li>
+              <li style="margin-bottom: 4px;">Resgatar <strong>descontos especiais</strong> em suas próximas aquisições.</li>
+              <li>Acessar vantagens exclusivas para parceiros e oficinas cadastradas.</li>
+            </ul>
+          </div>
+
+          <!-- Botão CTA Centralizado -->
+          <div style="text-align: center; margin-bottom: 8px;">
+            <a href="https://athenaconsultoria.com.br/minha-conta" style="display: inline-block; background-color: #f59e0b; color: #0f172a; text-decoration: none; font-weight: 800; font-size: 14px; padding: 14px 32px; border-radius: 12px; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);">
+              Ver Meu Saldo & Resgatar Prêmios →
             </a>
           </div>
+          <p style="text-align: center; margin: 10px 0 0 0; font-size: 11px; color: #94a3b8;">
+            Acesse sua conta para conferir seu extrato completo e o catálogo de recompensas.
+          </p>
         `
       });
 
@@ -4650,13 +4655,56 @@ app.get('/api/webhooks/omie', (req, res) => {
   });
 });
 
-// Omie Webhook Receiver (POST)
+// Omie Webhook Receiver (POST) - Roteamento Inteligente de Eventos
 app.post('/api/webhooks/omie', async (req, res) => {
-  // Retorna 200 OK imediatamente para o Omie confirmar entrega com sucesso
+  // Retorna 200 OK imediatamente para o Omie para evitar timeout de entrega
   res.status(200).json({ received: true, timestamp: new Date().toISOString() });
 
-  // Processa em segundo plano
-  processOmieSaleEvent(req.body);
+  const body = req.body || {};
+  const topic = String(body.topic || '').toLowerCase();
+  const event = body.event || body.data || {};
+
+  // 1. Detecta primeiro se e evento de VENDA / PEDIDO / FATURAMENTO (A-Points & Comprovante de Compra)
+  // Topicos Omie: VendaProduto.Faturada, VendaProduto.Cancelada, VendaProduto.Devolvida, etc.
+  const isSaleEvent = 
+    topic.startsWith('vendaproduto.') || 
+    topic.startsWith('ordemservico.') ||
+    topic.includes('faturad') ||
+    topic.includes('pedido') ||
+    Boolean(event.idPedido || event.codigo_pedido || event.codigo_pedido_integracao);
+
+  // 2. Detecta se e evento de CATALOGO DE PRODUTOS / PRECO / SALDO DE ESTOQUE
+  // Topicos Omie: Produto.Alterado, Produto.Incluido, Produto.AjusteEstoque, Produto.MovimentacaoEstoque, TabelaPrecoItem.*
+  const isProductOrStockEvent = !isSaleEvent && (
+    topic.startsWith('produto.') || 
+    topic.startsWith('tabelapreco') ||
+    topic.includes('estoque') || 
+    topic.includes('movimento') || 
+    topic.includes('mercadoria') ||
+    Boolean(event.codigo_produto || event.id_produto || event.saldo_fisico || event.saldo_atual)
+  );
+
+  if (isSaleEvent) {
+    // Evento de faturamento / venda para A-Points e recibo oficial
+    processOmieSaleEvent(body).catch(err =>
+      console.error('[OMIE SALE WEBHOOK BG ERROR]:', err.message)
+    );
+  } else if (isProductOrStockEvent) {
+    // Evento de catalogo de produtos ou saldo de estoque (Supabase Cache-Aside)
+    processOmieProductWebhook(pool, body).catch(err => 
+      console.error('[OMIE PRODUCT WEBHOOK BG ERROR]:', err.message)
+    );
+  } else {
+    console.log(`[OMIE WEBHOOK] Evento recebido sem acao necessaria: "${topic}"`);
+  }
+});
+
+// Endpoint dedicado exclusivo para Webhooks de Produtos e Estoque do Omie
+app.post('/api/webhooks/omie/products', async (req, res) => {
+  res.status(200).json({ received: true, timestamp: new Date().toISOString() });
+  processOmieProductWebhook(pool, req.body).catch(err => 
+    console.error('[OMIE PRODUCT WEBHOOK BG ERROR]:', err.message)
+  );
 });
 
 // Diagnostic route to check Omie connection
@@ -5443,56 +5491,54 @@ app.get('/api/hermes/rewards', validateHermesAuth, async (req, res) => {
   }
 });
 
-// Hermes: Busca Rápida de Produtos no Catálogo Athena
+// Hermes: Busca Inteligente de Produtos (Cache-Aside: PostgreSQL -> Omie Fallback)
 app.get('/api/hermes/products', validateHermesAuth, async (req, res) => {
   try {
-    const { search = '', limit = 20 } = req.query;
-    const cleanSearch = String(search).trim().toLowerCase();
+    const { search = '', query = '', limit = 20, forceOmie = false } = req.query;
+    const cleanSearch = String(search || query || '').trim();
     const numLimit = Math.min(50, Math.max(1, Number(limit) || 20));
 
-    if (pool) {
-      let query = `
-        SELECT p.id, p.name, p.slug, p.price, p.price_negotiable as "priceNegotiable", 
-               p.badge, p.image, p.in_stock as "inStock", c.name as "categoryName", b.name as "brandName"
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN brands b ON p.brand_id = b.id
-        WHERE p.status = 'published'
-      `;
-      const params = [];
-      if (cleanSearch) {
-        params.push(`%${cleanSearch}%`);
-        query += ` AND (LOWER(p.name) LIKE $1 OR LOWER(c.name) LIKE $1 OR LOWER(b.name) LIKE $1)`;
-      }
-      query += ` ORDER BY p.name ASC LIMIT ${numLimit}`;
-      const result = await pool.query(query, params);
-      
-      const productsWithUrls = result.rows.map(prod => ({
-        ...prod,
-        url: `https://athenaconsultoria.com.br/produto/${prod.slug || prod.id}`
-      }));
-
-      return res.json({
-        total: productsWithUrls.length,
-        products: productsWithUrls
-      });
-    }
-
-    const db = readDbJson();
-    let prods = (db.products || []).filter(p => p.status === 'published');
-    if (cleanSearch) {
-      prods = prods.filter(p => p.name && p.name.toLowerCase().includes(cleanSearch));
-    }
-    return res.json({
-      total: prods.length,
-      products: prods.slice(0, numLimit).map(p => ({
-        ...p,
-        url: `https://athenaconsultoria.com.br/produto/${p.slug || p.id}`
-      }))
+    const result = await searchHermesProducts({
+      pool,
+      search: cleanSearch,
+      limit: numLimit,
+      forceOmie: forceOmie === 'true' || forceOmie === true
     });
+
+    return res.json(result);
   } catch (err) {
+    console.error('[HERMES PRODUCTS GET ERROR]:', err);
     return res.status(500).json({ error: err.message });
   }
+});
+
+// Hermes: Busca de Produtos via POST (Compatível com chamadas de Tools do Gemini / Agentes)
+app.post('/api/hermes/products', validateHermesAuth, async (req, res) => {
+  try {
+    const { search = '', query = '', limit = 20, forceOmie = false } = req.body || {};
+    const cleanSearch = String(search || query || '').trim();
+    const numLimit = Math.min(50, Math.max(1, Number(limit) || 20));
+
+    const result = await searchHermesProducts({
+      pool,
+      search: cleanSearch,
+      limit: numLimit,
+      forceOmie: Boolean(forceOmie)
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error('[HERMES PRODUCTS POST ERROR]:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Hermes: Tool Declaration para agentes Gemini AI
+app.get('/api/hermes/tool-declaration', validateHermesAuth, (req, res) => {
+  res.json({
+    tool: hermesGeminiToolDeclaration,
+    endpoint: 'https://athenaconsultoria.com.br/api/hermes/products'
+  });
 });
 
 // Hermes: Oportunidades e Automações de Fidelidade
@@ -6538,10 +6584,10 @@ app.post('/api/products', authenticateToken, async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock, video_url, custom_tabs, product_type, a_points)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+        INSERT INTO products (id, name, slug, category_id, brand_id, price, preco_venda, price_negotiable, badge, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock, video_url, custom_tabs, product_type, a_points)
+        VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
         ON CONFLICT (id) DO UPDATE SET 
-          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, is_featured=$10, image=$11, images=$12, alt_text=$13, description=$14, specs=$15, attachments=$16, in_stock=$17, video_url=$18, custom_tabs=$19, product_type=$20, a_points=$21
+          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, preco_venda=$6, price_negotiable=$7, badge=$8, status=$9, is_featured=$10, image=$11, images=$12, alt_text=$13, description=$14, specs=$15, attachments=$16, in_stock=$17, video_url=$18, custom_tabs=$19, product_type=$20, a_points=$21
       `, [
         newProduct.id,
         newProduct.name,
@@ -6601,7 +6647,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
     try {
       await pool.query(`
         UPDATE products SET 
-          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, price_negotiable=$6, badge=$7, status=$8, is_featured=$9, image=$10, images=$11, alt_text=$12, description=$13, specs=$14, attachments=$15, in_stock=$16, video_url=$17, custom_tabs=$18, product_type=$19, a_points=$20
+          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, preco_venda=COALESCE(NULLIF($5, 0), preco_venda, $5), price_negotiable=$6, badge=$7, status=$8, is_featured=$9, image=$10, images=$11, alt_text=$12, description=$13, specs=$14, attachments=$15, in_stock=$16, video_url=$17, custom_tabs=$18, product_type=$19, a_points=$20
         WHERE id=$21
       `, [
         updatedProduct.name,

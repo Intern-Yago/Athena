@@ -17,21 +17,27 @@ export default function ProductCard({
   viewMode = 'grid'
 }) {
   const { addToCart, openDirectCheckout, requireVerification } = useCart();
-  const hasPrice = product.price > 0 && !product.priceNegotiable;
-  const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
+  
+  // Regra de Negocio Athena:
+  // Se o orcamento estiver ATIVO (priceNegotiable !== false), NAO mostra o valor do produto (fica Sob Consulta) e direciona para orcamento.
+  // Se o orcamento estiver DESATIVADO (!priceNegotiable) e tiver preco (> 0), mostra o valor e joga para comprar no site.
+  const isQuoteOnly = Boolean(product.priceNegotiable !== false);
+  const canBuyOnline = Number(product.price) > 0 && !isQuoteOnly;
+
+  const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
   const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
-    product.price ? formatBRL(product.price) : 'Sob Consulta'
+    canBuyOnline ? formatBRL(product.price) : 'Sob Consulta'
   );
 
   const earnedPoints = (product.aPoints && Number(product.aPoints) > 0) 
     ? Number(product.aPoints) 
-    : (hasPrice ? Math.floor(product.price / 50) : 0);
+    : (canBuyOnline ? Math.floor(product.price / 50) : 0);
 
-  const formattedPrice = product.price 
+  const formattedPrice = canBuyOnline 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
 
-  const whatsappText = hasPrice
+  const whatsappText = canBuyOnline
     ? encodeURIComponent(
         `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de comprar o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'} - Valor: ${pixCustomerPrice} no PIX / Cartão). Poderia me orientar para concluir o pedido?`
       )
@@ -187,12 +193,12 @@ export default function ProductCard({
           <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide block">
-                {hasPrice ? 'À Vista no PIX' : (product.price > 0 ? 'Preço Estimado' : 'Condição Comercial')}
+                {canBuyOnline ? 'À Vista no PIX' : 'Condição Comercial'}
               </span>
               <span className="text-sm font-extrabold text-amber-800 font-display bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 inline-block mt-0.5">
-                {hasPrice ? pixCustomerPrice : formattedPrice}
+                {canBuyOnline ? pixCustomerPrice : 'Sob Consulta'}
               </span>
-              {hasPrice && (
+              {canBuyOnline && (
                 <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
                   {getBestInstallmentText(product.price, 12)}
                 </span>
@@ -214,7 +220,7 @@ export default function ProductCard({
                 <span>Ver Ficha</span>
               </button>
 
-              {hasPrice ? (
+              {canBuyOnline ? (
                 <>
                   <button
                     type="button"
@@ -250,7 +256,7 @@ export default function ProductCard({
                   className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
-                  <span>Solicitar Cotação</span>
+                  <span>{hasPrice ? 'Consultar Orçamento' : 'Solicitar Cotação'}</span>
                 </a>
               )}
             </div>
@@ -419,13 +425,13 @@ export default function ProductCard({
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-1">
               <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide">
-                {hasPrice ? 'À Vista no PIX' : (product.price > 0 ? 'Preço Estimado' : 'Condição Comercial')}
+                {canBuyOnline ? 'À Vista no PIX' : 'Condição Comercial'}
               </span>
               <span className="text-xs font-extrabold text-amber-800 font-display bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-300">
-                {hasPrice ? pixCustomerPrice : formattedPrice}
+                {canBuyOnline ? pixCustomerPrice : 'Sob Consulta'}
               </span>
             </div>
-            {hasPrice && (
+            {canBuyOnline && (
               <span className="text-[10px] text-slate-500 font-medium block text-right">
                 {getBestInstallmentText(product.price, 12)}
               </span>
@@ -441,7 +447,7 @@ export default function ProductCard({
             )}
           </div>
 
-          {hasPrice ? (
+          {canBuyOnline ? (
             <div className="grid grid-cols-12 gap-1.5">
               <button
                 onClick={() => onSelectProduct(product)}

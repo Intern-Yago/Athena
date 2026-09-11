@@ -228,17 +228,20 @@ export default function ProductDetailPage({
   const brand = brands.find((b) => b.id === product.brandId);
   const { addToCart, requireVerification } = useCart();
 
-  const hasPrice = product.price > 0 && !product.priceNegotiable;
-  const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
+  const hasPrice = Number(product.price) > 0;
+  const isQuoteOnly = Boolean(product.priceNegotiable !== false);
+  const canBuyOnline = hasPrice && !isQuoteOnly;
+
+  const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
   const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
-    product.price ? formatBRL(product.price) : 'Sob Consulta'
+    canBuyOnline ? formatBRL(product.price) : 'Sob Consulta'
   );
 
   const earnedPoints = (product.aPoints && Number(product.aPoints) > 0) 
     ? Number(product.aPoints) 
-    : (hasPrice ? Math.floor(product.price / 50) : 0);
+    : (canBuyOnline ? Math.floor(product.price / 50) : 0);
 
-  const formattedPrice = product.price 
+  const formattedPrice = canBuyOnline 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
 
@@ -252,12 +255,12 @@ export default function ProductDetailPage({
     } catch (e) {}
   };
 
-  const whatsappMessage = hasPrice
+  const whatsappMessage = canBuyOnline
     ? encodeURIComponent(
         `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${product.name}*\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\nMarca: ${brand?.name || 'Athena'}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
       )
     : encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação oficial para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'N/A'}\nCategoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
+        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'Athena'}\nCategoria: ${category?.name || 'Geral'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
       );
 
   // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
@@ -636,11 +639,11 @@ export default function ProductDetailPage({
               </div>
             </div>
 
-            {/* Commercial Condition / Price Banner with PIX & Installments (Positioned above CTA Buttons) */}
-            {hasPrice ? (
+            {/* Commercial Condition / Price Banner (Positioned above CTA Buttons) */}
+            {canBuyOnline ? (
               <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/80 space-y-2">
                 <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider bg-amber-200/80 px-2 py-0.5 rounded">
+                  <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-200/80 text-amber-900">
                     À Vista no PIX
                   </span>
                   <span className="text-2xl sm:text-3xl font-black text-amber-950 font-display">
@@ -677,22 +680,20 @@ export default function ProductDetailPage({
             ) : (
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-baseline gap-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {product.price > 0 ? 'Preço Estimado:' : 'Condição Comercial:'}
+                  Condição Comercial:
                 </span>
                 <span className="text-xl sm:text-2xl font-extrabold text-amber-800 font-display">
-                  {formattedPrice}
+                  Sob Consulta
                 </span>
-                {product.priceNegotiable && (
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    (Consulte condições)
-                  </span>
-                )}
+                <span className="text-[11px] text-slate-400 font-medium">
+                  (Consulte condições, prazos e faturamento)
+                </span>
               </div>
             )}
 
             {/* Action Buttons Below Price */}
             <div className="pt-2 flex flex-wrap items-center gap-3">
-              {hasPrice ? (
+              {canBuyOnline ? (
                 <>
                   <button
                     type="button"
@@ -741,10 +742,10 @@ export default function ProductDetailPage({
                       e.preventDefault();
                     }
                   }}
-                  className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-bold flex items-center gap-2 cursor-pointer"
+                  className="btn-gold text-xs sm:text-sm py-3 px-6 shadow-md font-extrabold flex items-center gap-2 cursor-pointer"
                 >
                   <MessageCircle className="w-4 h-4 fill-current" />
-                  <span>Cotação Instantânea no WhatsApp</span>
+                  <span>Solicitar Orçamento no WhatsApp</span>
                 </a>
               )}
 

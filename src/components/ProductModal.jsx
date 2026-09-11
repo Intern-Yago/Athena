@@ -20,13 +20,16 @@ export default function ProductModal({
   const category = propCategory || (categories && categories.find(c => c.id === product.categoryId));
   const brand = propBrand || (brands && brands.find(b => b.id === product.brandId));
 
-  const hasPrice = product.price > 0 && !product.priceNegotiable;
-  const paymentGateways = hasPrice ? calculatePaymentGateways(product.price) : null;
+  const hasPrice = Number(product.price) > 0;
+  const isQuoteOnly = Boolean(product.priceNegotiable !== false);
+  const canBuyOnline = hasPrice && !isQuoteOnly;
+
+  const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
   const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
-    product.price ? formatBRL(product.price) : 'Sob Consulta'
+    canBuyOnline ? formatBRL(product.price) : 'Sob Consulta'
   );
 
-  const formattedPrice = product.price 
+  const formattedPrice = canBuyOnline 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
 
@@ -35,10 +38,10 @@ export default function ProductModal({
   );
 
   const whatsappQuoteMessage = encodeURIComponent(
-    `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'N/A'}\nCategoria: ${category?.name || 'N/A'}\n\nPor favor, me informe sobre prazo de entrega, frete e formas de pagamento.`
+    `Olá Athena Soluções Automotivas!\n\nGostaria de mais informações e cotação para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'Athena'}\nCategoria: ${category?.name || 'Geral'}\n\nPor favor, me informe sobre prazo de entrega, frete e formas de pagamento.`
   );
 
-  const whatsappMessage = hasPrice ? whatsappBuyMessage : whatsappQuoteMessage;
+  const whatsappMessage = canBuyOnline ? whatsappBuyMessage : whatsappQuoteMessage;
 
   const productUrl = `/produto/${product.slug || product.id}`;
 
@@ -128,16 +131,18 @@ export default function ProductModal({
               </h2>
 
               {/* Price Banner */}
-              {hasPrice ? (
+              {canBuyOnline ? (
                 <div className="bg-amber-50/80 p-3.5 rounded-xl border border-amber-200 space-y-1">
                   <div className="flex items-baseline justify-between">
                     <div>
-                      <span className="text-[10px] font-black text-amber-900 uppercase block tracking-wider">À Vista no PIX</span>
+                      <span className="text-[10px] font-black text-amber-900 uppercase block tracking-wider">
+                        À Vista no PIX
+                      </span>
                       <span className="text-2xl font-black text-amber-950 font-display">
                         {pixCustomerPrice}
                       </span>
                     </div>
-                    <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-md text-amber-800 bg-amber-100/90">
                       Melhor Preço
                     </span>
                   </div>
@@ -148,9 +153,9 @@ export default function ProductModal({
               ) : (
                 <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-baseline justify-between">
                   <div>
-                    <span className="text-xs font-semibold text-slate-500 block uppercase">Investimento Estimado</span>
+                    <span className="text-xs font-semibold text-slate-500 block uppercase">Condição Comercial</span>
                     <span className="text-2xl font-extrabold text-amber-800 font-display">
-                      {formattedPrice}
+                      Sob Consulta
                     </span>
                   </div>
                   <span className="text-[11px] text-amber-800 bg-amber-100 px-2.5 py-1 rounded-lg font-semibold">
@@ -195,7 +200,7 @@ export default function ProductModal({
                 rel="noopener noreferrer"
                 onClick={(e) => {
                   if (requireVerification && requireVerification(() => {
-                    if (hasPrice) {
+                    if (canBuyOnline) {
                       openDirectCheckout(product);
                       onClose();
                     } else {
@@ -203,18 +208,18 @@ export default function ProductModal({
                     }
                   })) {
                     e.preventDefault();
-                  } else if (hasPrice) {
+                  } else if (canBuyOnline) {
                     e.preventDefault();
                     openDirectCheckout(product);
                     onClose();
                   }
                 }}
                 className={`w-full text-sm py-3 justify-center font-extrabold shadow-md rounded-2xl flex items-center gap-2 transition-all cursor-pointer ${
-                  hasPrice ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'btn-gold'
+                  canBuyOnline ? 'bg-amber-500 hover:bg-amber-600 text-slate-950' : 'btn-gold'
                 }`}
               >
-                {hasPrice ? <CreditCard className="w-5 h-5 shrink-0" /> : <MessageCircle className="w-5 h-5 fill-current" />}
-                <span>{hasPrice ? 'Comprar Agora' : 'Solicitar Cotação Oficial no WhatsApp'}</span>
+                {canBuyOnline ? <CreditCard className="w-5 h-5 shrink-0" /> : <MessageCircle className="w-5 h-5 fill-current" />}
+                <span>{canBuyOnline ? 'Comprar Agora' : 'Solicitar Cotação Oficial no WhatsApp'}</span>
               </a>
 
               <a
