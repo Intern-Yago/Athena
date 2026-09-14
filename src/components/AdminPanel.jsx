@@ -1028,15 +1028,21 @@ export default function AdminPanel({
 
   // Product Search Tags State (#hashtags)
   const [tagInput, setTagInput] = useState('');
+  const [showAllTags, setShowAllTags] = useState(false);
 
   const handleAddTag = (rawTag) => {
-    const clean = (rawTag || '').trim().replace(/^#/, '').toLowerCase();
-    if (!clean) return;
+    if (!rawTag) return;
+    const items = String(rawTag)
+      .split(/[,;]+/)
+      .map(t => t.trim().replace(/^#/, '').replace(/\s+/g, ' ').toLowerCase())
+      .filter(t => t && t.length >= 2);
+    if (items.length === 0) return;
     const currentTags = Array.isArray(productForm.tags) ? productForm.tags : [];
-    if (!currentTags.includes(clean)) {
+    const newTags = items.filter(t => !currentTags.includes(t));
+    if (newTags.length > 0) {
       setProductForm(prev => ({
         ...prev,
-        tags: [...(Array.isArray(prev.tags) ? prev.tags : []), clean]
+        tags: [...(Array.isArray(prev.tags) ? prev.tags : []), ...newTags]
       }));
     }
     setTagInput('');
@@ -1461,9 +1467,10 @@ export default function AdminPanel({
     }
 
     const rawTagsLine = match[1] || '';
+    // Separa EXCLUSIVAMENTE por vírgula ou ponto-e-vírgula, mantendo termos compostos (ex: "caneta de teste")
     const newTags = rawTagsLine
-      .split(/[,;\s]+/)
-      .map(t => t.trim().replace(/^#/, '').toLowerCase())
+      .split(/[,;]+/)
+      .map(t => t.trim().replace(/^#/, '').replace(/\s+/g, ' ').toLowerCase())
       .filter(t => t && t.length >= 2);
 
     if (newTags.length === 0) {
@@ -7580,33 +7587,59 @@ export default function AdminPanel({
 
                         {/* Tag Chips */}
                         {Array.isArray(productForm.tags) && productForm.tags.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {productForm.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100/80 text-amber-900 border border-amber-300/80 shadow-2xs group"
-                              >
-                                <span>#{tag}</span>
+                          <div className="space-y-1.5 pt-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {(productForm.tags.length > 3 && !showAllTags
+                                ? productForm.tags.slice(-3)
+                                : productForm.tags
+                              ).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100/80 text-amber-900 border border-amber-300/80 shadow-2xs group"
+                                >
+                                  <span>#{tag}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="text-amber-700 hover:text-red-600 transition-colors cursor-pointer rounded-full p-0.5"
+                                    title={`Remover tag #${tag}`}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              ))}
+
+                              {productForm.tags.length > 3 && (
                                 <button
                                   type="button"
-                                  onClick={() => handleRemoveTag(tag)}
-                                  className="text-amber-700 hover:text-red-600 transition-colors cursor-pointer rounded-full p-0.5"
-                                  title={`Remover tag #${tag}`}
+                                  onClick={() => setShowAllTags(!showAllTags)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 hover:text-amber-950 bg-amber-100/90 hover:bg-amber-200/90 px-2.5 py-1 rounded-full border border-amber-300 transition-colors cursor-pointer"
                                 >
-                                  <X className="w-3 h-3" />
+                                  <span>
+                                    {showAllTags
+                                      ? 'Ver menos'
+                                      : `Ver mais (+${productForm.tags.length - 3})`}
+                                  </span>
+                                  {showAllTags ? (
+                                    <ChevronUp className="w-3 h-3 text-amber-700" />
+                                  ) : (
+                                    <ChevronDown className="w-3 h-3 text-amber-700" />
+                                  )}
                                 </button>
-                              </span>
-                            ))}
+                              )}
+                            </div>
+
+                            {productForm.tags.length > 3 && !showAllTags && (
+                              <p className="text-[10px] text-slate-400 italic">
+                                Exibindo as 3 últimas tags registradas ({productForm.tags.length} no total).
+                              </p>
+                            )}
                           </div>
                         ) : (
                           <p className="text-[11px] text-slate-400 italic">
-                            Nenhuma tag cadastrada. Cadastre termos como <strong>#detail</strong>, <strong>#estetica</strong> ou sinônimos para o produto ser encontrado na busca mesmo se a palavra não estiver no título ou descrição.
+                            Nenhuma tag cadastrada. Cadastre termos separados por vírgula (ex: <strong>caneta de teste, soquetes, cr-mo</strong>) para enriquecer a busca.
                           </p>
                         )}
-
-                        <span className="text-[10.5px] text-slate-500 block leading-relaxed pt-0.5">
-                          💡 <strong>Tags vs Selo Promocional:</strong> O <em>Selo Promocional</em> é visual e fica visível na vitrine (ex: "Lançamento", "Oferta"). As <em>Tags</em> são como hashtags de pesquisa internas, indexadas com alta prioridade no motor de busca do catálogo.
-                        </span>
                       </div>
 
                       <div className="pt-2 border-t border-slate-100 space-y-3">
@@ -8203,20 +8236,31 @@ export default function AdminPanel({
                               <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200">
                                 {recCount} nos 5 Recomendados
                               </span>
-                            </div>
-                          </div>
 
-                          {/* Explainer Banner */}
-                          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-[11px] text-amber-950 space-y-1">
-                            <div className="font-extrabold flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                              <span>Como funciona o Toggle de Vínculo:</span>
+                              {/* Tooltip com símbolo de exclamação */}
+                              <div className="relative group inline-flex items-center">
+                                <span
+                                  className="w-4.5 h-4.5 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-800 border border-slate-300 hover:border-amber-400 text-[10px] font-black flex items-center justify-center cursor-help transition-colors select-none shadow-2xs"
+                                  title="Como funciona o Toggle de Vínculo"
+                                >
+                                  !
+                                </span>
+                                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 p-3.5 bg-slate-900 text-white text-[11px] rounded-2xl shadow-2xl border border-slate-700/90 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 pointer-events-none">
+                                  <p className="font-extrabold text-amber-400 mb-1.5 flex items-center gap-1.5 text-xs">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                    <span>Como funciona o Toggle de Vínculo:</span>
+                                  </p>
+                                  <div className="space-y-1.5 text-slate-200 leading-relaxed">
+                                    <p>
+                                      • <strong className="text-emerald-400">Ativo (Verde - Compatível):</strong> O equipamento aparece na aba <em>"Acessórios & Itens Compatíveis"</em> na página do produto.
+                                    </p>
+                                    <p>
+                                      • <strong className="text-amber-300">Desligado (Âmbar - Recomendado Obrigatório):</strong> O equipamento é forçado a aparecer no carrossel de <strong>5 recomendados</strong> da página (<em>"Você também pode se interessar"</em>). Se você fixar 1 item, a vitrine exibirá esse item + 4 automáticos; se fixar 5 itens, serão exatamente os 5 escolhidos por você!
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                            <p className="leading-relaxed">
-                              • <strong>Ativo (Verde - Compatível):</strong> O equipamento aparece na aba <em>"Acessórios & Itens Compatíveis"</em> na página do produto.
-                              <br />
-                              • <strong>Desligado (Âmbar - Recomendado Obrigatório):</strong> O equipamento é forçado a aparecer no carrossel de <strong>5 recomendados</strong> da página (<em>"Você também pode se interessar"</em>). Se você fixar 1 item, a vitrine exibirá esse item + 4 automáticos; se fixar 5 itens, serão exatamente os 5 escolhidos por você!
-                            </p>
                           </div>
 
                           {/* Search & Add Products Combobox */}
