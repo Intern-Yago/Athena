@@ -1535,15 +1535,29 @@ export default function AdminPanel({
 
     const formattedSections = sections.map(sec => {
       const cleanLines = sec.lines.map(l => l.trim()).filter(Boolean);
-      const formattedLines = cleanLines.map(l => {
-        const stripped = l.replace(/^[•\-\*\+–—]+\s*/, '').trim();
-        return stripped ? `• ${stripped}` : '';
-      }).filter(Boolean);
+      const isTableSection = cleanLines.some(l => l.startsWith('|') && l.includes('|'));
+
+      let formattedContent = '';
+      if (isTableSection) {
+        // Preserva linhas de tabelas markdown sem prefixar com bullets
+        formattedContent = cleanLines.map(l => {
+          if (l.startsWith('|')) return l;
+          const stripped = l.replace(/^[•\-\*\+–—]+\s*/, '').trim();
+          return stripped ? `• ${stripped}` : '';
+        }).filter(Boolean).join('\n');
+      } else {
+        const formattedLines = cleanLines.map(l => {
+          const stripped = l.replace(/^[•\-\*\+–—]+\s*/, '').trim();
+          return stripped ? `• ${stripped}` : '';
+        }).filter(Boolean);
+        formattedContent = formattedLines.join('\n');
+      }
+
       return {
         title: sec.title,
         isSpecsSection: sec.isSpecsSection,
         isCompatibility: sec.isCompatibility,
-        content: formattedLines.join('\n'),
+        content: formattedContent,
         rawLines: cleanLines,
         lineCount: cleanLines.length
       };
@@ -1572,7 +1586,7 @@ export default function AdminPanel({
     let updatedDesc = parsed.intro;
 
     for (const s of remainingSections) {
-      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => (l.startsWith('•') || l.startsWith('-') ? l : `• ${l}`)).join('\n');
+      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => (l.startsWith('•') || l.startsWith('-') || l.startsWith('|') ? l : `• ${l}`)).join('\n');
     }
 
     return {
@@ -1702,7 +1716,7 @@ export default function AdminPanel({
 
     let updatedDesc = parsed.intro;
     for (const s of remainingSections) {
-      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => l.replace(/^(\s*)[-*]\s+/, '$1• ').replace(/^([^•\s])/, '• $1')).join('\n');
+      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => l.startsWith('|') ? l : l.replace(/^(\s*)[-*]\s+/, '$1• ').replace(/^([^•\s])/, '• $1')).join('\n');
     }
 
     setProductForm(prev => ({

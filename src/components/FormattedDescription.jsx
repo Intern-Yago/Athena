@@ -20,6 +20,8 @@ export function stripFormattingTags(text = '') {
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
     .replace(/__(.*?)__/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\|.*?\|$/gm, '')
     .replace(/^\s*[•\-\*]\s+/gm, '')
     .replace(/^\s*\d+[\.\)]\s+/gm, '')
     .trim();
@@ -286,12 +288,125 @@ export default function FormattedDescription({
     currentList = null;
   };
 
+  let currentTable = null; // { headers: [], alignments: [], rows: [] }
+
+  const flushTable = () => {
+    if (!currentTable) return;
+    const tableIndex = elements.length;
+
+    if (currentTable.rows.length === 0 && currentTable.headers.length > 0) {
+      elements.push(
+        <div key={`table-${tableIndex}`} className="my-3.5 overflow-x-auto rounded-2xl border border-slate-200/90 shadow-2xs bg-white">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-100/90 border-b border-slate-200 text-slate-900 font-extrabold text-[11px] uppercase tracking-wider">
+                {currentTable.headers.map((h, hIdx) => (
+                  <th key={hIdx} className="py-2.5 px-3.5 text-left">
+                    {parseInlineFormatting(h, products, onSelectProduct)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          </table>
+        </div>
+      );
+      currentTable = null;
+      return;
+    }
+
+    elements.push(
+      <div key={`table-${tableIndex}`} className="my-3.5 overflow-x-auto rounded-2xl border border-slate-200/90 shadow-2xs bg-white">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="bg-slate-100/90 border-b border-slate-200 text-slate-900 font-extrabold text-[11px] uppercase tracking-wider">
+              {currentTable.headers.map((h, hIdx) => (
+                <th key={hIdx} className={`py-2.5 px-3.5 font-bold ${currentTable.alignments[hIdx] || 'text-left'}`}>
+                  {parseInlineFormatting(h, products, onSelectProduct)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {currentTable.rows.map((row, rIdx) => (
+              <tr key={rIdx} className="hover:bg-amber-50/50 transition-colors odd:bg-white even:bg-slate-50/40">
+                {row.map((cell, cIdx) => (
+                  <td key={cIdx} className={`py-2 px-3.5 text-slate-700 font-medium ${currentTable.alignments[cIdx] || 'text-left'}`}>
+                    {parseInlineFormatting(cell, products, onSelectProduct)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+    currentTable = null;
+  };
+
   for (let i = 0; i < rawLines.length; i++) {
     const rawLine = rawLines[i];
     const trimmed = rawLine.trim();
 
     if (!trimmed) {
       flushList();
+      flushTable();
+      continue;
+    }
+
+    // Check if line is a table row (starts with | and has at least two pipes)
+    if (trimmed.startsWith('|') && (trimmed.match(/\|/g) || []).length >= 2) {
+      flushList();
+      const cells = trimmed.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+      const isSeparator = cells.every(c => /^:?-+:?$/.test(c));
+
+      if (isSeparator) {
+        if (currentTable) {
+          currentTable.alignments = cells.map(c => {
+            if (c.startsWith(':') && c.endsWith(':')) return 'text-center';
+            if (c.endsWith(':')) return 'text-right';
+            return 'text-left';
+          });
+        }
+        continue;
+      }
+
+      if (!currentTable) {
+        currentTable = { headers: cells, alignments: [], rows: [] };
+      } else {
+        currentTable.rows.push(cells);
+      }
+      continue;
+    }
+
+    // Non-table line encountered while in table mode: flush table first
+    flushTable();
+
+    // Check if line is a markdown heading (#, ##, ###, ####)
+    const headingMatch = trimmed.match(/^(#{1,4})\s+(.*)$/);
+    if (headingMatch) {
+      flushList();
+      const level = headingMatch[1].length;
+      const headingText = headingMatch[2];
+      if (level === 1) {
+        elements.push(
+          <h2 key={`h1-${elements.length}`} className="text-base sm:text-lg font-black text-slate-950 mt-4 mb-2 tracking-tight">
+            {parseInlineFormatting(headingText, products, onSelectProduct)}
+          </h2>
+        );
+      } else if (level === 2) {
+        elements.push(
+          <h3 key={`h2-${elements.length}`} className="text-sm sm:text-base font-extrabold text-slate-900 mt-3.5 mb-1.5 flex items-center gap-1.5">
+            <span className="w-1.5 h-3.5 rounded-full bg-amber-500 inline-block shrink-0" />
+            <span>{parseInlineFormatting(headingText, products, onSelectProduct)}</span>
+          </h3>
+        );
+      } else {
+        elements.push(
+          <h4 key={`h3-${elements.length}`} className="text-xs sm:text-sm font-bold text-amber-950 mt-2.5 mb-1">
+            {parseInlineFormatting(headingText, products, onSelectProduct)}
+          </h4>
+        );
+      }
       continue;
     }
 
@@ -339,6 +454,7 @@ export default function FormattedDescription({
   }
 
   flushList();
+  flushTable();
 
   return (
     <div className={`formatted-description space-y-1.5 ${className}`}>
