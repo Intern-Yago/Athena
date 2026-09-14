@@ -242,7 +242,7 @@ export default function SearchBar({
   // 1. HERO VARIANT
   if (variant === 'hero') {
     return (
-      <div ref={containerRef} className={`relative group w-full ${className}`}>
+      <div ref={containerRef} className={`relative z-40 group w-full ${className}`}>
         <form onSubmit={executeSearch} className="relative w-full">
           <input
             type="text"
@@ -277,7 +277,7 @@ export default function SearchBar({
   // 2. HERO SLIM VARIANT
   if (variant === 'hero-slim') {
     return (
-      <div ref={containerRef} className={`relative group w-full max-w-2xl mx-auto ${className}`}>
+      <div ref={containerRef} className={`relative z-40 group w-full max-w-2xl mx-auto ${className}`}>
         <form onSubmit={executeSearch} className="relative w-full">
           <input
             type="text"
@@ -308,7 +308,7 @@ export default function SearchBar({
   // 3. HEADER DESKTOP VARIANT
   if (variant === 'header') {
     return (
-      <div ref={containerRef} className={`relative w-64 ${className}`}>
+      <div ref={containerRef} className={`relative z-40 w-64 ${className}`}>
         <form onSubmit={executeSearch} className="relative w-full">
           <input
             type="text"
@@ -355,7 +355,7 @@ export default function SearchBar({
   // 4. HEADER MOBILE VARIANT
   if (variant === 'header-mobile') {
     return (
-      <div ref={containerRef} className={`relative min-w-0 flex-1 max-w-[130px] min-[380px]:max-w-[170px] ${className}`}>
+      <div ref={containerRef} className={`relative z-40 min-w-0 flex-1 max-w-[130px] min-[380px]:max-w-[170px] ${className}`}>
         <form onSubmit={executeSearch} className="relative w-full">
           <input
             type="text"
@@ -393,7 +393,7 @@ export default function SearchBar({
   // 5. SIDEBAR VARIANT
   if (variant === 'sidebar') {
     return (
-      <div ref={containerRef} className={`relative ${className}`}>
+      <div ref={containerRef} className={`relative z-30 ${className}`}>
         <div className="relative w-full">
           <input
             type="text"
@@ -425,7 +425,7 @@ export default function SearchBar({
   // 6. COMPACT VARIANT (BrandPage, CategoryPage, etc.)
   if (variant === 'compact') {
     return (
-      <div ref={containerRef} className={`relative min-w-[180px] sm:min-w-[220px] ${className}`}>
+      <div ref={containerRef} className={`relative z-30 min-w-[180px] sm:min-w-[220px] ${className}`}>
         <div className="relative w-full">
           <input
             type="text"
@@ -456,7 +456,7 @@ export default function SearchBar({
 
   // DEFAULT STANDARD VARIANT
   return (
-    <div ref={containerRef} className={`relative flex items-center ${className}`}>
+    <div ref={containerRef} className={`relative z-30 flex items-center ${className}`}>
       <form onSubmit={executeSearch} className="relative w-full flex items-center">
         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input

@@ -38,9 +38,9 @@ export default function HeroSlim({
   };
 
   return (
-    <div className="relative bg-[#020618] text-white border-b border-slate-800/80 py-4 sm:py-5 overflow-hidden shadow-md">
+    <div className="relative z-30 bg-[#020618] text-white border-b border-slate-800/80 py-4 sm:py-5 shadow-md">
 
-      <div className="container-custom relative z-10">
+      <div className="container-custom relative z-30">
         <div className="max-w-4xl mx-auto text-center">
 
           {/* Quick Search & Single-Line Category Carousel */}
