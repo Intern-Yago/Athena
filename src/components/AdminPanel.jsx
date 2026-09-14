@@ -985,7 +985,7 @@ export default function AdminPanel({
     setEditingProduct(targetProduct);
     const targetForm = {
       ...targetProduct,
-      aPoints: targetProduct.aPoints != null ? targetProduct.aPoints : '',
+      aPoints: (targetProduct.aPoints != null && Number(targetProduct.aPoints) > 0) ? targetProduct.aPoints : '',
       isFeatured: !!targetProduct.isFeatured,
       productType: targetProduct.productType || 'physical',
       tags: Array.isArray(targetProduct.tags)
@@ -1327,7 +1327,7 @@ export default function AdminPanel({
     setEditingProduct(product);
     const initialForm = {
       ...product,
-      aPoints: product.aPoints != null ? product.aPoints : '',
+      aPoints: (product.aPoints != null && Number(product.aPoints) > 0) ? product.aPoints : '',
       isFeatured: !!product.isFeatured,
       productType: product.productType || 'physical',
       tags: Array.isArray(product.tags)
@@ -2964,7 +2964,7 @@ export default function AdminPanel({
       description: finalDescription,
       slug: finalSlug,
       price: parseFloat(productForm.price) || 0,
-      aPoints: productForm.aPoints !== '' && !isNaN(productForm.aPoints) ? parseInt(productForm.aPoints, 10) : null,
+      aPoints: productForm.aPoints !== '' && !isNaN(productForm.aPoints) && Number(productForm.aPoints) > 0 ? parseInt(productForm.aPoints, 10) : null,
       badge: (productForm.badge || '').trim(),
       tags: Array.isArray(mergedTags)
         ? mergedTags.map(t => String(t).trim().replace(/^#/, '').toLowerCase()).filter(Boolean)
@@ -7676,45 +7676,54 @@ export default function AdminPanel({
                         </div>
 
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Pontos A-Points (Opcional)</span>
-                            </label>
-                            {productForm.aPoints !== '' && productForm.aPoints != null ? (
-                              <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                                Pontuação Fixada: {productForm.aPoints} pts
-                              </span>
-                            ) : (
-                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                                Automático: +{Math.max(0, Math.floor((parseFloat(productForm.price) || 0) / 50))} pts (R$ 50 = 1 pt)
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              placeholder={`Vazio = cálculo automático (+${Math.max(0, Math.floor((parseFloat(productForm.price) || 0) / 50))} pts)`}
-                              value={productForm.aPoints ?? ''}
-                              onChange={(e) => setProductForm({ ...productForm, aPoints: e.target.value })}
-                              className="form-input text-xs font-mono flex-1"
-                            />
-                            {productForm.aPoints !== '' && productForm.aPoints != null && (
-                              <button
-                                type="button"
-                                onClick={() => setProductForm({ ...productForm, aPoints: '' })}
-                                className="px-2.5 py-2 text-xs font-bold text-slate-600 hover:text-amber-700 hover:bg-amber-50 border border-slate-200 rounded-lg transition-colors cursor-pointer shrink-0"
-                                title="Voltar ao cálculo automático"
-                              >
-                                Usar Automático
-                              </button>
-                            )}
-                          </div>
-                          <span className="text-[11px] text-slate-500 block mt-1 leading-snug">
-                            💡 <strong>Cálculo Automático Ativo:</strong> Se você deixar este campo vazio, a Athena calcula a pontuação automaticamente com base no valor do produto (<strong>1 ponto a cada R$ 50,00</strong> = +{Math.max(0, Math.floor((parseFloat(productForm.price) || 0) / 50))} pts). Preencha apenas se desejar fixar manualmente uma bonificação especial para este equipamento.
-                          </span>
+                          {(() => {
+                            const isManualPoints = productForm.aPoints !== '' && productForm.aPoints != null && Number(productForm.aPoints) > 0;
+                            const autoPoints = Math.max(0, Math.floor((parseFloat(productForm.price) || 0) / 50));
+
+                            return (
+                              <>
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Pontos A-Points (Opcional)</span>
+                                  </label>
+                                  {isManualPoints ? (
+                                    <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                                      Pontuação Fixada: {productForm.aPoints} pts
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                      Automático: +{autoPoints} pts (R$ 50 = 1 pt)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    placeholder={`Cálculo automático ativo (+${autoPoints} pts)`}
+                                    value={isManualPoints ? productForm.aPoints : ''}
+                                    onChange={(e) => setProductForm({ ...productForm, aPoints: e.target.value })}
+                                    className="form-input text-xs font-mono flex-1"
+                                  />
+                                  {isManualPoints && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setProductForm({ ...productForm, aPoints: '' })}
+                                      className="px-2.5 py-2 text-xs font-bold text-slate-600 hover:text-amber-700 hover:bg-amber-50 border border-slate-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                                      title="Voltar ao cálculo automático"
+                                    >
+                                      Usar Automático
+                                    </button>
+                                  )}
+                                </div>
+                                <span className="text-[11px] text-slate-500 block mt-1 leading-snug">
+                                  💡 <strong>Cálculo Automático Ativo:</strong> Por padrão, a pontuação é calculada automaticamente com base no valor do produto (<strong>1 ponto a cada R$ 50,00</strong> = +{autoPoints} pts). Preencha apenas se desejar fixar manualmente uma bonificação especial para este equipamento.
+                                </span>
+                              </>
+                            );
+                          })()}
                         </div>
 
                         {/* MODALIDADE DE ENTREGA / TIPO DE PRODUTO (FÍSICO OU DIGITAL) - APENAS SE PREÇO NÃO FOR SOB CONSULTA */}
