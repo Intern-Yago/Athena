@@ -1066,6 +1066,10 @@ export default function App() {
               if (catId === 'all') setSelectedCategories([]);
               else setSelectedCategories([catId]);
             }}
+            products={publicProducts}
+            brands={brands}
+            onNavigate={navigateTo}
+            onSelectProduct={(product) => navigateTo(`produto/${product.slug || product.id}`)}
           />
 
           <APointsBanner onNavigate={navigateTo} currentUser={currentUser} />

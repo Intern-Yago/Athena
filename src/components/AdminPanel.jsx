@@ -3,6 +3,7 @@ import {
   Package, 
   Layers, 
   Tag, 
+  Hash,
   Plus, 
   Trash2, 
   Edit3, 
@@ -851,6 +852,7 @@ export default function AdminPanel({
       aPoints: '',
       productType: 'physical',
       badge: '',
+      tags: [],
       status: 'published',
       isFeatured: false,
       image: '',
@@ -861,7 +863,8 @@ export default function AdminPanel({
       attachments: [],
       videoUrl: '',
       customTabs: [],
-      compatibleProductIds: []
+      compatibleProductIds: [],
+      recommendedProductIds: []
     }
   );
 
@@ -895,14 +898,19 @@ export default function AdminPanel({
       aPoints: targetProduct.aPoints != null ? targetProduct.aPoints : '',
       isFeatured: !!targetProduct.isFeatured,
       productType: targetProduct.productType || 'physical',
+      tags: Array.isArray(targetProduct.tags)
+        ? [...targetProduct.tags]
+        : (typeof targetProduct.tags === 'string' ? targetProduct.tags.split(/[,;\s]+/).map(t => t.trim().replace(/^#/, '')).filter(Boolean) : []),
       images: Array.isArray(targetProduct.images) ? [...targetProduct.images] : (targetProduct.image ? [targetProduct.image] : []),
       specs: Array.isArray(targetProduct.specs) ? [...targetProduct.specs] : [],
       attachments: Array.isArray(targetProduct.attachments) ? [...targetProduct.attachments] : [],
       videoUrl: targetProduct.videoUrl || targetProduct.youtubeVideoUrl || '',
       customTabs: Array.isArray(targetProduct.customTabs) ? [...targetProduct.customTabs] : [],
-      compatibleProductIds: Array.isArray(targetProduct.compatibleProductIds) ? [...targetProduct.compatibleProductIds] : []
+      compatibleProductIds: Array.isArray(targetProduct.compatibleProductIds) ? [...targetProduct.compatibleProductIds] : [],
+      recommendedProductIds: Array.isArray(targetProduct.recommendedProductIds) ? [...targetProduct.recommendedProductIds] : []
     };
     setProductForm(targetForm);
+    setTagInput('');
     initialProductFormRef.current = JSON.stringify(targetForm);
 
     const modalForm = document.getElementById('productMainForm');
@@ -918,6 +926,7 @@ export default function AdminPanel({
     setProductModalHistory(prev => prev.slice(0, -1));
     setEditingProduct(prevEntry.editing || null);
     setProductForm(prevEntry.form);
+    setTagInput('');
     initialProductFormRef.current = JSON.stringify(prevEntry.form);
 
     const modalForm = document.getElementById('productMainForm');
@@ -925,6 +934,37 @@ export default function AdminPanel({
       modalForm.scrollTop = 0;
     }
     showNotification(`Retornando para "${prevEntry.form?.name || 'Equipamento Anterior'}".`, 'info');
+  };
+
+  // Product Search Tags State (#hashtags)
+  const [tagInput, setTagInput] = useState('');
+
+  const handleAddTag = (rawTag) => {
+    const clean = (rawTag || '').trim().replace(/^#/, '').toLowerCase();
+    if (!clean) return;
+    const currentTags = Array.isArray(productForm.tags) ? productForm.tags : [];
+    if (!currentTags.includes(clean)) {
+      setProductForm(prev => ({
+        ...prev,
+        tags: [...(Array.isArray(prev.tags) ? prev.tags : []), clean]
+      }));
+    }
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setProductForm(prev => ({
+      ...prev,
+      tags: (Array.isArray(prev.tags) ? prev.tags : []).filter(t => t !== tagToRemove)
+    }));
+  };
+
+  const handleTagKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleAddTag(tagInput);
+    }
   };
 
   // Attachment Form State (Upload vs Direct URL)
@@ -1165,6 +1205,7 @@ export default function AdminPanel({
       aPoints: '',
       productType: 'physical',
       badge: '',
+      tags: [],
       status: 'published',
       isFeatured: false,
       image: '',
@@ -1175,9 +1216,11 @@ export default function AdminPanel({
       attachments: [],
       videoUrl: '',
       customTabs: [],
-      compatibleProductIds: []
+      compatibleProductIds: [],
+      recommendedProductIds: []
     };
     setProductForm(initialForm);
+    setTagInput('');
     initialProductFormRef.current = JSON.stringify(initialForm);
     setNewAttachmentForm({ title: '', url: '', mode: 'url' });
     setIsProductModalOpen(true);
@@ -1191,14 +1234,19 @@ export default function AdminPanel({
       aPoints: product.aPoints != null ? product.aPoints : '',
       isFeatured: !!product.isFeatured,
       productType: product.productType || 'physical',
+      tags: Array.isArray(product.tags)
+        ? [...product.tags]
+        : (typeof product.tags === 'string' ? product.tags.split(/[,;\s]+/).map(t => t.trim().replace(/^#/, '')).filter(Boolean) : []),
       images: Array.isArray(product.images) ? [...product.images] : (product.image ? [product.image] : []),
       specs: Array.isArray(product.specs) ? [...product.specs] : [],
       attachments: Array.isArray(product.attachments) ? [...product.attachments] : [],
       videoUrl: product.videoUrl || product.youtubeVideoUrl || '',
       customTabs: Array.isArray(product.customTabs) ? [...product.customTabs] : [],
-      compatibleProductIds: Array.isArray(product.compatibleProductIds) ? [...product.compatibleProductIds] : []
+      compatibleProductIds: Array.isArray(product.compatibleProductIds) ? [...product.compatibleProductIds] : [],
+      recommendedProductIds: Array.isArray(product.recommendedProductIds) ? [...product.recommendedProductIds] : []
     };
     setProductForm(initialForm);
+    setTagInput('');
     initialProductFormRef.current = JSON.stringify(initialForm);
     setNewAttachmentForm({ title: '', url: '', mode: 'url' });
     setIsProductModalOpen(true);
@@ -1232,7 +1280,19 @@ export default function AdminPanel({
     { canonical: 'Diferenciais', keywords: ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'] },
     { canonical: 'Aplicações', keywords: ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação de uso', 'indicacao de uso', 'onde usar', 'utilização', 'utilizacao', 'aplicabilidade'] },
     { canonical: 'Funções & Recursos', keywords: ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'] },
-    { canonical: 'Itens Inclusos', keywords: ['itens inclusos', 'item incluso', 'acessórios inclusos', 'acessorios inclusos', 'o que acompanha', 'conteúdo da embalagem', 'conteudo da embalagem', 'composição', 'composicao', 'acompanha', 'inclusos'] },
+    {
+      canonical: 'Itens Inclusos',
+      keywords: [
+        'itens inclusos', 'item incluso', 'itens incluso', 'itens inclusos no fornecimento',
+        'acessórios inclusos', 'acessorios inclusos', 'acessório incluso', 'acessorio incluso',
+        'itens', 'item', 'acessórios', 'acessorios', 'acessorio', 'acessório',
+        'o que acompanha', 'o que vem na caixa', 'o que vem no estojo', 'o que está incluso',
+        'conteúdo da embalagem', 'conteudo da embalagem', 'conteúdo', 'conteudo',
+        'composição', 'composicao', 'acompanha', 'inclusos', 'itens que acompanham',
+        'itens fornecidos', 'acessórios fornecidos', 'acessorios fornecidos',
+        'fornecimento padrão', 'fornecimento padrao', 'estojo com', 'embalagem'
+      ]
+    },
     { canonical: 'Requisitos de Instalação', keywords: ['requisitos de instalação', 'requisitos de instalacao', 'requisitos', 'instalação', 'instalacao', 'infraestrutura', 'exigências', 'exigencias', 'espaço necessário', 'especificações de instalação', 'preparação'] },
     { canonical: 'Garantia & Suporte', keywords: ['garantia e suporte', 'garantia & suporte', 'garantia', 'suporte e garantia', 'assistência técnica', 'assistencia tecnica', 'certificação', 'certificacao', 'homologação', 'homologacao'] },
     { canonical: 'Importante', keywords: ['importante', 'observações', 'observacoes', 'observação', 'observacao', 'atenção', 'atencao', 'aviso', 'avisos', 'requisitos e avisos', 'nota', 'notas', 'informações importantes', 'informacoes importantes'] }
@@ -1259,14 +1319,17 @@ export default function AdminPanel({
     const cleanNoColon = clean.replace(/[:\-–—]+$/, '').trim();
     if (!cleanNoColon || cleanNoColon.length < 2) return null;
 
-    const lower = cleanNoColon.toLowerCase();
-    if (['descrição', 'descricao', 'foto', 'fotos', 'preço', 'preco'].includes(lower)) {
+    const norm = normalizeSearchText(cleanNoColon);
+    if (['descricao', 'foto', 'fotos', 'preco'].includes(norm)) {
       return null;
     }
 
-    // Match known category keywords
+    // Match known category keywords (accent & diacritic agnostic)
     for (const cat of KNOWN_SECTION_CATEGORIES) {
-      if (cat.keywords.some(k => lower === k || lower.startsWith(k) || (k.length > 4 && lower.includes(k)))) {
+      if (cat.keywords.some(k => {
+        const normK = normalizeSearchText(k);
+        return norm === normK || norm.startsWith(normK) || (normK.length >= 4 && norm.includes(normK));
+      })) {
         return {
           title: cat.canonical,
           isSpecs: !!cat.isSpecs,
@@ -1290,6 +1353,57 @@ export default function AdminPanel({
     }
 
     return null;
+  };
+
+  // Smart Tag Extractor from Description Text:
+  // Detects blocks like "Tags: tag1, tag2, tag3" or "Hashtags: #tag1, #tag2"
+  // Extracts the tags, adds them to productForm.tags, and strips the "Tags:" line from description.
+  const extractTagsFromDescriptionText = (rawDescription = '', existingTags = []) => {
+    if (!rawDescription || typeof rawDescription !== 'string') {
+      return { cleanedDescription: rawDescription, extractedTags: existingTags, hasExtracted: false };
+    }
+
+    const tagRegex = /(?:^|\n)\s*(?:tags?|hashtags?|palavras[- ]chaves?)\s*:\s*([^\n]+)/i;
+    const match = rawDescription.match(tagRegex);
+
+    if (!match) {
+      return { cleanedDescription: rawDescription, extractedTags: existingTags, hasExtracted: false };
+    }
+
+    const rawTagsLine = match[1] || '';
+    const newTags = rawTagsLine
+      .split(/[,;\s]+/)
+      .map(t => t.trim().replace(/^#/, '').toLowerCase())
+      .filter(t => t && t.length >= 2);
+
+    if (newTags.length === 0) {
+      return { cleanedDescription: rawDescription, extractedTags: existingTags, hasExtracted: false };
+    }
+
+    // Remove the entire matched line from description and clean up excess blank lines
+    const cleanedDescription = rawDescription.replace(match[0], '').replace(/\n{3,}/g, '\n\n').trim();
+
+    const currentTagsArr = Array.isArray(existingTags) ? existingTags : [];
+    const mergedTags = Array.from(new Set([...currentTagsArr, ...newTags]));
+
+    return {
+      cleanedDescription,
+      extractedTags: mergedTags,
+      newTagsCount: mergedTags.length - currentTagsArr.length,
+      hasExtracted: true
+    };
+  };
+
+  const handleProcessDescriptionTags = () => {
+    const res = extractTagsFromDescriptionText(productForm.description, productForm.tags);
+    if (res.hasExtracted) {
+      setProductForm(prev => ({
+        ...prev,
+        description: res.cleanedDescription,
+        tags: res.extractedTags
+      }));
+      showNotification(`${res.newTagsCount > 0 ? `${res.newTagsCount} tag(s)` : 'Tags'} identificadas e adicionadas automaticamente!`, 'success');
+    }
   };
 
   // Linear line-by-line parser for structured descriptions
@@ -1331,7 +1445,10 @@ export default function AdminPanel({
 
     const formattedSections = sections.map(sec => {
       const cleanLines = sec.lines.map(l => l.trim()).filter(Boolean);
-      const formattedLines = cleanLines.map(l => l.startsWith('-') || l.startsWith('•') || l.startsWith('*') ? l : `- ${l}`);
+      const formattedLines = cleanLines.map(l => {
+        const stripped = l.replace(/^[•\-\*\+–—]+\s*/, '').trim();
+        return stripped ? `• ${stripped}` : '';
+      }).filter(Boolean);
       return {
         title: sec.title,
         isSpecsSection: sec.isSpecsSection,
@@ -1474,7 +1591,7 @@ export default function AdminPanel({
         newSpecs = cleaned;
         specsAddedCount = cleaned.length;
       } else {
-        let contentToUse = item.content;
+        let contentToUse = (item.content || '').replace(/^(\s*)[-*]\s+/gm, '$1• ');
         if (item.isCompatibility || item.title === 'Acessórios & Itens Compatíveis') {
           const linkResult = autoLinkCompatibleProductsInContent(contentToUse, products);
           contentToUse = linkResult.text;
@@ -1495,7 +1612,7 @@ export default function AdminPanel({
 
     let updatedDesc = parsed.intro;
     for (const s of remainingSections) {
-      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => (l.startsWith('•') || l.startsWith('-') ? l : `• ${l}`)).join('\n');
+      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => l.replace(/^(\s*)[-*]\s+/, '$1• ').replace(/^([^•\s])/, '• $1')).join('\n');
     }
 
     setProductForm(prev => ({
@@ -2726,12 +2843,23 @@ export default function AdminPanel({
     const finalSlug = productForm.slug.trim() || generateSlug(productForm.name);
     const cleanedSpecs = productForm.specs.filter(s => s.trim() !== '');
 
+    // Extract any remaining tags from description before saving
+    const tagRes = extractTagsFromDescriptionText(productForm.description, productForm.tags);
+    const finalDescription = tagRes.hasExtracted ? tagRes.cleanedDescription : (productForm.description || '');
+    const mergedTags = tagRes.hasExtracted ? tagRes.extractedTags : (productForm.tags || []);
+
     const finalProduct = {
       ...productForm,
+      description: finalDescription,
       slug: finalSlug,
       price: parseFloat(productForm.price) || 0,
       aPoints: productForm.aPoints !== '' && !isNaN(productForm.aPoints) ? parseInt(productForm.aPoints, 10) : null,
       badge: (productForm.badge || '').trim(),
+      tags: Array.isArray(mergedTags)
+        ? mergedTags.map(t => String(t).trim().replace(/^#/, '').toLowerCase()).filter(Boolean)
+        : [],
+      compatibleProductIds: Array.isArray(productForm.compatibleProductIds) ? productForm.compatibleProductIds : [],
+      recommendedProductIds: Array.isArray(productForm.recommendedProductIds) ? productForm.recommendedProductIds : [],
       specs: cleanedSpecs,
       attachments: productForm.attachments || [],
       videoUrl: (productForm.videoUrl || '').trim(),
@@ -2774,6 +2902,14 @@ export default function AdminPanel({
       if (tagName === 'textarea') return;
       // Buttons support click
       if (tagName === 'button') return;
+
+      // Tag adding input -> add tag
+      if (target?.dataset?.role === 'tag-input') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleAddTag(tagInput);
+        return;
+      }
 
       // PDF adding input -> add PDF
       if (target?.dataset?.role === 'pdf-input') {
@@ -3462,17 +3598,43 @@ export default function AdminPanel({
         {activeAdminTab === 'products' && (() => {
           const filteredAdminProducts = products.filter((prod) => {
             const rawAdminSearch = (adminProductSearch || '').trim();
-            const cleanSearch = cleanAlphanumeric(rawAdminSearch);
-            const normSearch = normalizeSearchText(rawAdminSearch);
-            const matchSearch = !rawAdminSearch || 
-              normalizeSearchText(prod.name).includes(normSearch) ||
-              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.name).includes(cleanSearch)) ||
-              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.sku || '').includes(cleanSearch)) ||
-              (prod.slug && normalizeSearchText(prod.slug).includes(normSearch));
             const matchBrand = !adminBrandFilter || prod.brandId === adminBrandFilter;
             const matchCategory = !adminCategoryFilter || prod.categoryId === adminCategoryFilter;
             const matchStatus = !adminStatusFilter || 
               (adminStatusFilter === 'featured' ? prod.isFeatured : prod.status === adminStatusFilter);
+
+            if (!rawAdminSearch) {
+              return matchBrand && matchCategory && matchStatus;
+            }
+
+            const cleanSearch = cleanAlphanumeric(rawAdminSearch);
+            const normSearch = normalizeSearchText(rawAdminSearch);
+
+            const customTabsText = Array.isArray(prod.customTabs) 
+              ? prod.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ') 
+              : '';
+            const specsText = Array.isArray(prod.specs) ? prod.specs.join(' ') : '';
+            const tagsText = Array.isArray(prod.tags) ? prod.tags.join(' ') : (typeof prod.tags === 'string' ? prod.tags : '');
+            const brandText = brands.find(b => b.id === prod.brandId)?.name || '';
+            const catText = categories.find(c => c.id === prod.categoryId)?.name || '';
+
+            const matchSearch =
+              normalizeSearchText(prod.name).includes(normSearch) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.name).includes(cleanSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.sku || '').includes(cleanSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.omieCode || '').includes(cleanSearch)) ||
+              (prod.slug && normalizeSearchText(prod.slug).includes(normSearch)) ||
+              (tagsText && normalizeSearchText(tagsText).includes(normSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(tagsText).includes(cleanSearch)) ||
+              (specsText && normalizeSearchText(specsText).includes(normSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(specsText).includes(cleanSearch)) ||
+              (customTabsText && normalizeSearchText(customTabsText).includes(normSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(customTabsText).includes(cleanSearch)) ||
+              (prod.description && normalizeSearchText(prod.description).includes(normSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.description).includes(cleanSearch)) ||
+              (brandText && normalizeSearchText(brandText).includes(normSearch)) ||
+              (catText && normalizeSearchText(catText).includes(normSearch));
+
             return matchSearch && matchBrand && matchCategory && matchStatus;
           });
 
@@ -3681,7 +3843,13 @@ export default function AdminPanel({
                                     title="Clique para expandir a foto"
                                   />
                                   <div>
-                                    <span className="font-bold text-slate-900 text-xs block leading-snug">
+                                    <span 
+                                      onClick={() => canEditContent && openEditProductModal(prod)}
+                                      className={`font-bold text-slate-900 text-xs block leading-snug transition-colors ${
+                                        canEditContent ? 'cursor-pointer hover:text-amber-600' : ''
+                                      }`}
+                                      title={canEditContent ? "Clique para editar este equipamento" : undefined}
+                                    >
                                       {prod.name}
                                     </span>
                                     <span className="text-[11px] font-mono text-slate-400 block truncate max-w-xs">
@@ -5048,7 +5216,13 @@ export default function AdminPanel({
                         .slice(0, 15)
                         .map((prod) => (
                           <tr key={prod.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="py-2.5 px-3 font-bold text-slate-900 max-w-xs truncate">
+                            <td 
+                              onClick={() => canEditContent && openEditProductModal(prod)}
+                              className={`py-2.5 px-3 font-bold text-slate-900 max-w-xs truncate transition-colors ${
+                                canEditContent ? 'cursor-pointer hover:text-amber-600' : ''
+                              }`}
+                              title={canEditContent ? "Clique para editar este equipamento" : undefined}
+                            >
                               {prod.name}
                             </td>
                             <td className="py-2.5 px-3 font-medium text-slate-500">
@@ -6051,7 +6225,19 @@ export default function AdminPanel({
                         </label>
                         <RichTextEditor
                           value={productForm.description}
-                          onChange={(val) => setProductForm({ ...productForm, description: val })}
+                          onChange={(val) => {
+                            const tagRes = extractTagsFromDescriptionText(val, productForm.tags);
+                            if (tagRes.hasExtracted) {
+                              setProductForm(prev => ({
+                                ...prev,
+                                description: tagRes.cleanedDescription,
+                                tags: tagRes.extractedTags
+                              }));
+                              showNotification(`${tagRes.newTagsCount > 0 ? `${tagRes.newTagsCount} tag(s)` : 'Tags'} identificadas e adicionadas automaticamente!`, 'success');
+                            } else {
+                              setProductForm(prev => ({ ...prev, description: val }));
+                            }
+                          }}
                           onOptimize={handleOptimizeDescriptionAndSpecs}
                           products={products}
                           onAddCompatibleProduct={(compatId) => {
@@ -6060,7 +6246,7 @@ export default function AdminPanel({
                               compatibleProductIds: Array.from(new Set([...(prev.compatibleProductIds || []), compatId]))
                             }));
                           }}
-                          placeholder="Descreva o produto, recursos, diferenciais e materiais..."
+                          placeholder="Descreva o produto, recursos, diferenciais e materiais... (Você também pode incluir 'Tags: termo1, termo2' para extrair automaticamente)"
                         />
                       </div>
 
@@ -6929,6 +7115,80 @@ export default function AdminPanel({
                         </div>
                       </div>
 
+                      {/* TAGS / PALAVRAS-CHAVE DE BUSCA (#HASHTAGS) */}
+                      <div className="space-y-2 p-3.5 bg-slate-50/80 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <Hash className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Tags / Palavras-chave de Busca (#hashtags)</span>
+                          </label>
+                          <span className="text-[10.5px] font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                            {productForm.tags?.length || 0} tag(s)
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">#</span>
+                            <input
+                              type="text"
+                              data-role="tag-input"
+                              placeholder="Ex: detail, polimento, estetica (pressione Enter ou vírgula)"
+                              value={tagInput}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val.endsWith(',')) {
+                                  handleAddTag(val.slice(0, -1));
+                                } else {
+                                  setTagInput(val);
+                                }
+                              }}
+                              onKeyDown={handleTagKeyDown}
+                              className="form-input text-xs pl-6"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleAddTag(tagInput)}
+                            disabled={!tagInput.trim()}
+                            className="px-3 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Adicionar</span>
+                          </button>
+                        </div>
+
+                        {/* Tag Chips */}
+                        {Array.isArray(productForm.tags) && productForm.tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {productForm.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100/80 text-amber-900 border border-amber-300/80 shadow-2xs group"
+                              >
+                                <span>#{tag}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTag(tag)}
+                                  className="text-amber-700 hover:text-red-600 transition-colors cursor-pointer rounded-full p-0.5"
+                                  title={`Remover tag #${tag}`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-slate-400 italic">
+                            Nenhuma tag cadastrada. Cadastre termos como <strong>#detail</strong>, <strong>#estetica</strong> ou sinônimos para o produto ser encontrado na busca mesmo se a palavra não estiver no título ou descrição.
+                          </p>
+                        )}
+
+                        <span className="text-[10.5px] text-slate-500 block leading-relaxed pt-0.5">
+                          💡 <strong>Tags vs Selo Promocional:</strong> O <em>Selo Promocional</em> é visual e fica visível na vitrine (ex: "Lançamento", "Oferta"). As <em>Tags</em> são como hashtags de pesquisa internas, indexadas com alta prioridade no motor de busca do catálogo.
+                        </span>
+                      </div>
+
                       <div className="pt-2 border-t border-slate-100 space-y-3">
                         <div>
                           <label className="text-xs font-bold text-slate-700 block mb-1">
@@ -6963,20 +7223,44 @@ export default function AdminPanel({
                         </div>
 
                         <div>
-                          <label className="text-xs font-bold text-slate-700 block mb-1">
-                            Pontos A-Points (Opcional)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            placeholder="Ex: 50, 100, 200 (pontuação concedida)"
-                            value={productForm.aPoints ?? ''}
-                            onChange={(e) => setProductForm({ ...productForm, aPoints: e.target.value })}
-                            className="form-input text-xs font-mono"
-                          />
-                          <span className="text-[11px] text-slate-500 block mt-0.5">
-                            Pontuação creditada ao cliente ao adquirir este equipamento.
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Pontos A-Points (Opcional)</span>
+                            </label>
+                            {productForm.aPoints !== '' && productForm.aPoints != null ? (
+                              <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                                Pontuação Fixada: {productForm.aPoints} pts
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                Automático: +{Math.max(0, Math.floor((parseFloat(productForm.price) || 0) / 50))} pts (R$ 50 = 1 pt)
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder={`Vazio = cálculo automático (+${Math.max(0, Math.floor((parseFloat(productForm.price) || 0) / 50))} pts)`}
+                              value={productForm.aPoints ?? ''}
+                              onChange={(e) => setProductForm({ ...productForm, aPoints: e.target.value })}
+                              className="form-input text-xs font-mono flex-1"
+                            />
+                            {productForm.aPoints !== '' && productForm.aPoints != null && (
+                              <button
+                                type="button"
+                                onClick={() => setProductForm({ ...productForm, aPoints: '' })}
+                                className="px-2.5 py-2 text-xs font-bold text-slate-600 hover:text-amber-700 hover:bg-amber-50 border border-slate-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                                title="Voltar ao cálculo automático"
+                              >
+                                Usar Automático
+                              </button>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-500 block mt-1 leading-snug">
+                            💡 <strong>Cálculo Automático Ativo:</strong> Se você deixar este campo vazio, a Athena calcula a pontuação automaticamente com base no valor do produto (<strong>1 ponto a cada R$ 50,00</strong> = +{Math.max(0, Math.floor((parseFloat(productForm.price) || 0) / 50))} pts). Preencha apenas se desejar fixar manualmente uma bonificação especial para este equipamento.
                           </span>
                         </div>
 
@@ -7467,135 +7751,204 @@ export default function AdminPanel({
                     </div>
 
                     {/* CARD 9: ACESSÓRIOS & ITENS COMPATÍVEIS */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs flex items-center justify-center">
-                            9
-                          </span>
-                          <div>
-                            <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">
-                              Acessórios & Itens Compatíveis (Marcações Cruzadas)
-                            </h4>
-                            <p className="text-[11px] text-slate-500">
-                              Vincule máquinas e acessórios compatíveis. Os clientes verão esses equipamentos com prévia rápida e links cruzados.
+                    {(() => {
+                      const allLinkedIds = Array.from(new Set([
+                        ...(productForm.compatibleProductIds || []),
+                        ...(productForm.recommendedProductIds || [])
+                      ]));
+                      const compatCount = (productForm.compatibleProductIds || []).length;
+                      const recCount = (productForm.recommendedProductIds || []).length;
+
+                      return (
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs flex items-center justify-center">
+                                9
+                              </span>
+                              <div>
+                                <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">
+                                  Acessórios Compatíveis & Vitrine Recomendada
+                                </h4>
+                                <p className="text-[11px] text-slate-500">
+                                  Vincule equipamentos compatíveis e defina se aparecem na aba técnica ou fixados nos 5 recomendados da vitrine.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                {compatCount} na Aba
+                              </span>
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200">
+                                {recCount} nos 5 Recomendados
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Explainer Banner */}
+                          <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-[11px] text-amber-950 space-y-1">
+                            <div className="font-extrabold flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <span>Como funciona o Toggle de Vínculo:</span>
+                            </div>
+                            <p className="leading-relaxed">
+                              • <strong>Ativo (Verde - Compatível):</strong> O equipamento aparece na aba <em>"Acessórios & Itens Compatíveis"</em> na página do produto.
+                              <br />
+                              • <strong>Desligado (Âmbar - Recomendado Obrigatório):</strong> O equipamento é forçado a aparecer no carrossel de <strong>5 recomendados</strong> da página (<em>"Você também pode se interessar"</em>). Se você fixar 1 item, a vitrine exibirá esse item + 4 automáticos; se fixar 5 itens, serão exatamente os 5 escolhidos por você!
                             </p>
                           </div>
-                        </div>
 
-                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                          {(productForm.compatibleProductIds || []).length} selecionado(s)
-                        </span>
-                      </div>
-
-                      {/* Search & Add Compatible Products Combobox */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                          Adicionar Equipamento Compatível do Catálogo
-                        </label>
-                        
-                        <SearchableSelect
-                          options={products
-                            .filter(p => p.status !== 'draft' && p.id !== (productForm.id || editingProduct?.id) && !(productForm.compatibleProductIds || []).includes(p.id))
-                            .map(p => {
-                              const bName = brands.find(b => b.id === p.brandId)?.name || 'Athena';
-                              const cName = categories.find(c => c.id === p.categoryId)?.name || '';
-                              return {
-                                id: p.id,
-                                name: p.name,
-                                brand: bName,
-                                category: cName,
-                                sku: p.sku || '',
-                                slug: p.slug || '',
-                                image: p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=100'
-                              };
-                            })}
-                          value=""
-                          onChange={(val) => {
-                            if (val) {
-                              setProductForm(prev => ({
-                                ...prev,
-                                compatibleProductIds: Array.from(new Set([...(prev.compatibleProductIds || []), val]))
-                              }));
-                              const addedProd = products.find(p => p.id === val);
-                              showNotification(`Equipamento "${addedProd?.name || 'Item'}" vinculado como compatível!`, 'success');
-                            }
-                          }}
-                          placeholder="Digite para buscar e selecionar um equipamento..."
-                        />
-                      </div>
-
-                      {/* List of currently selected compatible products */}
-                      {productForm.compatibleProductIds && productForm.compatibleProductIds.length > 0 ? (
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                            Equipamentos Vinculados ({productForm.compatibleProductIds.length})
-                          </label>
-                          <div className="grid grid-cols-1 gap-2">
-                            {productForm.compatibleProductIds.map(compatId => {
-                              const compatProd = products.find(p => p.id === compatId);
-                              if (!compatProd) return null;
-                              const compatBrand = brands.find(b => b.id === compatProd.brandId);
-
-                              return (
-                                <div
-                                  key={compatId}
-                                  className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 p-0.5 overflow-hidden shrink-0 flex items-center justify-center">
-                                      <img
-                                        src={compatProd.image || (compatProd.images && compatProd.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=100'}
-                                        alt={compatProd.name}
-                                        className="w-full h-full object-contain"
-                                      />
-                                    </div>
-                                    <div className="min-w-0">
-                                      <span className="font-bold text-slate-900 block truncate">
-                                        {compatProd.name}
-                                      </span>
-                                      <span className="text-[10px] text-slate-500 font-medium block">
-                                        {compatBrand?.name || 'Athena'} • /produto/{compatProd.slug || compatProd.id}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={() => navigateToProductInModal(compatProd)}
-                                      className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-amber-900 font-bold text-[11px] flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
-                                      title="Editar este produto agora no modal"
-                                    >
-                                      <Edit3 className="w-3 h-3 text-amber-600" />
-                                      <span>Editar</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setProductForm(prev => ({
-                                          ...prev,
-                                          compatibleProductIds: (prev.compatibleProductIds || []).filter(id => id !== compatId)
-                                        }));
-                                        showNotification('Vínculo de compatibilidade removido.', 'info');
-                                      }}
-                                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                                      title="Remover compatibilidade"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                          {/* Search & Add Products Combobox */}
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                              Adicionar Equipamento ao Ecossistema
+                            </label>
+                            
+                            <SearchableSelect
+                              options={products
+                                .filter(p => p.status !== 'draft' && p.id !== (productForm.id || editingProduct?.id) && !allLinkedIds.includes(p.id))
+                                .map(p => {
+                                  const bName = brands.find(b => b.id === p.brandId)?.name || 'Athena';
+                                  const cName = categories.find(c => c.id === p.categoryId)?.name || '';
+                                  return {
+                                    id: p.id,
+                                    name: p.name,
+                                    brand: bName,
+                                    category: cName,
+                                    sku: p.sku || '',
+                                    slug: p.slug || '',
+                                    image: p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=100'
+                                  };
+                                })}
+                              value=""
+                              onChange={(val) => {
+                                if (val) {
+                                  setProductForm(prev => ({
+                                    ...prev,
+                                    compatibleProductIds: Array.from(new Set([...(prev.compatibleProductIds || []), val]))
+                                  }));
+                                  const addedProd = products.find(p => p.id === val);
+                                  showNotification(`Equipamento "${addedProd?.name || 'Item'}" vinculado como compatível!`, 'success');
+                                }
+                              }}
+                              placeholder="Digite para buscar e selecionar um equipamento..."
+                            />
                           </div>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-center">
-                          Nenhum equipamento vinculado manualmente. Você pode vincular máquinas ou adicionar links pelo editor de texto.
-                        </p>
-                      )}
+
+                          {/* List of currently selected products with Toggle */}
+                          {allLinkedIds.length > 0 ? (
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                                Equipamentos Vinculados ({allLinkedIds.length})
+                              </label>
+                              <div className="grid grid-cols-1 gap-2">
+                                {allLinkedIds.map(linkedId => {
+                                  const linkedProd = products.find(p => p.id === linkedId);
+                                  if (!linkedProd) return null;
+                                  const linkedBrand = brands.find(b => b.id === linkedProd.brandId);
+                                  const isCompat = (productForm.compatibleProductIds || []).includes(linkedId);
+
+                                  return (
+                                    <div
+                                      key={linkedId}
+                                      className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs flex-wrap sm:flex-nowrap"
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                        <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 p-0.5 overflow-hidden shrink-0 flex items-center justify-center">
+                                          <img
+                                            src={linkedProd.image || (linkedProd.images && linkedProd.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=100'}
+                                            alt={linkedProd.name}
+                                            className="w-full h-full object-contain"
+                                          />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <span className="font-bold text-slate-900 block truncate">
+                                            {linkedProd.name}
+                                          </span>
+                                          <span className="text-[10px] text-slate-500 font-medium block">
+                                            {linkedBrand?.name || 'Athena'} • /produto/{linkedProd.slug || linkedProd.id}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        {/* Toggle switch between Compatible (tab) and Recommended (showcase 5) */}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (isCompat) {
+                                              setProductForm(prev => ({
+                                                ...prev,
+                                                compatibleProductIds: (prev.compatibleProductIds || []).filter(id => id !== linkedId),
+                                                recommendedProductIds: Array.from(new Set([...(prev.recommendedProductIds || []), linkedId]))
+                                              }));
+                                              showNotification(`"${linkedProd.name}" agora é Recomendado Obrigatório (aparecerá entre os 5 da vitrine)!`, 'info');
+                                            } else {
+                                              setProductForm(prev => ({
+                                                ...prev,
+                                                recommendedProductIds: (prev.recommendedProductIds || []).filter(id => id !== linkedId),
+                                                compatibleProductIds: Array.from(new Set([...(prev.compatibleProductIds || []), linkedId]))
+                                              }));
+                                              showNotification(`"${linkedProd.name}" agora é Compatível (aba técnica)!`, 'info');
+                                            }
+                                          }}
+                                          className={`px-2.5 py-1 rounded-full text-[10.5px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                                            isCompat
+                                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 shadow-2xs'
+                                              : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-2xs'
+                                          }`}
+                                          title={isCompat ? 'Clique para fixar nos 5 Recomendados da vitrine' : 'Clique para exibir na Aba de Compatíveis'}
+                                        >
+                                          {isCompat ? (
+                                            <>
+                                              <ToggleRight className="w-4 h-4 text-emerald-600 shrink-0" />
+                                              <span>Compatível (Aba)</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <ToggleLeft className="w-4 h-4 text-amber-600 shrink-0" />
+                                              <span>Recomendado (Vitrine 5)</span>
+                                            </>
+                                          )}
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => navigateToProductInModal(linkedProd)}
+                                          className="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-amber-900 font-bold text-[11px] flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                                          title="Editar este produto agora no modal"
+                                        >
+                                          <Edit3 className="w-3 h-3 text-amber-600" />
+                                          <span className="hidden sm:inline">Editar</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setProductForm(prev => ({
+                                              ...prev,
+                                              compatibleProductIds: (prev.compatibleProductIds || []).filter(id => id !== linkedId),
+                                              recommendedProductIds: (prev.recommendedProductIds || []).filter(id => id !== linkedId)
+                                            }));
+                                            showNotification('Vínculo removido com sucesso.', 'info');
+                                          }}
+                                          className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                          title="Remover vínculo"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-center">
+                              Nenhum equipamento vinculado manualmente. Você pode vincular máquinas ou adicionar links pelo editor de texto.
+                            </p>
+                          )}
 
                       {/* Inbound Cross-References: Products that mark THIS product as compatible */}
                       {(() => {
@@ -7652,6 +8005,8 @@ export default function AdminPanel({
                         );
                       })()}
                     </div>
+                  );
+                })()}
 
                   </div>
 

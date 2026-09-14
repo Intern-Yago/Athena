@@ -222,7 +222,10 @@ export const getProductSearchProfile = (prod, categories, brands) => {
   const customTabsContent = Array.isArray(prod.customTabs)
     ? prod.customTabs.map((t) => `${t.title || ''} ${t.content || ''}`).join(' ')
     : '';
-  const specsContent = Array.isArray(prod.specs) ? prod.specs.join(' ') : '';
+  const tagsList = Array.isArray(prod.tags)
+    ? prod.tags
+    : (typeof prod.tags === 'string' ? prod.tags.split(/[,;\s]+/).map(t => t.trim().replace(/^#/, '')).filter(Boolean) : []);
+  const tagsContent = tagsList.join(' ');
 
   const nameWords = extractWords(prod.name);
   const skuWords = extractWords(prod.sku || '');
@@ -230,11 +233,15 @@ export const getProductSearchProfile = (prod, categories, brands) => {
   const catWords = extractWords(catName);
   const specWords = extractWords(specsContent);
   const descWords = extractWords(`${prod.description || ''} ${customTabsContent}`);
+  const tagWords = extractWords(tagsContent);
 
   const compounds = new Set([
     ...extractCompoundCodes(prod.name),
     ...extractCompoundCodes(prod.sku || ''),
-    ...extractCompoundCodes(specsContent)
+    ...extractCompoundCodes(prod.omieCode || ''),
+    ...extractCompoundCodes(specsContent),
+    ...extractCompoundCodes(customTabsContent),
+    ...extractCompoundCodes(prod.description || '')
   ]);
 
   const fullText = [
@@ -242,6 +249,7 @@ export const getProductSearchProfile = (prod, categories, brands) => {
     prod.slug,
     prod.badge,
     prod.sku,
+    tagsContent,
     brandName,
     catName,
     specsContent,
@@ -252,9 +260,17 @@ export const getProductSearchProfile = (prod, categories, brands) => {
     .join(' ');
 
   const specsNorm = normalizeSearchText(specsContent);
+  const specsClean = cleanAlphanumeric(specsContent);
+  const customTabsNorm = normalizeSearchText(customTabsContent);
+  const customTabsClean = cleanAlphanumeric(customTabsContent);
   const descNorm = normalizeSearchText(`${prod.description || ''} ${customTabsContent}`);
+  const descClean = cleanAlphanumeric(prod.description || '');
   const brandNorm = normalizeSearchText(brandName);
   const catNorm = normalizeSearchText(catName);
+
+  const tagWordsSet = new Set(tagWords);
+  const tagsCleanSet = new Set(tagsList.map((t) => cleanAlphanumeric(t)));
+  const tagsNorm = normalizeSearchText(tagsContent);
 
   const compoundsList = Array.from(compounds);
   const nameWordsSet = new Set(nameWords);
@@ -268,6 +284,7 @@ export const getProductSearchProfile = (prod, categories, brands) => {
   const allWordsSet = new Set([
     ...nameWords,
     ...skuWords,
+    ...tagWords,
     ...brandWords,
     ...catWords,
     ...specWords,
@@ -283,6 +300,10 @@ export const getProductSearchProfile = (prod, categories, brands) => {
     nameWordsSet,
     skuWords,
     skuWordsSet,
+    tagWords,
+    tagWordsSet,
+    tagsCleanSet,
+    tagsNorm,
     compounds: compoundsList,
     compoundsSet,
     compoundsCleanSet,
@@ -296,7 +317,11 @@ export const getProductSearchProfile = (prod, categories, brands) => {
     descWordsSet,
     allWordsSet,
     specsNorm,
+    specsClean,
+    customTabsNorm,
+    customTabsClean,
     descNorm,
+    descClean,
     brandNorm,
     catNorm,
     fullNorm: normalizeSearchText(fullText),
@@ -455,27 +480,35 @@ export const evaluateDirectProductMatch = (profile, rawTerm) => {
           });
         }
       }
+      // Check specs clean (e.g. searching code 0603141010 in specs)
+      if (profile.specsClean && profile.specsClean.includes(cleanTerm)) {
+        return cacheAndReturn({
+          matches: true,
+          score: 85,
+          matchType: 'clean_specs'
+        });
+      }
+      // Check custom tabs clean (e.g. searching code 0603141010 in customTabs tables)
+      if (profile.customTabsClean && profile.customTabsClean.includes(cleanTerm)) {
+        return cacheAndReturn({
+          matches: true,
+          score: 82,
+          matchType: 'clean_custom_tabs'
+        });
+      }
       // Check brand/category clean
       if (cleanAlphanumeric(profile.brandNorm).includes(cleanTerm) || cleanAlphanumeric(profile.catNorm).includes(cleanTerm)) {
         return cacheAndReturn({
           matches: true,
-          score: 80,
+          score: 75,
           matchType: 'clean_brand'
-        });
-      }
-      // Check specs clean
-      if (cleanAlphanumeric(profile.specsNorm).includes(cleanTerm)) {
-        return cacheAndReturn({
-          matches: true,
-          score: 60,
-          matchType: 'clean_specs'
         });
       }
       // Fallback: description clean
       if (profile.fullClean.includes(cleanTerm)) {
         return cacheAndReturn({
           matches: true,
-          score: 40,
+          score: 50,
           matchType: 'clean_desc'
         });
       }
@@ -496,9 +529,9 @@ export const evaluateDirectProductMatch = (profile, rawTerm) => {
     let bestTokenScore = 0;
 
     // FAST PATH: Check if token exists exactly in any precomputed Set (instant O(1))
-    if (profile.nameWordsSet?.has(qToken) || profile.skuWordsSet?.has(qToken)) {
+    if (profile.nameWordsSet?.has(qToken) || profile.skuWordsSet?.has(qToken) || profile.tagWordsSet?.has(qToken)) {
       bestTokenScore = 3.0;
-    } else if (profile.compoundsSet?.has(qToken) || (qClean && profile.compoundsCleanSet?.has(qClean))) {
+    } else if (profile.compoundsSet?.has(qToken) || (qClean && profile.compoundsCleanSet?.has(qClean)) || (qClean && profile.tagsCleanSet?.has(qClean))) {
       bestTokenScore = 3.0;
     } else if (profile.brandWordsSet?.has(qToken)) {
       bestTokenScore = 2.5;
@@ -654,3 +687,145 @@ export const matchProductWithRelations = (
 
   return { matches: false, isDirectMatch: false, matchedViaProduct: null, score: 0, matchType: 'none' };
 };
+
+/**
+ * Identifica se a busca do usuário corresponde exatamente a 1 único produto
+ * (ex: nome exato, SKU exato ou termo que aparece no título de exclusivamente 1 produto).
+ * Usado no Enter da busca para levar direto à página do produto quando for inequívoco.
+ */
+export const findUniqueDirectMatch = (products, rawTerm) => {
+  if (!products || products.length === 0 || !rawTerm) return null;
+  const normTerm = normalizeSearchText(rawTerm);
+  const cleanTerm = cleanAlphanumeric(rawTerm);
+  if (!normTerm && !cleanTerm) return null;
+
+  // 1. Correspondência exata no nome completo do produto
+  const exactNameMatches = products.filter(p => {
+    const pNorm = normalizeSearchText(p.name);
+    const pClean = cleanAlphanumeric(p.name);
+    return pNorm === normTerm || (cleanTerm.length >= 3 && pClean === cleanTerm);
+  });
+  if (exactNameMatches.length === 1) return exactNameMatches[0];
+
+  // 2. Correspondência exata no código SKU / Omie completo
+  const exactSkuMatches = products.filter(p => {
+    if (!p.omieCode) return false;
+    const sNorm = normalizeSearchText(p.omieCode);
+    const sClean = cleanAlphanumeric(p.omieCode);
+    return sNorm === normTerm || (cleanTerm.length >= 3 && sClean === cleanTerm);
+  });
+  if (exactSkuMatches.length === 1) return exactSkuMatches[0];
+
+  // 3. Correspondência em modelo/código isolado (ex: "0516" vs "0516K", "MAH-4008" vs "MAH-4008A")
+  // Se o termo digitado aparece como código ou número isolado com limites (hífen, espaço ou fim)
+  if (cleanTerm.length >= 2) {
+    try {
+      const codeBoundaryRegex = new RegExp(`(?:^|[^a-zA-Z0-9])${cleanTerm}(?:[^a-zA-Z0-9]|$)`, 'i');
+      const isolatedMatches = products.filter(p => {
+        const name = p.name || '';
+        const omie = p.omieCode || '';
+        return codeBoundaryRegex.test(name) || codeBoundaryRegex.test(omie);
+      });
+      if (isolatedMatches.length === 1) {
+        return isolatedMatches[0];
+      }
+    } catch (e) {}
+  }
+
+  // 4. Busca única: Se exatamente 1 único produto possui o termo no título
+  if (normTerm.length >= 3) {
+    const titleMatches = products.filter(p => {
+      const pNorm = normalizeSearchText(p.name);
+      return pNorm.includes(normTerm);
+    });
+    if (titleMatches.length === 1) return titleMatches[0];
+  }
+
+  return null;
+};
+
+/**
+ * Gera lista de sugestões ranqueadas (dropdown de opções) em tempo real
+ * Priorizando correspondência no título, depois SKU, marca/categoria e descrição.
+ */
+export const getSearchSuggestions = (products, rawTerm, categories = [], brands = [], limit = 6) => {
+  if (!products || products.length === 0 || !rawTerm) return { suggestions: [], totalMatches: 0 };
+  const normTerm = normalizeSearchText(rawTerm);
+  const cleanTerm = cleanAlphanumeric(rawTerm);
+  if (!normTerm) return { suggestions: [], totalMatches: 0 };
+
+  const categoriesMap = new Map((Array.isArray(categories) ? categories : []).map(c => [c.id, c]));
+  const brandsMap = new Map((Array.isArray(brands) ? brands : []).map(b => [b.id, b]));
+  const queryTokens = normTerm.split(/\s+/).filter(Boolean);
+
+  const getProductTier = (p) => {
+    const pNorm = normalizeSearchText(p.name);
+    const pClean = cleanAlphanumeric(p.name);
+
+    // Tier 0: Exato no título
+    if (pNorm === normTerm || (cleanTerm.length >= 3 && pClean === cleanTerm)) return 0;
+    // Tier 1: Título inicia com o termo
+    if (pNorm.startsWith(normTerm)) return 1;
+    // Tier 2: Título contém o termo completo
+    if (pNorm.includes(normTerm)) return 2;
+    // Tier 2.5: Tag / Palavra-chave de busca (#hashtags)
+    const tagsArr = Array.isArray(p.tags) ? p.tags : (typeof p.tags === 'string' ? p.tags.split(/[,;\s]+/) : []);
+    const hasTagMatch = tagsArr.some(t => {
+      const tNorm = normalizeSearchText(t.replace(/^#/, ''));
+      const tClean = cleanAlphanumeric(t);
+      return tNorm === normTerm || tNorm.includes(normTerm) || (cleanTerm.length >= 3 && tClean.includes(cleanTerm));
+    });
+    if (hasTagMatch) return 2.5;
+    // Tier 3: Título contém todos os tokens digitados
+    if (queryTokens.length > 1 && queryTokens.every(tok => pNorm.includes(tok))) return 3;
+    // Tier 4: SKU / Código Omie
+    const skuNorm = normalizeSearchText(p.sku || p.omieCode || '');
+    if (skuNorm.includes(normTerm) || (cleanTerm.length >= 3 && cleanAlphanumeric(skuNorm).includes(cleanTerm))) return 4;
+    // Tier 4.2: Especificações Técnicas (specs)
+    const specsContent = (p.specs || []).join(' ');
+    const specsNorm = normalizeSearchText(specsContent);
+    const specsClean = cleanAlphanumeric(specsContent);
+    if (specsNorm.includes(normTerm) || (cleanTerm.length >= 3 && specsClean.includes(cleanTerm))) return 4.2;
+    // Tier 4.5: Abas personalizadas (customTabs)
+    const tabsContent = Array.isArray(p.customTabs) ? p.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ') : '';
+    const tabsNorm = normalizeSearchText(tabsContent);
+    const tabsClean = cleanAlphanumeric(tabsContent);
+    if (tabsNorm.includes(normTerm) || (cleanTerm.length >= 3 && tabsClean.includes(cleanTerm))) return 4.5;
+    // Tier 5: Marca ou Categoria
+    const bName = normalizeSearchText(brandsMap.get(p.brandId)?.name || '');
+    const cName = normalizeSearchText(categoriesMap.get(p.categoryId)?.name || '');
+    if (bName.includes(normTerm) || cName.includes(normTerm)) return 5;
+    // Tier 6: Descrição geral
+    const fullNorm = normalizeSearchText(p.description || '');
+    const fullClean = cleanAlphanumeric(p.description || '');
+    if (fullNorm.includes(normTerm) || (cleanTerm.length >= 3 && fullClean.includes(cleanTerm)) || (queryTokens.length > 1 && queryTokens.every(tok => fullNorm.includes(tok)))) return 6;
+
+    return 999;
+  };
+
+  const matched = [];
+  for (let i = 0; i < products.length; i++) {
+    const p = products[i];
+    const tier = getProductTier(p);
+    if (tier < 999) {
+      matched.push({
+        product: p,
+        tier,
+        brandName: brandsMap.get(p.brandId)?.name || 'Athena',
+        categoryName: categoriesMap.get(p.categoryId)?.name || 'Geral'
+      });
+    }
+  }
+
+  // Ordena por tier (título primeiro) e depois por tamanho do título
+  matched.sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    return a.product.name.length - b.product.name.length;
+  });
+
+  return {
+    suggestions: matched.slice(0, limit),
+    totalMatches: matched.length
+  };
+};
+

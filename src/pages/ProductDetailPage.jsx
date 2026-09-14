@@ -237,9 +237,10 @@ export default function ProductDetailPage({
     canBuyOnline ? formatBRL(product.price) : 'Sob Consulta'
   );
 
-  const earnedPoints = (product.aPoints && Number(product.aPoints) > 0) 
+  const potentialPoints = (product.aPoints && Number(product.aPoints) > 0) 
     ? Number(product.aPoints) 
-    : (canBuyOnline ? Math.floor(product.price / 50) : 0);
+    : (Number(product.price) > 0 ? Math.floor(Number(product.price) / 50) : 0);
+  const earnedPoints = canBuyOnline ? potentialPoints : 0;
 
   const formattedPrice = canBuyOnline 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
@@ -377,16 +378,25 @@ export default function ProductDetailPage({
     }
   };
 
-  // Smart Related Products Algorithm (Prioritizes same category first, then same brand)
+  // Smart Related / Recommended Products Algorithm:
+  // 1. Manually pinned recommendations (recommendedProductIds) are mandatory and appear first
+  // 2. Remaining slots up to 5 are filled automatically (same category, then same brand)
+  const pinnedRecommended = (Array.isArray(product?.recommendedProductIds) ? product.recommendedProductIds : [])
+    .map(id => products.find(p => p.id === id && p.id !== product?.id && (canAccessDraft || p.status !== 'draft')))
+    .filter(Boolean);
+
+  const pinnedIds = new Set(pinnedRecommended.map(p => p.id));
+
   const sameCategoryProducts = products.filter(
-    (p) => p.id !== product.id && p.categoryId === product.categoryId && p.status !== 'draft'
+    (p) => p.id !== product.id && !pinnedIds.has(p.id) && p.categoryId === product.categoryId && (canAccessDraft || p.status !== 'draft')
   );
 
   const sameBrandProducts = products.filter(
-    (p) => p.id !== product.id && p.brandId === product.brandId && p.categoryId !== product.categoryId && p.status !== 'draft'
+    (p) => p.id !== product.id && !pinnedIds.has(p.id) && p.brandId === product.brandId && p.categoryId !== product.categoryId && (canAccessDraft || p.status !== 'draft')
   );
 
   const relatedProducts = [
+    ...pinnedRecommended,
     ...sameCategoryProducts,
     ...sameBrandProducts
   ].slice(0, 5);
@@ -666,28 +676,51 @@ export default function ProductDetailPage({
                 </div>
 
                 {earnedPoints > 0 && (
-                  <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-xs text-amber-950">
-                    <span className="flex items-center gap-1.5 font-bold text-slate-700">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                      Programa A-Points:
-                    </span>
-                    <span className="font-extrabold bg-white/90 border border-amber-300 text-amber-900 px-2.5 py-0.5 rounded-lg shadow-2xs">
-                      +{earnedPoints} A-Points nesta compra
-                    </span>
+                  <div className="pt-2.5 border-t border-amber-200/60 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-amber-950">
+                      <span className="flex items-center gap-1.5 font-bold text-slate-700">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        Programa Fidelidade A-Points:
+                      </span>
+                      <span className="font-extrabold bg-white/90 border border-amber-300 text-amber-900 px-2.5 py-0.5 rounded-lg shadow-2xs text-xs">
+                        Compre e ganhe até +{earnedPoints} pts*
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 italic leading-snug">
+                      *Comprando este produto você pode ganhar até {earnedPoints} pontos. A pontuação final creditada pode variar conforme o método de pagamento, cupons aplicados ou condições comerciais negociadas.
+                    </p>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-wrap items-baseline gap-2">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Condição Comercial:
-                </span>
-                <span className="text-xl sm:text-2xl font-extrabold text-amber-800 font-display">
-                  Sob Consulta
-                </span>
-                <span className="text-[11px] text-slate-400 font-medium">
-                  (Consulte condições, prazos e faturamento)
-                </span>
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Condição Comercial:
+                  </span>
+                  <span className="text-xl sm:text-2xl font-extrabold text-amber-800 font-display">
+                    Sob Consulta
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    (Consulte condições, prazos e faturamento)
+                  </span>
+                </div>
+                {potentialPoints > 0 && (
+                  <div className="pt-1.5 border-t border-slate-200/60 space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-slate-600">
+                        <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
+                        Programa A-Points:
+                      </span>
+                      <span className="text-[11px] font-extrabold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                        Acumule até +{potentialPoints} pts na cotação*
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 italic leading-snug">
+                      *Na contratação ou faturamento deste equipamento você pode acumular até {potentialPoints} pontos. A pontuação final creditada pode variar conforme as condições comerciais negociadas na cotação.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

@@ -139,6 +139,14 @@ export default function Header({
                 onChange={setSearchTerm}
                 onSubmit={handleSearchSubmit}
                 variant="header"
+                products={products}
+                categories={categories}
+                brands={brands}
+                onNavigate={onNavigate}
+                onSelectProduct={(prod) => {
+                  setActiveMegaMenu(null);
+                  onNavigate(`produto/${prod.slug || prod.id}`);
+                }}
               />
 
               {/* User Account / Login Button */}
@@ -203,6 +211,14 @@ export default function Header({
                 onChange={setSearchTerm}
                 onSubmit={handleSearchSubmit}
                 variant="header-mobile"
+                products={products}
+                categories={categories}
+                brands={brands}
+                onNavigate={onNavigate}
+                onSelectProduct={(prod) => {
+                  setActiveMegaMenu(null);
+                  onNavigate(`produto/${prod.slug || prod.id}`);
+                }}
               />
 
               {/* Mobile Cart Button */}

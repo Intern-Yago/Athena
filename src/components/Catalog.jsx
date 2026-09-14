@@ -4,7 +4,12 @@ import FilterSidebar from './FilterSidebar';
 import Pagination from './Pagination';
 import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, LayoutGrid, List } from 'lucide-react';
 import { sortProducts } from '../utils/productSorting';
-import { buildProductRelationsMap, matchProductWithRelations } from '../utils/productSearch';
+import { 
+  buildProductRelationsMap, 
+  matchProductWithRelations,
+  normalizeSearchText,
+  cleanAlphanumeric 
+} from '../utils/productSearch';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -88,12 +93,51 @@ export default function Catalog({
       }
     }
 
-    // When searching, prioritize direct name/model matches first, then by similarity score
+    // Priorização refinada de busca: Título > SKU/Modelo > Marca/Categoria > Descrição/Specs > Relacionados
     if (rawTerm) {
+      const normQuery = normalizeSearchText(rawTerm);
+      const cleanQuery = cleanAlphanumeric(rawTerm);
+
+      const getTier = (p) => {
+        const normName = normalizeSearchText(p.name || '');
+        const cleanName = cleanAlphanumeric(p.name || '');
+        // Tier 0: correspondência exata no título
+        if (normName === normQuery || (cleanQuery.length >= 3 && cleanName === cleanQuery)) return 0;
+        // Tier 1: título começa com a pesquisa
+        if (normName.startsWith(normQuery)) return 1;
+        // Tier 2: título contém a pesquisa
+        if (normName.includes(normQuery)) return 2;
+        // Tier 2.5: Tag / Palavra-chave de busca (#hashtags)
+        const tagsArr = Array.isArray(p.tags) ? p.tags : (typeof p.tags === 'string' ? p.tags.split(/[,;\s]+/) : []);
+        if (tagsArr.some(t => {
+          const tNorm = normalizeSearchText(t.replace(/^#/, ''));
+          return tNorm === normQuery || tNorm.includes(normQuery) || (cleanQuery.length >= 3 && cleanAlphanumeric(t).includes(cleanQuery));
+        })) return 2.5;
+        // Tier 3: SKU ou código Omie
+        const skuNorm = normalizeSearchText(p.sku || p.omieCode || '');
+        if (skuNorm.includes(normQuery) || (cleanQuery.length >= 3 && cleanAlphanumeric(skuNorm).includes(cleanQuery))) return 3;
+        // Tier 3.3: Especificações Técnicas (specs)
+        const specsContent = Array.isArray(p.specs) ? p.specs.join(' ') : '';
+        const specsNorm = normalizeSearchText(specsContent);
+        if (specsNorm.includes(normQuery) || (cleanQuery.length >= 3 && cleanAlphanumeric(specsContent).includes(cleanQuery))) return 3.3;
+        // Tier 3.6: Abas personalizadas (customTabs)
+        const customTabsContent = Array.isArray(p.customTabs) ? p.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ') : '';
+        const tabsNorm = normalizeSearchText(customTabsContent);
+        if (tabsNorm.includes(normQuery) || (cleanQuery.length >= 3 && cleanAlphanumeric(customTabsContent).includes(cleanQuery))) return 3.6;
+        // Tier 4: Marca ou categoria
+        const bName = normalizeSearchText(brandsMap.get(p.brandId)?.name || '');
+        const cName = normalizeSearchText(categoriesMap.get(p.categoryId)?.name || '');
+        if (bName.includes(normQuery) || cName.includes(normQuery)) return 4;
+        // Tier 5: Encontrado diretamente na descrição
+        if (!p._matchedVia) return 5;
+        // Tier 6: Encontrado via produto relacionado
+        return 6;
+      };
+
       matched.sort((a, b) => {
-        const aDirect = !a._matchedVia ? 1 : 0;
-        const bDirect = !b._matchedVia ? 1 : 0;
-        if (bDirect !== aDirect) return bDirect - aDirect;
+        const tierA = getTier(a);
+        const tierB = getTier(b);
+        if (tierA !== tierB) return tierA - tierB;
         return (b._searchScore || 0) - (a._searchScore || 0);
       });
     }

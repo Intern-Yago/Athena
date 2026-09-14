@@ -7,7 +7,11 @@ export default function HeroSlim({
   setSearchTerm, 
   categories = [], 
   selectedCategory, 
-  setSelectedCategory 
+  setSelectedCategory,
+  products = [],
+  brands = [],
+  onNavigate,
+  onSelectProduct
 }) {
   const scrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -45,6 +49,11 @@ export default function HeroSlim({
               value={searchTerm}
               onChange={setSearchTerm}
               variant="hero-slim"
+              products={products}
+              categories={categories}
+              brands={brands}
+              onNavigate={onNavigate}
+              onSelectProduct={onSelectProduct}
             />
 
             {/* Single-Line Category Carousel with Smooth Lateral Scrolling */}
