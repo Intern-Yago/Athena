@@ -5346,6 +5346,118 @@ app.post('/api/hermes/customers/:identifier/debit', validateHermesAuth, async (r
   }
 });
 
+// Hermes: Creditar Pontos Comercial / Bonificação ou Ajuste Fiscal de Pedido
+app.post('/api/hermes/customers/:identifier/credit', validateHermesAuth, async (req, res) => {
+  try {
+    const rawId = req.params.identifier;
+    const { points, reason, orderId, saleRealValue, salesperson = 'Vendedor Hermes' } = req.body;
+
+    const pointsToCredit = parseInt(points, 10);
+    if (!pointsToCredit || pointsToCredit <= 0) {
+      return res.status(400).json({ error: 'Informe uma quantidade válida de pontos para crédito (maior que zero).' });
+    }
+
+    const cleanEmail = rawId.trim().toLowerCase();
+    const cleanDigits = rawId.replace(/\D/g, '');
+
+    let customer = null;
+
+    if (pool) {
+      const uRes = await pool.query(`
+        SELECT id, name, company_name as "companyName", email, phone, document, 
+               COALESCE(a_points, 0) as "aPoints"
+        FROM users
+        WHERE id = $1 
+           OR LOWER(email) = $2 
+           OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $3)
+           OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(REPLACE(phone, '(', ''), ')', ''), '-', ''), ' ', '') LIKE '%' || $3)
+           OR (LENGTH($1) >= 3 AND (LOWER(name) ILIKE '%' || LOWER($1) || '%' OR LOWER(company_name) ILIKE '%' || LOWER($1) || '%'))
+        ORDER BY 
+           CASE 
+             WHEN id = $1 THEN 1
+             WHEN LOWER(email) = $2 THEN 2
+             WHEN ($3 <> '' AND REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $3) THEN 3
+             ELSE 4
+           END
+        LIMIT 1
+      `, [rawId, cleanEmail, cleanDigits]);
+
+      if (uRes.rows.length === 0) {
+        return res.status(404).json({ error: `Cliente "${rawId}" não foi localizado no sistema Athena.` });
+      }
+
+      customer = uRes.rows[0];
+    } else {
+      const db = readDbJson();
+      customer = (db.users || []).find(u => 
+        u.id === rawId || 
+        (u.email && u.email.toLowerCase() === cleanEmail) || 
+        (cleanDigits && u.document && u.document.replace(/\D/g, '') === cleanDigits)
+      );
+      if (!customer) {
+        return res.status(404).json({ error: `Cliente "${rawId}" não foi localizado.` });
+      }
+      customer.aPoints = Number(customer.aPoints || 0);
+    }
+
+    const currentPoints = Number(customer.aPoints || customer.a_points || 0);
+    const finalReason = reason || `Bonificação / Ajuste fiscal de venda (${salesperson})${saleRealValue ? ` - Valor Real: R$ ${saleRealValue}` : ''}`;
+    const txOrderId = orderId ? `CRED_OMIE_${orderId}` : `BONUS_HERMES_${Date.now()}`;
+
+    const creditResult = await creditCustomerAPoints({
+      orderId: txOrderId,
+      orderTotal: Number(saleRealValue || 0),
+      points: pointsToCredit,
+      customerEmail: customer.email,
+      customerCpfCnpj: customer.document,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      source: 'vendedor_hermes',
+      type: 'BONUS',
+      status: 'available',
+      notes: `${finalReason} | Autorizado por: ${salesperson}`
+    });
+
+    const newPoints = currentPoints + pointsToCredit;
+
+    // Dispara notificação de compra / acúmulo de pontos
+    sendPurchaseReceiptNotification({
+      orderId: orderId || txOrderId,
+      orderTotal: Number(saleRealValue || 0),
+      eligibleAmount: Number(saleRealValue || 0),
+      pointsEarned: pointsToCredit,
+      customerName: customer.name || 'Cliente',
+      customerCpfCnpj: customer.document || '',
+      customerEmail: customer.email || '',
+      customerPhone: customer.phone || '',
+      source: `Hermes AI (${salesperson})`,
+      status: 'creditado',
+      notes: `${finalReason} | Autorizado por: ${salesperson}`
+    }).catch(errNotif => console.error('[HERMES CREDIT NOTIF ERROR]:', errNotif.message));
+
+    return res.json({
+      success: true,
+      protocol: creditResult.txId,
+      message: `Sucesso: ${pointsToCredit} A-Points foram creditados na conta de ${customer.name}. Novo saldo: ${newPoints} pontos. Protocolo: ${creditResult.txId}`,
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        companyName: customer.companyName,
+        email: customer.email,
+        document: customer.document
+      },
+      creditedPoints: pointsToCredit,
+      previousPoints: currentPoints,
+      newPoints,
+      orderId: orderId || null,
+      reason: finalReason
+    });
+  } catch (err) {
+    console.error('Erro ao creditar pontos via Hermes:', err);
+    return res.status(500).json({ error: err.message || 'Erro ao processar crédito de pontos.' });
+  }
+});
+
 // Admin / Vendedor: Debitar Pontos Comercial Assistido
 app.post('/api/admin/loyalty/debit', authenticateToken, async (req, res) => {
   try {
@@ -5461,6 +5573,117 @@ app.post('/api/admin/loyalty/debit', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Erro ao debitar pontos no admin:', err);
     return res.status(500).json({ error: err.message || 'Erro ao processar débito.' });
+  }
+});
+
+// Admin / Vendedor: Creditar Pontos Comercial Assistido / Bonificação / Ajuste Fiscal de Pedido
+app.post('/api/admin/loyalty/credit', authenticateToken, async (req, res) => {
+  try {
+    const userRole = req.user?.role;
+    if (!['admin', 'vendedor'].includes(userRole)) {
+      return res.status(403).json({ error: 'Acesso restrito à equipe comercial e administrativa.' });
+    }
+
+    const { customerId, customerIdentifier, points, reason, orderId, saleRealValue } = req.body;
+    const pointsToCredit = parseInt(points, 10);
+    if (!pointsToCredit || pointsToCredit <= 0) {
+      return res.status(400).json({ error: 'Informe uma quantidade válida de pontos para crédito (maior que zero).' });
+    }
+
+    const targetId = customerId || customerIdentifier;
+    if (!targetId) {
+      return res.status(400).json({ error: 'Informe o cliente para creditar os pontos.' });
+    }
+
+    const cleanEmail = String(targetId).trim().toLowerCase();
+    const cleanDigits = String(targetId).replace(/\D/g, '');
+
+    let customer = null;
+    if (pool) {
+      const uRes = await pool.query(`
+        SELECT id, name, company_name as "companyName", email, phone, document, 
+               COALESCE(a_points, 0) as "aPoints"
+        FROM users
+        WHERE id = $1 
+           OR LOWER(email) = $2 
+           OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(document, '.', ''), '-', ''), '/', '') = $3)
+           OR (LENGTH($1) >= 3 AND (LOWER(name) ILIKE '%' || LOWER($1) || '%' OR LOWER(company_name) ILIKE '%' || LOWER($1) || '%'))
+        LIMIT 1
+      `, [String(targetId), cleanEmail, cleanDigits]);
+
+      if (uRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Cliente não encontrado.' });
+      }
+      customer = uRes.rows[0];
+    } else {
+      const db = readDbJson();
+      customer = (db.users || []).find(u => 
+        u.id === targetId || 
+        (u.email && u.email.toLowerCase() === cleanEmail) || 
+        (cleanDigits && u.document && u.document.replace(/\D/g, '') === cleanDigits)
+      );
+      if (!customer) return res.status(404).json({ error: 'Cliente não encontrado.' });
+      customer.aPoints = Number(customer.aPoints || 0);
+    }
+
+    const currentPoints = Number(customer.aPoints || customer.a_points || 0);
+    const operatorName = req.user?.name || req.user?.email || 'Mesa de Vendas';
+    const finalReason = reason || (saleRealValue 
+      ? `Ajuste comercial de pontuação - Venda real R$ ${saleRealValue}`
+      : 'Bonificação comercial / Ajuste manual de pontos');
+    const txOrderId = orderId ? `CRED_OMIE_${orderId}` : `BONUS_ADMIN_${Date.now()}`;
+
+    const creditResult = await creditCustomerAPoints({
+      orderId: txOrderId,
+      orderTotal: Number(saleRealValue || 0),
+      points: pointsToCredit,
+      customerEmail: customer.email,
+      customerCpfCnpj: customer.document,
+      customerName: customer.name,
+      customerPhone: customer.phone,
+      source: 'admin_comercial',
+      type: 'BONUS',
+      status: 'available',
+      notes: `${finalReason} | Operador: ${operatorName}`
+    });
+
+    const newBalance = currentPoints + pointsToCredit;
+
+    // Dispara envio de notificação por e-mail para auditoria e controle
+    sendPurchaseReceiptNotification({
+      orderId: orderId || txOrderId,
+      orderTotal: Number(saleRealValue || 0),
+      eligibleAmount: Number(saleRealValue || 0),
+      pointsEarned: pointsToCredit,
+      customerName: customer.name || 'Cliente',
+      customerCpfCnpj: customer.document || '',
+      customerEmail: customer.email || '',
+      customerPhone: customer.phone || '',
+      source: 'Mesa de Vendas / Ajuste Comercial',
+      status: 'creditado',
+      notes: `${finalReason} | Operador: ${operatorName}`
+    }).catch(errNotif => console.error('[ADMIN CREDIT NOTIF ERROR]:', errNotif.message));
+
+    return res.json({
+      success: true,
+      protocol: creditResult.txId,
+      message: `${pointsToCredit} A-Points creditados com sucesso para ${customer.name}. Novo saldo: ${newBalance} pts.`,
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        companyName: customer.companyName,
+        email: customer.email,
+        document: customer.document
+      },
+      creditedPoints: pointsToCredit,
+      previousPoints: currentPoints,
+      newBalance,
+      orderId: orderId || null,
+      reason: finalReason
+    });
+  } catch (err) {
+    console.error('Erro ao creditar pontos no admin:', err);
+    return res.status(500).json({ error: err.message || 'Erro ao processar crédito de pontos.' });
   }
 });
 
