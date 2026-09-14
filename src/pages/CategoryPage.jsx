@@ -34,21 +34,12 @@ export default function CategoryPage({
     setCurrentPage(1);
   }, [categoryId, searchTerm, sortBy, itemsPerPage, shuffleSeed]);
 
-  if (!category) {
-    return (
-      <NotFoundPage
-        onNavigate={onNavigate}
-        message="A linha de categoria solicitada não foi encontrada ou não possui equipamentos vinculados."
-      />
-    );
-  }
-
   const normalizeText = (text) => {
     if (!text) return '';
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   };
 
-  const rawCategoryProducts = (products || []).filter((p) => p.categoryId === category.id && p.status !== 'draft');
+  const rawCategoryProducts = (products || []).filter((p) => category && p.categoryId === category.id && p.status !== 'draft');
 
   // Build bidirectional relation map across all catalog items
   const relationsMap = useMemo(() => {
@@ -101,6 +92,15 @@ export default function CategoryPage({
     setCurrentPage(pageNumber);
     window.scrollTo({ top: 200, behavior: 'smooth' });
   };
+
+  if (!category) {
+    return (
+      <NotFoundPage
+        onNavigate={onNavigate}
+        message="A linha de categoria solicitada não foi encontrada ou não possui equipamentos vinculados."
+      />
+    );
+  }
 
   return (
     <div className="py-10">

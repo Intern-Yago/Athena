@@ -34,21 +34,12 @@ export default function BrandPage({
     setCurrentPage(1);
   }, [brandId, searchTerm, sortBy, itemsPerPage, shuffleSeed]);
 
-  if (!brand) {
-    return (
-      <NotFoundPage
-        onNavigate={onNavigate}
-        message="A marca de fabricante solicitada não foi encontrada em nossa rede de parceiros."
-      />
-    );
-  }
-
   const normalizeText = (text) => {
     if (!text) return '';
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   };
 
-  const rawBrandProducts = (products || []).filter((p) => p.brandId === brand.id && p.status !== 'draft');
+  const rawBrandProducts = (products || []).filter((p) => brand && p.brandId === brand.id && p.status !== 'draft');
 
   // Build bidirectional relation map across all catalog items
   const relationsMap = useMemo(() => {
@@ -101,6 +92,14 @@ export default function BrandPage({
     setCurrentPage(pageNumber);
     window.scrollTo({ top: 200, behavior: 'smooth' });
   };
+  if (!brand) {
+    return (
+      <NotFoundPage
+        onNavigate={onNavigate}
+        message="A marca de fabricante solicitada não foi encontrada em nossa rede de parceiros."
+      />
+    );
+  }
 
   return (
     <div className="py-10">

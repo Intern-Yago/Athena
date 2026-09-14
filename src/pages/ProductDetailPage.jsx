@@ -180,6 +180,7 @@ export default function ProductDetailPage({
   const [activeTab, setActiveTab] = useState('specs');
   const [selectedQuickViewProduct, setSelectedQuickViewProduct] = useState(null);
   const [isInstallmentModalOpen, setIsInstallmentModalOpen] = useState(false);
+  const { addToCart, requireVerification } = useCart();
 
   // 1. Check for shareable encoded draft in URL search params (?d=... or ?token=...)
   const urlDraft = (() => {
@@ -214,39 +215,29 @@ export default function ProductDetailPage({
   const isAdminUser = Boolean(currentUser && (currentUser.role === 'admin' || currentUser.isAdmin));
   const canAccessDraft = isPreviewMode || isAdminUser;
 
-  // Block public direct access to draft products
-  if (!product || (product.status === 'draft' && !canAccessDraft)) {
-    return (
-      <NotFoundPage
-        onNavigate={onNavigate}
-        message={`O equipamento "${productSlugOrId}" não está disponível publicamente ou encontra-se em modo de rascunho.`}
-      />
-    );
-  }
+  const category = product ? categories.find((c) => c.id === product.categoryId) : null;
+  const brand = product ? brands.find((b) => b.id === product.brandId) : null;
 
-  const category = categories.find((c) => c.id === product.categoryId);
-  const brand = brands.find((b) => b.id === product.brandId);
-  const { addToCart, requireVerification } = useCart();
-
-  const hasPrice = Number(product.price) > 0;
-  const isQuoteOnly = Boolean(product.priceNegotiable !== false);
+  const hasPrice = Number(product?.price) > 0;
+  const isQuoteOnly = Boolean(product?.priceNegotiable !== false);
   const canBuyOnline = hasPrice && !isQuoteOnly;
 
-  const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
+  const paymentGateways = canBuyOnline ? calculatePaymentGateways(product?.price) : null;
   const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
-    canBuyOnline ? formatBRL(product.price) : 'Sob Consulta'
+    canBuyOnline ? formatBRL(product?.price) : 'Sob Consulta'
   );
 
-  const potentialPoints = (product.aPoints && Number(product.aPoints) > 0) 
+  const potentialPoints = (product?.aPoints && Number(product.aPoints) > 0) 
     ? Number(product.aPoints) 
-    : (Number(product.price) > 0 ? Math.floor(Number(product.price) / 50) : 0);
+    : (Number(product?.price) > 0 ? Math.floor(Number(product.price) / 50) : 0);
   const earnedPoints = canBuyOnline ? potentialPoints : 0;
 
   const formattedPrice = canBuyOnline 
-    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product?.price)
     : 'Sob Consulta';
 
   const handleCopyPreviewLink = () => {
+    if (!product) return;
     try {
       const token = encodeDraftToShareableUrl(product);
       const shareUrl = `${window.location.origin}/produto/preview?d=${token}`;
@@ -258,10 +249,10 @@ export default function ProductDetailPage({
 
   const whatsappMessage = canBuyOnline
     ? encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${product.name}*\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\nMarca: ${brand?.name || 'Athena'}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
+        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${product?.name || ''}*\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\nMarca: ${brand?.name || 'Athena'}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
       )
     : encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'Athena'}\nCategoria: ${category?.name || 'Geral'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
+        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${product?.name || ''}*\nMarca: ${brand?.name || 'Athena'}\nCategoria: ${category?.name || 'Geral'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
       );
 
   // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
@@ -388,11 +379,11 @@ export default function ProductDetailPage({
   const pinnedIds = new Set(pinnedRecommended.map(p => p.id));
 
   const sameCategoryProducts = products.filter(
-    (p) => p.id !== product.id && !pinnedIds.has(p.id) && p.categoryId === product.categoryId && (canAccessDraft || p.status !== 'draft')
+    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.categoryId === product.categoryId && (canAccessDraft || p.status !== 'draft')
   );
 
   const sameBrandProducts = products.filter(
-    (p) => p.id !== product.id && !pinnedIds.has(p.id) && p.brandId === product.brandId && p.categoryId !== product.categoryId && (canAccessDraft || p.status !== 'draft')
+    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.brandId === product.brandId && p.categoryId !== product.categoryId && (canAccessDraft || p.status !== 'draft')
   );
 
   const relatedProducts = [
@@ -439,6 +430,7 @@ export default function ProductDetailPage({
   const hasVideo = Boolean(product?.videoUrl || product?.youtubeVideoUrl);
 
   useEffect(() => {
+    if (!product) return;
     if (hasSpecs) {
       setActiveTab('specs');
     } else if (showCompatTab) {
@@ -451,6 +443,16 @@ export default function ProductDetailPage({
       setActiveTab('video');
     }
   }, [product?.id, hasSpecs, showCompatTab, validCustomTabs.length, hasAttachments, hasVideo]);
+
+  // Block public direct access to draft products or non-existent products
+  if (!product || (product.status === 'draft' && !canAccessDraft)) {
+    return (
+      <NotFoundPage
+        onNavigate={onNavigate}
+        message={`O equipamento "${productSlugOrId}" não está disponível publicamente ou encontra-se em modo de rascunho.`}
+      />
+    );
+  }
 
   return (
     <div className="pb-12">

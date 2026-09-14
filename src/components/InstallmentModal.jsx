@@ -187,8 +187,6 @@ export default function InstallmentModal({
     };
   }, [paymentResult, paymentStatus, onOrderCompleted]);
 
-  if (!isOpen) return null;
-
   // Final Payable Calculation with memoization
   const discountedSubtotal = useMemo(() => {
     return Math.max(0, rawSubtotal - couponDiscount);
@@ -429,6 +427,8 @@ export default function InstallmentModal({
       setIsSubmitting(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div 

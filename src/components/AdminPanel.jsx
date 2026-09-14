@@ -440,6 +440,7 @@ export default function AdminPanel({
   const [internalActiveAdminTab, setInternalActiveAdminTab] = useState('products');
   const activeAdminTab = propActiveAdminTab !== undefined ? propActiveAdminTab : internalActiveAdminTab;
   const setActiveAdminTab = propSetActiveAdminTab || setInternalActiveAdminTab;
+  const [mobileAdminMenuOpen, setMobileAdminMenuOpen] = useState(false);
   const [imageSourceMode, setImageSourceMode] = useState('upload');
   const [productImageUrlInput, setProductImageUrlInput] = useState('');
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);

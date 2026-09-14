@@ -2,14 +2,15 @@ import React, { useEffect } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export default function Toast({ toast, onClose }) {
-  if (!toast) return null;
-
   useEffect(() => {
+    if (!toast) return;
     const timer = setTimeout(() => {
       onClose();
     }, 4000);
     return () => clearTimeout(timer);
   }, [toast, onClose]);
+
+  if (!toast) return null;
 
   const icons = {
     success: <CheckCircle2 className="w-5 h-5 text-emerald-400" />,

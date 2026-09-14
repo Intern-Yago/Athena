@@ -219,6 +219,7 @@ export const getProductSearchProfile = (prod, categories, brands) => {
     brandName = brands.find((b) => b.id === prod.brandId)?.name || '';
   }
 
+  const specsContent = Array.isArray(prod.specs) ? prod.specs.join(' ') : '';
   const customTabsContent = Array.isArray(prod.customTabs)
     ? prod.customTabs.map((t) => `${t.title || ''} ${t.content || ''}`).join(' ')
     : '';

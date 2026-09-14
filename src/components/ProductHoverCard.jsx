@@ -12,9 +12,11 @@ export default function ProductHoverCard({
   const triggerRef = useRef(null);
   const hoverTimeoutRef = useRef(null);
 
-  if (!product) {
-    return <>{children}</>;
-  }
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    };
+  }, []);
 
   const handleMouseEnter = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
@@ -37,11 +39,9 @@ export default function ProductHoverCard({
     }, 180);
   };
 
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    };
-  }, []);
+  if (!product) {
+    return <>{children}</>;
+  }
 
   const formattedPrice = product.price
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)

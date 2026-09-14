@@ -21,8 +21,9 @@ export default function ProductCard({
   // Regra de Negocio Athena:
   // Se o orcamento estiver ATIVO (priceNegotiable !== false), NAO mostra o valor do produto (fica Sob Consulta) e direciona para orcamento.
   // Se o orcamento estiver DESATIVADO (!priceNegotiable) e tiver preco (> 0), mostra o valor e joga para comprar no site.
+  const hasPrice = Number(product.price) > 0;
   const isQuoteOnly = Boolean(product.priceNegotiable !== false);
-  const canBuyOnline = Number(product.price) > 0 && !isQuoteOnly;
+  const canBuyOnline = hasPrice && !isQuoteOnly;
 
   const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
   const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
