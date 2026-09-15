@@ -43,7 +43,9 @@ import {
 
 import { normalizeProduct, normalizeBrand } from './utils/imageUrl';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
+const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+  ? 'http://localhost:3001/api'
+  : (import.meta.env.VITE_API_URL || '/api');
 
 // Helper component to connect global cart checkout modal with CartContext
 function GlobalCartCheckout({ currentUser }) {

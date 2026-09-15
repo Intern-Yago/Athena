@@ -1405,10 +1405,11 @@ export default function AdminPanel({
   ];
 
   // Helper to determine if a line is a section header (100% linear, zero regex catastrophic backtracking)
+  // Helper to determine if a line is a section header (100% linear, zero regex catastrophic backtracking)
   const isLineASectionHeader = (line) => {
     if (!line) return null;
     const trimmed = line.trim();
-    if (!trimmed || trimmed.length > 80) return null;
+    if (!trimmed || trimmed.length > 120) return null;
 
     // Never treat a bullet point or numbered item as a section header
     if (/^[•\-\*\+]\s+/.test(trimmed) || /^\d+[\.\)]\s+/.test(trimmed)) {
@@ -1416,46 +1417,90 @@ export default function AdminPanel({
     }
 
     const isMdHeading = /^#{1,6}\s+/.test(trimmed);
+
+    // Case 1: Line contains a colon ':' -> The text before the colon indicates a new tab/section
+    const colonIdx = trimmed.indexOf(':');
+    if (colonIdx !== -1) {
+      const beforeColon = trimmed.slice(0, colonIdx)
+        .replace(/^#{1,6}\s*/, '')
+        .replace(/^\*{1,2}/, '')
+        .replace(/\*{1,2}$/, '')
+        .trim();
+      const afterColon = trimmed.slice(colonIdx + 1).trim();
+
+      // Title before colon must be short (<= 45 chars) and cannot contain periods or full sentences
+      if (beforeColon.length >= 2 && beforeColon.length <= 45 && !beforeColon.includes('.')) {
+        const normBefore = normalizeSearchText(beforeColon);
+        if (!['descricao', 'foto', 'fotos', 'preco'].includes(normBefore)) {
+          // Check known categories
+          for (const cat of KNOWN_SECTION_CATEGORIES) {
+            if (cat.keywords.some(k => {
+              const normK = normalizeSearchText(k);
+              return normBefore === normK || normBefore.startsWith(normK);
+            })) {
+              return {
+                title: cat.canonical,
+                isSpecs: !!cat.isSpecs,
+                isCompatibility: !!cat.isCompatibility,
+                rawHeader: line,
+                inlineContent: afterColon
+              };
+            }
+          }
+
+          // Custom section ending with colon (e.g. "Garantia:", "Conteúdo:")
+          const formatted = beforeColon.charAt(0).toUpperCase() + beforeColon.slice(1);
+          return {
+            title: formatted,
+            isSpecs: formatted.toLowerCase().includes('especif'),
+            isCompatibility: formatted.toLowerCase().includes('compatib'),
+            rawHeader: line,
+            inlineContent: afterColon
+          };
+        }
+      }
+    }
+
+    // Case 2: Line does NOT have a colon - MUST be a standalone title (exact match or markdown heading)
     const clean = trimmed
       .replace(/^#{1,6}\s*/, '')
       .replace(/^\*{1,2}/, '')
       .replace(/\*{1,2}$/, '')
       .trim();
 
-    const cleanNoColon = clean.replace(/[:\-–—]+$/, '').trim();
-    if (!cleanNoColon || cleanNoColon.length < 2) return null;
+    if (!clean || clean.length < 2 || clean.length > 50 || clean.includes('.')) return null;
 
-    const norm = normalizeSearchText(cleanNoColon);
+    const norm = normalizeSearchText(clean);
     if (['descricao', 'foto', 'fotos', 'preco'].includes(norm)) {
       return null;
     }
 
-    // Match known category keywords (accent & diacritic agnostic)
+    // Standalone keyword check: MUST be an exact match (NEVER norm.includes to avoid matching inside sentences)
     for (const cat of KNOWN_SECTION_CATEGORIES) {
       if (cat.keywords.some(k => {
         const normK = normalizeSearchText(k);
-        return norm === normK || norm.startsWith(normK) || (normK.length >= 4 && norm.includes(normK));
+        return norm === normK || (isMdHeading && norm.startsWith(normK));
       })) {
         return {
           title: cat.canonical,
           isSpecs: !!cat.isSpecs,
           isCompatibility: !!cat.isCompatibility,
-          rawHeader: line
+          rawHeader: line,
+          inlineContent: ''
         };
       }
     }
 
-    // Custom headers ending with colon or starting with markdown hash
-    if (isMdHeading || trimmed.endsWith(':')) {
-      if (cleanNoColon.length <= 50 && !cleanNoColon.includes('.')) {
-        const formatted = cleanNoColon.charAt(0).toUpperCase() + cleanNoColon.slice(1);
-        return {
-          title: formatted,
-          isSpecs: formatted.toLowerCase().includes('especif'),
-          isCompatibility: formatted.toLowerCase().includes('compatib'),
-          rawHeader: line
-        };
-      }
+    // Standalone Markdown heading (# ...)
+    if (isMdHeading && clean.length <= 45) {
+      const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+      return {
+        title: formatted,
+        isSpecs: formatted.toLowerCase().includes('especif'),
+        isCompatibility: formatted.toLowerCase().includes('compatib'),
+        rawHeader: line,
+        inlineContent: ''
+      };
     }
 
     return null;
@@ -1535,7 +1580,7 @@ export default function AdminPanel({
           isSpecsSection: headerInfo.isSpecs,
           isCompatibility: headerInfo.isCompatibility,
           rawHeader: headerInfo.rawHeader,
-          lines: []
+          lines: headerInfo.inlineContent ? [headerInfo.inlineContent] : []
         };
       } else {
         if (currentSection) {
@@ -2354,10 +2399,26 @@ export default function AdminPanel({
         }, 220);
 
         try {
+          const cleanTitle = (productForm.title || productForm.name || '').trim();
+          const tokens = cleanTitle.split(/\s+/).filter(Boolean);
+          const lastToken = tokens.length > 0 ? tokens[tokens.length - 1].replace(/[^a-zA-Z0-9\-_]/g, '') : '';
+          const cleanBrand = (productForm.brand || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
+          const generatedFilename = cleanBrand && lastToken
+            ? `${cleanBrand}-${lastToken.toLowerCase()}`
+            : lastToken
+            ? lastToken.toLowerCase()
+            : cleanBrand
+            ? cleanBrand
+            : (task.name || 'produto').replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
           const res = await fetch(`${API_BASE_URL}/upload`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ file: base64Data, folder: 'athena_produtos' }),
+            body: JSON.stringify({ 
+              file: base64Data, 
+              folder: 'athena_produtos',
+              filename: generatedFilename
+            }),
             signal: task.abortController.signal
           });
 
@@ -2468,10 +2529,15 @@ export default function AdminPanel({
       showNotification('Enviando logo para a nuvem...', 'info');
 
       try {
+        const cleanBrand = (brandForm.name || 'marca').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
         const res = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ file: base64Data, folder: 'athena_marcas' })
+          body: JSON.stringify({ 
+            file: base64Data, 
+            folder: 'athena_marcas',
+            filename: `logo-${cleanBrand}`
+          })
         });
         if (res.status === 401 || res.status === 403) {
           onLogout && onLogout('Sua sessão expirou.');
@@ -2509,10 +2575,15 @@ export default function AdminPanel({
 
       let finalUrl = base64Data;
       try {
+        const cleanAttName = (file.name || 'anexo').replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
         const res = await fetch(`${API_BASE_URL}/upload`, {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify({ file: base64Data, folder: 'athena_anexos' })
+          body: JSON.stringify({ 
+            file: base64Data, 
+            folder: 'athena_anexos',
+            filename: cleanAttName
+          })
         });
         if (res.status === 401 || res.status === 403) {
           onLogout && onLogout('Sua sessão expirou.');

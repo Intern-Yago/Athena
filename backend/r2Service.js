@@ -27,7 +27,7 @@ if (isR2Configured) {
 let r2ObjectsCache = {
   items: null,
   lastFetched: 0,
-  ttlMs: 45000 // 45 seconds TTL
+  ttlMs: 600000 // 10 minutes TTL (auto-invalidated on upload or delete)
 };
 
 function invalidateR2Cache() {
@@ -100,7 +100,7 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
   // Generate clean unique key
   const randomHash = crypto.randomBytes(6).toString('hex');
   const baseName = filename
-    ? filename.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9-_]/g, '-')
+    ? filename.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
     : `item-${Date.now()}`;
   const key = `${folder}/${baseName}-${randomHash}.${extension}`;
 

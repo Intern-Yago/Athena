@@ -21,9 +21,13 @@ import {
   CheckSquare,
   ChevronLeft,
   ChevronRight,
-  Info
+  Info,
+  RefreshCw
 } from 'lucide-react';
 import { INITIAL_BRANDS } from '../data/initialData';
+
+// High-speed token cache to avoid redundant parsing
+const mediaTokenCache = new Map();
 
 /**
  * Normaliza e extrai tokens únicos de identificação de uma URL ou chave de arquivo.
@@ -32,27 +36,32 @@ import { INITIAL_BRANDS } from '../data/initialData';
  */
 export function extractMediaTokens(urlOrKey) {
   if (!urlOrKey || typeof urlOrKey !== 'string') return [];
-  const tokens = new Set();
-  const clean = urlOrKey.trim().split('?')[0].split('#')[0];
-  if (clean) tokens.add(clean.toLowerCase());
+  const cached = mediaTokenCache.get(urlOrKey);
+  if (cached) return cached;
 
+  const tokens = [];
+  const clean = urlOrKey.trim().split('?')[0].split('#')[0].toLowerCase();
+  if (clean) tokens.push(clean);
+
+  // Fast path extraction without slow `new URL()` instantiation
   let pathPart = clean;
-  if (/^https?:\/\//i.test(clean)) {
-    try {
-      pathPart = new URL(clean).pathname;
-    } catch {
-      pathPart = clean.replace(/^https?:\/\/[^/]+/i, '');
-    }
+  const protocolIdx = clean.indexOf('://');
+  if (protocolIdx !== -1) {
+    const slashIdx = clean.indexOf('/', protocolIdx + 3);
+    pathPart = slashIdx !== -1 ? clean.slice(slashIdx) : '';
   }
   pathPart = pathPart.replace(/^\/+/, '');
   if (pathPart) {
-    tokens.add(pathPart.toLowerCase());
-    const filename = pathPart.split('/').pop();
-    if (filename) {
-      tokens.add(filename.toLowerCase());
+    tokens.push(pathPart);
+    const lastSlash = pathPart.lastIndexOf('/');
+    const filename = lastSlash !== -1 ? pathPart.slice(lastSlash + 1) : pathPart;
+    if (filename && filename !== pathPart) {
+      tokens.push(filename);
     }
   }
-  return Array.from(tokens);
+
+  mediaTokenCache.set(urlOrKey, tokens);
+  return tokens;
 }
 
 /**
@@ -60,19 +69,20 @@ export function extractMediaTokens(urlOrKey) {
  */
 export function isMediaMatch(itemOrUrlA, itemOrUrlB) {
   if (!itemOrUrlA || !itemOrUrlB) return false;
+  if (itemOrUrlA === itemOrUrlB) return true;
   const getTokens = (val) => {
     if (typeof val === 'string') return extractMediaTokens(val);
-    const set = new Set([
+    return [
       ...extractMediaTokens(val.url),
       ...extractMediaTokens(val.key),
       ...extractMediaTokens(val.filename)
-    ]);
-    return Array.from(set);
+    ];
   };
   const tokensA = getTokens(itemOrUrlA);
   const tokensB = getTokens(itemOrUrlB);
   if (tokensA.length === 0 || tokensB.length === 0) return false;
-  return tokensA.some(t => tokensB.includes(t));
+  const setB = new Set(tokensB);
+  return tokensA.some(t => setB.has(t));
 }
 
 /**
@@ -125,7 +135,7 @@ export default function ImageLibraryModal({
   const showNotificationRef = useRef(showNotification);
   useEffect(() => { showNotificationRef.current = showNotification; });
 
-  const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://athena-backend-hu1m.onrender.com/api';
+  const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'http://localhost:3001/api';
 
   // Mapa de registro global de uso: token (minúsculo) -> { brands: Set(nomes), products: Set(nomes), categories: Set(nomes), banners: Set(nomes) }
   const mediaUsageRegistry = useMemo(() => {
@@ -186,6 +196,23 @@ export default function ImageLibraryModal({
     return registry;
   }, [products, brands, categories, banners]);
 
+  // Pre-tokenized sets for instant O(1) membership checks without repeated string parsing
+  const currentImagesTokensSet = useMemo(() => {
+    const set = new Set();
+    (currentImages || []).forEach(url => {
+      extractMediaTokens(url).forEach(t => set.add(t));
+    });
+    return set;
+  }, [currentImages]);
+
+  const currentCoverTokensSet = useMemo(() => {
+    const set = new Set();
+    if (currentCover) {
+      extractMediaTokens(currentCover).forEach(t => set.add(t));
+    }
+    return set;
+  }, [currentCover]);
+
   // Consulta o uso detalhado de um item do R2
   const getItemUsage = useCallback((item) => {
     if (!item) return { isUsed: false, brands: [], products: [], categories: [], banners: [], isCurrentProduct: false };
@@ -241,7 +268,8 @@ export default function ImageLibraryModal({
       }
     }
 
-    const isCurrentProduct = (currentImages || []).some(imgUrl => isMediaMatch(item, imgUrl));
+    const isCurrentProduct = currentImagesTokensSet.size > 0 && Array.from(tokens).some(t => currentImagesTokensSet.has(t));
+    const isCurrentCover = currentCoverTokensSet.size > 0 && Array.from(tokens).some(t => currentCoverTokensSet.has(t));
 
     const brandsList = Array.from(matchedBrands);
     const productsList = Array.from(matchedProducts);
@@ -254,9 +282,10 @@ export default function ImageLibraryModal({
       products: productsList,
       categories: categoriesList,
       banners: bannersList,
-      isCurrentProduct
+      isCurrentProduct,
+      isCurrentCover
     };
-  }, [mediaUsageRegistry, currentImages, brands]);
+  }, [mediaUsageRegistry, currentImagesTokensSet, currentCoverTokensSet, brands]);
 
   // Debounce search query
   useEffect(() => {
@@ -269,10 +298,10 @@ export default function ImageLibraryModal({
     return () => clearTimeout(searchTimeoutRef.current);
   }, [searchQuery]);
 
-  // Fetch library page - only depends on apiUrl
-  const fetchLibrary = useCallback(async (pageNum = 1, search = '', append = false) => {
+  // Fetch library page - supports silent revalidation to avoid blank screens
+  const fetchLibrary = useCallback(async (pageNum = 1, search = '', append = false, silent = false) => {
     if (pageNum === 1) {
-      setLoading(true);
+      if (!silent) setLoading(true);
     } else {
       setLoadingMore(true);
     }
@@ -316,18 +345,14 @@ export default function ImageLibraryModal({
     }
   }, [apiUrl]);
 
-  // Initial load or search query change
+  // Initial load or search query change (preserves loaded items in memory across modal opens)
   useEffect(() => {
     if (isOpen) {
-      fetchLibrary(1, debouncedSearch, false);
+      const isSilent = items.length > 0 && !debouncedSearch;
+      fetchLibrary(1, debouncedSearch, false, isSilent);
     } else {
-      setItems([]);
-      setPage(1);
-      setSearchQuery('');
-      setDebouncedSearch('');
       setItemToDelete(null);
       setExpandedImage(null);
-      setUsageFilter('all');
       setSelectedKeys(new Set());
       setIsConfirmingBulkDelete(false);
       setIsBulkDeleting(false);
@@ -380,15 +405,28 @@ export default function ImageLibraryModal({
     return () => window.removeEventListener('keydown', handleKey);
   }, [expandedImage, itemToDelete, deletingKey, isConfirmingBulkDelete, isBulkDeleting]);
 
-  // Infinite Scroll Trigger via Scroll Listener
+  // Infinite Scroll Trigger via Scroll Listener throttled with requestAnimationFrame
+  const scrollRafRef = useRef(null);
   const handleScroll = () => {
-    if (!scrollContainerRef.current || loading || loadingMore || !hasMore) return;
-    const { scrollTop, clientHeight, scrollHeight } = scrollContainerRef.current;
-    if (scrollTop + clientHeight >= scrollHeight - 350) {
-      const nextPage = page + 1;
-      fetchLibrary(nextPage, debouncedSearch, true);
-    }
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      if (!scrollContainerRef.current || loading || loadingMore || !hasMore) return;
+      const { scrollTop, clientHeight, scrollHeight } = scrollContainerRef.current;
+      if (scrollTop + clientHeight >= scrollHeight - 400) {
+        const nextPage = page + 1;
+        fetchLibrary(nextPage, debouncedSearch, true);
+      }
+    });
   };
+
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
+    };
+  }, []);
 
   // Direct upload within library
   const handleDirectUpload = async (e) => {
@@ -408,11 +446,11 @@ export default function ImageLibraryModal({
           reader.readAsDataURL(file);
         });
 
-        const headers = getAuthHeadersRef.current ? getAuthHeadersRef.current() : {};
+        const cleanFilename = (file.name || 'foto').replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
         const res = await fetch(`${apiUrl}/upload`, {
           method: 'POST',
           headers,
-          body: JSON.stringify({ file: base64, folder: 'athena_produtos' })
+          body: JSON.stringify({ file: base64, folder: 'athena_produtos', filename: cleanFilename })
         });
 
         if (res.ok) {
@@ -498,8 +536,58 @@ export default function ImageLibraryModal({
     });
   };
 
+  // Pre-compute item usage in a single fast O(N) pass
+  const itemsUsageMap = useMemo(() => {
+    const map = new Map();
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      map.set(item.key, getItemUsage(item));
+    }
+    return map;
+  }, [items, getItemUsage]);
+
+  // Aggregate tab counts in one single pass from the pre-computed map
+  const { countInUse, countBrands, countBanners, countUnused, countCurrentProduct } = useMemo(() => {
+    let inUse = 0;
+    let brandsC = 0;
+    let bannersC = 0;
+    let unused = 0;
+    let currProd = 0;
+    for (let i = 0; i < items.length; i++) {
+      const usage = itemsUsageMap.get(items[i].key);
+      if (!usage) continue;
+      if (usage.products.length > 0) inUse++;
+      if (usage.brands.length > 0) brandsC++;
+      if (usage.banners.length > 0) bannersC++;
+      if (!usage.isUsed) unused++;
+      if (usage.isCurrentProduct) currProd++;
+    }
+    return {
+      countInUse: inUse,
+      countBrands: brandsC,
+      countBanners: bannersC,
+      countUnused: unused,
+      countCurrentProduct: currProd
+    };
+  }, [items, itemsUsageMap]);
+
+  // Filter items according to usageFilter using the pre-computed map
+  const displayedItems = useMemo(() => {
+    if (usageFilter === 'all') return items;
+    return items.filter(item => {
+      const usage = itemsUsageMap.get(item.key);
+      if (!usage) return true;
+      if (usageFilter === 'in_use') return usage.products.length > 0;
+      if (usageFilter === 'brands') return usage.brands.length > 0;
+      if (usageFilter === 'banners') return usage.banners.length > 0;
+      if (usageFilter === 'unused') return !usage.isUsed;
+      if (usageFilter === 'current_product') return usage.isCurrentProduct;
+      return true;
+    });
+  }, [items, usageFilter, itemsUsageMap]);
+
   const handleSelectAllUnused = () => {
-    const unusedItems = items.filter(i => !getItemUsage(i).isUsed);
+    const unusedItems = items.filter(i => !(itemsUsageMap.get(i.key)?.isUsed));
     const allSelected = unusedItems.length > 0 && unusedItems.every(i => selectedKeys.has(i.key));
     if (allSelected) {
       setSelectedKeys(new Set());
@@ -554,36 +642,6 @@ export default function ImageLibraryModal({
     }
   };
 
-  // Filter items according to usageFilter
-  const displayedItems = useMemo(() => {
-    return items.filter(item => {
-      const usage = getItemUsage(item);
-      if (usageFilter === 'in_use') {
-        return usage.products.length > 0;
-      }
-      if (usageFilter === 'brands') {
-        return usage.brands.length > 0;
-      }
-      if (usageFilter === 'banners') {
-        return usage.banners.length > 0;
-      }
-      if (usageFilter === 'unused') {
-        return !usage.isUsed;
-      }
-      if (usageFilter === 'current_product') {
-        return usage.isCurrentProduct;
-      }
-      return true;
-    });
-  }, [items, usageFilter, getItemUsage]);
-
-  // Counts for tabs
-  const countInUse = useMemo(() => items.filter(i => getItemUsage(i).products.length > 0).length, [items, getItemUsage]);
-  const countBrands = useMemo(() => items.filter(i => getItemUsage(i).brands.length > 0).length, [items, getItemUsage]);
-  const countBanners = useMemo(() => items.filter(i => getItemUsage(i).banners.length > 0).length, [items, getItemUsage]);
-  const countUnused = useMemo(() => items.filter(i => !getItemUsage(i).isUsed).length, [items, getItemUsage]);
-  const countCurrentProduct = useMemo(() => items.filter(i => getItemUsage(i).isCurrentProduct).length, [items, getItemUsage]);
-
   if (!isOpen) return null;
 
   return (
@@ -621,14 +679,24 @@ export default function ImageLibraryModal({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
-                title="Fechar biblioteca"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => fetchLibrary(1, debouncedSearch, false, false)}
+                  className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                  title="Atualizar fotos do Cloudflare R2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-400' : ''}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                  title="Fechar biblioteca"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Search Bar + Direct Upload Actions Row */}
@@ -815,15 +883,16 @@ export default function ImageLibraryModal({
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-3.5">
                 {displayedItems.map((item) => {
-                  const usage = getItemUsage(item);
+                  const usage = itemsUsageMap.get(item.key) || getItemUsage(item);
                   const isInGallery = usage.isCurrentProduct;
-                  const isCover = isMediaMatch(item, currentCover);
+                  const isCover = usage.isCurrentCover || false;
                   const isSelected = selectedKeys.has(item.key);
                   const kbSize = item.size ? `${(item.size / 1024).toFixed(0)} KB` : '';
 
                   return (
                     <div
                       key={item.key}
+                      style={{ contentVisibility: 'auto', containIntrinsicSize: '240px' }}
                       className={`group relative rounded-2xl bg-white border p-1.5 flex flex-col transition-all shadow-xs hover:shadow-md ${
                         isSelected
                           ? 'ring-2 ring-red-500 border-red-400 bg-red-50/20'
@@ -844,6 +913,7 @@ export default function ImageLibraryModal({
                           src={item.url}
                           alt={item.filename}
                           loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-contain p-1.5 transition-transform duration-200 group-hover/thumb:scale-105"
                         />
 
@@ -1052,7 +1122,7 @@ export default function ImageLibraryModal({
                 >
                   <CheckSquare className="w-3 h-3 text-amber-600" />
                   <span>
-                    {items.filter(i => !getItemUsage(i).isUsed).every(i => selectedKeys.has(i.key))
+                    {items.filter(i => !(itemsUsageMap.get(i.key)?.isUsed)).every(i => selectedKeys.has(i.key))
                       ? 'Desmarcar Todas'
                       : `Selecionar Todas (${countUnused})`}
                   </span>
@@ -1089,8 +1159,8 @@ export default function ImageLibraryModal({
       {/* EXPANDED IMAGE LIGHTBOX MODAL (Z-[99999] so nothing can overlap, with next/prev arrows) */}
       {expandedImage && (() => {
         const expandedIndex = displayedItems.findIndex(i => i.key === expandedImage.key);
-        const usage = getItemUsage(expandedImage);
-        const isCover = isMediaMatch(expandedImage, currentCover);
+        const usage = itemsUsageMap.get(expandedImage.key) || getItemUsage(expandedImage);
+        const isCover = usage.isCurrentCover || false;
 
         return (
           <div 
