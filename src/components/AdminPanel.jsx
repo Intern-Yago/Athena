@@ -450,6 +450,15 @@ export default function AdminPanel({
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
   const [bannerToDelete, setBannerToDelete] = useState(null);
   const [isSelectingBannerMedia, setIsSelectingBannerMedia] = useState(null); // 'desktop' | 'mobile' | null
+  const [isSelectingBrandMedia, setIsSelectingBrandMedia] = useState(false);
+
+  // Drag and Drop Reordering States
+  const [draggedProductId, setDraggedProductId] = useState(null);
+  const [dragOverProductId, setDragOverProductId] = useState(null);
+  const [draggedCategoryId, setDraggedCategoryId] = useState(null);
+  const [dragOverCategoryId, setDragOverCategoryId] = useState(null);
+  const [draggedBrandId, setDraggedBrandId] = useState(null);
+  const [dragOverBrandId, setDragOverBrandId] = useState(null);
   const [bannerForm, setBannerForm] = useState({
     title: '',
     desktopImage: '',
@@ -2715,6 +2724,86 @@ export default function AdminPanel({
     showNotification('Ordem dos produtos atualizada!', 'success');
   };
 
+  const handleProductDrop = (draggedId, targetId) => {
+    if (!draggedId || !targetId || draggedId === targetId || !canEditContent) {
+      setDraggedProductId(null);
+      setDragOverProductId(null);
+      return;
+    }
+    const fromIndex = products.findIndex(p => p.id === draggedId);
+    const toIndex = products.findIndex(p => p.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedProductId(null);
+      setDragOverProductId(null);
+      return;
+    }
+
+    const newProducts = [...products];
+    const [moved] = newProducts.splice(fromIndex, 1);
+    newProducts.splice(toIndex, 0, moved);
+
+    if (onReorderProducts) {
+      onReorderProducts(newProducts);
+    }
+    setDraggedProductId(null);
+    setDragOverProductId(null);
+    showNotification(`Equipamento "${moved.name}" reordenado com sucesso!`, 'success');
+  };
+
+  const handleCategoryDrop = (draggedId, targetId) => {
+    if (!draggedId || !targetId || draggedId === targetId || !canEditContent) {
+      setDraggedCategoryId(null);
+      setDragOverCategoryId(null);
+      return;
+    }
+    const fromIndex = categories.findIndex(c => c.id === draggedId);
+    const toIndex = categories.findIndex(c => c.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedCategoryId(null);
+      setDragOverCategoryId(null);
+      return;
+    }
+
+    const newCategories = [...categories];
+    const [moved] = newCategories.splice(fromIndex, 1);
+    newCategories.splice(toIndex, 0, moved);
+    newCategories.forEach((c, idx) => { c.order = idx + 1; });
+
+    if (onReorderCategories) {
+      onReorderCategories(newCategories);
+    }
+    setDraggedCategoryId(null);
+    setDragOverCategoryId(null);
+    showNotification(`Categoria "${moved.name}" reordenada com sucesso!`, 'success');
+  };
+
+  const handleBrandDrop = (draggedId, targetId) => {
+    if (!draggedId || !targetId || draggedId === targetId || !canEditContent) {
+      setDraggedBrandId(null);
+      setDragOverBrandId(null);
+      return;
+    }
+    const fromIndex = brands.findIndex(b => b.id === draggedId);
+    const toIndex = brands.findIndex(b => b.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedBrandId(null);
+      setDragOverBrandId(null);
+      return;
+    }
+
+    const newBrands = [...brands];
+    const [moved] = newBrands.splice(fromIndex, 1);
+    newBrands.splice(toIndex, 0, moved);
+    newBrands.forEach((b, idx) => { b.order = idx + 1; });
+
+    if (onReorderBrands) {
+      onReorderBrands(newBrands);
+    }
+    setDraggedBrandId(null);
+    setDragOverBrandId(null);
+    showNotification(`Marca "${moved.name}" reordenada com sucesso!`, 'success');
+  };
+
   const openNewBrandModal = () => {
     setEditingBrand(null);
     setBrandForm({
@@ -3335,8 +3424,8 @@ export default function AdminPanel({
   };
 
   return (
-    <div className="py-8">
-      <div className="container-custom space-y-6">
+    <div className="py-6 sm:py-8">
+      <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* Admin Header Banner */}
         <div className="bg-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
@@ -3943,9 +4032,58 @@ export default function AdminPanel({
                           const isFeatured = !!prod.isFeatured;
 
                           return (
-                            <tr key={prod.id} className={`hover:bg-slate-50 transition-colors ${isFeatured ? 'bg-amber-50/30' : ''}`}>
+                            <tr 
+                              key={prod.id} 
+                              draggable={canEditContent}
+                              onDragStart={(e) => {
+                                if (!canEditContent) return;
+                                e.dataTransfer.effectAllowed = 'move';
+                                e.dataTransfer.setData('text/plain', prod.id);
+                                setDraggedProductId(prod.id);
+                              }}
+                              onDragOver={(e) => {
+                                if (!canEditContent) return;
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                if (dragOverProductId !== prod.id) {
+                                  setDragOverProductId(prod.id);
+                                }
+                              }}
+                              onDragLeave={() => {
+                                if (dragOverProductId === prod.id) {
+                                  setDragOverProductId(null);
+                                }
+                              }}
+                              onDrop={(e) => {
+                                if (!canEditContent) return;
+                                e.preventDefault();
+                                const sourceId = draggedProductId || e.dataTransfer.getData('text/plain');
+                                handleProductDrop(sourceId, prod.id);
+                              }}
+                              onDragEnd={() => {
+                                setDraggedProductId(null);
+                                setDragOverProductId(null);
+                              }}
+                              className={`transition-colors ${
+                                draggedProductId === prod.id 
+                                  ? 'opacity-25 bg-amber-50' 
+                                  : dragOverProductId === prod.id 
+                                  ? 'bg-amber-100/70 ring-2 ring-amber-400 ring-inset shadow-xs' 
+                                  : isFeatured 
+                                  ? 'bg-amber-50/30 hover:bg-slate-50' 
+                                  : 'hover:bg-slate-50'
+                              }`}
+                            >
                               <td className="py-3 px-4">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2.5">
+                                  {canEditContent && (
+                                    <div 
+                                      className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-amber-600 transition-colors p-1 rounded -ml-1 shrink-0"
+                                      title="Segure e arraste para reordenar este equipamento"
+                                    >
+                                      <GripVertical className="w-4 h-4" />
+                                    </div>
+                                  )}
                                   <img 
                                     src={prod.image} 
                                     alt={prod.altText || prod.name}
@@ -3958,9 +4096,9 @@ export default function AdminPanel({
                                     <span 
                                       onClick={() => canEditContent && openEditProductModal(prod)}
                                       className={`font-bold text-slate-900 text-xs block leading-snug transition-colors ${
-                                        canEditContent ? 'cursor-pointer hover:text-amber-600' : ''
+                                        canEditContent ? 'cursor-pointer hover:text-amber-600 hover:underline' : ''
                                       }`}
-                                      title={canEditContent ? "Clique para editar este equipamento" : undefined}
+                                      title={canEditContent ? "Clique para abrir e editar este equipamento" : undefined}
                                     >
                                       {prod.name}
                                     </span>
@@ -4052,14 +4190,6 @@ export default function AdminPanel({
                                         title="Descer posição no catálogo"
                                       >
                                         <ArrowDown className="w-3.5 h-3.5" />
-                                      </button>
-
-                                      <button
-                                        onClick={() => openEditProductModal(prod)}
-                                        className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200"
-                                        title="Editar"
-                                      >
-                                        <Edit3 className="w-3.5 h-3.5" />
                                       </button>
 
                                       {isAdminRole && (
@@ -4200,14 +4330,67 @@ export default function AdminPanel({
 
             <div className="grid grid-cols-1 gap-3">
               {categories.map((cat, idx) => (
-                <div key={cat.id} className="p-3.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50">
+                <div 
+                  key={cat.id} 
+                  draggable={canEditContent}
+                  onDragStart={(e) => {
+                    if (!canEditContent) return;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', cat.id);
+                    setDraggedCategoryId(cat.id);
+                  }}
+                  onDragOver={(e) => {
+                    if (!canEditContent) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverCategoryId !== cat.id) {
+                      setDragOverCategoryId(cat.id);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverCategoryId === cat.id) {
+                      setDragOverCategoryId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    if (!canEditContent) return;
+                    e.preventDefault();
+                    const sourceId = draggedCategoryId || e.dataTransfer.getData('text/plain');
+                    handleCategoryDrop(sourceId, cat.id);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedCategoryId(null);
+                    setDragOverCategoryId(null);
+                  }}
+                  className={`p-3.5 rounded-xl border flex items-center justify-between transition-all select-none ${
+                    draggedCategoryId === cat.id
+                      ? 'opacity-30 bg-amber-50 border-amber-300'
+                      : dragOverCategoryId === cat.id
+                      ? 'bg-amber-100/70 border-amber-500 ring-2 ring-amber-400 scale-[1.01] shadow-md'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 font-extrabold text-xs flex items-center justify-center">
+                    {canEditContent && (
+                      <div 
+                        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-amber-600 p-1 rounded shrink-0"
+                        title="Segure e arraste para reordenar a categoria"
+                      >
+                        <GripVertical className="w-4 h-4" />
+                      </div>
+                    )}
+                    <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 font-extrabold text-xs flex items-center justify-center shrink-0">
                       {idx + 1}
                     </span>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-slate-900">{cat.name}</span>
+                        <span 
+                          onClick={() => canEditContent && openEditCategoryModal(cat)}
+                          className={`font-bold text-xs text-slate-900 ${canEditContent ? 'cursor-pointer hover:text-amber-600 hover:underline' : ''}`}
+                          title={canEditContent ? "Clique para editar esta categoria" : undefined}
+                        >
+                          {cat.name}
+                        </span>
                         {cat.status === 'draft' && (
                           <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold">
                             Rascunho
@@ -4328,8 +4511,55 @@ export default function AdminPanel({
 
             <div className="grid grid-cols-1 gap-3">
               {brands.map((b, idx) => (
-                <div key={b.id} className="p-3.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50">
+                <div 
+                  key={b.id} 
+                  draggable={canEditContent}
+                  onDragStart={(e) => {
+                    if (!canEditContent) return;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', b.id);
+                    setDraggedBrandId(b.id);
+                  }}
+                  onDragOver={(e) => {
+                    if (!canEditContent) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverBrandId !== b.id) {
+                      setDragOverBrandId(b.id);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverBrandId === b.id) {
+                      setDragOverBrandId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    if (!canEditContent) return;
+                    e.preventDefault();
+                    const sourceId = draggedBrandId || e.dataTransfer.getData('text/plain');
+                    handleBrandDrop(sourceId, b.id);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedBrandId(null);
+                    setDragOverBrandId(null);
+                  }}
+                  className={`p-3.5 rounded-xl border flex items-center justify-between transition-all select-none ${
+                    draggedBrandId === b.id
+                      ? 'opacity-30 bg-sky-50 border-sky-300'
+                      : dragOverBrandId === b.id
+                      ? 'bg-sky-100/70 border-sky-500 ring-2 ring-sky-400 scale-[1.01] shadow-md'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
+                    {canEditContent && (
+                      <div 
+                        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-sky-600 p-1 rounded shrink-0"
+                        title="Segure e arraste para reordenar a marca"
+                      >
+                        <GripVertical className="w-4 h-4" />
+                      </div>
+                    )}
                     <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 font-extrabold text-xs flex items-center justify-center shrink-0">
                       {idx + 1}
                     </span>
@@ -4344,7 +4574,13 @@ export default function AdminPanel({
 
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-slate-900">{b.name}</span>
+                        <span 
+                          onClick={() => canEditContent && openEditBrandModal(b)}
+                          className={`font-bold text-xs text-slate-900 ${canEditContent ? 'cursor-pointer hover:text-sky-700 hover:underline' : ''}`}
+                          title={canEditContent ? "Clique para editar esta marca" : undefined}
+                        >
+                          {b.name}
+                        </span>
                         {b.status === 'draft' && (
                           <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold">
                             Rascunho
@@ -8594,12 +8830,12 @@ export default function AdminPanel({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-700">Logo / Foto da Marca</label>
-                    <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
                       <button
                         type="button"
                         onClick={() => setBrandForm({ ...brandForm, imageSourceMode: 'upload' })}
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          brandForm.imageSourceMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition ${
+                          brandForm.imageSourceMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                         }`}
                       >
                         Upload Arquivo
@@ -8607,11 +8843,23 @@ export default function AdminPanel({
                       <button
                         type="button"
                         onClick={() => setBrandForm({ ...brandForm, imageSourceMode: 'url' })}
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          brandForm.imageSourceMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition ${
+                          brandForm.imageSourceMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'
                         }`}
                       >
                         URL da Imagem
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSelectingBrandMedia(true);
+                          setIsLibraryModalOpen(true);
+                        }}
+                        className="btn-secondary text-[10px] py-0.5 px-2 font-bold flex items-center gap-1 cursor-pointer bg-white text-sky-700 border-sky-200 hover:bg-sky-50 shadow-2xs"
+                        title="Abrir Biblioteca R2 para escolher o logo da marca"
+                      >
+                        <Images className="w-3 h-3 text-sky-600" />
+                        <span>Biblioteca R2</span>
                       </button>
                     </div>
                   </div>
@@ -8638,27 +8886,69 @@ export default function AdminPanel({
                         <span className="text-xs font-bold text-slate-800 block">
                           Arraste e solte o logo ou clique para escolher
                         </span>
-                        <span className="text-[10px] text-slate-400">JPG, PNG ou SVG</span>
+                        <span className="text-[10px] text-slate-400 block">JPG, PNG ou SVG</span>
                       </label>
+
+                      <div className="pt-2 border-t border-slate-200/80 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSelectingBrandMedia(true);
+                            setIsLibraryModalOpen(true);
+                          }}
+                          className="text-[11px] font-bold text-sky-700 hover:text-sky-800 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <Images className="w-3.5 h-3.5 text-sky-600" />
+                          <span>Ou escolha da Biblioteca Cloudflare R2</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="relative">
-                      <input
-                        type="url"
-                        placeholder="https://marca.com/logo.png"
-                        value={brandForm.logo}
-                        onChange={(e) => setBrandForm({ ...brandForm, logo: e.target.value })}
-                        className="form-input text-xs !pl-10"
-                      />
-                      <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="url"
+                          placeholder="https://marca.com/logo.png"
+                          value={brandForm.logo}
+                          onChange={(e) => setBrandForm({ ...brandForm, logo: e.target.value })}
+                          className="form-input text-xs !pl-10"
+                        />
+                        <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSelectingBrandMedia(true);
+                          setIsLibraryModalOpen(true);
+                        }}
+                        className="btn-secondary text-xs py-2 px-3 font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                        title="Abrir Biblioteca de Fotos do Cloudflare R2"
+                      >
+                        <Images className="w-3.5 h-3.5 text-sky-600" />
+                        <span>Biblioteca R2</span>
+                      </button>
                     </div>
                   )}
 
                   {brandForm.logo && (
-                    <div className="flex items-center gap-3 p-2 bg-slate-100 rounded-xl border border-slate-200">
-                      <img src={brandForm.logo} alt="Preview Logo" className="w-10 h-10 object-contain rounded-lg bg-white p-1 border" />
-                      <span className="text-xs text-slate-600 truncate flex-1">Logo definida</span>
-                      <button type="button" onClick={() => setBrandForm({ ...brandForm, logo: '' })} className="text-xs text-red-600 font-bold">Remover</button>
+                    <div className="flex items-center gap-3 p-2.5 bg-slate-100 rounded-xl border border-slate-200">
+                      <img src={brandForm.logo} alt="Preview Logo" className="w-12 h-10 object-contain rounded-lg bg-white p-1 border border-slate-200 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-bold text-slate-800 block truncate">Logo definida</span>
+                        <span className="text-[10px] font-mono text-slate-400 block truncate">{brandForm.logo}</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setIsSelectingBrandMedia(true);
+                          setIsLibraryModalOpen(true);
+                        }} 
+                        className="text-xs text-sky-700 font-bold hover:underline px-1.5 cursor-pointer"
+                        title="Trocar logo pela biblioteca R2"
+                      >
+                        Trocar
+                      </button>
+                      <button type="button" onClick={() => setBrandForm({ ...brandForm, logo: '' })} className="text-xs text-red-600 font-bold hover:underline px-1.5 cursor-pointer">Remover</button>
                     </div>
                   )}
                 </div>
@@ -9153,26 +9443,36 @@ export default function AdminPanel({
           onClose={() => {
             setIsLibraryModalOpen(false);
             setIsSelectingBannerMedia(null);
+            setIsSelectingBrandMedia(false);
           }}
-          isStandalone={!isProductModalOpen && !isSelectingBannerMedia}
+          isStandalone={!isProductModalOpen && !isSelectingBannerMedia && !isSelectingBrandMedia}
           products={products}
           brands={brands}
           categories={categories}
           banners={banners}
           currentImages={
-            isSelectingBannerMedia
-              ? (isSelectingBannerMedia === 'desktop'
-                  ? (bannerForm.desktopImage ? [bannerForm.desktopImage] : [])
-                  : (bannerForm.mobileImage ? [bannerForm.mobileImage] : []))
-              : (isProductModalOpen ? (Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])) : [])
+            isSelectingBrandMedia
+              ? (brandForm.logo ? [brandForm.logo] : [])
+              : (isSelectingBannerMedia
+                  ? (isSelectingBannerMedia === 'desktop'
+                      ? (bannerForm.desktopImage ? [bannerForm.desktopImage] : [])
+                      : (bannerForm.mobileImage ? [bannerForm.mobileImage] : []))
+                  : (isProductModalOpen ? (Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])) : []))
           }
           currentCover={
-            isSelectingBannerMedia
-              ? (isSelectingBannerMedia === 'desktop' ? bannerForm.desktopImage : bannerForm.mobileImage)
-              : (isProductModalOpen ? (productForm.image || '') : '')
+            isSelectingBrandMedia
+              ? (brandForm.logo || '')
+              : (isSelectingBannerMedia
+                  ? (isSelectingBannerMedia === 'desktop' ? bannerForm.desktopImage : bannerForm.mobileImage)
+                  : (isProductModalOpen ? (productForm.image || '') : ''))
           }
           onSelectImage={
-            isSelectingBannerMedia ? (url) => {
+            isSelectingBrandMedia ? (url) => {
+              setBrandForm(prev => ({ ...prev, logo: url }));
+              setIsSelectingBrandMedia(false);
+              setIsLibraryModalOpen(false);
+              showNotification('Logo da marca selecionado da Biblioteca R2!', 'success');
+            } : (isSelectingBannerMedia ? (url) => {
               if (isSelectingBannerMedia === 'desktop') {
                 setBannerForm(prev => ({ ...prev, desktopImage: url }));
                 showNotification('Banner Desktop atualizado a partir da biblioteca R2!', 'success');
@@ -9193,10 +9493,15 @@ export default function AdminPanel({
                 };
               });
               showNotification('Foto adicionada à galeria do equipamento!', 'success');
-            } : undefined)
+            } : undefined))
           }
           onRemoveImageFromProduct={
-            isSelectingBannerMedia ? () => {
+            isSelectingBrandMedia ? () => {
+              setBrandForm(prev => ({ ...prev, logo: '' }));
+              setIsSelectingBrandMedia(false);
+              setIsLibraryModalOpen(false);
+              showNotification('Logo da marca removido.', 'info');
+            } : (isSelectingBannerMedia ? () => {
               if (isSelectingBannerMedia === 'desktop') {
                 setBannerForm(prev => ({ ...prev, desktopImage: '' }));
                 showNotification('Imagem Desktop do banner removida.', 'info');
@@ -9217,7 +9522,7 @@ export default function AdminPanel({
                 };
               });
               showNotification('Foto removida da galeria do equipamento.', 'info');
-            } : undefined)
+            } : undefined))
           }
           onSetAsCover={
             isProductModalOpen ? (url) => {

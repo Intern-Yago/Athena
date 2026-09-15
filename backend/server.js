@@ -6876,14 +6876,14 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
     try {
       await pool.query(`
         UPDATE products SET 
-          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5, preco_venda=COALESCE(NULLIF($5, 0), preco_venda, $5), price_negotiable=$6, badge=$7, tags=$8, compatible_product_ids=$9, recommended_product_ids=$10, status=$11, is_featured=$12, image=$13, images=$14, alt_text=$15, description=$16, specs=$17, attachments=$18, in_stock=$19, video_url=$20, custom_tabs=$21, product_type=$22, a_points=$23
+          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5::numeric, preco_venda=COALESCE(NULLIF($5::numeric, 0::numeric), preco_venda, $5::numeric), price_negotiable=$6, badge=$7, tags=$8, compatible_product_ids=$9, recommended_product_ids=$10, status=$11, is_featured=$12, image=$13, images=$14, alt_text=$15, description=$16, specs=$17, attachments=$18, in_stock=$19, video_url=$20, custom_tabs=$21, product_type=$22, a_points=$23
         WHERE id=$24
       `, [
         updatedProduct.name,
         updatedProduct.slug || '',
         updatedProduct.categoryId,
         updatedProduct.brandId,
-        updatedProduct.price || 0,
+        updatedProduct.price != null ? Number(updatedProduct.price) : 0,
         updatedProduct.priceNegotiable !== undefined ? updatedProduct.priceNegotiable : true,
         updatedProduct.badge || '',
         JSON.stringify(Array.isArray(updatedProduct.tags) ? updatedProduct.tags : (updatedProduct.tags ? [updatedProduct.tags] : [])),
