@@ -3131,6 +3131,16 @@ export default function AdminPanel({
       return;
     }
 
+    const finalSlug = (productForm.slug || '').trim() || generateSlug(productForm.name);
+    const cleanedSpecs = (productForm.specs || []).filter(s => typeof s === 'string' ? s.trim() !== '' : Boolean(s));
+
+    // Extract any remaining tags from description before saving
+    const tagRes = typeof extractTagsFromDescriptionText === 'function' 
+      ? extractTagsFromDescriptionText(productForm.description, productForm.tags)
+      : { hasExtracted: false, cleanedDescription: productForm.description || '', extractedTags: productForm.tags || [] };
+    const finalDescription = tagRes.hasExtracted ? tagRes.cleanedDescription : (productForm.description || '');
+    const mergedTags = tagRes.hasExtracted ? tagRes.extractedTags : (productForm.tags || []);
+
     const rawSku = (productForm.sku || '').trim();
     const autoSku = extractSkuFromTitle(productForm.name);
     const finalSku = rawSku || autoSku || (productForm.omieCode || '').trim() || '';
@@ -4671,9 +4681,15 @@ export default function AdminPanel({
                       {idx + 1}
                     </span>
 
-                    <div className="w-12 h-10 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center p-1 shrink-0">
+                    <div 
+                      onClick={() => b.logo && setPreviewingImage(b.logo)}
+                      className={`w-12 h-10 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center p-1 shrink-0 ${
+                        b.logo ? 'cursor-zoom-in hover:border-sky-400 hover:shadow-sm group transition-all' : ''
+                      }`}
+                      title={b.logo ? "Clique para expandir a logo da marca" : undefined}
+                    >
                       {b.logo ? (
-                        <img src={b.logo} alt={b.name} className="max-h-full max-w-full object-contain" />
+                        <img src={b.logo} alt={b.name} className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform" />
                       ) : (
                         <Tag className="w-5 h-5 text-slate-400" />
                       )}
@@ -9116,7 +9132,13 @@ export default function AdminPanel({
 
                   {brandForm.logo && (
                     <div className="flex items-center gap-3 p-2.5 bg-slate-100 rounded-xl border border-slate-200">
-                      <img src={brandForm.logo} alt="Preview Logo" className="w-12 h-10 object-contain rounded-lg bg-white p-1 border border-slate-200 shrink-0" />
+                      <div 
+                        onClick={() => setPreviewingImage(brandForm.logo)}
+                        className="w-12 h-10 object-contain rounded-lg bg-white p-1 border border-slate-200 shrink-0 flex items-center justify-center cursor-zoom-in hover:border-sky-400 hover:shadow-xs group transition-all"
+                        title="Clique para expandir a logo da marca"
+                      >
+                        <img src={brandForm.logo} alt="Preview Logo" className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform" />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <span className="text-xs font-bold text-slate-800 block truncate">Logo definida</span>
                         <span className="text-[10px] font-mono text-slate-400 block truncate">{brandForm.logo}</span>
@@ -9555,7 +9577,7 @@ export default function AdminPanel({
         {/* PHOTO LIGHTBOX PREVIEW POPUP MODAL */}
         {previewingImage && (
           <div 
-            className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-[110] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm !z-[140] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
             onClick={() => setPreviewingImage(null)}
           >
             <div 
@@ -9567,9 +9589,14 @@ export default function AdminPanel({
                   <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 text-xs font-black">
                     Visualizador de Imagem
                   </span>
-                  {productForm.image === previewingImage && (
+                  {isProductModalOpen && productForm.image === previewingImage && (
                     <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-xs font-black">
                       Foto de Capa Principal
+                    </span>
+                  )}
+                  {isBrandModalOpen && brandForm.logo === previewingImage && (
+                    <span className="px-2.5 py-1 rounded-lg bg-sky-500 text-white text-xs font-black">
+                      Logo Oficial da Marca
                     </span>
                   )}
                 </div>
@@ -9586,7 +9613,7 @@ export default function AdminPanel({
               <div className="w-full max-h-[65vh] rounded-2xl bg-slate-900/5 p-2 flex items-center justify-center overflow-hidden border border-slate-200/60">
                 <img 
                   src={previewingImage} 
-                  alt="Visualização do Equipamento" 
+                  alt="Visualização" 
                   className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-xs"
                 />
               </div>
@@ -9596,7 +9623,7 @@ export default function AdminPanel({
                   {previewingImage}
                 </div>
                 <div className="flex items-center gap-2">
-                  {productForm.image !== previewingImage && (
+                  {isProductModalOpen && productForm.image !== previewingImage && (
                     <button
                       type="button"
                       onClick={() => {
@@ -9606,6 +9633,18 @@ export default function AdminPanel({
                       className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black shadow-sm transition"
                     >
                       Definir como Capa
+                    </button>
+                  )}
+                  {isBrandModalOpen && brandForm.logo !== previewingImage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBrandForm({ ...brandForm, logo: previewingImage });
+                        showNotification('Definida como logo da marca com sucesso!', 'success');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold shadow-sm transition"
+                    >
+                      Definir como Logo
                     </button>
                   )}
                   <button
