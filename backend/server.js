@@ -18,7 +18,10 @@ const axios = require('axios');
 const { 
   searchHermesProducts, 
   hermesGeminiToolDeclaration, 
-  executeHermesGeminiTool 
+  hermesGeminiTools,
+  executeHermesGeminiTool,
+  updateProductByHermes,
+  syncProductFromOmie
 } = require('./services/hermesProductService');
 const { processOmieProductWebhook } = require('./services/omieWebhookService');
 
@@ -4012,14 +4015,21 @@ app.post('/api/payments/webhook', async (req, res) => {
 // -------------------------------------------------------------
 // 4. OMIE ERP WEBHOOK & A-POINTS LOYALTY SYSTEM
 // -------------------------------------------------------------
-const OMIE_APP_KEY = process.env.OMIE_APP_KEY || '7410462256197';
-const OMIE_APP_SECRET = process.env.OMIE_APP_SECRET || '0a8c9d675963da05b8565eb75a167020';
+const OMIE_APP_KEY = process.env.OMIE_APP_KEY;
+const OMIE_APP_SECRET = process.env.OMIE_APP_SECRET;
 
 async function callOmieApi(endpointUrl, callMethod, paramObj) {
+  const appKey = process.env.OMIE_APP_KEY;
+  const appSecret = process.env.OMIE_APP_SECRET;
+
+  if (!appKey || !appSecret) {
+    throw new Error('OMIE_APP_KEY e OMIE_APP_SECRET precisam estar configuradas nas variáveis de ambiente.');
+  }
+
   const response = await axios.post(endpointUrl, {
     call: callMethod,
-    app_key: OMIE_APP_KEY,
-    app_secret: OMIE_APP_SECRET,
+    app_key: appKey,
+    app_secret: appSecret,
     param: [paramObj]
   });
   return response.data;
@@ -4654,6 +4664,9 @@ app.get('/api/hermes/status', validateHermesAuth, async (req, res) => {
         'POST /api/hermes/customers/:identifier/debit',
         'GET /api/hermes/rewards',
         'GET /api/hermes/products',
+        'POST /api/hermes/products',
+        'PUT /api/hermes/products/:id',
+        'POST /api/hermes/products/sync-omie',
         'GET /api/hermes/loyalty/insights'
       ]
     });
@@ -5404,11 +5417,40 @@ app.post('/api/hermes/products', validateHermesAuth, async (req, res) => {
   }
 });
 
+// Hermes: Atualizar Produto no Catálogo (Preço, Estoque ou Status)
+app.put('/api/hermes/products/:id', validateHermesAuth, async (req, res) => {
+  try {
+    const result = await updateProductByHermes(pool, req.params.id, req.body || {});
+    return res.json(result);
+  } catch (err) {
+    console.error('[HERMES PRODUCT PUT ERROR]:', err.message);
+    const isNotFound = err.message && err.message.includes('não encontrado');
+    return res.status(isNotFound ? 404 : 500).json({ error: err.message });
+  }
+});
+
+// Hermes: Sincronizar / Criar Produto a partir do Omie ERP
+app.post('/api/hermes/products/sync-omie', validateHermesAuth, async (req, res) => {
+  try {
+    const result = await syncProductFromOmie(pool, req.body || {});
+    return res.json(result);
+  } catch (err) {
+    console.error('[HERMES OMIE SYNC ERROR]:', err.message);
+    const isNotFound = err.message && err.message.includes('não localizado');
+    return res.status(isNotFound ? 404 : 500).json({ error: err.message });
+  }
+});
+
 // Hermes: Tool Declaration para agentes Gemini AI
 app.get('/api/hermes/tool-declaration', validateHermesAuth, (req, res) => {
   res.json({
     tool: hermesGeminiToolDeclaration,
-    endpoint: 'https://athenaconsultoria.com.br/api/hermes/products'
+    tools: hermesGeminiTools,
+    endpoints: {
+      search: 'https://athenaconsultoria.com.br/api/hermes/products',
+      update: 'https://athenaconsultoria.com.br/api/hermes/products/:id',
+      syncOmie: 'https://athenaconsultoria.com.br/api/hermes/products/sync-omie'
+    }
   });
 });
 

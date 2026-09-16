@@ -8,17 +8,25 @@
 
 const axios = require("axios");
 
-const OMIE_APP_KEY = process.env.OMIE_APP_KEY || "7410462256197";
-const OMIE_APP_SECRET = process.env.OMIE_APP_SECRET || "0a8c9d675963da05b8565eb75a167020";
+const OMIE_APP_KEY = process.env.OMIE_APP_KEY;
+const OMIE_APP_SECRET = process.env.OMIE_APP_SECRET;
 const OMIE_PRODUTOS_URL = "https://app.omie.com.br/api/v1/geral/produtos/";
 
 async function fetchOmieProductDetails(codigoProduto, codigo) {
+  const appKey = process.env.OMIE_APP_KEY;
+  const appSecret = process.env.OMIE_APP_SECRET;
+
+  if (!appKey || !appSecret) {
+    console.warn(`[Omie Webhook] Variáveis OMIE_APP_KEY ou OMIE_APP_SECRET não configuradas no ambiente.`);
+    return null;
+  }
+
   try {
     const param = codigoProduto ? { codigo_produto: Number(codigoProduto) } : { codigo };
     const res = await axios.post(OMIE_PRODUTOS_URL, {
       call: "ConsultarProduto",
-      app_key: OMIE_APP_KEY,
-      app_secret: OMIE_APP_SECRET,
+      app_key: appKey,
+      app_secret: appSecret,
       param: [param]
     }, { timeout: 6000 });
     return res.data;

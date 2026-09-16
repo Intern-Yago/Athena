@@ -13,17 +13,25 @@
 
 const axios = require("axios");
 
-const OMIE_APP_KEY = process.env.OMIE_APP_KEY || "7410462256197";
-const OMIE_APP_SECRET = process.env.OMIE_APP_SECRET || "0a8c9d675963da05b8565eb75a167020";
+const OMIE_APP_KEY = process.env.OMIE_APP_KEY;
+const OMIE_APP_SECRET = process.env.OMIE_APP_SECRET;
 const OMIE_PRODUTOS_URL = "https://app.omie.com.br/api/v1/geral/produtos/";
 
 // Helper para chamada segura a API do Omie
 async function callOmie(callMethod, paramObj) {
+  const appKey = process.env.OMIE_APP_KEY;
+  const appSecret = process.env.OMIE_APP_SECRET;
+
+  if (!appKey || !appSecret) {
+    console.warn(`[Hermes Omie] Variáveis OMIE_APP_KEY ou OMIE_APP_SECRET não configuradas no ambiente.`);
+    return null;
+  }
+
   try {
     const response = await axios.post(OMIE_PRODUTOS_URL, {
       call: callMethod,
-      app_key: OMIE_APP_KEY,
-      app_secret: OMIE_APP_SECRET,
+      app_key: appKey,
+      app_secret: appSecret,
       param: [paramObj]
     }, {
       timeout: 7000
@@ -44,6 +52,31 @@ function normalizeText(str) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+/**
+ * Extrai o codigo SKU a partir do titulo do produto.
+ * Regra de negocio: O SKU e sempre a ultima palavra do titulo quando separado por espaco (index -1),
+ * limpando eventuais pontuacoes como parenteses ou aspas.
+ * Exemplo: "Elevador Automotivo 4000kg MAH-4008" -> "MAH-4008"
+ */
+function extractSkuFromTitle(str) {
+  if (!str) return null;
+  const parts = String(str).trim().split(/\s+/);
+  if (parts.length === 0) return null;
+  const candidate = parts[parts.length - 1]; // index -1
+  const clean = candidate.replace(/^[(\[{'"]+|[)\]}'"]+$/g, "").trim();
+  return clean.length >= 2 ? clean : null;
+}
+
+/**
+ * Extrai padroes de modelo/SKU de uma string (ex: MAH-4008, SGT-0529AK, W1058)
+ */
+function extractModelKeys(str) {
+  if (!str) return [];
+  const upper = String(str).toUpperCase();
+  const matches = upper.match(/[A-Z0-9]{2,}[-_/][A-Z0-9]{2,}|[A-Z]{2,4}[0-9]{2,5}[A-Z0-9]*|[0-9]{2,5}[A-Z]{2,4}/g) || [];
+  return matches.map(m => m.replace(/[^A-Z0-9-_]/g, "")).filter(m => m.length >= 3);
 }
 
 /**
@@ -214,28 +247,39 @@ async function fetchOmieFallback(searchTerm) {
   const clean = String(searchTerm || "").trim();
   if (!clean) return [];
 
-  console.log(`[Hermes Fallback Omie] Produto nao encontrado localmente. Consultando Omie ERP para: "${clean}"...`);
+  console.log(`[Hermes Fallback Omie] Consultando Omie ERP para: "${clean}"...`);
 
-  // Tentativa 1: Consulta direta por codigo / SKU (ConsultarProduto)
-  // Se for algo como MAH-4008, 0615010001, etc.
-  try {
-    const directByCode = await callOmie("ConsultarProduto", { codigo: clean });
-    if (directByCode && directByCode.codigo_produto) {
-      return [directByCode];
-    }
-  } catch (e) {
-    // Continua
+  // Extrai candidatos a codigo / SKU (incluindo o SKU via indice -1 ao separar o titulo por espaco)
+  const skuFromTitle = extractSkuFromTitle(clean);
+  const modelKeys = extractModelKeys(clean);
+  const candidateCodes = [];
+
+  if (skuFromTitle) candidateCodes.push(skuFromTitle);
+  if (!candidateCodes.includes(clean)) candidateCodes.push(clean);
+  for (const mk of modelKeys) {
+    if (!candidateCodes.includes(mk)) candidateCodes.push(mk);
   }
 
-  // Se for numerico, tenta por codigo_produto
-  if (/^\d+$/.test(clean)) {
+  // Tentativa 1: Consulta direta por codigo / SKU (ConsultarProduto)
+  for (const cod of candidateCodes) {
     try {
-      const directById = await callOmie("ConsultarProduto", { codigo_produto: Number(clean) });
-      if (directById && directById.codigo_produto) {
-        return [directById];
+      const directByCode = await callOmie("ConsultarProduto", { codigo: cod });
+      if (directByCode && (directByCode.codigo_produto || directByCode.codigo)) {
+        return [directByCode];
       }
     } catch (e) {
       // Continua
+    }
+
+    if (/^\d+$/.test(cod)) {
+      try {
+        const directById = await callOmie("ConsultarProduto", { codigo_produto: Number(cod) });
+        if (directById && directById.codigo_produto) {
+          return [directById];
+        }
+      } catch (e) {
+        // Continua
+      }
     }
   }
 
@@ -251,6 +295,7 @@ async function fetchOmieFallback(searchTerm) {
     const items = listRes?.produto_servico_cadastro || [];
     const normSearch = normalizeText(clean);
     const searchTokens = normSearch.split(/\s+/).filter(t => t.length >= 2);
+    const normSku = skuFromTitle ? normalizeText(skuFromTitle) : "";
 
     const matches = items.filter(p => {
       const desc = normalizeText(p.descricao || "");
@@ -258,8 +303,9 @@ async function fetchOmieFallback(searchTerm) {
       const marca = normalizeText(p.marca || "");
       const full = `${desc} ${cod} ${marca}`;
 
+      if (normSku && (cod === normSku || cod.includes(normSku))) return true;
       if (full.includes(normSearch)) return true;
-      return searchTokens.every(tok => full.includes(tok));
+      return searchTokens.length > 0 && searchTokens.every(tok => full.includes(tok));
     });
 
     return matches.slice(0, 10);
@@ -282,16 +328,19 @@ async function upsertOmieProductToLocal(pool, omieItem) {
     const preco = Number(omieItem.valor_unitario || 0);
     const estoque = Number(omieItem.quantidade_estoque != null ? omieItem.quantidade_estoque : 0);
 
-    // 1. Verifica se ja existe por omie_codigo_produto ou omie_code
+    // 1. Verifica se ja existe por omie_codigo_produto, omie_code ou match por SKU
     const checkRes = await pool.query(`
       SELECT id, name, slug, price, preco_venda, price_negotiable, estoque_quantidade 
       FROM products 
-      WHERE omie_codigo_produto = $1 OR omie_product_id = $1 OR (omie_code = $2 AND omie_code IS NOT NULL AND omie_code != '')
+      WHERE omie_codigo_produto = $1 
+         OR omie_product_id = $1 
+         OR (omie_code = $2 AND omie_code IS NOT NULL AND omie_code != '')
+         OR (omie_code IS NULL AND $2 != '' AND name ILIKE $3)
       LIMIT 1
-    `, [omieId, omieCode]);
+    `, [omieId, omieCode, `%${omieCode}%`]);
 
     if (checkRes.rows.length > 0) {
-      // Ja existe: UPDATE do cache local
+      // Ja existe: UPDATE do cache local (PRESERVANDO o status price_negotiable!)
       const existing = checkRes.rows[0];
       await pool.query(`
         UPDATE products 
@@ -299,7 +348,8 @@ async function upsertOmieProductToLocal(pool, omieItem) {
           omie_codigo_produto = $1,
           omie_product_id = $1,
           omie_code = $2,
-          preco_venda = $3,
+          preco_venda = CASE WHEN $3 > 0 THEN $3 ELSE preco_venda END,
+          price = CASE WHEN (price IS NULL OR price = 0) AND $3 > 0 THEN $3 ELSE price END,
           estoque_quantidade = $4,
           in_stock = ($4 > 0),
           omie_last_sync = CURRENT_TIMESTAMP
@@ -324,7 +374,7 @@ async function upsertOmieProductToLocal(pool, omieItem) {
         orientacaoHermes: canBuyOnline 
           ? `Disponível para compra direta no site com checkout online por R$ ${preco.toFixed(2)}.`
           : (preco > 0 
-              ? `No site público o valor é exibido como 'Sob Consulta' e não permite compra direta. Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${preco.toFixed(2)}, explicando que a formalização é feita via orçamento oficial com nossos consultores.`
+              ? `No site público o valor é exibido como 'Sob Consulta' e não permite compra direta. Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${preco.toFixed(2)}, explicando que a formalização é feita via orçamento oficial com nossos consultores técnicos.`
               : `Item sob Consulta de Orçamento. Oriente o cliente a solicitar orçamento.`),
         inStock: estoque > 0,
         omieCodigoProduto: String(omieId),
@@ -335,7 +385,6 @@ async function upsertOmieProductToLocal(pool, omieItem) {
     }
 
     // 2. Nao existe: INSERT como novo produto em cache
-    // Gera slug amigavel
     const rawSlug = omieName
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -370,12 +419,12 @@ async function upsertOmieProductToLocal(pool, omieItem) {
       precoFormatado: preco > 0 ? `R$ ${preco.toFixed(2)}` : "Sob Consulta",
       precoExibicaoSite: "Sob Consulta",
       estoqueQuantidade: estoque,
-      priceNegotiable: true, // Mantem "Consultar Orcamento" no frontend conforme regra de negocio
+      priceNegotiable: true, // Mantem "Sob Consulta" conforme regra de negocio
       isUnderQuote: true,
       canBuyOnline: false,
       modalidadeVenda: "consulta_orcamento",
       orientacaoHermes: preco > 0
-        ? `No site público o valor é exibido como 'Sob Consulta' e não permite compra direta. Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${preco.toFixed(2)}, explicando que a proposta formal e condições são fechadas via cotação oficial com nossos consultores.`
+        ? `No site público o valor é exibido como 'Sob Consulta' e não permite compra direta. Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${preco.toFixed(2)}, explicando que a proposta formal e condições são fechadas via cotação oficial com nossos consultores técnicos.`
         : `Item sob Consulta de Orçamento. Oriente o cliente a solicitar orçamento.`,
       inStock: estoque > 0,
       omieCodigoProduto: String(omieId),
@@ -390,8 +439,125 @@ async function upsertOmieProductToLocal(pool, omieItem) {
 }
 
 /**
- * FUNCAO PRINCIPAL DA TOOL DO HERMES
- * Executa o fluxo completo Cache-Aside com Fallback
+ * JUST-IN-TIME PRICE ENRICHMENT
+ * Se um produto foi encontrado no banco de dados local do site, mas esta SEM PRECO (precoVenda <= 0),
+ * consulta o Omie ERP para obter o preco de tabela/venda e estoque atualizado, registrando silenciosamente
+ * no banco do site.
+ * 
+ * REGRA CRITICA DE NEGOCIO:
+ * O status de "Sob Consulta" (price_negotiable) NAO e alterado!
+ * Se estiver em consulta continua em consulta, e se nao estiver permanece como esta.
+ */
+async function enrichProductWithOmiePrice(pool, product) {
+  if (!pool || !product) return product;
+  if (Number(product.precoVenda || 0) > 0) return product; // Ja possui preco!
+
+  console.log(`[Hermes Auto-Enrich] Produto "${product.name}" sem preco no banco local. Consultando Omie ERP...`);
+
+  // Monta lista de possiveis chaves para buscar no Omie
+  const skuFromTitle = extractSkuFromTitle(product.name);
+  const modelKeys = extractModelKeys(product.name);
+  const candidateCodes = [];
+
+  if (product.omieCodigoProduto) {
+    candidateCodes.push({ type: "codigo_produto", val: Number(product.omieCodigoProduto) });
+  }
+  if (product.omieCode) {
+    candidateCodes.push({ type: "codigo", val: String(product.omieCode).trim() });
+  }
+  if (skuFromTitle && !candidateCodes.some(c => c.val === skuFromTitle)) {
+    candidateCodes.push({ type: "codigo", val: skuFromTitle });
+  }
+  for (const mk of modelKeys) {
+    if (!candidateCodes.some(c => c.val === mk)) {
+      candidateCodes.push({ type: "codigo", val: mk });
+    }
+  }
+
+  let omieItem = null;
+
+  // 1. Tenta consulta direta por codigo ou codigo_produto
+  for (const cand of candidateCodes) {
+    try {
+      const param = cand.type === "codigo_produto" ? { codigo_produto: cand.val } : { codigo: cand.val };
+      const res = await callOmie("ConsultarProduto", param);
+      if (res && (res.codigo_produto || res.codigo)) {
+        omieItem = res;
+        break;
+      }
+    } catch (e) {
+      // continua
+    }
+  }
+
+  // 2. Se nao encontrou direto, tenta busca flexivel no Omie usando o SKU ou nome
+  if (!omieItem && (skuFromTitle || product.name)) {
+    const fallbackResults = await fetchOmieFallback(skuFromTitle || product.name);
+    if (fallbackResults && fallbackResults.length > 0) {
+      omieItem = fallbackResults[0];
+    }
+  }
+
+  // 3. Se obteve o item do Omie, enriquece o banco local e o objeto retornado
+  if (omieItem) {
+    const precoOmie = Number(omieItem.valor_unitario || 0);
+    const estoqueOmie = Number(omieItem.quantidade_estoque != null ? omieItem.quantidade_estoque : 0);
+    const omieId = Number(omieItem.codigo_produto || 0);
+    const omieCode = String(omieItem.codigo || "").trim();
+
+    if (precoOmie > 0 || estoqueOmie > 0) {
+      // Grava no PostgreSQL SEM alterar o status de consulta (price_negotiable permanece INTACTO)
+      await pool.query(`
+        UPDATE products 
+        SET 
+          preco_venda = CASE WHEN $1 > 0 THEN $1 ELSE preco_venda END,
+          price = CASE WHEN (price IS NULL OR price = 0) AND $1 > 0 THEN $1 ELSE price END,
+          estoque_quantidade = $2,
+          in_stock = ($2 > 0),
+          omie_codigo_produto = COALESCE(omie_codigo_produto, $3),
+          omie_product_id = COALESCE(omie_product_id, $3),
+          omie_code = COALESCE(NULLIF($4, ''), omie_code),
+          omie_last_sync = CURRENT_TIMESTAMP
+        WHERE id = $5
+      `, [
+        precoOmie,
+        estoqueOmie,
+        omieId || null,
+        omieCode || null,
+        product.id
+      ]);
+
+      console.log(`[Hermes Auto-Enrich] ✅ Produto "${product.name}" enriquecido do Omie! Preco: R$ ${precoOmie} | Estoque: ${estoqueOmie} (Status 'Sob Consulta' preservado)`);
+
+      // Atualiza os dados do produto para o Hermes responder com precisao
+      if (precoOmie > 0) product.precoVenda = precoOmie;
+      product.estoqueQuantidade = estoqueOmie;
+      product.inStock = estoqueOmie > 0;
+      if (omieId) product.omieCodigoProduto = String(omieId);
+      if (omieCode) product.omieCode = omieCode;
+
+      const isNegotiable = product.priceNegotiable !== false;
+      const canBuyOnline = product.precoVenda > 0 && !isNegotiable;
+
+      product.canBuyOnline = canBuyOnline;
+      product.modalidadeVenda = canBuyOnline ? "compra_direta_site" : "consulta_orcamento";
+      product.precoFormatado = product.precoVenda > 0 ? `R$ ${product.precoVenda.toFixed(2)}` : "Sob Consulta";
+      product.precoExibicaoSite = canBuyOnline ? `R$ ${product.precoVenda.toFixed(2)}` : "Sob Consulta";
+
+      if (canBuyOnline) {
+        product.orientacaoHermes = `Disponível para compra direta no site com checkout online pelo valor público de R$ ${product.precoVenda.toFixed(2)}.`;
+      } else if (product.precoVenda > 0) {
+        product.orientacaoHermes = `No site público o produto é exibido como "Sob Consulta" e o botão de compra direta fica bloqueado para orçamento. Porém, quando você (Hermes) for perguntado sobre o valor pelo cliente, INFORME com clareza o preço de tabela/referência de R$ ${product.precoVenda.toFixed(2)}, explicando que as condições comerciais finais (descontos, parcelamento, frete) são fechadas via cotação oficial no WhatsApp com nossos consultores técnicos.`;
+      }
+    }
+  }
+
+  return product;
+}
+
+/**
+ * FUNCAO PRINCIPAL DA TOOL DE BUSCA DO HERMES
+ * Executa o fluxo completo Cache-Aside com Fallback e Enriquecimento Just-in-Time
  */
 async function searchHermesProducts({ pool, search = "", limit = 10, forceOmie = false }) {
   const cleanSearch = String(search || "").trim();
@@ -408,18 +574,30 @@ async function searchHermesProducts({ pool, search = "", limit = 10, forceOmie =
   if (!forceOmie && pool) {
     const localResults = await searchLocalProducts(pool, cleanSearch, limit);
     if (localResults.length > 0) {
+      // Auto-enriquecimento Just-in-Time: Se algum dos produtos encontrados nao tiver valor,
+      // busca no Omie e auto-alimenta o banco do site silenciosamente, mantendo o status de consulta.
+      const enrichedProducts = [];
+      for (const prod of localResults) {
+        if (prod.precoVenda <= 0) {
+          const enriched = await enrichProductWithOmiePrice(pool, prod);
+          enrichedProducts.push(enriched);
+        } else {
+          enrichedProducts.push(prod);
+        }
+      }
+
       return {
         query: cleanSearch,
-        total: localResults.length,
-        executionFlow: "cache_hit_postgres",
+        total: enrichedProducts.length,
+        executionFlow: "cache_hit_postgres_enriched",
         source: "local_database",
-        performance: "sub_30ms",
-        products: localResults
+        performance: "optimized",
+        products: enrichedProducts
       };
     }
   }
 
-  // PASSO C: Fallback na API do Omie ERP
+  // PASSO C: Fallback na API do Omie ERP (quando o produto nao esta cadastrado no site)
   const omieCandidates = await fetchOmieFallback(cleanSearch);
   if (omieCandidates.length === 0) {
     return {
@@ -450,27 +628,210 @@ async function searchHermesProducts({ pool, search = "", limit = 10, forceOmie =
 }
 
 /**
- * DECLARACAO DA TOOL DO HERMES PARA GEMINI AI
+ * Permite ao Hermes (ou via API x-hermes-key) atualizar dados de um produto no catalogo
+ * (preco, estoque ou status).
+ */
+async function updateProductByHermes(pool, identifier, updateData = {}) {
+  if (!pool || !identifier) {
+    throw new Error("Parâmetros inválidos: pool e identificador do produto são obrigatórios.");
+  }
+
+  const cleanId = String(identifier).trim();
+  const isNumeric = /^\d+$/.test(cleanId);
+
+  let findRes = null;
+  if (isNumeric) {
+    findRes = await pool.query(`
+      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code 
+      FROM products 
+      WHERE id = $1 OR omie_codigo_produto = $2 OR omie_product_id = $2 
+      LIMIT 1
+    `, [cleanId, Number(cleanId)]);
+  } else {
+    findRes = await pool.query(`
+      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code 
+      FROM products 
+      WHERE id = $1 OR slug = $1 OR LOWER(COALESCE(omie_code, '')) = LOWER($1)
+      LIMIT 1
+    `, [cleanId]);
+  }
+
+  if (!findRes || findRes.rows.length === 0) {
+    // Tenta por SKU no titulo
+    const skuCandidate = extractSkuFromTitle(cleanId);
+    const searchTerm = skuCandidate || cleanId;
+    findRes = await pool.query(`
+      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code 
+      FROM products 
+      WHERE name ILIKE $1 OR omie_code ILIKE $1
+      LIMIT 1
+    `, [`%${searchTerm}%`]);
+  }
+
+  if (!findRes || findRes.rows.length === 0) {
+    throw new Error(`Produto "${cleanId}" não encontrado no catálogo da Athena.`);
+  }
+
+  const existing = findRes.rows[0];
+
+  const newPrice = updateData.precoVenda != null 
+    ? Number(updateData.precoVenda) 
+    : (updateData.price != null ? Number(updateData.price) : existing.preco_venda);
+
+  const newStock = updateData.estoqueQuantidade != null 
+    ? Number(updateData.estoqueQuantidade) 
+    : (updateData.stock != null ? Number(updateData.stock) : existing.estoque_quantidade);
+
+  const newNegotiable = updateData.priceNegotiable != null 
+    ? Boolean(updateData.priceNegotiable) 
+    : existing.price_negotiable;
+
+  const newStatus = updateData.status ? String(updateData.status).trim() : existing.status;
+
+  await pool.query(`
+    UPDATE products 
+    SET 
+      preco_venda = $1,
+      price = CASE WHEN $1 > 0 THEN $1 ELSE price END,
+      estoque_quantidade = $2,
+      in_stock = ($2 > 0),
+      price_negotiable = $3,
+      status = $4,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = $5
+  `, [
+    newPrice,
+    newStock,
+    newNegotiable,
+    newStatus,
+    existing.id
+  ]);
+
+  return {
+    success: true,
+    message: `Produto "${existing.name}" atualizado com sucesso pelo Hermes!`,
+    product: {
+      id: existing.id,
+      name: existing.name,
+      slug: existing.slug,
+      precoVenda: newPrice,
+      estoqueQuantidade: newStock,
+      priceNegotiable: newNegotiable,
+      status: newStatus,
+      inStock: newStock > 0
+    }
+  };
+}
+
+/**
+ * Permite ao Hermes forcar a sincronizacao/importacao de um produto do Omie ERP para o site.
+ */
+async function syncProductFromOmie(pool, { codigo, codigo_produto, search } = {}) {
+  if (!pool) throw new Error("Conexão com o banco de dados indisponível.");
+
+  let omieItem = null;
+
+  if (codigo_produto) {
+    omieItem = await callOmie("ConsultarProduto", { codigo_produto: Number(codigo_produto) });
+  } else if (codigo) {
+    omieItem = await callOmie("ConsultarProduto", { codigo: String(codigo).trim() });
+  } else if (search) {
+    const clean = String(search).trim();
+    const sku = extractSkuFromTitle(clean);
+    if (sku) {
+      try {
+        omieItem = await callOmie("ConsultarProduto", { codigo: sku });
+      } catch (e) {}
+    }
+    if (!omieItem) {
+      const candidates = await fetchOmieFallback(clean);
+      if (candidates && candidates.length > 0) {
+        omieItem = candidates[0];
+      }
+    }
+  }
+
+  if (!omieItem || !omieItem.codigo_produto) {
+    throw new Error(`Produto não localizado no Omie ERP pelos critérios informados.`);
+  }
+
+  const saved = await upsertOmieProductToLocal(pool, omieItem);
+  return {
+    success: true,
+    message: `Produto "${omieItem.descricao}" sincronizado com sucesso do Omie para o catálogo!`,
+    product: saved
+  };
+}
+
+/**
+ * DECLARACAO DAS TOOLS DO HERMES PARA GEMINI AI
  * Formato oficial da Google Generative AI (Tool / Function Declaration)
  */
-const hermesGeminiToolDeclaration = {
-  name: "search_athena_products",
-  description: "Pesquisa produtos, maquinas e equipamentos automotivos da Athena Solucoes Automotivas com preco atualizado e saldo de estoque em tempo real. Consulta primeiro a replica de leitura em alta velocidade e sincroniza com o Omie ERP automaticamente quando necessario.",
-  parameters: {
-    type: "OBJECT",
-    properties: {
-      search: {
-        type: "STRING",
-        description: "Termo de busca, nome do equipamento (ex: Elevador 4T, Scanner Automotivo), modelo (ex: MAH-4008, SGT-0529AK) ou codigo SKU."
+const hermesGeminiTools = [
+  {
+    name: "search_athena_products",
+    description: "Pesquisa produtos, máquinas e equipamentos automotivos da Athena Soluções Automotivas com preço atualizado e saldo de estoque em tempo real. Consulta o banco local de alta velocidade e auto-sincroniza silenciosamente com o Omie ERP caso o produto esteja sem valor ou não cadastrado no site.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        search: {
+          type: "STRING",
+          description: "Termo de busca, nome do equipamento (ex: Elevador 4T, Scanner Automotivo), modelo/SKU (ex: MAH-4008, SGT-0529AK)."
+        },
+        limit: {
+          type: "INTEGER",
+          description: "Quantidade máxima de produtos a retornar (padrão: 10)."
+        }
       },
-      limit: {
-        type: "INTEGER",
-        description: "Quantidade maxima de produtos a retornar (padrao: 10)."
+      required: ["search"]
+    }
+  },
+  {
+    name: "update_athena_product",
+    description: "Atualiza o preço de venda ou a quantidade de estoque de um produto existente no catálogo da Athena. Usar apenas quando explicitamente solicitado pelo administrador.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        identifier: {
+          type: "STRING",
+          description: "ID do produto, slug, código SKU ou modelo (ex: 'MAH-4008', 'prod_123')."
+        },
+        precoVenda: {
+          type: "NUMBER",
+          description: "Novo preço de venda do produto em Reais."
+        },
+        estoqueQuantidade: {
+          type: "INTEGER",
+          description: "Nova quantidade em estoque disponível."
+        }
+      },
+      required: ["identifier"]
+    }
+  },
+  {
+    name: "sync_omie_product",
+    description: "Força a busca e sincronização/cadastro de um produto do ERP Omie para o catálogo do site Athena. Usar quando o usuário solicitar puxar um produto do Omie.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        codigo: {
+          type: "STRING",
+          description: "Código SKU do produto no Omie (ex: 'MAH-4008')."
+        },
+        codigo_produto: {
+          type: "INTEGER",
+          description: "Código numérico do produto no Omie."
+        },
+        search: {
+          type: "STRING",
+          description: "Termo de busca no Omie caso não saiba o código exato."
+        }
       }
-    },
-    required: ["search"]
+    }
   }
-};
+];
+
+const hermesGeminiToolDeclaration = hermesGeminiTools[0];
 
 /**
  * Executor da Tool Gemini para integracao com Agente Hermes
@@ -488,6 +849,21 @@ async function executeHermesGeminiTool(pool, toolCall) {
     });
   }
 
+  if (name === "update_athena_product") {
+    return await updateProductByHermes(pool, parsedArgs.identifier, {
+      precoVenda: parsedArgs.precoVenda,
+      estoqueQuantidade: parsedArgs.estoqueQuantidade
+    });
+  }
+
+  if (name === "sync_omie_product") {
+    return await syncProductFromOmie(pool, {
+      codigo: parsedArgs.codigo,
+      codigo_produto: parsedArgs.codigo_produto,
+      search: parsedArgs.search
+    });
+  }
+
   throw new Error(`Tool desconhecida: ${name}`);
 }
 
@@ -496,6 +872,12 @@ module.exports = {
   searchLocalProducts,
   fetchOmieFallback,
   upsertOmieProductToLocal,
+  enrichProductWithOmiePrice,
+  updateProductByHermes,
+  syncProductFromOmie,
+  extractSkuFromTitle,
+  extractModelKeys,
   hermesGeminiToolDeclaration,
+  hermesGeminiTools,
   executeHermesGeminiTool
 };
