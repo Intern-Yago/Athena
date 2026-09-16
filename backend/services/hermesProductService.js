@@ -739,7 +739,7 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
       in_stock = ($2::integer > 0),
       price_negotiable = $3::boolean,
       status = $4::text,
-      updated_at = CURRENT_TIMESTAMP
+      omie_last_sync = CURRENT_TIMESTAMP
     WHERE id = $5::text
   `, [
     newPrice,

@@ -691,6 +691,7 @@ async function initDb() {
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_codigo_produto BIGINT;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS estoque_quantidade INTEGER DEFAULT 0;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS preco_venda NUMERIC(12,2) DEFAULT 0;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
         CREATE INDEX IF NOT EXISTS idx_products_sku ON public.products(sku);
         CREATE INDEX IF NOT EXISTS idx_products_omie_codigo_produto ON public.products(omie_codigo_produto);
