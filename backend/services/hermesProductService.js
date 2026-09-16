@@ -103,6 +103,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           COALESCE(p.preco_venda, p.price, 0) as "precoVenda",
           COALESCE(p.estoque_quantidade, 0) as "estoqueQuantidade",
           p.price_negotiable as "priceNegotiable",
+          p.status,
           p.badge, p.image, p.images, p.in_stock as "inStock",
           p.omie_codigo_produto as "omieCodigoProduto",
           p.omie_code as "omieCode",
@@ -121,6 +122,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           COALESCE(p.preco_venda, p.price, 0) as "precoVenda",
           COALESCE(p.estoque_quantidade, 0) as "estoqueQuantidade",
           p.price_negotiable as "priceNegotiable",
+          p.status,
           p.badge, p.image, p.images, p.in_stock as "inStock",
           p.omie_codigo_produto as "omieCodigoProduto",
           p.omie_code as "omieCode",
@@ -139,7 +141,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
     }
 
     // 2. Busca textual flexivel por tokens no nome, descricao, marca e categoria
-    let whereClauses = ["p.status = 'published'"];
+    let whereClauses = ["(p.status IS NULL OR p.status IN ('published', 'draft', 'rascunho'))"];
     let params = [];
 
     if (tokens.length > 0) {
@@ -168,6 +170,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
         COALESCE(p.preco_venda, p.price, 0) as "precoVenda",
         COALESCE(p.estoque_quantidade, 0) as "estoqueQuantidade",
         p.price_negotiable as "priceNegotiable",
+        p.status,
         p.badge, p.image, p.images, p.in_stock as "inStock",
         p.omie_codigo_produto as "omieCodigoProduto",
         p.omie_code as "omieCode",
@@ -204,10 +207,14 @@ function mapDbRowToHermesProduct(row) {
   const priceNum = Number(row.precoVenda || row.price || 0);
   const stockNum = Number(row.estoqueQuantidade != null ? row.estoqueQuantidade : (row.inStock ? 1 : 0));
   const isNegotiable = Boolean(row.priceNegotiable !== false);
-  const canBuyOnline = priceNum > 0 && !isNegotiable;
+  const statusStr = String(row.status || 'published').toLowerCase().trim();
+  const isDraft = statusStr === 'draft' || statusStr === 'rascunho';
+  const canBuyOnline = priceNum > 0 && !isNegotiable && !isDraft;
 
   let orientacao = "";
-  if (canBuyOnline) {
+  if (isDraft) {
+    orientacao = `Equipamento cadastrado internamente em RASCUNHO (oculto no catálogo do site para inclusão de imagens, tags e revisão técnica). Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${priceNum.toFixed(2)}, explicando que as condições comerciais finais (descontos, parcelamento, frete) são fechadas via cotação oficial no WhatsApp com nossos consultores técnicos.`;
+  } else if (canBuyOnline) {
     orientacao = `Disponível para compra direta no site com checkout online pelo valor público de R$ ${priceNum.toFixed(2)}.`;
   } else if (priceNum > 0) {
     orientacao = `No site público o produto é exibido como "Sob Consulta" e o botão de compra direta fica bloqueado para orçamento. Porém, quando você (Hermes) for perguntado sobre o valor pelo cliente, INFORME com clareza o preço de tabela/referência de R$ ${priceNum.toFixed(2)}, explicando que as condições comerciais finais (descontos, parcelamento, frete) são fechadas via cotação oficial no WhatsApp com nossos consultores.`;
@@ -225,6 +232,8 @@ function mapDbRowToHermesProduct(row) {
     estoqueQuantidade: stockNum,
     priceNegotiable: isNegotiable,
     isUnderQuote: isNegotiable,
+    status: row.status || 'published',
+    isDraft: isDraft,
     canBuyOnline: canBuyOnline,
     modalidadeVenda: canBuyOnline ? "compra_direta_site" : "consulta_orcamento",
     orientacaoHermes: orientacao,
@@ -401,7 +410,7 @@ async function upsertOmieProductToLocal(pool, omieItem) {
         price_negotiable, status, in_stock, omie_codigo_produto,
         omie_product_id, omie_code, omie_last_sync
       )
-      VALUES ($1, $2, $3, $4, $4, $5, TRUE, 'published', ($5 > 0), $6, $6, $7, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $4, $5, TRUE, 'draft', ($5 > 0), $6, $6, $7, CURRENT_TIMESTAMP)
       ON CONFLICT (id) DO UPDATE SET
         preco_venda = $4,
         estoque_quantidade = $5,
@@ -409,7 +418,7 @@ async function upsertOmieProductToLocal(pool, omieItem) {
         omie_last_sync = CURRENT_TIMESTAMP
     `, [newId, omieName, slug, preco, estoque, omieId, omieCode]);
 
-    console.log(`[Cache-Aside] Produto do Omie "${omieName}" (${omieCode}) salvo com sucesso no banco Supabase!`);
+    console.log(`[Cache-Aside] Produto do Omie "${omieName}" (${omieCode}) salvo como RASCUNHO no banco Supabase!`);
 
     return {
       id: newId,
@@ -421,11 +430,13 @@ async function upsertOmieProductToLocal(pool, omieItem) {
       estoqueQuantidade: estoque,
       priceNegotiable: true, // Mantem "Sob Consulta" conforme regra de negocio
       isUnderQuote: true,
+      status: "draft",
+      isDraft: true,
       canBuyOnline: false,
       modalidadeVenda: "consulta_orcamento",
       orientacaoHermes: preco > 0
-        ? `No site público o valor é exibido como 'Sob Consulta' e não permite compra direta. Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${preco.toFixed(2)}, explicando que a proposta formal e condições são fechadas via cotação oficial com nossos consultores técnicos.`
-        : `Item sob Consulta de Orçamento. Oriente o cliente a solicitar orçamento.`,
+        ? `Equipamento importado do Omie ERP em formato de RASCUNHO (permanece estritamente oculto no site público para inclusão de imagens, tags e revisão pela equipe). Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${preco.toFixed(2)}, explicando que as condições comerciais finais (descontos, parcelamento, frete) são fechadas via cotação oficial no WhatsApp com nossos consultores técnicos.`
+        : `Item sob Consulta de Orçamento (Rascunho). Oriente o cliente a solicitar orçamento formal com os consultores técnicos.`,
       inStock: estoque > 0,
       omieCodigoProduto: String(omieId),
       omieCode: omieCode,
