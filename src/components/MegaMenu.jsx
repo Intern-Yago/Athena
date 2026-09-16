@@ -89,53 +89,57 @@ export default function MegaMenu({ type, categories, brands, products, onNavigat
           {/* List of Item Cards */}
           <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {type === 'categories' ? (
-              categories.map((cat) => {
-                const count = products.filter(p => p.categoryId === cat.id).length;
-                return (
-                  <div
-                    key={cat.id}
-                    onClick={() => {
-                      onNavigate(`categoria/${cat.slug || cat.id}`);
-                      onClose();
-                    }}
-                    className="p-3.5 rounded-xl border border-slate-200 hover:border-amber-400 bg-slate-50 hover:bg-amber-50/60 cursor-pointer transition-colors flex items-center justify-between group"
-                  >
-                    <div className="space-y-0.5">
-                      <h4 className="font-bold text-xs text-slate-900 group-hover:text-amber-700">
-                        {cat.name}
-                      </h4>
-                      <span className="text-[10px] text-slate-500 font-medium block">
-                        {count} equipamento(s)
-                      </span>
+              categories
+                .filter((cat) => (products || []).some((p) => p.categoryId === cat.id))
+                .map((cat) => {
+                  const count = (products || []).filter(p => p.categoryId === cat.id).length;
+                  return (
+                    <div
+                      key={cat.id}
+                      onClick={() => {
+                        onNavigate(`categoria/${cat.slug || cat.id}`);
+                        onClose();
+                      }}
+                      className="p-3.5 rounded-xl border border-slate-200 hover:border-amber-400 bg-slate-50 hover:bg-amber-50/60 cursor-pointer transition-colors flex items-center justify-between group"
+                    >
+                      <div className="space-y-0.5">
+                        <h4 className="font-bold text-xs text-slate-900 group-hover:text-amber-700">
+                          {cat.name}
+                        </h4>
+                        <span className="text-[10px] text-slate-500 font-medium block">
+                          {count} equipamento(s)
+                        </span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600" />
-                  </div>
-                );
-              })
+                  );
+                })
             ) : (
-              brands.map((b) => {
-                const count = products.filter(p => p.brandId === b.id).length;
-                return (
-                  <div
-                    key={b.id}
-                    onClick={() => {
-                      onNavigate(`marca/${b.slug || b.id}`);
-                      onClose();
-                    }}
-                    className="p-3.5 rounded-xl border border-slate-200 hover:border-sky-400 bg-slate-50 hover:bg-sky-50/60 cursor-pointer transition-colors flex items-center justify-between group"
-                  >
-                    <div className="space-y-0.5">
-                      <h4 className="font-bold text-xs text-slate-900 group-hover:text-sky-700">
-                        {b.name}
-                      </h4>
-                      <span className="text-[10px] text-slate-500 font-medium block">
-                        {count} equipamento(s)
-                      </span>
+              brands
+                .filter((b) => (products || []).some((p) => p.brandId === b.id))
+                .map((b) => {
+                  const count = (products || []).filter(p => p.brandId === b.id).length;
+                  return (
+                    <div
+                      key={b.id}
+                      onClick={() => {
+                        onNavigate(`marca/${b.slug || b.id}`);
+                        onClose();
+                      }}
+                      className="p-3.5 rounded-xl border border-slate-200 hover:border-sky-400 bg-slate-50 hover:bg-sky-50/60 cursor-pointer transition-colors flex items-center justify-between group"
+                    >
+                      <div className="space-y-0.5">
+                        <h4 className="font-bold text-xs text-slate-900 group-hover:text-sky-700">
+                          {b.name}
+                        </h4>
+                        <span className="text-[10px] text-slate-500 font-medium block">
+                          {count} equipamento(s)
+                        </span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-sky-600" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-sky-600" />
-                  </div>
-                );
-              })
+                  );
+                })
             )}
           </div>
 

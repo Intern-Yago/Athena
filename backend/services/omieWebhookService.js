@@ -90,11 +90,13 @@ async function processOmieProductWebhook(pool, body) {
         omie_codigo_produto = COALESCE(omie_codigo_produto, $3),
         omie_product_id = COALESCE(omie_product_id, $3),
         omie_code = COALESCE(NULLIF($4, ''), omie_code),
+        sku = COALESCE(sku, NULLIF($4, '')),
         omie_last_sync = CURRENT_TIMESTAMP
       WHERE 
         (omie_codigo_produto IS NOT NULL AND omie_codigo_produto = $3) OR
         (omie_product_id IS NOT NULL AND omie_product_id = $3) OR
-        (omie_code IS NOT NULL AND omie_code != '' AND LOWER(omie_code) = LOWER($4))
+        (omie_code IS NOT NULL AND omie_code != '' AND LOWER(omie_code) = LOWER($4)) OR
+        (sku IS NOT NULL AND sku != '' AND LOWER(sku) = LOWER($4))
       RETURNING id, name, slug, price_negotiable
     `, [
       finalPreco,

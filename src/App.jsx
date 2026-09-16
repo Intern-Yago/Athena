@@ -898,7 +898,9 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {categories.map((cat) => {
+              {categories
+                .filter((cat) => (publicProducts || []).some((p) => p.categoryId === cat.id))
+                .map((cat) => {
                 const catProducts = publicProducts.filter((p) => p.categoryId === cat.id);
                 return (
                   <div 
@@ -952,7 +954,9 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {brands.map((b) => {
+              {brands
+                .filter((b) => (publicProducts || []).some((p) => p.brandId === b.id))
+                .map((b) => {
                 const brandProducts = publicProducts.filter((p) => p.brandId === b.id);
                 return (
                   <div 

@@ -965,7 +965,10 @@ export default function AdminPanel({
       videoUrl: '',
       customTabs: [],
       compatibleProductIds: [],
-      recommendedProductIds: []
+      recommendedProductIds: [],
+      sku: '',
+      stock: 0,
+      omieCode: ''
     }
   );
 
@@ -1299,6 +1302,15 @@ export default function AdminPanel({
       .replace(/-+/g, '-');
   };
 
+  const extractSkuFromTitle = (str) => {
+    if (!str) return '';
+    const parts = String(str).trim().split(/\s+/);
+    if (parts.length === 0) return '';
+    const candidate = parts[parts.length - 1]; // index -1
+    const clean = candidate.replace(/^[(\[{'"]+|[)\]}'"]+$/g, '').trim();
+    return clean.length >= 2 ? clean : '';
+  };
+
   const openNewProductModal = () => {
     setProductModalHistory([]);
     setEditingProduct(null);
@@ -1324,7 +1336,10 @@ export default function AdminPanel({
       videoUrl: '',
       customTabs: [],
       compatibleProductIds: [],
-      recommendedProductIds: []
+      recommendedProductIds: [],
+      sku: '',
+      stock: 0,
+      omieCode: ''
     };
     setProductForm(initialForm);
     setTagInput('');
@@ -1338,6 +1353,9 @@ export default function AdminPanel({
     setEditingProduct(product);
     const initialForm = {
       ...product,
+      sku: product.sku || product.omieCode || '',
+      stock: product.stock != null ? product.stock : (product.estoqueQuantidade != null ? product.estoqueQuantidade : (product.inStock === false ? 0 : 1)),
+      omieCode: product.omieCode || product.sku || '',
       aPoints: (product.aPoints != null && Number(product.aPoints) > 0) ? product.aPoints : '',
       isFeatured: !!product.isFeatured,
       productType: product.productType || 'physical',
@@ -3113,16 +3131,21 @@ export default function AdminPanel({
       return;
     }
 
-    const finalSlug = productForm.slug.trim() || generateSlug(productForm.name);
-    const cleanedSpecs = productForm.specs.filter(s => s.trim() !== '');
-
-    // Extract any remaining tags from description before saving
-    const tagRes = extractTagsFromDescriptionText(productForm.description, productForm.tags);
-    const finalDescription = tagRes.hasExtracted ? tagRes.cleanedDescription : (productForm.description || '');
-    const mergedTags = tagRes.hasExtracted ? tagRes.extractedTags : (productForm.tags || []);
+    const rawSku = (productForm.sku || '').trim();
+    const autoSku = extractSkuFromTitle(productForm.name);
+    const finalSku = rawSku || autoSku || (productForm.omieCode || '').trim() || '';
+    const stockQty = productForm.stock !== '' && productForm.stock != null && !isNaN(productForm.stock) 
+      ? Math.max(0, parseInt(productForm.stock, 10)) 
+      : 0;
+    const inStock = stockQty > 0 || productForm.inStock === true;
 
     const finalProduct = {
       ...productForm,
+      sku: finalSku,
+      omieCode: finalSku,
+      stock: stockQty,
+      estoqueQuantidade: stockQty,
+      inStock: inStock,
       description: finalDescription,
       slug: finalSlug,
       price: parseFloat(productForm.price) || 0,
@@ -4177,6 +4200,18 @@ export default function AdminPanel({
                                     <span className="text-[11px] font-mono text-slate-400 block truncate max-w-xs">
                                       /produto/{prod.slug || prod.id}
                                     </span>
+                                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                      <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200" title="Código / SKU de integração Omie ERP">
+                                        SKU: {prod.sku || prod.omieCode || extractSkuFromTitle(prod.name) || 'S/ SKU'}
+                                      </span>
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                        (prod.stock != null ? prod.stock : (prod.estoqueQuantidade != null ? prod.estoqueQuantidade : (prod.inStock ? 1 : 0))) > 0
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                          : 'bg-red-50 text-red-700 border-red-200'
+                                      }`}>
+                                        Estoque: {prod.stock != null ? prod.stock : (prod.estoqueQuantidade != null ? prod.estoqueQuantidade : (prod.inStock ? 'Disponível' : 0))} un.
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </td>
@@ -7848,6 +7883,83 @@ export default function AdminPanel({
                             onChange={(e) => setProductForm({ ...productForm, badge: e.target.value })}
                             className="form-input text-xs"
                           />
+                        </div>
+                      </div>
+
+                      {/* INTEGRAÇÃO OMIE ERP & ESTOQUE */}
+                      <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/90 space-y-3.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-amber-500 text-slate-950 font-black text-[10px] flex items-center gap-1">
+                              <Package className="w-3.5 h-3.5" />
+                              <span>OMIE ERP</span>
+                            </div>
+                            <div>
+                              <span className="text-xs font-black text-amber-950 block">
+                                Conexão Omie ERP & Saldo de Estoque
+                              </span>
+                              <span className="text-[10px] text-amber-800">
+                                Sincronização bidirecional em tempo real (Site ↔ Omie)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          <div>
+                            <label className="text-xs font-bold text-slate-800 block mb-1">
+                              Código / SKU (Omie ERP)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Ex: MAH-4008 ou deixe vazio"
+                              value={productForm.sku || ''}
+                              onChange={(e) => setProductForm({ ...productForm, sku: e.target.value })}
+                              className="form-input text-xs font-mono font-bold bg-white"
+                            />
+                            <span className="text-[10.5px] text-slate-500 block mt-1 leading-tight">
+                              {productForm.sku ? (
+                                <span className="text-emerald-700 font-semibold">SKU fixado: <strong>{productForm.sku}</strong></span>
+                              ) : (
+                                <span>Se vazio, autodetecta do título (índice -1): <strong>{extractSkuFromTitle(productForm.name) || 'Nenhum identificado'}</strong></span>
+                              )}
+                            </span>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-xs font-bold text-slate-800 block">
+                                Estoque Disponível (Unidades)
+                              </label>
+                              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                                Number(productForm.stock || 0) > 0
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  : 'bg-red-50 text-red-700 border-red-200'
+                              }`}>
+                                {Number(productForm.stock || 0) > 0 ? `${productForm.stock} un. em estoque` : 'Esgotado (0)'}
+                              </span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="Ex: 5"
+                              value={productForm.stock !== undefined && productForm.stock !== null ? productForm.stock : ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const num = parseInt(val, 10);
+                                setProductForm({ 
+                                  ...productForm, 
+                                  stock: val === '' ? '' : Math.max(0, isNaN(num) ? 0 : num),
+                                  inStock: val === '' ? false : num > 0
+                                });
+                              }}
+                              className="form-input text-xs font-mono font-bold bg-white"
+                            />
+                            <span className="text-[10.5px] text-slate-500 block mt-1 leading-tight">
+                              Quando você alterar aqui, atualiza no Omie. Quando alterar no Omie, atualiza aqui automaticamente.
+                            </span>
+                          </div>
                         </div>
                       </div>
 

@@ -87,7 +87,9 @@ export default function HeroSlim({
                 >
                   Todas
                 </button>
-                {categories.map((cat) => (
+                {(categories || [])
+                  .filter((cat) => (products || []).some((p) => p.categoryId === cat.id) || selectedCategory === cat.id)
+                  .map((cat) => (
                   <button
                     key={cat.id}
                     type="button"

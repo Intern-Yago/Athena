@@ -76,9 +76,35 @@ export default function FilterSidebar({
     return counts;
   }, [baseMatchingProducts, selectedCategories]);
 
+  // Frequency map of total global products per category (independent of current active filters)
+  const globalCategoryCounts = useMemo(() => {
+    const counts = new Map();
+    for (let i = 0; i < (products || []).length; i++) {
+      const catId = products[i].categoryId;
+      if (catId) counts.set(catId, (counts.get(catId) || 0) + 1);
+    }
+    return counts;
+  }, [products]);
+
+  // Frequency map of total global products per brand (independent of current active filters)
+  const globalBrandCounts = useMemo(() => {
+    const counts = new Map();
+    for (let i = 0; i < (products || []).length; i++) {
+      const bId = products[i].brandId;
+      if (bId) counts.set(bId, (counts.get(bId) || 0) + 1);
+    }
+    return counts;
+  }, [products]);
+
   // Compute stats and sorting for CATEGORIES using O(1) count lookups
   const categoryStats = useMemo(() => {
-    const rawStats = categories.map((cat) => {
+    // Filtra apenas categorias que possuem produtos cadastrados no catálogo geral (ou que estejam selecionadas)
+    const validCategories = (categories || []).filter((cat) => {
+      const globalTotal = globalCategoryCounts.get(cat.id) || 0;
+      return globalTotal > 0 || selectedCategories.includes(cat.id);
+    });
+
+    const rawStats = validCategories.map((cat) => {
       const isChecked = selectedCategories.includes(cat.id);
       const matchingCount = categoryCounts.get(cat.id) || 0;
       const isDisabled = matchingCount === 0 && !isChecked;
@@ -106,11 +132,17 @@ export default function FilterSidebar({
       // Fallback: Alphabetical
       return a.name.localeCompare(b.name);
     });
-  }, [categories, selectedCategories, categoryCounts]);
+  }, [categories, selectedCategories, categoryCounts, globalCategoryCounts]);
 
   // Compute stats and sorting for BRANDS using O(1) count lookups
   const brandStats = useMemo(() => {
-    const rawStats = brands.map((b) => {
+    // Filtra apenas marcas que possuem produtos cadastrados no catálogo geral (ou que estejam selecionadas)
+    const validBrands = (brands || []).filter((b) => {
+      const globalTotal = globalBrandCounts.get(b.id) || 0;
+      return globalTotal > 0 || selectedBrands.includes(b.id);
+    });
+
+    const rawStats = validBrands.map((b) => {
       const isChecked = selectedBrands.includes(b.id);
       const matchingCount = brandCounts.get(b.id) || 0;
       const isDisabled = matchingCount === 0 && !isChecked;
@@ -138,7 +170,7 @@ export default function FilterSidebar({
       // Fallback: Alphabetical
       return a.name.localeCompare(b.name);
     });
-  }, [brands, selectedBrands, brandCounts]);
+  }, [brands, selectedBrands, brandCounts, globalBrandCounts]);
 
   const toggleCategory = (catId) => {
     if (selectedCategories.includes(catId)) {

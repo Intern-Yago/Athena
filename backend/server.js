@@ -24,6 +24,7 @@ const {
   syncProductFromOmie
 } = require('./services/hermesProductService');
 const { processOmieProductWebhook } = require('./services/omieWebhookService');
+const { syncProductToOmie, extractSkuFromTitle } = require('./services/omieProductSyncService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -683,6 +684,7 @@ async function initDb() {
         ALTER TABLE public.a_points_transactions ADD COLUMN IF NOT EXISTS points_reversed INTEGER DEFAULT 0;
         ALTER TABLE public.a_points_transactions ADD COLUMN IF NOT EXISTS notes TEXT;
 
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS sku VARCHAR(100);
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_product_id BIGINT;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_code VARCHAR(100);
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS omie_last_sync TIMESTAMP;
@@ -690,9 +692,14 @@ async function initDb() {
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS estoque_quantidade INTEGER DEFAULT 0;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS preco_venda NUMERIC(12,2) DEFAULT 0;
 
+        CREATE INDEX IF NOT EXISTS idx_products_sku ON public.products(sku);
         CREATE INDEX IF NOT EXISTS idx_products_omie_codigo_produto ON public.products(omie_codigo_produto);
         CREATE INDEX IF NOT EXISTS idx_products_estoque_quantidade ON public.products(estoque_quantidade);
         CREATE INDEX IF NOT EXISTS idx_products_preco_venda ON public.products(preco_venda);
+
+        UPDATE public.products 
+        SET sku = omie_code 
+        WHERE (sku IS NULL OR sku = '') AND omie_code IS NOT NULL AND omie_code != '';
         CREATE INDEX IF NOT EXISTS idx_users_lower_email ON public.users (LOWER(email));
         CREATE INDEX IF NOT EXISTS idx_products_category_id ON public.products(category_id);
         CREATE INDEX IF NOT EXISTS idx_products_brand_id ON public.products(brand_id);
@@ -6684,7 +6691,13 @@ app.get('/api/products', async (req, res) => {
           b.name as "brandName",
           b.slug as "brandSlug",
           p.price::float, 
+          COALESCE(p.preco_venda, p.price, 0)::float as "precoVenda",
           p.price_negotiable as "priceNegotiable", 
+          p.sku,
+          p.omie_code as "omieCode",
+          p.omie_codigo_produto as "omieCodigoProduto",
+          COALESCE(p.estoque_quantidade, 0) as "stock",
+          COALESCE(p.estoque_quantidade, 0) as "estoqueQuantidade",
           p.badge, p.tags, 
           p.compatible_product_ids as "compatibleProductIds", 
           p.recommended_product_ids as "recommendedProductIds", 
@@ -6794,7 +6807,13 @@ app.get('/api/products/:identifier', async (req, res) => {
           b.name as "brandName",
           b.slug as "brandSlug",
           p.price::float, 
+          COALESCE(p.preco_venda, p.price, 0)::float as "precoVenda",
           p.price_negotiable as "priceNegotiable", 
+          p.sku,
+          p.omie_code as "omieCode",
+          p.omie_codigo_produto as "omieCodigoProduto",
+          COALESCE(p.estoque_quantidade, 0) as "stock",
+          COALESCE(p.estoque_quantidade, 0) as "estoqueQuantidade",
           p.badge, p.tags, 
           p.compatible_product_ids as "compatibleProductIds", 
           p.recommended_product_ids as "recommendedProductIds", 
@@ -6843,7 +6862,24 @@ app.get('/api/products/:identifier', async (req, res) => {
 });
 
 app.post('/api/products', authenticateToken, async (req, res) => {
-  const newProduct = { id: req.body.id || `prod_${Date.now()}`, ...req.body };
+  const rawSku = (req.body.sku || '').trim();
+  const autoSku = extractSkuFromTitle(req.body.name);
+  const finalSku = rawSku || autoSku || (req.body.omieCode || '').trim() || null;
+  const stockQty = req.body.stock != null 
+    ? Math.max(0, parseInt(req.body.stock, 10)) 
+    : (req.body.estoqueQuantidade != null ? Math.max(0, parseInt(req.body.estoqueQuantidade, 10)) : 0);
+  const inStock = stockQty > 0 || req.body.inStock !== false;
+
+  const newProduct = { 
+    id: req.body.id || `prod_${Date.now()}`, 
+    ...req.body,
+    sku: finalSku,
+    omieCode: finalSku,
+    stock: stockQty,
+    estoqueQuantidade: stockQty,
+    inStock
+  };
+
   if (pool) {
     try {
       await pool.query(`
@@ -6851,13 +6887,15 @@ app.post('/api/products', authenticateToken, async (req, res) => {
           id, name, slug, category_id, brand_id, price, preco_venda, 
           price_negotiable, badge, tags, compatible_product_ids, recommended_product_ids, 
           status, is_featured, image, images, alt_text, description, specs, 
-          attachments, in_stock, video_url, custom_tabs, product_type, a_points
+          attachments, in_stock, video_url, custom_tabs, product_type, a_points,
+          sku, estoque_quantidade, omie_code
         )
         VALUES (
           $1, $2, $3, $4, $5, $6::numeric, $6::numeric, 
           $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, 
           $12, $13, $14, $15::jsonb, $16, $17, $18::jsonb, 
-          $19::jsonb, $20, $21, $22::jsonb, $23, $24
+          $19::jsonb, $20, $21, $22::jsonb, $23, $24,
+          $25, $26, $27
         )
         ON CONFLICT (id) DO UPDATE SET 
           name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6::numeric, preco_venda=$6::numeric, 
@@ -6865,7 +6903,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
           recommended_product_ids=$11::jsonb, status=$12, is_featured=$13, image=$14, 
           images=$15::jsonb, alt_text=$16, description=$17, specs=$18::jsonb, 
           attachments=$19::jsonb, in_stock=$20, video_url=$21, custom_tabs=$22::jsonb, 
-          product_type=$23, a_points=$24
+          product_type=$23, a_points=$24, sku=$25, estoque_quantidade=$26, omie_code=$27
       `, [
         newProduct.id,
         newProduct.name,
@@ -6886,12 +6924,21 @@ app.post('/api/products', authenticateToken, async (req, res) => {
         newProduct.description || '',
         JSON.stringify(newProduct.specs || []),
         JSON.stringify(newProduct.attachments || []),
-        newProduct.inStock !== undefined ? newProduct.inStock : true,
+        inStock,
         newProduct.videoUrl || newProduct.youtubeVideoUrl || '',
         JSON.stringify(newProduct.customTabs || []),
         newProduct.productType || 'physical',
-        newProduct.aPoints != null ? parseInt(newProduct.aPoints, 10) : null
+        newProduct.aPoints != null ? parseInt(newProduct.aPoints, 10) : null,
+        finalSku,
+        stockQty,
+        finalSku
       ]);
+
+      // Sincronização com Omie ERP em segundo plano (Site -> Omie)
+      syncProductToOmie(pool, newProduct).catch(err => 
+        console.error('[Omie Post-Create Sync Error]:', err.message)
+      );
+
       return res.status(201).json(newProduct);
     } catch (e) {
       console.error('Erro ao salvar produto no PostgreSQL:', e.message);
@@ -6927,7 +6974,24 @@ app.put('/api/products/reorder', authenticateToken, async (req, res) => {
 });
 
 app.put('/api/products/:id', authenticateToken, async (req, res) => {
-  const updatedProduct = { id: req.params.id, ...req.body };
+  const rawSku = (req.body.sku || '').trim();
+  const autoSku = extractSkuFromTitle(req.body.name);
+  const finalSku = rawSku || autoSku || (req.body.omieCode || '').trim() || null;
+  const stockQty = req.body.stock != null 
+    ? Math.max(0, parseInt(req.body.stock, 10)) 
+    : (req.body.estoqueQuantidade != null ? Math.max(0, parseInt(req.body.estoqueQuantidade, 10)) : 0);
+  const inStock = stockQty > 0 || req.body.inStock !== false;
+
+  const updatedProduct = { 
+    id: req.params.id, 
+    ...req.body,
+    sku: finalSku,
+    omieCode: finalSku,
+    stock: stockQty,
+    estoqueQuantidade: stockQty,
+    inStock
+  };
+
   if (pool) {
     try {
       await pool.query(`
@@ -6938,8 +7002,9 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
           recommended_product_ids=$10::jsonb, status=$11, is_featured=$12, image=$13, 
           images=$14::jsonb, alt_text=$15, description=$16, specs=$17::jsonb, 
           attachments=$18::jsonb, in_stock=$19, video_url=$20, custom_tabs=$21::jsonb, 
-          product_type=$22, a_points=$23
-        WHERE id=$24
+          product_type=$22, a_points=$23, sku=$24, estoque_quantidade=$25,
+          omie_code=COALESCE(NULLIF($26, ''), omie_code)
+        WHERE id=$27
       `, [
         updatedProduct.name,
         updatedProduct.slug || '',
@@ -6959,13 +7024,22 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
         updatedProduct.description || '',
         JSON.stringify(updatedProduct.specs || []),
         JSON.stringify(updatedProduct.attachments || []),
-        updatedProduct.inStock !== undefined ? updatedProduct.inStock : true,
+        inStock,
         updatedProduct.videoUrl || updatedProduct.youtubeVideoUrl || '',
         JSON.stringify(updatedProduct.customTabs || []),
         updatedProduct.productType || 'physical',
         updatedProduct.aPoints != null ? parseInt(updatedProduct.aPoints, 10) : null,
+        finalSku,
+        stockQty,
+        finalSku,
         req.params.id
       ]);
+
+      // Sincronização com Omie ERP em segundo plano (Site -> Omie)
+      syncProductToOmie(pool, updatedProduct).catch(err => 
+        console.error('[Omie Post-Update Sync Error]:', err.message)
+      );
+
       return res.json(updatedProduct);
     } catch (e) {
       console.error('Erro ao atualizar produto no PostgreSQL:', e.message);
@@ -6975,7 +7049,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
   const db = readDbJson();
   const index = db.products.findIndex((p) => p.id === req.params.id);
   if (index !== -1) {
-    db.products[index] = { ...db.products[index], ...req.body };
+    db.products[index] = { ...db.products[index], ...updatedProduct };
     writeDbJson(db);
     return res.json(db.products[index]);
   }

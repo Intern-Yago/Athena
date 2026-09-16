@@ -105,6 +105,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           p.price_negotiable as "priceNegotiable",
           p.status,
           p.badge, p.image, p.images, p.in_stock as "inStock",
+          p.sku,
           p.omie_codigo_produto as "omieCodigoProduto",
           p.omie_code as "omieCode",
           p.description, p.specs,
@@ -112,7 +113,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
-        WHERE p.omie_codigo_produto = $1 OR p.omie_product_id = $1 OR p.omie_code = $2
+        WHERE p.omie_codigo_produto = $1 OR p.omie_product_id = $1 OR p.omie_code = $2 OR p.sku = $2
         LIMIT $3
       `, [clean, clean, numLimit]);
     } else {
@@ -124,6 +125,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           p.price_negotiable as "priceNegotiable",
           p.status,
           p.badge, p.image, p.images, p.in_stock as "inStock",
+          p.sku,
           p.omie_codigo_produto as "omieCodigoProduto",
           p.omie_code as "omieCode",
           p.description, p.specs,
@@ -131,7 +133,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
-        WHERE LOWER(p.omie_code) = LOWER($1) OR LOWER(p.slug) = LOWER($1)
+        WHERE LOWER(p.omie_code) = LOWER($1) OR LOWER(COALESCE(p.sku, '')) = LOWER($1) OR LOWER(p.slug) = LOWER($1)
         LIMIT $2
       `, [clean, numLimit]);
     }
@@ -242,6 +244,7 @@ function mapDbRowToHermesProduct(row) {
     image: row.image || null,
     brandName: row.brandName || "Athena",
     categoryName: row.categoryName || "Geral",
+    sku: row.sku || row.omieCode || null,
     omieCodigoProduto: row.omieCodigoProduto ? String(row.omieCodigoProduto) : null,
     omieCode: row.omieCode || null,
     url: `https://athenaconsultoria.com.br/produto/${row.slug || row.id}`,
@@ -344,7 +347,8 @@ async function upsertOmieProductToLocal(pool, omieItem) {
       WHERE omie_codigo_produto = $1 
          OR omie_product_id = $1 
          OR (omie_code = $2 AND omie_code IS NOT NULL AND omie_code != '')
-         OR (omie_code IS NULL AND $2 != '' AND name ILIKE $3)
+         OR (sku = $2 AND sku IS NOT NULL AND sku != '')
+         OR (omie_code IS NULL AND sku IS NULL AND $2 != '' AND name ILIKE $3)
       LIMIT 1
     `, [omieId, omieCode, `%${omieCode}%`]);
 
@@ -357,6 +361,7 @@ async function upsertOmieProductToLocal(pool, omieItem) {
           omie_codigo_produto = $1,
           omie_product_id = $1,
           omie_code = $2,
+          sku = COALESCE(sku, NULLIF($2, '')),
           preco_venda = CASE WHEN $3 > 0 THEN $3 ELSE preco_venda END,
           price = CASE WHEN (price IS NULL OR price = 0) AND $3 > 0 THEN $3 ELSE price END,
           estoque_quantidade = $4,
@@ -372,6 +377,7 @@ async function upsertOmieProductToLocal(pool, omieItem) {
         id: existing.id,
         name: existing.name || omieName,
         slug: existing.slug,
+        sku: omieCode,
         precoVenda: preco,
         precoFormatado: preco > 0 ? `R$ ${preco.toFixed(2)}` : "Sob Consulta",
         precoExibicaoSite: canBuyOnline ? `R$ ${preco.toFixed(2)}` : "Sob Consulta",
@@ -408,22 +414,24 @@ async function upsertOmieProductToLocal(pool, omieItem) {
       INSERT INTO products (
         id, name, slug, price, preco_venda, estoque_quantidade,
         price_negotiable, status, in_stock, omie_codigo_produto,
-        omie_product_id, omie_code, omie_last_sync
+        omie_product_id, omie_code, sku, omie_last_sync
       )
-      VALUES ($1, $2, $3, $4, $4, $5, TRUE, 'draft', ($5 > 0), $6, $6, $7, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $4, $5, TRUE, 'draft', ($5 > 0), $6, $6, $7, $7, CURRENT_TIMESTAMP)
       ON CONFLICT (id) DO UPDATE SET
         preco_venda = $4,
         estoque_quantidade = $5,
         in_stock = ($5 > 0),
+        sku = COALESCE(products.sku, $7),
         omie_last_sync = CURRENT_TIMESTAMP
     `, [newId, omieName, slug, preco, estoque, omieId, omieCode]);
 
-    console.log(`[Cache-Aside] Produto do Omie "${omieName}" (${omieCode}) salvo como RASCUNHO no banco Supabase!`);
+    console.log(`[Cache-Aside] Produto do Omie "${omieName}" (SKU: ${omieCode}) salvo como RASCUNHO no banco Supabase!`);
 
     return {
       id: newId,
       name: omieName,
       slug: slug,
+      sku: omieCode,
       precoVenda: preco,
       precoFormatado: preco > 0 ? `R$ ${preco.toFixed(2)}` : "Sob Consulta",
       precoExibicaoSite: "Sob Consulta",
@@ -528,6 +536,7 @@ async function enrichProductWithOmiePrice(pool, product) {
           omie_codigo_produto = COALESCE(omie_codigo_produto, $3),
           omie_product_id = COALESCE(omie_product_id, $3),
           omie_code = COALESCE(NULLIF($4, ''), omie_code),
+          sku = COALESCE(sku, NULLIF($4, '')),
           omie_last_sync = CURRENT_TIMESTAMP
         WHERE id = $5
       `, [
