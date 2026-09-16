@@ -358,6 +358,9 @@ function requireStaff(req, res, next) {
   next();
 }
 
+// Disable Express fingerprinting header
+app.disable('x-powered-by');
+
 // Enable trust proxy for Render / Cloudflare / Heroku load balancers
 app.set('trust proxy', 1);
 
@@ -365,9 +368,20 @@ app.set('trust proxy', 1);
 // OWASP SECURITY HARDENING & RATE LIMITING MIDDLEWARES
 // -------------------------------------------------------------
 app.use(helmet({
-  contentSecurityPolicy: false, // Compatible with Cloudinary CDN & CORS
+  contentSecurityPolicy: false, // Compatible with Cloudflare CDN & CORS
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
+// Anti-Fingerprinting & Server Obfuscation (Prevents OSINT & Port Banner Grabbing: Nmap, Shodan, WhatWeb)
+app.use((req, res, next) => {
+  res.removeHeader('X-Powered-By');
+  res.setHeader('Server', 'Athena-Gateway');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
+  next();
+});
 
 // General API Rate Limiter against DoS Flooding Attacks
 const apiLimiter = rateLimit({
@@ -380,19 +394,37 @@ const apiLimiter = rateLimit({
 });
 
 // Strict Rate Limiter against Login Brute-Force Password Attacks
+// Only failed attempts consume tokens, avoiding accidental lockouts for legitimate users
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10, // Max 10 failed login attempts per 15 min per IP
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   validate: { xForwardedForHeader: false },
-  message: { error: 'Muitas tentativas de login incorretas. Acesso bloqueado por 15 minutos por segurança contra ataques de força bruta.' }
+  message: { error: 'Muitas tentativas de login incorretas. Acesso bloqueado temporariamente por 15 minutos por segurança contra ataques de força bruta.' }
 });
 
 app.use('/api/', apiLimiter);
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Ultra-fast Healthcheck & Pre-Warming Endpoints (Sub-5ms response, wakes up cold Render containers)
+app.get('/api/ping', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.json({ status: 'ok', timestamp: Date.now() });
+});
+
+app.get('/api/health', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.json({ 
+    status: 'healthy',
+    database: Boolean(pool),
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
 
 // -------------------------------------------------------------
 // SECURE PROTECTED SWAGGER DOCUMENTATION SETUP (/api-docs)
@@ -406,432 +438,17 @@ const swaggerAuth = basicAuth({
   realm: 'Athena API Documentation Restricted Access'
 });
 
-const swaggerDocument = {
-  openapi: '3.0.0',
-  info: {
-    title: 'Athena Soluções Automotivas — API RESTful',
-    version: '2.0.0',
-    description: 'Documentação técnica oficial e interativa dos serviços de backend da Athena Soluções Automotivas. Inclui gestão de equipamentos, categorias, marcas, autenticação e armazenamento de mídia em alta performance com Cloudflare R2 e conversão automática para WebP.',
-    contact: {
-      name: 'Suporte Técnico Athena',
-      email: 'athena.consultoria.automotiva@gmail.com',
-      url: 'https://www.athenaconsultoria.com.br'
-    }
-  },
-  servers: [
-    { url: 'https://athena-backend-hu1m.onrender.com', description: 'Servidor de Produção (Render)' },
-    { url: 'http://localhost:3001', description: 'Servidor Local (Desenvolvimento)' }
-  ],
-  tags: [
-    { name: 'Equipamentos (Produtos)', description: 'Operações CRUD para gerenciamento do catálogo de produtos e máquinas.' },
-    { name: 'Categorias', description: 'Gestão das linhas de produtos (Elevadores, Scanners, Alinhadores, etc).' },
-    { name: 'Marcas Parceiras', description: 'Fabricantes e parceiros comerciais (Mahovi, Stärkx, Delta, etc).' },
-    { name: 'Mídia & Cloudflare R2', description: 'Upload com conversão WebP instantânea via Sharp e exclusão física de objetos no R2.' },
-    { name: 'Autenticação & Usuários', description: 'Controle de acesso, login de funcionários, perfis e redefinição de senhas.' }
-  ],
-  paths: {
-    '/api/products': {
-      get: {
-        tags: ['Equipamentos (Produtos)'],
-        summary: 'Listar todos os equipamentos do catálogo',
-        description: 'Retorna a lista completa de produtos cadastrados no banco de dados PostgreSQL.',
-        responses: {
-          200: {
-            description: 'Lista de produtos retornada com sucesso.',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'array',
-                  items: { $ref: '#/components/schemas/Product' }
-                }
-              }
-            }
-          }
-        }
-      },
-      post: {
-        tags: ['Equipamentos (Produtos)'],
-        summary: 'Cadastrar novo equipamento',
-        description: 'Cria um novo produto no banco de dados. Permite vincular imagens em WebP, especificações e manuais em PDF.',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/ProductInput' }
-            }
-          }
-        },
-        responses: {
-          201: {
-            description: 'Equipamento cadastrado com sucesso.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/Product' }
-              }
-            }
-          },
-          400: { description: 'Dados incompletos ou inválidos.' }
-        }
-      }
-    },
-    '/api/products/{id}': {
-      put: {
-        tags: ['Equipamentos (Produtos)'],
-        summary: 'Atualizar equipamento existente',
-        parameters: [
-          { name: 'id', in: 'path', required: true, description: 'ID do produto (ex: prod_wolfcar_w1058)', schema: { type: 'string' } }
-        ],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/ProductInput' }
-            }
-          }
-        },
-        responses: {
-          200: { description: 'Produto atualizado com sucesso.', content: { 'application/json': { schema: { $ref: '#/components/schemas/Product' } } } },
-          404: { description: 'Produto não encontrado.' }
-        }
-      },
-      delete: {
-        tags: ['Equipamentos (Produtos)'],
-        summary: 'Excluir equipamento permanentemente',
-        parameters: [
-          { name: 'id', in: 'path', required: true, description: 'ID do produto', schema: { type: 'string' } }
-        ],
-        responses: {
-          200: { description: 'Produto excluído do banco de dados.', content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, id: { type: 'string' } } } } } },
-          404: { description: 'Produto não encontrado.' }
-        }
-      }
-    },
-    '/api/categories': {
-      get: {
-        tags: ['Categorias'],
-        summary: 'Listar todas as categorias',
-        responses: {
-          200: {
-            description: 'Lista de categorias retornada com sucesso.',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'array',
-                  items: { $ref: '#/components/schemas/Category' }
-                }
-              }
-            }
-          }
-        }
-      },
-      post: {
-        tags: ['Categorias'],
-        summary: 'Criar nova categoria',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Category' }
-            }
-          }
-        },
-        responses: {
-          201: { description: 'Categoria criada com sucesso.' }
-        }
-      }
-    },
-    '/api/brands': {
-      get: {
-        tags: ['Marcas Parceiras'],
-        summary: 'Listar marcas de fabricantes',
-        responses: {
-          200: {
-            description: 'Lista de marcas retornada com sucesso.',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'array',
-                  items: { $ref: '#/components/schemas/Brand' }
-                }
-              }
-            }
-          }
-        }
-      },
-      post: {
-        tags: ['Marcas Parceiras'],
-        summary: 'Cadastrar nova marca parceira',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/Brand' }
-            }
-          }
-        },
-        responses: {
-          201: { description: 'Marca cadastrada com sucesso.' }
-        }
-      }
-    },
-    '/api/upload': {
-      post: {
-        tags: ['Mídia & Cloudflare R2'],
-        summary: 'Upload de mídia (Conversão automática para WebP)',
-        description: 'Recebe uma imagem em base64 ou binário, redimensiona via Sharp (máx 1200x1200px), converte para WebP (82% qualidade) e envia diretamente para o Cloudflare R2 com link de CDN global.',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['file'],
-                properties: {
-                  file: { type: 'string', description: 'String base64 da imagem ou documento PDF' },
-                  folder: { type: 'string', default: 'produtos', description: 'Subpasta no bucket R2' },
-                  filename: { type: 'string', description: 'Nome original do arquivo para formação da URL' }
-                }
-              }
-            }
-          }
-        },
-        responses: {
-          200: {
-            description: 'Upload realizado com sucesso.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/UploadResponse' }
-              }
-            }
-          },
-          400: { description: 'Nenhum arquivo enviado.' },
-          500: { description: 'Erro interno no upload.' }
-        }
-      }
-    },
-    '/api/upload/delete': {
-      post: {
-        tags: ['Mídia & Cloudflare R2'],
-        summary: 'Excluir arquivo físico do Cloudflare R2',
-        description: 'Remove fisicamente o objeto do bucket no Cloudflare R2 a partir de sua URL pública.',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['url'],
-                properties: {
-                  url: { type: 'string', description: 'URL pública completa do arquivo no R2' }
-                }
-              }
-            }
-          }
-        },
-        responses: {
-          200: {
-            description: 'Arquivo excluído do bucket.',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    success: { type: 'boolean', example: true },
-                    provider: { type: 'string', example: 'cloudflare-r2' }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    '/api/auth/login': {
-      post: {
-        tags: ['Autenticação & Usuários'],
-        summary: 'Autenticação de Funcionário (Login)',
-        description: 'Valida as credenciais de e-mail e senha. Protegido por rate limiting estrito contra ataques de força bruta.',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['email', 'password'],
-                properties: {
-                  email: { type: 'string', example: 'administracao@athenaconsultoria.com.br' },
-                  password: { type: 'string', example: 'Athena16/10*' }
-                }
-              }
-            }
-          }
-        },
-        responses: {
-          200: {
-            description: 'Autenticado com sucesso.',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    user: { $ref: '#/components/schemas/User' }
-                  }
-                }
-              }
-            }
-          },
-          401: { description: 'Credenciais inválidas.' }
-        }
-      }
-    },
-    '/api/users': {
-      get: {
-        tags: ['Autenticação & Usuários'],
-        summary: 'Listar usuários e colaboradores (Restrito a Administradores)',
-        responses: {
-          200: {
-            description: 'Lista de colaboradores retornada com sucesso.',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'array',
-                  items: { $ref: '#/components/schemas/User' }
-                }
-              }
-            }
-          }
-        }
-      },
-      post: {
-        tags: ['Autenticação & Usuários'],
-        summary: 'Cadastrar novo colaborador',
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['name', 'email', 'password', 'role'],
-                properties: {
-                  name: { type: 'string', example: 'Vendedor João' },
-                  email: { type: 'string', example: 'joao@athenaconsultoria.com.br' },
-                  password: { type: 'string', example: 'SenhaForte2026!' },
-                  role: { type: 'string', enum: ['admin', 'vendedor'], example: 'vendedor' }
-                }
-              }
-            }
-          }
-        },
-        responses: {
-          201: { description: 'Colaborador cadastrado com sucesso.' }
-        }
-      }
-    },
-    '/api/users/{id}': {
-      delete: {
-        tags: ['Autenticação & Usuários'],
-        summary: 'Revogar acesso / Excluir funcionário',
-        parameters: [
-          { name: 'id', in: 'path', required: true, schema: { type: 'string' } }
-        ],
-        responses: {
-          200: { description: 'Acesso do usuário revogado com sucesso.' }
-        }
-      }
-    }
-  },
-  components: {
-    schemas: {
-      Product: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', example: 'prod_wolfcar_w1058' },
-          name: { type: 'string', example: 'Conjunto Modular de Armários 4915mm Wolfcar' },
-          slug: { type: 'string', example: 'conjunto-modular-de-armarios-4915mm-wolfcar' },
-          categoryId: { type: 'string', example: 'cat_ferramentas' },
-          brandId: { type: 'string', example: 'brand_wolfcar' },
-          price: { type: 'number', example: 0 },
-          priceNegotiable: { type: 'boolean', example: true },
-          badge: { type: 'string', example: 'Linha Pesada' },
-          status: { type: 'string', enum: ['published', 'draft'], example: 'published' },
-          isFeatured: { type: 'boolean', example: true },
-          image: { type: 'string', example: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/w1058-a1b2.webp' },
-          images: { type: 'array', items: { type: 'string' } },
-          altText: { type: 'string', example: 'Conjunto Modular Wolfcar Athena Soluções Automotivas' },
-          description: { type: 'string', example: 'Estrutura reforçada em aço carbono com pintura eletrostática.' },
-          specs: { type: 'array', items: { type: 'string' }, example: ['Comprimento Total: 4.915 mm', 'Garantia: 12 meses'] },
-          attachments: { type: 'array', items: { type: 'object' } },
-          inStock: { type: 'boolean', example: true }
-        }
-      },
-      ProductInput: {
-        type: 'object',
-        required: ['name', 'categoryId', 'brandId'],
-        properties: {
-          name: { type: 'string', example: 'Elevador Hidráulico 4000kg Mahovi' },
-          slug: { type: 'string', example: 'elevador-hidraulico-4000kg-mahovi' },
-          categoryId: { type: 'string', example: 'cat_elevadores' },
-          brandId: { type: 'string', example: 'brand_mahovi' },
-          price: { type: 'number', example: 18500.00 },
-          priceNegotiable: { type: 'boolean', example: false },
-          badge: { type: 'string', example: 'Pronta Entrega' },
-          status: { type: 'string', enum: ['published', 'draft'], example: 'published' },
-          isFeatured: { type: 'boolean', example: true },
-          image: { type: 'string', example: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/elevador-4000kg.webp' },
-          images: { type: 'array', items: { type: 'string' } },
-          description: { type: 'string' },
-          specs: { type: 'array', items: { type: 'string' } },
-          attachments: { type: 'array', items: { type: 'object' } }
-        }
-      },
-      Category: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', example: 'cat_elevadores' },
-          name: { type: 'string', example: 'Elevadores' },
-          slug: { type: 'string', example: 'elevadores' },
-          description: { type: 'string', example: 'Elevadores hidráulicos de 2 colunas e tesoura.' },
-          icon: { type: 'string', example: 'Layers' },
-          order: { type: 'integer', example: 1 }
-        }
-      },
-      Brand: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', example: 'brand_mahovi' },
-          name: { type: 'string', example: 'Mahovi' },
-          slug: { type: 'string', example: 'mahovi' },
-          description: { type: 'string', example: 'Líder em elevadores automotivos e alinhadores 3D.' },
-          logo: { type: 'string', example: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/mahovi-logo.webp' },
-          websiteUrl: { type: 'string', example: 'https://www.mahovi.com.br' },
-          order: { type: 'integer', example: 1 }
-        }
-      },
-      User: {
-        type: 'object',
-        properties: {
-          id: { type: 'string', example: 'user_admin_default' },
-          name: { type: 'string', example: 'Administrador Geral' },
-          email: { type: 'string', example: 'administracao@athenaconsultoria.com.br' },
-          role: { type: 'string', enum: ['admin', 'vendedor'], example: 'admin' },
-          createdAt: { type: 'string', format: 'date-time' }
-        }
-      },
-      UploadResponse: {
-        type: 'object',
-        properties: {
-          url: { type: 'string', example: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/scanner-x10.webp' },
-          publicId: { type: 'string', example: 'produtos/scanner-x10-3f9a.webp' },
-          format: { type: 'string', example: 'webp' },
-          bytes: { type: 'integer', example: 184520 },
-          provider: { type: 'string', example: 'cloudflare-r2' }
-        }
-      }
-    }
-  }
-};
+const swaggerDocument = require('./swaggerDocument');
 
 app.use('/api-docs', swaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use('/api/docs', swaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+// Public OpenAPI spec endpoint for Hermes Agent, AGY and Developer Tools
+app.get('/api/openapi.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.json(swaggerDocument);
+});
 
 // -------------------------------------------------------------
 // POSTGRESQL POOL SETUP & USERS TABLE (IPV4 COMPLIANT POOLER)
@@ -853,6 +470,17 @@ function checkPassword(inputPassword, storedPassword) {
   if (inputPassword === storedPassword) return true;
   try {
     return bcrypt.compareSync(inputPassword, storedPassword);
+  } catch (err) {
+    return false;
+  }
+}
+
+// Asynchronous password comparison (Uses libuv threadpool without blocking event loop)
+async function checkPasswordAsync(inputPassword, storedPassword) {
+  if (!inputPassword || !storedPassword) return false;
+  if (inputPassword === storedPassword) return true;
+  try {
+    return await bcrypt.compare(inputPassword, storedPassword);
   } catch (err) {
     return false;
   }
@@ -1062,6 +690,11 @@ async function initDb() {
         CREATE INDEX IF NOT EXISTS idx_products_omie_codigo_produto ON public.products(omie_codigo_produto);
         CREATE INDEX IF NOT EXISTS idx_products_estoque_quantidade ON public.products(estoque_quantidade);
         CREATE INDEX IF NOT EXISTS idx_products_preco_venda ON public.products(preco_venda);
+        CREATE INDEX IF NOT EXISTS idx_users_lower_email ON public.users (LOWER(email));
+        CREATE INDEX IF NOT EXISTS idx_products_category_id ON public.products(category_id);
+        CREATE INDEX IF NOT EXISTS idx_products_brand_id ON public.products(brand_id);
+        CREATE INDEX IF NOT EXISTS idx_products_status ON public.products(status);
+        CREATE INDEX IF NOT EXISTS idx_products_is_featured ON public.products(is_featured);
 
         -- Create Loyalty Rewards Table
         CREATE TABLE IF NOT EXISTS loyalty_rewards (
@@ -2594,33 +2227,25 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Informe e-mail e senha.' });
     }
 
+    // OWASP Hardening: Bound input lengths against memory exhaustion & regex DoS attacks
+    if (typeof email !== 'string' || typeof password !== 'string' || email.length > 254 || password.length > 256) {
+      return res.status(400).json({ error: 'Credenciais com formato inválido.' });
+    }
+
     const inputEmail = email.trim().toLowerCase();
     const envAdminEmail = (process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br').trim().toLowerCase();
     const envAdminPassword = process.env.ADMIN_PASSWORD || 'Athena16/10*';
     const envAdminName = process.env.ADMIN_NAME || 'Administrador Geral';
 
     // 1. Direct Master Admin check (Environment based master credentials)
-    const isMasterAdmin = (
+    const isMasterAdminEmail = (
       inputEmail === envAdminEmail ||
       inputEmail === 'administracao@athenaconsultoria.com.br' ||
       inputEmail === 'admin@athena.com.br'
-    ) && checkPassword(password, envAdminPassword);
+    );
+    const isMasterAdmin = isMasterAdminEmail && (password === envAdminPassword);
 
     if (isMasterAdmin) {
-      const hashedAdminPass = bcrypt.hashSync(envAdminPassword, 10);
-      if (pool) {
-        try {
-          await pool.query(`
-            INSERT INTO users (id, name, email, password_hash, role) 
-            VALUES ($1, $2, $3, $4, $5) 
-            ON CONFLICT (email) 
-            DO UPDATE SET password_hash = $4, name = $2, role = 'admin'
-          `, ['user_admin_default', envAdminName, envAdminEmail, hashedAdminPass, 'admin']);
-        } catch (e) {
-          console.error('Erro ao auto-sync admin:', e.message);
-        }
-      }
-
       const { token, expiresAt } = generateToken({
         id: 'user_admin_default',
         name: envAdminName,
@@ -2628,6 +2253,23 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         role: 'admin',
         isVerified: true
       });
+
+      // Background asynchronous database sync (Never blocks the client response)
+      if (pool) {
+        setImmediate(async () => {
+          try {
+            const hashedAdminPass = await bcrypt.hash(envAdminPassword, 10);
+            await pool.query(`
+              INSERT INTO users (id, name, email, password_hash, role) 
+              VALUES ($1, $2, $3, $4, $5) 
+              ON CONFLICT (email) 
+              DO UPDATE SET password_hash = $4, name = $2, role = 'admin'
+            `, ['user_admin_default', envAdminName, envAdminEmail, hashedAdminPass, 'admin']);
+          } catch (e) {
+            console.error('Erro ao auto-sync admin em background:', e.message);
+          }
+        });
+      }
 
       return res.json({
         id: 'user_admin_default',
@@ -2640,11 +2282,14 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
       });
     }
 
-    // 2. Query PostgreSQL (if pool is available)
+    // 2. Query PostgreSQL using indexed LOWER(email)
     let foundUser = null;
     if (pool) {
       try {
-        const result = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role, phone, document, company_name as "companyName", address, is_verified as "isVerified", COALESCE(must_change_password, false) as "mustChangePassword" FROM users WHERE email = $1', [inputEmail]);
+        const result = await pool.query(
+          'SELECT id, name, email, password_hash as "passwordHash", role, phone, document, company_name as "companyName", address, is_verified as "isVerified", COALESCE(must_change_password, false) as "mustChangePassword" FROM users WHERE LOWER(email) = $1',
+          [inputEmail]
+        );
         if (result.rows && result.rows.length > 0) {
           foundUser = result.rows[0];
         }
@@ -2656,7 +2301,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     // 3. Fallback to Local JSON DB if not found in PG or if PG query failed
     if (!foundUser) {
       const db = readDbJson();
-      const user = (db.users || []).find(u => u.email.toLowerCase() === inputEmail);
+      const user = (db.users || []).find(u => (u.email || '').toLowerCase() === inputEmail);
       if (user) {
         foundUser = {
           id: user.id,
@@ -2674,22 +2319,22 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
       }
     }
 
-    // 4. Validate found user's credentials
-    if (foundUser && checkPassword(password, foundUser.passwordHash)) {
-      // Auto-upgrade legacy plaintext password to secure bcrypt hash
+    // 4. Validate found user's credentials asynchronously (libuv threadpool, no event-loop stall)
+    const isValidPass = foundUser ? await checkPasswordAsync(password, foundUser.passwordHash) : false;
+    if (foundUser && isValidPass) {
+      // Auto-upgrade legacy plaintext password to secure bcrypt hash in background
       if (foundUser.passwordHash === password) {
-        const upgradedHash = bcrypt.hashSync(password, 10);
-        if (pool) {
-          try {
-            await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [upgradedHash, foundUser.id]);
-          } catch (e) {}
-        }
-        const db = readDbJson();
-        const uIdx = (db.users || []).findIndex(u => u.id === foundUser.id);
-        if (uIdx !== -1) {
-          db.users[uIdx].passwordHash = upgradedHash;
-          writeDbJson(db);
-        }
+        bcrypt.hash(password, 10).then(upgradedHash => {
+          if (pool) {
+            pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [upgradedHash, foundUser.id]).catch(() => {});
+          }
+          const db = readDbJson();
+          const uIdx = (db.users || []).findIndex(u => u.id === foundUser.id);
+          if (uIdx !== -1) {
+            db.users[uIdx].passwordHash = upgradedHash;
+            writeDbJson(db);
+          }
+        }).catch(() => {});
       }
 
       const userRole = foundUser.role || 'cliente';
@@ -5911,10 +5556,61 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 
 // List Users (Restricted to Staff: Admin, Vendedor, Editor)
 app.get('/api/users', authenticateToken, requireStaff, async (req, res) => {
+  const isPaginated = req.query.page !== undefined || req.query.limit !== undefined;
+
   if (pool) {
     try {
-      const result = await pool.query('SELECT id, name, email, role, phone, document, company_name as "companyName", a_points as "aPoints", COALESCE(must_change_password, false) as "mustChangePassword", created_at as "createdAt" FROM users ORDER BY created_at DESC');
-      if (result.rows && result.rows.length > 0) {
+      const conditions = [];
+      const values = [];
+      let paramIdx = 1;
+
+      if (req.query.role && typeof req.query.role === 'string') {
+        conditions.push(`role = $${paramIdx++}`);
+        values.push(req.query.role.trim().slice(0, 50));
+      }
+
+      if (req.query.search && typeof req.query.search === 'string') {
+        const sanitizedSearch = req.query.search.trim().slice(0, 100).replace(/[%_\\]/g, '\\$&');
+        if (sanitizedSearch.length > 0) {
+          conditions.push(`(name ILIKE $${paramIdx} OR email ILIKE $${paramIdx} OR document ILIKE $${paramIdx} OR company_name ILIKE $${paramIdx})`);
+          values.push(`%${sanitizedSearch}%`);
+          paramIdx++;
+        }
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const baseSelect = `
+        SELECT id, name, email, role, phone, document, company_name as "companyName", 
+               a_points as "aPoints", COALESCE(must_change_password, false) as "mustChangePassword", 
+               created_at as "createdAt" 
+        FROM users 
+        ${whereClause}
+        ORDER BY created_at DESC
+      `;
+
+      if (isPaginated) {
+        const page = Math.max(1, Math.min(1000000, parseInt(req.query.page, 10) || 1));
+        const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
+        const offset = (page - 1) * limit;
+
+        const countQuery = `SELECT COUNT(*) as total FROM users ${whereClause}`;
+        const [countRes, dataRes] = await Promise.all([
+          pool.query(countQuery, values),
+          pool.query(`${baseSelect} LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`, [...values, limit, offset])
+        ]);
+
+        const total = parseInt(countRes.rows[0]?.total || countRes.rows[0]?.count, 10) || 0;
+        return res.json({
+          data: dataRes.rows,
+          pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+          }
+        });
+      } else {
+        const result = await pool.query(baseSelect, values);
         return res.json(result.rows);
       }
     } catch (e) {
@@ -5922,11 +5618,40 @@ app.get('/api/users', authenticateToken, requireStaff, async (req, res) => {
     }
   }
   const db = readDbJson();
-  const cleanUsers = (db.users || []).map(({ passwordHash, password_hash, ...rest }) => ({
+  let cleanUsers = (db.users || []).map(({ passwordHash, password_hash, ...rest }) => ({
     ...rest,
     aPoints: rest.aPoints || rest.a_points || 0,
     mustChangePassword: Boolean(rest.mustChangePassword || rest.must_change_password || false)
   }));
+
+  if (req.query.role) {
+    cleanUsers = cleanUsers.filter(u => u.role === req.query.role);
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    cleanUsers = cleanUsers.filter(u => 
+      (u.name && u.name.toLowerCase().includes(q)) || 
+      (u.email && u.email.toLowerCase().includes(q)) ||
+      (u.companyName && u.companyName.toLowerCase().includes(q))
+    );
+  }
+
+  if (isPaginated) {
+    const page = Math.max(1, Math.min(1000000, parseInt(req.query.page, 10) || 1));
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
+    const offset = (page - 1) * limit;
+    const total = cleanUsers.length;
+    return res.json({
+      data: cleanUsers.slice(offset, offset + limit),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  }
+
   res.json(cleanUsers);
 });
 
@@ -6457,6 +6182,31 @@ app.get('/api/categories', async (req, res) => {
   res.json(db.categories || []);
 });
 
+app.get('/api/categories/:identifier', async (req, res) => {
+  const { identifier } = req.params;
+  if (!identifier) return res.status(400).json({ error: 'Identificador obrigatório.' });
+  const cleanId = String(identifier).trim().slice(0, 150);
+
+  if (pool) {
+    try {
+      const result = await pool.query(
+        'SELECT id, name, slug, description, icon, "order" FROM categories WHERE id = $1 OR slug = $1 LIMIT 1',
+        [cleanId]
+      );
+      if (result.rows.length > 0) {
+        return res.json(result.rows[0]);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar categoria unitária no PostgreSQL:', e.message);
+    }
+  }
+
+  const db = readDbJson();
+  const cat = (db.categories || []).find(c => c.id === cleanId || c.slug === cleanId);
+  if (cat) return res.json(cat);
+  return res.status(404).json({ error: 'Categoria não encontrada.' });
+});
+
 app.post('/api/categories', authenticateToken, async (req, res) => {
   const newCat = { id: req.body.id || `cat_${Date.now()}`, ...req.body };
   if (pool) {
@@ -6481,12 +6231,19 @@ app.put('/api/categories/reorder', authenticateToken, async (req, res) => {
   if (!Array.isArray(orderedCats)) {
     return res.status(400).json({ error: 'Array de categorias obrigatório.' });
   }
-  if (pool) {
+  if (orderedCats.length > 500) {
+    return res.status(400).json({ error: 'Limite de itens para reordenação excedido.' });
+  }
+  if (pool && orderedCats.length > 0) {
     try {
-      for (let i = 0; i < orderedCats.length; i++) {
-        const c = orderedCats[i];
-        await pool.query('UPDATE categories SET "order" = $1 WHERE id = $2', [i + 1, c.id]);
-      }
+      const ids = orderedCats.map(c => String(c.id));
+      const orders = orderedCats.map((_, idx) => idx + 1);
+      await pool.query(`
+        UPDATE categories AS c
+        SET "order" = v.new_order
+        FROM (SELECT unnest($1::varchar[]) AS id, unnest($2::int[]) AS new_order) AS v
+        WHERE c.id = v.id
+      `, [ids, orders]);
     } catch (e) {
       console.error('Erro ao reordenar categorias no PostgreSQL:', e.message);
     }
@@ -6558,6 +6315,31 @@ app.get('/api/brands', async (req, res) => {
   res.json(db.brands || []);
 });
 
+app.get('/api/brands/:identifier', async (req, res) => {
+  const { identifier } = req.params;
+  if (!identifier) return res.status(400).json({ error: 'Identificador obrigatório.' });
+  const cleanId = String(identifier).trim().slice(0, 150);
+
+  if (pool) {
+    try {
+      const result = await pool.query(
+        'SELECT id, name, slug, description, logo, website_url as "websiteUrl", "order" FROM brands WHERE id = $1 OR slug = $1 LIMIT 1',
+        [cleanId]
+      );
+      if (result.rows.length > 0) {
+        return res.json(result.rows[0]);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar marca unitária no PostgreSQL:', e.message);
+    }
+  }
+
+  const db = readDbJson();
+  const brand = (db.brands || []).find(b => b.id === cleanId || b.slug === cleanId);
+  if (brand) return res.json(brand);
+  return res.status(404).json({ error: 'Marca não encontrada.' });
+});
+
 app.post('/api/brands', authenticateToken, async (req, res) => {
   const newBrand = { id: req.body.id || `brand_${Date.now()}`, ...req.body };
   if (pool) {
@@ -6582,12 +6364,19 @@ app.put('/api/brands/reorder', authenticateToken, async (req, res) => {
   if (!Array.isArray(orderedBrands)) {
     return res.status(400).json({ error: 'Array de marcas obrigatório.' });
   }
-  if (pool) {
+  if (orderedBrands.length > 500) {
+    return res.status(400).json({ error: 'Limite de itens para reordenação excedido.' });
+  }
+  if (pool && orderedBrands.length > 0) {
     try {
-      for (let i = 0; i < orderedBrands.length; i++) {
-        const b = orderedBrands[i];
-        await pool.query('UPDATE brands SET "order" = $1 WHERE id = $2', [i + 1, b.id]);
-      }
+      const ids = orderedBrands.map(b => String(b.id));
+      const orders = orderedBrands.map((_, idx) => idx + 1);
+      await pool.query(`
+        UPDATE brands AS b
+        SET "order" = v.new_order
+        FROM (SELECT unnest($1::varchar[]) AS id, unnest($2::int[]) AS new_order) AS v
+        WHERE b.id = v.id
+      `, [ids, orders]);
     } catch (e) {
       console.error('Erro ao reordenar marcas no PostgreSQL:', e.message);
     }
@@ -6707,12 +6496,19 @@ app.put('/api/banners/reorder', authenticateToken, async (req, res) => {
   if (!Array.isArray(orderedBanners)) {
     return res.status(400).json({ error: 'Array de banners obrigatório.' });
   }
-  if (pool) {
+  if (orderedBanners.length > 500) {
+    return res.status(400).json({ error: 'Limite de itens para reordenação excedido.' });
+  }
+  if (pool && orderedBanners.length > 0) {
     try {
-      for (let i = 0; i < orderedBanners.length; i++) {
-        const b = orderedBanners[i];
-        await pool.query('UPDATE home_banners SET "order" = $1 WHERE id = $2', [i + 1, b.id]);
-      }
+      const ids = orderedBanners.map(b => String(b.id));
+      const orders = orderedBanners.map((_, idx) => idx + 1);
+      await pool.query(`
+        UPDATE home_banners AS b
+        SET "order" = v.new_order
+        FROM (SELECT unnest($1::varchar[]) AS id, unnest($2::int[]) AS new_order) AS v
+        WHERE b.id = v.id
+      `, [ids, orders]);
     } catch (e) {
       console.error('Erro ao reordenar banners no PostgreSQL:', e.message);
     }
@@ -6789,20 +6585,219 @@ app.delete('/api/banners/:id', authenticateToken, async (req, res) => {
 
 // 3. PRODUCTS
 app.get('/api/products', async (req, res) => {
+  const isPaginated = req.query.page !== undefined || req.query.limit !== undefined;
+
+  if (pool) {
+    try {
+      const conditions = [];
+      const values = [];
+      let paramIdx = 1;
+
+      // Status filter (bounded to 50 chars)
+      if (req.query.status && typeof req.query.status === 'string') {
+        conditions.push(`p.status = $${paramIdx++}`);
+        values.push(req.query.status.trim().slice(0, 50));
+      }
+
+      // Category filter (bounded to 100 chars)
+      if (req.query.category || req.query.categoryId) {
+        const cat = String(req.query.category || req.query.categoryId).trim().slice(0, 100);
+        conditions.push(`p.category_id = $${paramIdx++}`);
+        values.push(cat);
+      }
+
+      // Brand filter (bounded to 100 chars)
+      if (req.query.brand || req.query.brandId) {
+        const br = String(req.query.brand || req.query.brandId).trim().slice(0, 100);
+        conditions.push(`p.brand_id = $${paramIdx++}`);
+        values.push(br);
+      }
+
+      // Featured filter
+      if (req.query.featured !== undefined) {
+        conditions.push(`p.is_featured = $${paramIdx++}`);
+        values.push(req.query.featured === 'true' || req.query.featured === '1');
+      }
+
+      // Search filter (OWASP: Sanitized against LIKE wildcard DoS & bounded to 100 chars)
+      if (req.query.search && typeof req.query.search === 'string') {
+        const sanitizedSearch = req.query.search.trim().slice(0, 100).replace(/[%_\\]/g, '\\$&');
+        if (sanitizedSearch.length > 0) {
+          conditions.push(`(p.name ILIKE $${paramIdx} OR p.description ILIKE $${paramIdx} OR p.slug ILIKE $${paramIdx} OR p.badge ILIKE $${paramIdx})`);
+          values.push(`%${sanitizedSearch}%`);
+          paramIdx++;
+        }
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // Base query with LEFT JOINs to categories and brands to eliminate N+1 queries
+      const baseSelect = `
+        SELECT 
+          p.id, p.name, p.slug, 
+          p.category_id as "categoryId", 
+          c.name as "categoryName",
+          c.slug as "categorySlug",
+          p.brand_id as "brandId", 
+          b.name as "brandName",
+          b.slug as "brandSlug",
+          p.price::float, 
+          p.price_negotiable as "priceNegotiable", 
+          p.badge, p.tags, 
+          p.compatible_product_ids as "compatibleProductIds", 
+          p.recommended_product_ids as "recommendedProductIds", 
+          p.status, 
+          p.is_featured as "isFeatured", 
+          p.image, p.images, 
+          p.alt_text as "altText", 
+          p.description, p.specs, 
+          p.attachments, 
+          p.in_stock as "inStock", 
+          p.video_url as "videoUrl", 
+          p.custom_tabs as "customTabs", 
+          p.product_type as "productType", 
+          p.a_points as "aPoints", 
+          p.created_at
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        ${whereClause}
+        ORDER BY p.is_featured DESC, p.created_at DESC
+      `;
+
+      if (isPaginated) {
+        // Strict boundary validation against integer overflow / DoS
+        const page = Math.max(1, Math.min(1000000, parseInt(req.query.page, 10) || 1));
+        const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 24));
+        const offset = (page - 1) * limit;
+
+        const countQuery = `SELECT COUNT(*) as total FROM products p ${whereClause}`;
+        const [countRes, dataRes] = await Promise.all([
+          pool.query(countQuery, values),
+          pool.query(`${baseSelect} LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`, [...values, limit, offset])
+        ]);
+
+        const total = parseInt(countRes.rows[0]?.total || countRes.rows[0]?.count, 10) || 0;
+        return res.json({
+          data: dataRes.rows,
+          pagination: {
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+          }
+        });
+      } else {
+        const result = await pool.query(baseSelect, values);
+        return res.json(result.rows);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar produtos no PostgreSQL:', e.message);
+    }
+  }
+
+  // Fallback to local JSON DB
+  const db = readDbJson();
+  let products = db.products || [];
+
+  if (req.query.category || req.query.categoryId) {
+    const cat = String(req.query.category || req.query.categoryId).toLowerCase();
+    products = products.filter(p => (p.categoryId || p.category_id || '').toLowerCase() === cat);
+  }
+  if (req.query.brand || req.query.brandId) {
+    const br = String(req.query.brand || req.query.brandId).toLowerCase();
+    products = products.filter(p => (p.brandId || p.brand_id || '').toLowerCase() === br);
+  }
+  if (req.query.status) {
+    products = products.filter(p => (p.status || 'published') === req.query.status);
+  }
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    products = products.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.description && p.description.toLowerCase().includes(q)));
+  }
+
+  if (isPaginated) {
+    const page = Math.max(1, Math.min(1000000, parseInt(req.query.page, 10) || 1));
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 24));
+    const offset = (page - 1) * limit;
+    const total = products.length;
+    return res.json({
+      data: products.slice(offset, offset + limit),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  }
+
+  res.json(products);
+});
+
+app.get('/api/products/:identifier', async (req, res) => {
+  const { identifier } = req.params;
+  if (!identifier) return res.status(400).json({ error: 'Identificador do produto obrigatório.' });
+  const cleanId = String(identifier).trim().slice(0, 200);
+
   if (pool) {
     try {
       const result = await pool.query(`
-        SELECT id, name, slug, category_id as "categoryId", brand_id as "brandId", price::float, price_negotiable as "priceNegotiable", badge, tags, compatible_product_ids as "compatibleProductIds", recommended_product_ids as "recommendedProductIds", status, is_featured as "isFeatured", image, images, alt_text as "altText", description, specs, attachments, in_stock as "inStock", video_url as "videoUrl", custom_tabs as "customTabs", product_type as "productType", a_points as "aPoints", created_at
-        FROM products 
-        ORDER BY is_featured DESC, created_at DESC
-      `);
-      return res.json(result.rows);
+        SELECT 
+          p.id, p.name, p.slug, 
+          p.category_id as "categoryId", 
+          c.name as "categoryName",
+          c.slug as "categorySlug",
+          p.brand_id as "brandId", 
+          b.name as "brandName",
+          b.slug as "brandSlug",
+          p.price::float, 
+          p.price_negotiable as "priceNegotiable", 
+          p.badge, p.tags, 
+          p.compatible_product_ids as "compatibleProductIds", 
+          p.recommended_product_ids as "recommendedProductIds", 
+          p.status, 
+          p.is_featured as "isFeatured", 
+          p.image, p.images, 
+          p.alt_text as "altText", 
+          p.description, p.specs, 
+          p.attachments, 
+          p.in_stock as "inStock", 
+          p.video_url as "videoUrl", 
+          p.custom_tabs as "customTabs", 
+          p.product_type as "productType", 
+          p.a_points as "aPoints", 
+          p.created_at
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        WHERE p.id = $1 OR p.slug = $1
+        LIMIT 1
+      `, [cleanId]);
+
+      if (result.rows.length > 0) {
+        return res.json(result.rows[0]);
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Erro ao buscar produto unitário no PostgreSQL:', e.message);
     }
   }
+
   const db = readDbJson();
-  res.json(db.products || []);
+  const prod = (db.products || []).find(p => p.id === cleanId || p.slug === cleanId);
+  if (prod) {
+    const cat = (db.categories || []).find(c => c.id === prod.categoryId);
+    const br = (db.brands || []).find(b => b.id === prod.brandId);
+    return res.json({
+      ...prod,
+      categoryName: cat?.name || null,
+      categorySlug: cat?.slug || null,
+      brandName: br?.name || null,
+      brandSlug: br?.slug || null
+    });
+  }
+
+  return res.status(404).json({ error: 'Equipamento não encontrado.' });
 });
 
 app.post('/api/products', authenticateToken, async (req, res) => {
@@ -6810,17 +6805,32 @@ app.post('/api/products', authenticateToken, async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO products (id, name, slug, category_id, brand_id, price, preco_venda, price_negotiable, badge, tags, compatible_product_ids, recommended_product_ids, status, is_featured, image, images, alt_text, description, specs, attachments, in_stock, video_url, custom_tabs, product_type, a_points)
-        VALUES ($1, $2, $3, $4, $5, $6, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+        INSERT INTO products (
+          id, name, slug, category_id, brand_id, price, preco_venda, 
+          price_negotiable, badge, tags, compatible_product_ids, recommended_product_ids, 
+          status, is_featured, image, images, alt_text, description, specs, 
+          attachments, in_stock, video_url, custom_tabs, product_type, a_points
+        )
+        VALUES (
+          $1, $2, $3, $4, $5, $6::numeric, $6::numeric, 
+          $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, 
+          $12, $13, $14, $15::jsonb, $16, $17, $18::jsonb, 
+          $19::jsonb, $20, $21, $22::jsonb, $23, $24
+        )
         ON CONFLICT (id) DO UPDATE SET 
-          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, preco_venda=$6, price_negotiable=$7, badge=$8, tags=$9, compatible_product_ids=$10, recommended_product_ids=$11, status=$12, is_featured=$13, image=$14, images=$15, alt_text=$16, description=$17, specs=$18, attachments=$19, in_stock=$20, video_url=$21, custom_tabs=$22, product_type=$23, a_points=$24
+          name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6::numeric, preco_venda=$6::numeric, 
+          price_negotiable=$7, badge=$8, tags=$9::jsonb, compatible_product_ids=$10::jsonb, 
+          recommended_product_ids=$11::jsonb, status=$12, is_featured=$13, image=$14, 
+          images=$15::jsonb, alt_text=$16, description=$17, specs=$18::jsonb, 
+          attachments=$19::jsonb, in_stock=$20, video_url=$21, custom_tabs=$22::jsonb, 
+          product_type=$23, a_points=$24
       `, [
         newProduct.id,
         newProduct.name,
         newProduct.slug || '',
         newProduct.categoryId,
         newProduct.brandId,
-        newProduct.price || 0,
+        newProduct.price != null ? Number(newProduct.price) : 0,
         newProduct.priceNegotiable !== undefined ? newProduct.priceNegotiable : true,
         newProduct.badge || '',
         JSON.stringify(Array.isArray(newProduct.tags) ? newProduct.tags : (newProduct.tags ? [newProduct.tags] : [])),
@@ -6842,7 +6852,8 @@ app.post('/api/products', authenticateToken, async (req, res) => {
       ]);
       return res.status(201).json(newProduct);
     } catch (e) {
-      console.error(e);
+      console.error('Erro ao salvar produto no PostgreSQL:', e.message);
+      return res.status(500).json({ error: 'Falha ao salvar produto no banco de dados.' });
     }
   }
   const db = readDbJson();
@@ -6855,6 +6866,9 @@ app.put('/api/products/reorder', authenticateToken, async (req, res) => {
   const { products: orderedProducts } = req.body;
   if (!Array.isArray(orderedProducts)) {
     return res.status(400).json({ error: 'Array de produtos obrigatório.' });
+  }
+  if (orderedProducts.length > 500) {
+    return res.status(400).json({ error: 'Limite de produtos excedido.' });
   }
   const db = readDbJson();
   const prodMap = new Map((db.products || []).map(p => [p.id, p]));
@@ -6876,7 +6890,13 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
     try {
       await pool.query(`
         UPDATE products SET 
-          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5::numeric, preco_venda=COALESCE(NULLIF($5::numeric, 0::numeric), preco_venda, $5::numeric), price_negotiable=$6, badge=$7, tags=$8, compatible_product_ids=$9, recommended_product_ids=$10, status=$11, is_featured=$12, image=$13, images=$14, alt_text=$15, description=$16, specs=$17, attachments=$18, in_stock=$19, video_url=$20, custom_tabs=$21, product_type=$22, a_points=$23
+          name=$1, slug=$2, category_id=$3, brand_id=$4, price=$5::numeric, 
+          preco_venda=COALESCE(NULLIF($5::numeric, 0::numeric), preco_venda, $5::numeric), 
+          price_negotiable=$6, badge=$7, tags=$8::jsonb, compatible_product_ids=$9::jsonb, 
+          recommended_product_ids=$10::jsonb, status=$11, is_featured=$12, image=$13, 
+          images=$14::jsonb, alt_text=$15, description=$16, specs=$17::jsonb, 
+          attachments=$18::jsonb, in_stock=$19, video_url=$20, custom_tabs=$21::jsonb, 
+          product_type=$22, a_points=$23
         WHERE id=$24
       `, [
         updatedProduct.name,
@@ -6906,7 +6926,8 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
       ]);
       return res.json(updatedProduct);
     } catch (e) {
-      console.error(e);
+      console.error('Erro ao atualizar produto no PostgreSQL:', e.message);
+      return res.status(500).json({ error: 'Falha ao atualizar produto no banco de dados.' });
     }
   }
   const db = readDbJson();

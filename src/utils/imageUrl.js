@@ -26,3 +26,12 @@ export function normalizeBrand(b) {
     logo: normalizeImageUrl(b.logo)
   };
 }
+
+export function isProductPublished(p) {
+  if (!p || typeof p !== 'object') return false;
+  const s = String(p.status || 'published').toLowerCase().trim();
+  if (s === 'draft' || s === 'rascunho' || s === 'hidden' || s === 'oculto' || s === 'inactive') {
+    return false;
+  }
+  return s === 'published' || s === 'publicado';
+}

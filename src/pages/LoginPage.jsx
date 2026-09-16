@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Lock, 
   Mail, 
@@ -99,6 +99,13 @@ function PasswordStrengthIndicator({ password }) {
 export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) {
   // Mode: 'login' | 'register'
   const [authMode, setAuthMode] = useState('login');
+
+  // Pre-warm backend container (Render hibernation mitigation: silently ping backend on mount)
+  useEffect(() => {
+    if (API_BASE_URL) {
+      fetch(`${API_BASE_URL}/ping`, { method: 'GET', cache: 'no-store' }).catch(() => {});
+    }
+  }, [API_BASE_URL]);
 
   // Login Form State
   const [loginEmail, setLoginEmail] = useState('');

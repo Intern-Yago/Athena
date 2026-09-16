@@ -6,6 +6,7 @@ import ProductModal from '../components/ProductModal';
 import InstallmentModal from '../components/InstallmentModal';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import NotFoundPage from './NotFoundPage';
+import { isProductPublished } from '../utils/imageUrl';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -373,17 +374,17 @@ export default function ProductDetailPage({
   // 1. Manually pinned recommendations (recommendedProductIds) are mandatory and appear first
   // 2. Remaining slots up to 5 are filled automatically (same category, then same brand)
   const pinnedRecommended = (Array.isArray(product?.recommendedProductIds) ? product.recommendedProductIds : [])
-    .map(id => products.find(p => p.id === id && p.id !== product?.id && (canAccessDraft || p.status !== 'draft')))
+    .map(id => products.find(p => p.id === id && p.id !== product?.id && (canAccessDraft || isProductPublished(p))))
     .filter(Boolean);
 
   const pinnedIds = new Set(pinnedRecommended.map(p => p.id));
 
   const sameCategoryProducts = products.filter(
-    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.categoryId === product.categoryId && (canAccessDraft || p.status !== 'draft')
+    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.categoryId === product.categoryId && (canAccessDraft || isProductPublished(p))
   );
 
   const sameBrandProducts = products.filter(
-    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.brandId === product.brandId && p.categoryId !== product.categoryId && (canAccessDraft || p.status !== 'draft')
+    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.brandId === product.brandId && p.categoryId !== product.categoryId && (canAccessDraft || isProductPublished(p))
   );
 
   const relatedProducts = [
@@ -400,12 +401,12 @@ export default function ProductDetailPage({
   const linkMatches = textContent.match(/\/produto\/([a-zA-Z0-9_-]+)/g) || [];
   const linkedSlugs = linkMatches.map(m => m.replace('/produto/', ''));
   const linkedProductIds = products
-    .filter(p => (canAccessDraft || p.status !== 'draft') && (linkedSlugs.includes(p.slug) || linkedSlugs.includes(p.id)))
+    .filter(p => (canAccessDraft || isProductPublished(p)) && (linkedSlugs.includes(p.slug) || linkedSlugs.includes(p.id)))
     .map(p => p.id);
 
   // Inbound references (products in catalog that mark this equipment as compatible)
   const incomingProductIds = products
-    .filter(p => (canAccessDraft || p.status !== 'draft') && p.id !== product?.id && (
+    .filter(p => (canAccessDraft || isProductPublished(p)) && p.id !== product?.id && (
       (Array.isArray(p.compatibleProductIds) && p.compatibleProductIds.includes(product?.id)) ||
       (product?.slug && Array.isArray(p.customTabs) && p.customTabs.some(t => t.content && t.content.includes(product.slug)))
     ))
@@ -414,7 +415,7 @@ export default function ProductDetailPage({
   const allCompatProductIds = Array.from(new Set([...directCompatIds, ...linkedProductIds, ...incomingProductIds]));
   const compatibleProductsList = allCompatProductIds
     .map(id => products.find(p => p.id === id && p.id !== product?.id))
-    .filter(p => Boolean(p) && (canAccessDraft || p.status !== 'draft'));
+    .filter(p => Boolean(p) && (canAccessDraft || isProductPublished(p)));
 
   const hasCompatibles = compatibleProductsList.length > 0;
 
@@ -445,7 +446,7 @@ export default function ProductDetailPage({
   }, [product?.id, hasSpecs, showCompatTab, validCustomTabs.length, hasAttachments, hasVideo]);
 
   // Block public direct access to draft products or non-existent products
-  if (!product || (product.status === 'draft' && !canAccessDraft)) {
+  if (!product || (!isProductPublished(product) && !canAccessDraft)) {
     return (
       <NotFoundPage
         onNavigate={onNavigate}

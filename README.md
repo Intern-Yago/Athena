@@ -3,8 +3,9 @@
 [![Vercel Deployment](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com)
 [![Render Deployment](https://img.shields.io/badge/Backend-Render-46E3B7?style=for-the-badge&logo=render)](https://render.com)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=for-the-badge&logo=postgresql)](https://postgresql.org)
-[![Cloudinary](https://img.shields.io/badge/Storage-Cloudinary_CDN-3448C5?style=for-the-badge&logo=cloudinary)](https://cloudinary.com)
-[![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com)
+[![Cloudflare R2](https://img.shields.io/badge/Storage-Cloudflare_R2-F38020?style=for-the-badge&logo=cloudflare)](https://developers.cloudflare.com/r2/)
+[![Swagger Docs](https://img.shields.io/badge/API_Docs-Swagger_UI_v3.1-85EA2D?style=for-the-badge&logo=swagger)](docs/API_REFERENCE.md)
+[![OpenAPI 3.1](https://img.shields.io/badge/OpenAPI-3.1.0-6BA539?style=for-the-badge&logo=openapi-initiative)](docs/openapi.json)
 
 **Athena Soluções Automotivas** é uma plataforma web moderna, rápida e de alta performance desenvolvida para exibição, gerenciamento e cotação comercial de equipamentos automotivos de linha pesada e leve (elevadores, scanners de diagnóstico, alinhadores 3D, desmontadoras de pneus e ferramentas especiais).
 
@@ -59,8 +60,12 @@
 athena/
 ├── backend/                  # Servidor API Node.js + Express
 │   ├── data/                 # Fallback local em arquivo JSON (athena-db.json)
-│   ├── server.js             # Código principal do servidor API com PostgreSQL e Cloudinary
+│   ├── server.js             # Servidor REST API, Gateway Hermes e integrações
+│   ├── swaggerDocument.js    # Especificação Swagger / OpenAPI 3.1 modular
 │   └── package.json
+├── docs/                     # Documentação Técnica e Especificações
+│   ├── API_REFERENCE.md      # Guia canônico completo de endpoints e integração AI
+│   └── openapi.json          # Contrato OpenAPI 3.1.0 para ferramentas e agentes
 ├── public/                   # Logotipo e assets estáticos
 ├── src/
 │   ├── components/           # Componentes reutilizáveis (Header, Footer, Catalog, FilterSidebar, AdminPanel, ProductCard)
@@ -73,6 +78,14 @@ athena/
 ├── package.json
 └── README.md
 ```
+
+---
+
+## Documentação da API & Swagger Interativo
+
+- **Swagger UI Interativo**: [http://localhost:3001/api-docs](http://localhost:3001/api-docs) (ou em produção na rota `/api-docs` ou `/api/docs`).
+- **Guia Completo para Agentes (Hermes & AGY)**: Consulte [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) com payloads detalhados, headers, códigos de erro e snippets em `curl`, Node.js e Python.
+- **Especificação OpenAPI 3.1**: Arquivo físico em [`docs/openapi.json`](docs/openapi.json) ou endpoint público `GET /api/openapi.json`.
 
 ---
 

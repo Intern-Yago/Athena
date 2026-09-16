@@ -83,6 +83,7 @@ import SmartLinkPicker from './SmartLinkPicker';
 import { safeStorageSet, saveSession } from '../utils/storage';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
+import { isProductPublished } from '../utils/imageUrl';
 
 /**
  * Searchable Combobox Component (Filtragem em tempo real com busca e fallback completo)
@@ -9362,7 +9363,7 @@ export default function AdminPanel({
 
         {/* COMMERCIAL PDF CATALOG GENERATOR MODAL */}
         <PdfCatalogGenerator
-          products={products}
+          products={products.filter(isProductPublished)}
           categories={categories}
           brands={brands}
           isOpen={isPdfModalOpen}

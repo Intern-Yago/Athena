@@ -3,6 +3,7 @@ import { stripFormattingTags } from './FormattedDescription';
 import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
+import { isProductPublished } from '../utils/imageUrl';
 
 export default function ProductCard({ 
   product, 
@@ -46,7 +47,10 @@ export default function ProductCard({
         `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de um orçamento para o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'}). Poderia me informar valor, prazo de entrega e formas de pagamento?`
       );
 
-  const isDraft = product.status === 'draft';
+  const isDraft = !isProductPublished(product);
+  if (isDraft && !isAdmin) {
+    return null;
+  }
 
   // ==========================================
   // LIST VIEW LAYOUT
@@ -102,7 +106,7 @@ export default function ProductCard({
                 {product.badge}
               </span>
             )}
-            {isDraft && (
+            {isDraft && isAdmin && (
               <span className="badge bg-slate-700 text-white font-bold text-[10px] px-2.5 py-0.5">
                 Rascunho
               </span>
@@ -322,7 +326,7 @@ export default function ProductCard({
                 {product.badge}
               </span>
             )}
-            {isDraft && (
+            {isDraft && isAdmin && (
               <span className="bg-slate-800 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-lg">
                 Rascunho
               </span>

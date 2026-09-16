@@ -10,6 +10,7 @@ import {
   normalizeSearchText,
   cleanAlphanumeric 
 } from '../utils/productSearch';
+import { isProductPublished } from '../utils/imageUrl';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -58,6 +59,8 @@ export default function Catalog({
 
     for (let i = 0; i < (products || []).length; i++) {
       const prod = products[i];
+      // In the catalog, ONLY published products are visible; drafts remain hidden
+      if (!isProductPublished(prod) && !isAdmin) continue;
 
       const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prod.categoryId);
       if (!matchesCategory) continue;

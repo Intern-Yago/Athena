@@ -41,7 +41,7 @@ import {
   isSessionExpired 
 } from './utils/storage';
 
-import { normalizeProduct, normalizeBrand } from './utils/imageUrl';
+import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
 
 const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
   ? 'http://localhost:3001/api'
@@ -203,10 +203,20 @@ export default function App() {
     const saved = saveSession(userObj);
     setCurrentUser(saved);
     showNotification(`Bem-vindo, ${userObj.name}!`, 'success');
-    if (userObj.role === 'admin' || userObj.role === 'vendedor') {
-      navigateTo('admin');
+    if (typeof React.startTransition === 'function') {
+      React.startTransition(() => {
+        if (userObj.role === 'admin' || userObj.role === 'vendedor') {
+          navigateTo('admin');
+        } else {
+          navigateTo('minha-conta');
+        }
+      });
     } else {
-      navigateTo('minha-conta');
+      if (userObj.role === 'admin' || userObj.role === 'vendedor') {
+        navigateTo('admin');
+      } else {
+        navigateTo('minha-conta');
+      }
     }
   };
 
@@ -371,7 +381,8 @@ export default function App() {
           const catData = await catRes.json();
           const brandData = await brandRes.json();
 
-          setProducts(Array.isArray(prodData) ? prodData.map(normalizeProduct) : []);
+          const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
+          setProducts(rawProducts.map(normalizeProduct));
           setCategories(catData);
           setBrands(Array.isArray(brandData) ? brandData.map(normalizeBrand) : []);
           setIsBackendConnected(true);
@@ -720,7 +731,10 @@ export default function App() {
   };
 
   const isAdminView = currentRoute === 'admin' && !!currentUser;
-  const publicProducts = isAdminView ? products : products.filter(p => p.status !== 'draft');
+  // In the catalog and public views, ONLY published products are visible. Drafts remain strictly hidden.
+  const publicProducts = useMemo(() => {
+    return (products || []).filter(p => isProductPublished(p));
+  }, [products]);
 
   // Render Page Content Router
   const renderCurrentPage = () => {

@@ -6,6 +6,7 @@ import SearchBar from '../components/SearchBar';
 import { Layers, ArrowLeft, Package, Search, LayoutGrid, List, SlidersHorizontal, RefreshCw } from 'lucide-react';
 import { sortProducts } from '../utils/productSorting';
 import { buildProductRelationsMap, matchProductWithRelations } from '../utils/productSearch';
+import { isProductPublished } from '../utils/imageUrl';
 
 export default function CategoryPage({ 
   categoryId, 
@@ -39,7 +40,7 @@ export default function CategoryPage({
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   };
 
-  const rawCategoryProducts = (products || []).filter((p) => category && p.categoryId === category.id && p.status !== 'draft');
+  const rawCategoryProducts = (products || []).filter((p) => category && p.categoryId === category.id && isProductPublished(p));
 
   // Build bidirectional relation map across all catalog items
   const relationsMap = useMemo(() => {
