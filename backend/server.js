@@ -4637,6 +4637,81 @@ function validateHermesAuth(req, res, next) {
   next();
 }
 
+// Hermes Root Dispatcher & Healthcheck (Suporta chamadas diretas à URL base ATHENA_API_BASE)
+app.all('/api/hermes', validateHermesAuth, async (req, res) => {
+  try {
+    const search = req.query.search || req.query.query || req.query.q || req.body?.search || req.body?.query || req.body?.q;
+    if (search) {
+      const cleanSearch = String(search).trim();
+      const numLimit = Math.min(50, Math.max(1, Number(req.query.limit || req.body?.limit) || 20));
+      const forceOmie = req.query.forceOmie === 'true' || req.query.forceOmie === true || Boolean(req.body?.forceOmie);
+      const result = await searchHermesProducts({
+        pool,
+        search: cleanSearch,
+        limit: numLimit,
+        forceOmie
+      });
+      return res.json(result);
+    }
+
+    if (req.method === 'POST') {
+      const action = req.body?.action;
+      if (action === 'sync-omie' || action === 'sync') {
+        const result = await syncProductFromOmie(pool, req.body || {});
+        return res.json(result);
+      }
+      if (action === 'update' && req.body?.id) {
+        const result = await updateProductByHermes(pool, req.body.id, req.body);
+        return res.json(result);
+      }
+    }
+
+    let clientsCount = 0;
+    let rewardsCount = 0;
+    let productsCount = 0;
+
+    if (pool) {
+      const cRes = await pool.query('SELECT COUNT(*) FROM users');
+      clientsCount = parseInt(cRes.rows[0].count, 10);
+      const rRes = await pool.query('SELECT COUNT(*) FROM loyalty_rewards WHERE is_active = TRUE');
+      rewardsCount = parseInt(rRes.rows[0].count, 10);
+      const pRes = await pool.query('SELECT COUNT(*) FROM products WHERE status = $1', ['published']);
+      productsCount = parseInt(pRes.rows[0].count, 10);
+    }
+
+    return res.json({
+      status: 'online',
+      service: 'Athena Hermes Intelligence Bridge',
+      version: '2.0.0',
+      timestamp: new Date().toISOString(),
+      stats: {
+        totalClients: clientsCount,
+        activeRewards: rewardsCount,
+        publishedProducts: productsCount
+      },
+      pointsRatio: 'R$ 50 = 1 A-Point',
+      endpoints: [
+        'GET /api/hermes',
+        'GET /api/hermes/status',
+        'GET /api/hermes/customers',
+        'GET /api/hermes/customers/:identifier',
+        'POST /api/hermes/customers/:identifier/debit',
+        'GET /api/hermes/rewards',
+        'GET /api/hermes/products',
+        'GET /api/hermes/produtos',
+        'POST /api/hermes/products',
+        'POST /api/hermes/produtos',
+        'PUT /api/hermes/products/:id',
+        'PUT /api/hermes/produtos/:id',
+        'POST /api/hermes/products/sync-omie',
+        'GET /api/hermes/loyalty/insights'
+      ]
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Hermes Healthcheck & Status
 app.get('/api/hermes/status', validateHermesAuth, async (req, res) => {
   try {
@@ -4665,14 +4740,18 @@ app.get('/api/hermes/status', validateHermesAuth, async (req, res) => {
       },
       pointsRatio: 'R$ 50 = 1 A-Point',
       endpoints: [
+        'GET /api/hermes',
         'GET /api/hermes/status',
         'GET /api/hermes/customers',
         'GET /api/hermes/customers/:identifier',
         'POST /api/hermes/customers/:identifier/debit',
         'GET /api/hermes/rewards',
         'GET /api/hermes/products',
+        'GET /api/hermes/produtos',
         'POST /api/hermes/products',
+        'POST /api/hermes/produtos',
         'PUT /api/hermes/products/:id',
+        'PUT /api/hermes/produtos/:id',
         'POST /api/hermes/products/sync-omie',
         'GET /api/hermes/loyalty/insights'
       ]
@@ -5383,10 +5462,10 @@ app.get('/api/hermes/rewards', validateHermesAuth, async (req, res) => {
 });
 
 // Hermes: Busca Inteligente de Produtos (Cache-Aside: PostgreSQL -> Omie Fallback)
-app.get('/api/hermes/products', validateHermesAuth, async (req, res) => {
+app.get(['/api/hermes/products', '/api/hermes/produtos'], validateHermesAuth, async (req, res) => {
   try {
-    const { search = '', query = '', limit = 20, forceOmie = false } = req.query;
-    const cleanSearch = String(search || query || '').trim();
+    const { search = '', query = '', q = '', limit = 20, forceOmie = false } = req.query;
+    const cleanSearch = String(search || query || q || '').trim();
     const numLimit = Math.min(50, Math.max(1, Number(limit) || 20));
 
     const result = await searchHermesProducts({
@@ -5404,10 +5483,10 @@ app.get('/api/hermes/products', validateHermesAuth, async (req, res) => {
 });
 
 // Hermes: Busca de Produtos via POST (Compatível com chamadas de Tools do Gemini / Agentes)
-app.post('/api/hermes/products', validateHermesAuth, async (req, res) => {
+app.post(['/api/hermes/products', '/api/hermes/produtos'], validateHermesAuth, async (req, res) => {
   try {
-    const { search = '', query = '', limit = 20, forceOmie = false } = req.body || {};
-    const cleanSearch = String(search || query || '').trim();
+    const { search = '', query = '', q = '', limit = 20, forceOmie = false } = req.body || {};
+    const cleanSearch = String(search || query || q || '').trim();
     const numLimit = Math.min(50, Math.max(1, Number(limit) || 20));
 
     const result = await searchHermesProducts({
@@ -5425,7 +5504,7 @@ app.post('/api/hermes/products', validateHermesAuth, async (req, res) => {
 });
 
 // Hermes: Atualizar Produto no Catálogo (Preço, Estoque ou Status)
-app.put('/api/hermes/products/:id', validateHermesAuth, async (req, res) => {
+app.put(['/api/hermes/products/:id', '/api/hermes/produtos/:id'], validateHermesAuth, async (req, res) => {
   try {
     const result = await updateProductByHermes(pool, req.params.id, req.body || {});
     return res.json(result);
@@ -5437,7 +5516,7 @@ app.put('/api/hermes/products/:id', validateHermesAuth, async (req, res) => {
 });
 
 // Hermes: Sincronizar / Criar Produto a partir do Omie ERP
-app.post('/api/hermes/products/sync-omie', validateHermesAuth, async (req, res) => {
+app.post(['/api/hermes/products/sync-omie', '/api/hermes/produtos/sync-omie'], validateHermesAuth, async (req, res) => {
   try {
     const result = await syncProductFromOmie(pool, req.body || {});
     return res.json(result);
@@ -6633,7 +6712,7 @@ app.delete('/api/banners/:id', authenticateToken, async (req, res) => {
 });
 
 // 3. PRODUCTS
-app.get('/api/products', async (req, res) => {
+app.get(['/api/products', '/api/produtos'], async (req, res) => {
   const isPaginated = req.query.page !== undefined || req.query.limit !== undefined;
 
   if (pool) {
@@ -6790,7 +6869,7 @@ app.get('/api/products', async (req, res) => {
   res.json(products);
 });
 
-app.get('/api/products/:identifier', async (req, res) => {
+app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, res) => {
   const { identifier } = req.params;
   if (!identifier) return res.status(400).json({ error: 'Identificador do produto obrigatório.' });
   const cleanId = String(identifier).trim().slice(0, 200);

@@ -295,7 +295,35 @@ async function fetchOmieFallback(searchTerm) {
     }
   }
 
-  // Tentativa 2: Busca por listagem com filtro textual
+  // Tentativa 2: Busca por listagem com filtrar_por_descricao no Omie
+  const searchCandidates = [clean];
+  const words = clean.split(/\s+/).filter(w => w.length >= 3);
+  if (words.length >= 2) {
+    searchCandidates.push(words.slice(0, 3).join(' ')); // Ex: "kit saca polia"
+    const poliaWord = words.find(w => w.toLowerCase().includes('polia'));
+    if (poliaWord) searchCandidates.push(poliaWord);
+  }
+
+  for (const term of searchCandidates) {
+    if (!term) continue;
+    try {
+      const listRes = await callOmie("ListarProdutos", {
+        pagina: 1,
+        registros_por_pagina: 50,
+        apenas_importado_api: "N",
+        filtrar_apenas_omiepdv: "N",
+        filtrar_por_descricao: term
+      });
+      const items = listRes?.produto_servico_cadastro || [];
+      if (items.length > 0) {
+        return items.slice(0, 10);
+      }
+    } catch (e) {
+      // continua
+    }
+  }
+
+  // Tentativa 3: Busca por listagem geral com filtro textual em memória
   try {
     const listRes = await callOmie("ListarProdutos", {
       pagina: 1,
