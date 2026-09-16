@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Header from './components/Header';
 import HeroSlim from './components/HeroSlim';
 import HomeBannerCarousel from './components/HomeBannerCarousel';
