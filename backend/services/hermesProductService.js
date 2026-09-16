@@ -662,16 +662,16 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
   let findRes = null;
   if (isNumeric) {
     findRes = await pool.query(`
-      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code 
+      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku 
       FROM products 
-      WHERE id = $1 OR omie_codigo_produto = $2 OR omie_product_id = $2 
+      WHERE id = $1 OR omie_codigo_produto = $2 OR omie_product_id = $2 OR LOWER(COALESCE(sku, '')) = LOWER($1)
       LIMIT 1
     `, [cleanId, Number(cleanId)]);
   } else {
     findRes = await pool.query(`
-      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code 
+      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku 
       FROM products 
-      WHERE id = $1 OR slug = $1 OR LOWER(COALESCE(omie_code, '')) = LOWER($1)
+      WHERE id = $1 OR slug = $1 OR LOWER(COALESCE(omie_code, '')) = LOWER($1) OR LOWER(COALESCE(sku, '')) = LOWER($1)
       LIMIT 1
     `, [cleanId]);
   }
@@ -681,9 +681,9 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
     const skuCandidate = extractSkuFromTitle(cleanId);
     const searchTerm = skuCandidate || cleanId;
     findRes = await pool.query(`
-      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code 
+      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku 
       FROM products 
-      WHERE name ILIKE $1 OR omie_code ILIKE $1
+      WHERE name ILIKE $1 OR omie_code ILIKE $1 OR sku ILIKE $1
       LIMIT 1
     `, [`%${searchTerm}%`]);
   }
@@ -726,6 +726,24 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
     newStatus,
     existing.id
   ]);
+
+  // Sincroniza a alteração de estoque/preço com o Omie ERP em background
+  try {
+    const { syncProductToOmie } = require('./omieProductSyncService');
+    syncProductToOmie(pool, {
+      id: existing.id,
+      name: existing.name,
+      sku: existing.sku || existing.omie_code,
+      omieCode: existing.omie_code,
+      omieCodigoProduto: existing.omie_codigo_produto,
+      stock: newStock,
+      estoqueQuantidade: newStock,
+      price: newPrice,
+      precoVenda: newPrice
+    }).catch(e => console.error('[Hermes Sync to Omie Background Error]:', e.message));
+  } catch (err) {
+    // continua sem quebrar
+  }
 
   return {
     success: true,
