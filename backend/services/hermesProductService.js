@@ -388,14 +388,14 @@ async function upsertOmieProductToLocal(pool, omieItem) {
         SET 
           omie_codigo_produto = $1,
           omie_product_id = $1,
-          omie_code = $2,
-          sku = COALESCE(sku, NULLIF($2, '')),
-          preco_venda = CASE WHEN $3 > 0 THEN $3 ELSE preco_venda END,
-          price = CASE WHEN (price IS NULL OR price = 0) AND $3 > 0 THEN $3 ELSE price END,
-          estoque_quantidade = $4,
-          in_stock = ($4 > 0),
+          omie_code = $2::text,
+          sku = COALESCE(sku, NULLIF($2::text, '')),
+          preco_venda = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE preco_venda END,
+          price = CASE WHEN (price IS NULL OR price = 0) AND $3::numeric > 0 THEN $3::numeric ELSE price END,
+          estoque_quantidade = $4::integer,
+          in_stock = ($4::integer > 0),
           omie_last_sync = CURRENT_TIMESTAMP
-        WHERE id = $5
+        WHERE id = $5::text
       `, [omieId, omieCode, preco, estoque, existing.id]);
 
       const isNegotiable = existing.price_negotiable !== false;
@@ -557,16 +557,16 @@ async function enrichProductWithOmiePrice(pool, product) {
       await pool.query(`
         UPDATE products 
         SET 
-          preco_venda = CASE WHEN $1 > 0 THEN $1 ELSE preco_venda END,
-          price = CASE WHEN (price IS NULL OR price = 0) AND $1 > 0 THEN $1 ELSE price END,
-          estoque_quantidade = $2,
-          in_stock = ($2 > 0),
+          preco_venda = CASE WHEN $1::numeric > 0 THEN $1::numeric ELSE preco_venda END,
+          price = CASE WHEN (price IS NULL OR price = 0) AND $1::numeric > 0 THEN $1::numeric ELSE price END,
+          estoque_quantidade = $2::integer,
+          in_stock = ($2::integer > 0),
           omie_codigo_produto = COALESCE(omie_codigo_produto, $3),
           omie_product_id = COALESCE(omie_product_id, $3),
-          omie_code = COALESCE(NULLIF($4, ''), omie_code),
-          sku = COALESCE(sku, NULLIF($4, '')),
+          omie_code = COALESCE(NULLIF($4::text, ''), omie_code),
+          sku = COALESCE(sku, NULLIF($4::text, '')),
           omie_last_sync = CURRENT_TIMESTAMP
-        WHERE id = $5
+        WHERE id = $5::text
       `, [
         precoOmie,
         estoqueOmie,
@@ -733,14 +733,14 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
   await pool.query(`
     UPDATE products 
     SET 
-      preco_venda = $1,
-      price = CASE WHEN $1 > 0 THEN $1 ELSE price END,
-      estoque_quantidade = $2,
-      in_stock = ($2 > 0),
-      price_negotiable = $3,
-      status = $4,
+      preco_venda = $1::numeric,
+      price = CASE WHEN $1::numeric > 0 THEN $1::numeric ELSE price END,
+      estoque_quantidade = $2::integer,
+      in_stock = ($2::integer > 0),
+      price_negotiable = $3::boolean,
+      status = $4::text,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $5
+    WHERE id = $5::text
   `, [
     newPrice,
     newStock,
