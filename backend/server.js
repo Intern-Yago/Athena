@@ -21,6 +21,7 @@ const {
   hermesGeminiTools,
   executeHermesGeminiTool,
   updateProductByHermes,
+  createProductByHermes,
   syncProductFromOmie
 } = require('./services/hermesProductService');
 const { processOmieProductWebhook } = require('./services/omieWebhookService');
@@ -5513,6 +5514,17 @@ app.put(['/api/hermes/products/:id', '/api/hermes/produtos/:id'], validateHermes
     console.error('[HERMES PRODUCT PUT ERROR]:', err.message);
     const isNotFound = err.message && err.message.includes('não encontrado');
     return res.status(isNotFound ? 404 : 500).json({ error: err.message });
+  }
+});
+
+// Hermes: Criar Produto / Rascunho no Catálogo
+app.post(['/api/hermes/products/create', '/api/hermes/produtos/create'], validateHermesAuth, async (req, res) => {
+  try {
+    const result = await createProductByHermes(pool, req.body || {});
+    return res.status(201).json(result);
+  } catch (err) {
+    console.error('[HERMES PRODUCT CREATE ERROR]:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 

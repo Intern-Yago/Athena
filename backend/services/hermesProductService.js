@@ -711,7 +711,59 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
   }
 
   if (!findRes || findRes.rows.length === 0) {
-    throw new Error(`Produto "${cleanId}" não encontrado no catálogo da Athena.`);
+    // 1. Tenta buscar no Omie para importar automaticamente
+    let omieItem = null;
+    try {
+      if (/^\d+$/.test(cleanId)) {
+        omieItem = await callOmie("ConsultarProduto", { codigo_produto: Number(cleanId) });
+      }
+      if (!omieItem) {
+        omieItem = await callOmie("ConsultarProduto", { codigo: cleanId });
+      }
+    } catch (e) {
+      console.warn(`[updateProductByHermes] Erro ao consultar Omie para "${cleanId}":`, e.message);
+    }
+
+    if (omieItem && omieItem.codigo_produto) {
+      const saved = await upsertOmieProductToLocal(pool, omieItem);
+      findRes = await pool.query(`SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku FROM products WHERE id = $1 LIMIT 1`, [saved.id]);
+    } else {
+      // 2. Não existe no Omie nem no banco local: cria como novo rascunho (draft)
+      const name = updateData.name || updateData.descricao || `Produto ${cleanId}`;
+      const rawSlug = name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9 -]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-");
+      const slug = `${rawSlug || 'produto'}-${cleanId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+      const newId = cleanId.startsWith('prod_') ? cleanId : `prod_${cleanId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+      const initPrice = Number(updateData.precoVenda || updateData.price || 0);
+      const initStock = parseInt(updateData.estoqueQuantidade || updateData.stock || 0, 10);
+      const initSku = updateData.sku || cleanId;
+      const initStatus = updateData.status ? String(updateData.status).trim() : 'draft';
+      const initNegotiable = updateData.priceNegotiable != null ? Boolean(updateData.priceNegotiable) : true;
+
+      await pool.query(`
+        INSERT INTO products (
+          id, name, slug, price, preco_venda, estoque_quantidade,
+          price_negotiable, status, in_stock, sku, omie_code, omie_last_sync
+        )
+        VALUES ($1, $2, $3, $4, $4, $5, $6, $7, ($5 > 0), $8, $8, CURRENT_TIMESTAMP)
+        ON CONFLICT (id) DO UPDATE SET
+          preco_venda = $4,
+          price = CASE WHEN $4 > 0 THEN $4 ELSE products.price END,
+          estoque_quantidade = $5,
+          in_stock = ($5 > 0),
+          price_negotiable = $6,
+          status = $7,
+          sku = COALESCE(products.sku, $8),
+          omie_last_sync = CURRENT_TIMESTAMP
+      `, [newId, name, slug, initPrice, initStock, initNegotiable, initStatus, initSku]);
+
+      findRes = await pool.query(`SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku FROM products WHERE id = $1 LIMIT 1`, [newId]);
+    }
   }
 
   const existing = findRes.rows[0];
@@ -927,6 +979,11 @@ async function executeHermesGeminiTool(pool, toolCall) {
   throw new Error(`Tool desconhecida: ${name}`);
 }
 
+async function createProductByHermes(pool, productData = {}) {
+  const cleanId = String(productData.id || productData.sku || productData.codigo || productData.omieCode || `prod_${Date.now()}`).trim();
+  return await updateProductByHermes(pool, cleanId, productData);
+}
+
 module.exports = {
   searchHermesProducts,
   searchLocalProducts,
@@ -934,6 +991,7 @@ module.exports = {
   upsertOmieProductToLocal,
   enrichProductWithOmiePrice,
   updateProductByHermes,
+  createProductByHermes,
   syncProductFromOmie,
   extractSkuFromTitle,
   extractModelKeys,
