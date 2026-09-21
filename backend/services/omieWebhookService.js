@@ -83,20 +83,20 @@ async function processOmieProductWebhook(pool, body) {
     const updateRes = await pool.query(`
       UPDATE products
       SET 
-        preco_venda = $1,
-        price = CASE WHEN $1 > 0 THEN $1 ELSE price END,
-        estoque_quantidade = $2,
-        in_stock = ($2 > 0),
-        omie_codigo_produto = COALESCE(omie_codigo_produto, $3),
-        omie_product_id = COALESCE(omie_product_id, $3),
-        omie_code = COALESCE(NULLIF($4, ''), omie_code),
-        sku = COALESCE(sku, NULLIF($4, '')),
+        preco_venda = $1::numeric,
+        price = CASE WHEN $1::numeric > 0 THEN $1::numeric ELSE price END,
+        estoque_quantidade = $2::integer,
+        in_stock = ($2::integer > 0),
+        omie_codigo_produto = COALESCE(omie_codigo_produto, $3::bigint),
+        omie_product_id = COALESCE(omie_product_id, $3::bigint),
+        omie_code = COALESCE(NULLIF($4::text, ''), omie_code),
+        sku = COALESCE(sku, NULLIF($4::text, '')),
         omie_last_sync = CURRENT_TIMESTAMP
       WHERE 
-        (omie_codigo_produto IS NOT NULL AND omie_codigo_produto = $3) OR
-        (omie_product_id IS NOT NULL AND omie_product_id = $3) OR
-        (omie_code IS NOT NULL AND omie_code != '' AND LOWER(omie_code) = LOWER($4)) OR
-        (sku IS NOT NULL AND sku != '' AND LOWER(sku) = LOWER($4))
+        (omie_codigo_produto IS NOT NULL AND omie_codigo_produto = $3::bigint) OR
+        (omie_product_id IS NOT NULL AND omie_product_id = $3::bigint) OR
+        (omie_code IS NOT NULL AND omie_code != '' AND LOWER(omie_code) = LOWER($4::text)) OR
+        (sku IS NOT NULL AND sku != '' AND LOWER(sku) = LOWER($4::text))
       RETURNING id, name, slug, price_negotiable
     `, [
       finalPreco,
