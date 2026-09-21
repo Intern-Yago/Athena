@@ -915,6 +915,10 @@ const hermesGeminiTools = [
         estoqueQuantidade: {
           type: "INTEGER",
           description: "Nova quantidade em estoque disponível."
+        },
+        status: {
+          type: "STRING",
+          description: "Status do produto no catálogo ('draft' para rascunho ou 'published' para publicado). Novos itens ou revisões internas devem sempre usar 'draft'."
         }
       },
       required: ["identifier"]
@@ -964,7 +968,8 @@ async function executeHermesGeminiTool(pool, toolCall) {
   if (name === "update_athena_product") {
     return await updateProductByHermes(pool, parsedArgs.identifier, {
       precoVenda: parsedArgs.precoVenda,
-      estoqueQuantidade: parsedArgs.estoqueQuantidade
+      estoqueQuantidade: parsedArgs.estoqueQuantidade,
+      status: parsedArgs.status
     });
   }
 
@@ -981,7 +986,11 @@ async function executeHermesGeminiTool(pool, toolCall) {
 
 async function createProductByHermes(pool, productData = {}) {
   const cleanId = String(productData.id || productData.sku || productData.codigo || productData.omieCode || `prod_${Date.now()}`).trim();
-  return await updateProductByHermes(pool, cleanId, productData);
+  const dataWithDraft = {
+    status: 'draft',
+    ...productData
+  };
+  return await updateProductByHermes(pool, cleanId, dataWithDraft);
 }
 
 module.exports = {
