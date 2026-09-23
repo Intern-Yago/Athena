@@ -181,7 +181,8 @@ export default function ProductDetailPage({
   const [activeTab, setActiveTab] = useState('specs');
   const [selectedQuickViewProduct, setSelectedQuickViewProduct] = useState(null);
   const [isInstallmentModalOpen, setIsInstallmentModalOpen] = useState(false);
-  const { addToCart, requireVerification } = useCart();
+  const [selectedVariantId, setSelectedVariantId] = useState(null);
+  const { addToCart, openDirectCheckout, requireVerification } = useCart();
 
   // 1. Check for shareable encoded draft in URL search params (?d=... or ?token=...)
   const urlDraft = (() => {
@@ -213,28 +214,73 @@ export default function ProductDetailPage({
 
   const product = draftProduct || products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId);
 
+  // Dynamic Variants handling with smart fallback to base product
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  const hasVariants = variants.length > 0;
+
+  // Auto-select first variant on load or when product changes
+  useEffect(() => {
+    if (hasVariants) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const vParam = params.get('v') || params.get('var') || params.get('variant');
+        if (vParam) {
+          const match = variants.find(v => v.id === vParam || v.sku === vParam || v.name?.toLowerCase() === vParam.toLowerCase());
+          if (match) {
+            setSelectedVariantId(match.id);
+            return;
+          }
+        }
+      } catch (e) {}
+      setSelectedVariantId(variants[0].id);
+    } else {
+      setSelectedVariantId(null);
+    }
+  }, [product?.id, hasVariants]);
+
+  const selectedVariant = hasVariants 
+    ? (variants.find(v => v.id === selectedVariantId) || variants[0])
+    : null;
+
+  // Smart Price Fallback: use variant price if defined and > 0, otherwise fallback to product base price
+  const activePrice = (selectedVariant?.price != null && Number(selectedVariant.price) > 0)
+    ? Number(selectedVariant.price)
+    : Number(product?.price || 0);
+
+  // Smart Image Fallback: if variant has custom image, prioritize it in the gallery; otherwise use product image
+  const effectiveProduct = (selectedVariant?.image)
+    ? {
+        ...product,
+        image: selectedVariant.image,
+        images: [
+          selectedVariant.image,
+          ...(Array.isArray(product?.images) ? product.images.filter(img => img !== selectedVariant.image) : [])
+        ]
+      }
+    : product;
+
   const isAdminUser = Boolean(currentUser && (currentUser.role === 'admin' || currentUser.isAdmin));
   const canAccessDraft = isPreviewMode || isAdminUser;
 
   const category = product ? categories.find((c) => c.id === product.categoryId) : null;
   const brand = product ? brands.find((b) => b.id === product.brandId) : null;
 
-  const hasPrice = Number(product?.price) > 0;
+  const hasPrice = Number(activePrice) > 0;
   const isQuoteOnly = Boolean(product?.priceNegotiable !== false);
   const canBuyOnline = hasPrice && !isQuoteOnly;
 
-  const paymentGateways = canBuyOnline ? calculatePaymentGateways(product?.price) : null;
+  const paymentGateways = canBuyOnline ? calculatePaymentGateways(activePrice) : null;
   const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
-    canBuyOnline ? formatBRL(product?.price) : 'Sob Consulta'
+    canBuyOnline ? formatBRL(activePrice) : 'Sob Consulta'
   );
 
   const potentialPoints = (product?.aPoints && Number(product.aPoints) > 0) 
     ? Number(product.aPoints) 
-    : (Number(product?.price) > 0 ? Math.floor(Number(product.price) / 50) : 0);
+    : (Number(activePrice) > 0 ? Math.floor(Number(activePrice) / 50) : 0);
   const earnedPoints = canBuyOnline ? potentialPoints : 0;
 
   const formattedPrice = canBuyOnline 
-    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product?.price)
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(activePrice)
     : 'Sob Consulta';
 
   const handleCopyPreviewLink = () => {
@@ -248,12 +294,16 @@ export default function ProductDetailPage({
     } catch (e) {}
   };
 
+  const variantSuffixText = selectedVariant
+    ? `\n*Opção Selecionada:* ${selectedVariant.name}${selectedVariant.sku ? ` (Cód/SKU: ${selectedVariant.sku})` : ''}`
+    : '';
+
   const whatsappMessage = canBuyOnline
     ? encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${product?.name || ''}*\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\nMarca: ${brand?.name || 'Athena'}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
+        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${product?.name || ''}*${variantSuffixText}\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\nMarca: ${brand?.name || 'Athena'}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
       )
     : encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${product?.name || ''}*\nMarca: ${brand?.name || 'Athena'}\nCategoria: ${category?.name || 'Geral'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
+        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${product?.name || ''}*${variantSuffixText}\nMarca: ${brand?.name || 'Athena'}\nCategoria: ${category?.name || 'Geral'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
       );
 
   // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
@@ -554,7 +604,7 @@ export default function ProductDetailPage({
           
           {/* Left Column: Interactive Carousel & Zoom Gallery + Trust Badges */}
           <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-24 self-start">
-            <ProductImageGallery product={product} />
+            <ProductImageGallery product={effectiveProduct || product} />
 
             {/* Trust Badges */}
             <div className="grid grid-cols-2 gap-3">
@@ -652,6 +702,104 @@ export default function ProductDetailPage({
               </div>
             </div>
 
+            {/* Dynamic Variations Selector (Colors, Sizes, Models) */}
+            {hasVariants && (
+              <div className="pt-3 pb-1 border-t border-slate-100 space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      {variants.some(v => v.colorHex) ? 'Opção de Cor:' : 'Opção / Modelo:'}
+                    </span>
+                    <span className="text-xs font-extrabold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                      {selectedVariant?.name}
+                    </span>
+                  </div>
+
+                  {selectedVariant?.sku && (
+                    <span className="text-[11px] font-mono font-medium text-slate-400">
+                      Ref / SKU: <span className="font-bold text-slate-600">{selectedVariant.sku}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Options Display */}
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {variants.map((v) => {
+                    const isSelected = v.id === selectedVariant?.id;
+                    const hasColor = Boolean(v.colorHex && v.colorHex.trim());
+
+                    if (hasColor) {
+                      // Color Swatch Circle
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => setSelectedVariantId(v.id)}
+                          className={`group relative p-1 rounded-full transition-all cursor-pointer flex items-center justify-center ${
+                            isSelected
+                              ? 'ring-2 ring-amber-500 ring-offset-2 scale-110 shadow-sm'
+                              : 'hover:scale-105 opacity-80 hover:opacity-100'
+                          }`}
+                          title={`${v.name}${v.price ? ` - ${formatBRL(v.price)}` : ''}`}
+                        >
+                          <span
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-300 shadow-2xs block"
+                            style={{ backgroundColor: v.colorHex }}
+                          />
+                          {isSelected && (
+                            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <Check className="w-3.5 h-3.5 text-white drop-shadow-md stroke-[3]" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    }
+
+                    // Pill / Chip for Sizes, Models, Voltages
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setSelectedVariantId(v.id)}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold shadow-sm ring-1 ring-amber-400'
+                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3.5 h-3.5 text-slate-950 shrink-0" />}
+                        <span>{v.name}</span>
+                        {v.price != null && Number(v.price) > 0 && Number(v.price) !== Number(product.price) && (
+                          <span className={`text-[10px] ml-1 px-1.5 py-0.5 rounded ${
+                            isSelected ? 'bg-black/10 text-slate-950' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {formatBRL(v.price)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Variant Stock Note if present */}
+                {selectedVariant && (
+                  <div className="flex items-center gap-2 text-xs pt-0.5">
+                    {selectedVariant.inStock === false || (selectedVariant.stockQty != null && selectedVariant.stockQty <= 0) ? (
+                      <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        Esgotado nesta opção
+                      </span>
+                    ) : selectedVariant.stockQty != null && selectedVariant.stockQty > 0 ? (
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        {selectedVariant.stockQty} {selectedVariant.stockQty === 1 ? 'unidade disponível' : 'unidades disponíveis'}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Commercial Condition / Price Banner (Positioned above CTA Buttons) */}
             {canBuyOnline ? (
               <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/80 space-y-2">
@@ -667,7 +815,7 @@ export default function ProductDetailPage({
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-200/60 text-xs">
                   <span className="font-bold text-slate-700 flex items-center gap-1.5">
                     <CreditCard className="w-3.5 h-3.5 text-amber-700" />
-                    {getBestInstallmentText(product.price, 12)}
+                    {getBestInstallmentText(activePrice, 12)}
                   </span>
                   <button
                     type="button"
@@ -733,7 +881,7 @@ export default function ProductDetailPage({
                 <>
                   <button
                     type="button"
-                    onClick={() => setIsInstallmentModalOpen(true)}
+                    onClick={() => openDirectCheckout(product, 1, selectedVariant)}
                     className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-black flex items-center gap-2 cursor-pointer"
                   >
                     <CreditCard className="w-4 h-4" />
@@ -742,7 +890,7 @@ export default function ProductDetailPage({
 
                   <button
                     type="button"
-                    onClick={() => addToCart(product)}
+                    onClick={() => addToCart(product, 1, selectedVariant)}
                     className="py-2.5 px-4 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
                   >
                     <ShoppingCart className="w-4 h-4 text-amber-700" />
@@ -1213,8 +1361,8 @@ export default function ProductDetailPage({
       <InstallmentModal
         isOpen={isInstallmentModalOpen}
         onClose={() => setIsInstallmentModalOpen(false)}
-        productName={product.name}
-        cashPrice={product.price}
+        productName={selectedVariant ? `${product.name} (${selectedVariant.name})` : product.name}
+        cashPrice={activePrice}
         maxInstallments={12}
       />
 

@@ -968,7 +968,8 @@ export default function AdminPanel({
       recommendedProductIds: [],
       sku: '',
       stock: 0,
-      omieCode: ''
+      omieCode: '',
+      variants: []
     }
   );
 
@@ -1011,7 +1012,8 @@ export default function AdminPanel({
       videoUrl: targetProduct.videoUrl || targetProduct.youtubeVideoUrl || '',
       customTabs: Array.isArray(targetProduct.customTabs) ? [...targetProduct.customTabs] : [],
       compatibleProductIds: Array.isArray(targetProduct.compatibleProductIds) ? [...targetProduct.compatibleProductIds] : [],
-      recommendedProductIds: Array.isArray(targetProduct.recommendedProductIds) ? [...targetProduct.recommendedProductIds] : []
+      recommendedProductIds: Array.isArray(targetProduct.recommendedProductIds) ? [...targetProduct.recommendedProductIds] : [],
+      variants: Array.isArray(targetProduct.variants) ? [...targetProduct.variants] : []
     };
     setProductForm(targetForm);
     setTagInput('');
@@ -1339,7 +1341,8 @@ export default function AdminPanel({
       recommendedProductIds: [],
       sku: '',
       stock: 0,
-      omieCode: ''
+      omieCode: '',
+      variants: []
     };
     setProductForm(initialForm);
     setTagInput('');
@@ -1368,7 +1371,8 @@ export default function AdminPanel({
       videoUrl: product.videoUrl || product.youtubeVideoUrl || '',
       customTabs: Array.isArray(product.customTabs) ? [...product.customTabs] : [],
       compatibleProductIds: Array.isArray(product.compatibleProductIds) ? [...product.compatibleProductIds] : [],
-      recommendedProductIds: Array.isArray(product.recommendedProductIds) ? [...product.recommendedProductIds] : []
+      recommendedProductIds: Array.isArray(product.recommendedProductIds) ? [...product.recommendedProductIds] : [],
+      variants: Array.isArray(product.variants) ? [...product.variants] : []
     };
     setProductForm(initialForm);
     setTagInput('');
@@ -1960,6 +1964,43 @@ export default function AdminPanel({
       ...prev,
       customTabs: (prev.customTabs || []).filter(t => t.id !== id)
     }));
+  };
+
+  // Product Variants Helpers (Colors, Sizes, Models, Omie Integration)
+  const handleAddVariant = () => {
+    setProductForm(prev => ({
+      ...prev,
+      variants: [
+        ...(prev.variants || []),
+        {
+          id: `var_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+          name: '',
+          sku: '',
+          omieCode: '',
+          colorHex: '',
+          price: '',
+          image: '',
+          stockQty: ''
+        }
+      ]
+    }));
+  };
+
+  const handleUpdateVariant = (index, field, value) => {
+    setProductForm(prev => {
+      const list = [...(prev.variants || [])];
+      if (list[index]) {
+        list[index] = { ...list[index], [field]: value };
+      }
+      return { ...prev, variants: list };
+    });
+  };
+
+  const handleRemoveVariant = (index) => {
+    setProductForm(prev => {
+      const list = (prev.variants || []).filter((_, idx) => idx !== index);
+      return { ...prev, variants: list };
+    });
   };
 
   // Attachments & PDFs Helpers (Upload + Direct Link with Custom Name)
@@ -3170,6 +3211,9 @@ export default function AdminPanel({
       attachments: productForm.attachments || [],
       videoUrl: (productForm.videoUrl || '').trim(),
       customTabs: (productForm.customTabs || []).filter(t => t.title && t.title.trim() !== ''),
+      variants: Array.isArray(productForm.variants)
+        ? productForm.variants.filter(v => v && (v.name || '').trim() !== '')
+        : [],
       image: productForm.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80',
       altText: productForm.altText || productForm.name
     };
@@ -8452,6 +8496,162 @@ export default function AdminPanel({
                           );
                         })()}
                       </div>
+                    </div>
+
+                    {/* CARD: Variações do Produto (Cores, Tamanhos & Integração Omie) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <Tag className="w-4 h-4 text-amber-600" />
+                            Variações do Produto (Cores, Tamanhos & Códigos Omie)
+                          </h4>
+                          <p className="text-[11px] text-slate-500">
+                            Unifique produtos semelhantes em uma única página. Se não preencher preço ou imagem, herda automaticamente os dados principais.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleAddVariant}
+                          className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 inline-flex items-center cursor-pointer text-amber-900 bg-amber-50 hover:bg-amber-100 border-amber-300"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Adicionar Variação</span>
+                        </button>
+                      </div>
+
+                      {(!productForm.variants || productForm.variants.length === 0) ? (
+                        <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 text-center space-y-2">
+                          <p className="text-xs text-slate-500">
+                            Nenhuma variação cadastrada para este equipamento. Ele será exibido como produto único no catálogo.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={handleAddVariant}
+                            className="text-xs font-bold text-amber-700 hover:text-amber-800 underline inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Clique aqui para adicionar opções de cores, tamanhos ou modelos</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {productForm.variants.map((v, idx) => (
+                            <div key={v.id || idx} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                  Opção #{idx + 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveVariant(idx)}
+                                  className="text-slate-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                                  title="Remover esta variação"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                                {/* Name */}
+                                <div className="sm:col-span-4 space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-600 block">
+                                    Nome da Opção * (ex: Vermelho, 7 Gavetas, 220V)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={v.name || ''}
+                                    onChange={(e) => handleUpdateVariant(idx, 'name', e.target.value)}
+                                    placeholder="Ex: Vermelho, 220V..."
+                                    className="input-custom text-xs w-full py-1.5 px-2.5"
+                                  />
+                                </div>
+
+                                {/* SKU Omie */}
+                                <div className="sm:col-span-3 space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-600 block">
+                                    Código SKU no Omie
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={v.sku || ''}
+                                    onChange={(e) => handleUpdateVariant(idx, 'sku', e.target.value)}
+                                    placeholder="Ex: WLF-CAR-VM"
+                                    className="input-custom text-xs w-full py-1.5 px-2.5 font-mono"
+                                  />
+                                </div>
+
+                                {/* Color Hex (Optional) */}
+                                <div className="sm:col-span-2 space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-600 block">
+                                    Cor (Bolinha)
+                                  </label>
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="color"
+                                      value={v.colorHex || '#DC2626'}
+                                      onChange={(e) => handleUpdateVariant(idx, 'colorHex', e.target.value)}
+                                      className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0 shrink-0"
+                                      title="Selecione a cor"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={v.colorHex || ''}
+                                      onChange={(e) => handleUpdateVariant(idx, 'colorHex', e.target.value)}
+                                      placeholder="#HEX"
+                                      className="input-custom text-[11px] w-full py-1 px-1.5 font-mono"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Custom Price (Optional) */}
+                                <div className="sm:col-span-3 space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-600 block" title="Deixe vazio para herdar o preço do produto">
+                                    Preço Específico (R$)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={v.price !== undefined ? v.price : ''}
+                                    onChange={(e) => handleUpdateVariant(idx, 'price', e.target.value)}
+                                    placeholder="Opcional (herda padrão)"
+                                    className="input-custom text-xs w-full py-1.5 px-2.5"
+                                  />
+                                </div>
+
+                                {/* Custom Image URL (Optional) */}
+                                <div className="sm:col-span-8 space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-600 block">
+                                    URL da Foto desta Opção (opcional — herda foto principal se vazio)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={v.image || ''}
+                                    onChange={(e) => handleUpdateVariant(idx, 'image', e.target.value)}
+                                    placeholder="https://.../foto-especifica.webp"
+                                    className="input-custom text-xs w-full py-1.5 px-2.5"
+                                  />
+                                </div>
+
+                                {/* Stock Quantity (Optional) */}
+                                <div className="sm:col-span-4 space-y-1">
+                                  <label className="text-[10px] font-bold text-slate-600 block">
+                                    Estoque Próprio (unidades)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={v.stockQty !== undefined ? v.stockQty : ''}
+                                    onChange={(e) => handleUpdateVariant(idx, 'stockQty', e.target.value)}
+                                    placeholder="Omie ou 0"
+                                    className="input-custom text-xs w-full py-1.5 px-2.5"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* CARD 7: Especificações Técnicas (Smart Manager) */}

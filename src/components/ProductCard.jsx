@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { stripFormattingTags } from './FormattedDescription';
 import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -17,8 +17,12 @@ export default function ProductCard({
   onToggleComparison,
   viewMode = 'grid'
 }) {
+  const [activePreviewImage, setActivePreviewImage] = useState(null);
   const { addToCart, openDirectCheckout, requireVerification } = useCart();
   
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+  const hasVariants = variants.length > 0;
+
   // Regra de Negocio Athena:
   // Se o orcamento estiver ATIVO (priceNegotiable !== false), NAO mostra o valor do produto (fica Sob Consulta) e direciona para orcamento.
   // Se o orcamento estiver DESATIVADO (!priceNegotiable) e tiver preco (> 0), mostra o valor e joga para comprar no site.
@@ -65,7 +69,7 @@ export default function ProductCard({
           onClick={() => onSelectProduct(product)}
         >
           <img 
-            src={product.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
+            src={activePreviewImage || product.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
             alt={product.altText || product.name}
             loading="lazy"
             decoding="async"
@@ -136,7 +140,7 @@ export default function ProductCard({
         <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
           <div className="space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {brand && (
                   <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
                     <Tag className="w-3 h-3 text-amber-600" />
@@ -147,6 +151,38 @@ export default function ProductCard({
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
                     {category.name}
                   </span>
+                )}
+
+                {/* Variants Swatches / Badge in List View */}
+                {hasVariants && (
+                  <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    {variants.some(v => v.colorHex) ? (
+                      <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Cores:</span>
+                        <div className="flex items-center gap-1">
+                          {variants.slice(0, 5).map(v => (
+                            <span
+                              key={v.id}
+                              onMouseEnter={() => v.image && setActivePreviewImage(v.image)}
+                              onMouseLeave={() => setActivePreviewImage(null)}
+                              className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-2xs inline-block transition-transform hover:scale-125 cursor-pointer"
+                              style={{ backgroundColor: v.colorHex || '#ccc' }}
+                              title={`${v.name}${v.sku ? ` (${v.sku})` : ''}`}
+                            />
+                          ))}
+                          {variants.length > 5 && (
+                            <span className="text-[10px] text-slate-500 font-extrabold">
+                              +{variants.length - 5}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                        {variants.length} opções disponíveis
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -284,7 +320,7 @@ export default function ProductCard({
         onClick={() => onSelectProduct(product)}
       >
         <img 
-          src={product.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
+          src={activePreviewImage || product.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
           alt={product.altText || product.name}
           loading="lazy"
           decoding="async"
@@ -391,13 +427,44 @@ export default function ProductCard({
       <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3 sm:space-y-4">
         
         <div className="space-y-2">
-          {/* Brand Tag */}
-          {brand && (
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-              <Tag className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span className="text-amber-700 font-extrabold uppercase tracking-wider">{brand.name}</span>
-            </div>
-          )}
+          {/* Brand Tag & Variants Swatches */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            {brand && (
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                <Tag className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span className="text-amber-700 font-extrabold uppercase tracking-wider">{brand.name}</span>
+              </div>
+            )}
+
+            {/* Variants Swatches / Badge in Grid View */}
+            {hasVariants && (
+              <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                {variants.some(v => v.colorHex) ? (
+                  <div className="flex items-center gap-1">
+                    {variants.slice(0, 6).map(v => (
+                      <span
+                        key={v.id}
+                        onMouseEnter={() => v.image && setActivePreviewImage(v.image)}
+                        onMouseLeave={() => setActivePreviewImage(null)}
+                        className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-2xs inline-block transition-transform hover:scale-125 cursor-pointer"
+                        style={{ backgroundColor: v.colorHex || '#ccc' }}
+                        title={`${v.name}${v.sku ? ` (${v.sku})` : ''}`}
+                      />
+                    ))}
+                    {variants.length > 6 && (
+                      <span className="text-[10px] text-slate-400 font-extrabold">
+                        +{variants.length - 6}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    {variants.length} opções
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Title */}
           <h3 

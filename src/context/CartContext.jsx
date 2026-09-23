@@ -21,13 +21,19 @@ export function CartProvider({ children, showNotification, brands = [], categori
 
   /**
    * Adds an item to the shopping cart.
+   * Supports variations (color, size, model) with smart fallback to parent price and image.
    * STRICT RULE: Only products with a valid price (not negotiable / not quote-only) can enter the cart.
    */
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = (product, quantity = 1, selectedVariant = null) => {
     if (!product) return false;
 
+    // Price with fallback: if variant has custom price, use it; otherwise use product base price
+    const effectivePrice = selectedVariant?.price != null && Number(selectedVariant.price) > 0
+      ? Number(selectedVariant.price)
+      : Number(product.price);
+
     // Quote-only / negotiable check
-    const hasPrice = Number(product.price) > 0 && !product.priceNegotiable;
+    const hasPrice = effectivePrice > 0 && !product.priceNegotiable;
     if (!hasPrice) {
       if (showNotification) {
         showNotification('Este equipamento está sob consulta e deve ser cotado diretamente com nossos consultores.', 'info');
@@ -37,9 +43,13 @@ export function CartProvider({ children, showNotification, brands = [], categori
 
     const brandObj = brands.find(b => b.id === product.brandId);
     const catObj = categories.find(c => c.id === product.categoryId);
+    const cartItemId = selectedVariant ? `cart_${product.id}_${selectedVariant.id}` : `cart_${product.id}`;
+
+    // Image with fallback: if variant has custom image, use it; otherwise use product image
+    const effectiveImage = selectedVariant?.image || product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200';
 
     setCartItems(prev => {
-      const existingIdx = prev.findIndex(item => item.productId === product.id);
+      const existingIdx = prev.findIndex(item => item.id === cartItemId || (item.productId === product.id && item.variantId === (selectedVariant?.id || null)));
       if (existingIdx !== -1) {
         const updated = [...prev];
         updated[existingIdx] = {
@@ -50,16 +60,20 @@ export function CartProvider({ children, showNotification, brands = [], categori
       }
 
       const newItem = {
-        id: `cart_${product.id}`,
+        id: cartItemId,
         productId: product.id,
         name: product.name,
         slug: product.slug || product.id,
-        price: Number(product.price),
-        image: product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200',
+        price: effectivePrice,
+        image: effectiveImage,
         brandId: product.brandId,
         brandName: brandObj?.name || 'Athena',
         categoryId: product.categoryId,
         categoryName: catObj?.name || '',
+        variantId: selectedVariant?.id || null,
+        variantName: selectedVariant?.name || null,
+        variantColorHex: selectedVariant?.colorHex || null,
+        sku: selectedVariant?.sku || product.sku || product.id,
         quantity: Math.max(1, quantity)
       };
 
@@ -67,29 +81,30 @@ export function CartProvider({ children, showNotification, brands = [], categori
     });
 
     if (showNotification) {
-      showNotification(`"${product.name}" adicionado ao carrinho!`, 'success');
+      const variantSuffix = selectedVariant?.name ? ` (${selectedVariant.name})` : '';
+      showNotification(`"${product.name}${variantSuffix}" adicionado ao carrinho!`, 'success');
     }
 
     setIsCartOpen(true);
     return true;
   };
 
-  const removeFromCart = (productId) => {
-    setCartItems(prev => prev.filter(item => item.productId !== productId));
+  const removeFromCart = (itemIdOrProductId) => {
+    setCartItems(prev => prev.filter(item => item.id !== itemIdOrProductId && item.productId !== itemIdOrProductId));
     if (showNotification) {
       showNotification('Item removido do carrinho.', 'info');
     }
   };
 
-  const updateQuantity = (productId, newQuantity) => {
+  const updateQuantity = (itemIdOrProductId, newQuantity) => {
     if (newQuantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(itemIdOrProductId);
       return;
     }
 
     setCartItems(prev =>
       prev.map(item =>
-        item.productId === productId
+        (item.id === itemIdOrProductId || item.productId === itemIdOrProductId)
           ? { ...item, quantity: Math.min(99, Math.max(1, newQuantity)) }
           : item
       )
@@ -102,12 +117,16 @@ export function CartProvider({ children, showNotification, brands = [], categori
   };
 
   // Direct checkout for single product (Buy Now)
-  const openDirectCheckout = (product, quantity = 1) => {
-    if (requireVerification && requireVerification(() => openDirectCheckout(product, quantity))) {
+  const openDirectCheckout = (product, quantity = 1, selectedVariant = null) => {
+    if (requireVerification && requireVerification(() => openDirectCheckout(product, quantity, selectedVariant))) {
       return false;
     }
 
-    const hasPrice = Number(product.price) > 0 && !product.priceNegotiable;
+    const effectivePrice = selectedVariant?.price != null && Number(selectedVariant.price) > 0
+      ? Number(selectedVariant.price)
+      : Number(product.price);
+
+    const hasPrice = effectivePrice > 0 && !product.priceNegotiable;
     if (!hasPrice) {
       if (showNotification) {
         showNotification('Este equipamento está sob consulta e deve ser cotado diretamente com nossos consultores.', 'info');
@@ -117,19 +136,24 @@ export function CartProvider({ children, showNotification, brands = [], categori
 
     const brandObj = brands.find(b => b.id === product.brandId);
     const catObj = categories.find(c => c.id === product.categoryId);
+    const effectiveImage = selectedVariant?.image || product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200';
 
     setCheckoutTarget({
       items: [{
-        id: `direct_${product.id}`,
+        id: selectedVariant ? `direct_${product.id}_${selectedVariant.id}` : `direct_${product.id}`,
         productId: product.id,
         name: product.name,
         slug: product.slug || product.id,
-        price: Number(product.price),
-        image: product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200',
+        price: effectivePrice,
+        image: effectiveImage,
         brandId: product.brandId,
         brandName: brandObj?.name || 'Athena',
         categoryId: product.categoryId,
         categoryName: catObj?.name || '',
+        variantId: selectedVariant?.id || null,
+        variantName: selectedVariant?.name || null,
+        variantColorHex: selectedVariant?.colorHex || null,
+        sku: selectedVariant?.sku || product.sku || product.id,
         quantity: Math.max(1, quantity)
       }]
     });

@@ -124,8 +124,9 @@ export function CartDrawer() {
             ) : (
               cartItems.map((item) => {
                 const itemTotal = Number(item.price) * (Number(item.quantity) || 1);
+                const itemKey = item.id || item.productId;
                 return (
-                  <div key={item.productId} className="pt-3 first:pt-0 flex items-start gap-3 text-xs">
+                  <div key={itemKey} className="pt-3 first:pt-0 flex items-start gap-3 text-xs">
                     {/* Thumbnail */}
                     <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 p-1 shrink-0 overflow-hidden flex items-center justify-center">
                       <img
@@ -143,6 +144,28 @@ export function CartDrawer() {
                       <h5 className="font-bold text-slate-900 leading-snug line-clamp-2">
                         {item.name}
                       </h5>
+
+                      {/* Variant Badge / Info */}
+                      {item.variantName && (
+                        <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                          {item.variantColorHex && (
+                            <span 
+                              className="w-3 h-3 rounded-full border border-slate-300 shadow-2xs shrink-0" 
+                              style={{ backgroundColor: item.variantColorHex }} 
+                              title={item.variantName}
+                            />
+                          )}
+                          <span className="text-[10px] font-extrabold text-slate-800 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                            {item.variantName}
+                          </span>
+                          {item.sku && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              SKU: {item.sku}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between gap-2 pt-1">
                         <span className="font-extrabold text-amber-900 text-xs sm:text-sm">
                           {formatBRL(itemTotal)}
@@ -159,8 +182,8 @@ export function CartDrawer() {
                         <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                           <button
                             type="button"
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                            className="w-5 h-5 rounded bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors"
+                            onClick={() => updateQuantity(itemKey, item.quantity - 1)}
+                            className="w-5 h-5 rounded bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
                             title="Diminuir quantidade"
                           >
                             <Minus className="w-3 h-3" />
@@ -170,8 +193,8 @@ export function CartDrawer() {
                           </span>
                           <button
                             type="button"
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                            className="w-5 h-5 rounded bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors"
+                            onClick={() => updateQuantity(itemKey, item.quantity + 1)}
+                            className="w-5 h-5 rounded bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
                             title="Aumentar quantidade"
                           >
                             <Plus className="w-3 h-3" />
@@ -180,8 +203,8 @@ export function CartDrawer() {
 
                         <button
                           type="button"
-                          onClick={() => removeFromCart(item.productId)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          onClick={() => removeFromCart(itemKey)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                           title="Remover este item"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

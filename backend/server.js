@@ -574,6 +574,7 @@ async function initDb() {
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS compatible_product_ids JSONB DEFAULT '[]'::jsonb;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS recommended_product_ids JSONB DEFAULT '[]'::jsonb;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'::jsonb;
 
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS document VARCHAR(50);
@@ -6804,6 +6805,7 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
           p.custom_tabs as "customTabs", 
           p.product_type as "productType", 
           p.a_points as "aPoints", 
+          COALESCE(p.variants, '[]'::jsonb) as "variants",
           p.created_at
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
@@ -6920,6 +6922,7 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
           p.custom_tabs as "customTabs", 
           p.product_type as "productType", 
           p.a_points as "aPoints", 
+          COALESCE(p.variants, '[]'::jsonb) as "variants",
           p.created_at
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
@@ -6980,14 +6983,14 @@ app.post('/api/products', authenticateToken, async (req, res) => {
           price_negotiable, badge, tags, compatible_product_ids, recommended_product_ids, 
           status, is_featured, image, images, alt_text, description, specs, 
           attachments, in_stock, video_url, custom_tabs, product_type, a_points,
-          sku, estoque_quantidade, omie_code
+          sku, estoque_quantidade, omie_code, variants
         )
         VALUES (
           $1, $2, $3, $4, $5, $6::numeric, $6::numeric, 
           $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, 
           $12, $13, $14, $15::jsonb, $16, $17, $18::jsonb, 
           $19::jsonb, $20, $21, $22::jsonb, $23, $24,
-          $25, $26, $27
+          $25, $26, $27, $28::jsonb
         )
         ON CONFLICT (id) DO UPDATE SET 
           name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6::numeric, preco_venda=$6::numeric, 
@@ -6995,7 +6998,8 @@ app.post('/api/products', authenticateToken, async (req, res) => {
           recommended_product_ids=$11::jsonb, status=$12, is_featured=$13, image=$14, 
           images=$15::jsonb, alt_text=$16, description=$17, specs=$18::jsonb, 
           attachments=$19::jsonb, in_stock=$20, video_url=$21, custom_tabs=$22::jsonb, 
-          product_type=$23, a_points=$24, sku=$25, estoque_quantidade=$26, omie_code=$27
+          product_type=$23, a_points=$24, sku=$25, estoque_quantidade=$26, omie_code=$27,
+          variants=$28::jsonb
       `, [
         newProduct.id,
         newProduct.name,
@@ -7023,7 +7027,8 @@ app.post('/api/products', authenticateToken, async (req, res) => {
         newProduct.aPoints != null ? parseInt(newProduct.aPoints, 10) : null,
         finalSku,
         stockQty,
-        finalSku
+        finalSku,
+        JSON.stringify(Array.isArray(newProduct.variants) ? newProduct.variants : [])
       ]);
 
       // Sincronização com Omie ERP em segundo plano (Site -> Omie)
@@ -7095,8 +7100,9 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
           images=$14::jsonb, alt_text=$15, description=$16, specs=$17::jsonb, 
           attachments=$18::jsonb, in_stock=$19, video_url=$20, custom_tabs=$21::jsonb, 
           product_type=$22, a_points=$23, sku=$24, estoque_quantidade=$25,
-          omie_code=COALESCE(NULLIF($26, ''), omie_code)
-        WHERE id=$27
+          omie_code=COALESCE(NULLIF($26, ''), omie_code),
+          variants=$27::jsonb
+        WHERE id=$28
       `, [
         updatedProduct.name,
         updatedProduct.slug || '',
@@ -7124,6 +7130,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
         finalSku,
         stockQty,
         finalSku,
+        JSON.stringify(Array.isArray(updatedProduct.variants) ? updatedProduct.variants : []),
         req.params.id
       ]);
 
