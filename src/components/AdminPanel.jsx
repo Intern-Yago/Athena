@@ -8500,152 +8500,217 @@ export default function AdminPanel({
 
                     {/* CARD: Variações do Produto (Cores, Tamanhos & Integração Omie) */}
                     <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-slate-100">
                         <div>
-                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
                             <Tag className="w-4 h-4 text-amber-600" />
-                            Variações do Produto (Cores, Tamanhos & Códigos Omie)
+                            <span>Variações do Produto (Cores, Tamanhos & Estoque Omie)</span>
                           </h4>
-                          <p className="text-[11px] text-slate-500">
-                            Unifique produtos semelhantes em uma única página. Se não preencher preço ou imagem, herda automaticamente os dados principais.
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Unifique opções (como cores ou tamanhos) em uma única vitrine. Se não informar preço ou foto, o sistema herda automaticamente os dados principais.
                           </p>
                         </div>
 
                         <button
                           type="button"
                           onClick={handleAddVariant}
-                          className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 inline-flex items-center cursor-pointer text-amber-900 bg-amber-50 hover:bg-amber-100 border-amber-300"
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-amber-900 bg-amber-100/80 hover:bg-amber-200/80 border border-amber-300 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
                         >
-                          <Plus className="w-3.5 h-3.5 text-amber-700" />
-                          <span>Adicionar Variação</span>
+                          <Plus className="w-4 h-4 text-amber-800" />
+                          <span>Nova Variação</span>
                         </button>
                       </div>
 
                       {(!productForm.variants || productForm.variants.length === 0) ? (
-                        <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 text-center space-y-2">
-                          <p className="text-xs text-slate-500">
-                            Nenhuma variação cadastrada para este equipamento. Ele será exibido como produto único no catálogo.
-                          </p>
+                        <div className="py-8 px-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 text-center space-y-2.5">
+                          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 mx-auto flex items-center justify-center shadow-2xs">
+                            <Tag className="w-5 h-5" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-bold text-slate-800">Nenhuma variação cadastrada</p>
+                            <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                              Este equipamento será exibido como produto individual. Clique no botão abaixo para adicionar opções como Vermelho, Azul, 5 Gavetas ou 220V.
+                            </p>
+                          </div>
                           <button
                             type="button"
                             onClick={handleAddVariant}
-                            className="text-xs font-bold text-amber-700 hover:text-amber-800 underline inline-flex items-center gap-1 cursor-pointer"
+                            className="btn-gold text-xs font-bold py-2 px-4 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
                           >
-                            <Plus className="w-3 h-3" />
-                            <span>Clique aqui para adicionar opções de cores, tamanhos ou modelos</span>
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Adicionar Primeira Variação</span>
                           </button>
                         </div>
                       ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {productForm.variants.map((v, idx) => (
-                            <div key={v.id || idx} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
-                                  Opção #{idx + 1}
-                                </span>
+                            <div key={v.id || idx} className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-4 shadow-2xs">
+                              {/* Header da Variação */}
+                              <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-slate-200/80">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-950 bg-amber-200/90 border border-amber-300/80 px-2.5 py-0.5 rounded-lg shadow-2xs">
+                                    Opção #{idx + 1}
+                                  </span>
+                                  {v.colorHex && (
+                                    <span 
+                                      className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs inline-block shrink-0" 
+                                      style={{ backgroundColor: v.colorHex }} 
+                                      title={v.colorHex}
+                                    />
+                                  )}
+                                  <span className="text-xs font-bold text-slate-800 truncate">
+                                    {v.name || 'Nova Opção (preencha o nome abaixo)'}
+                                  </span>
+                                </div>
+
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveVariant(idx)}
-                                  className="text-slate-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold"
                                   title="Remover esta variação"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">Excluir</span>
                                 </button>
                               </div>
 
-                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                                {/* Name */}
-                                <div className="sm:col-span-4 space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-600 block">
-                                    Nome da Opção * (ex: Vermelho, 7 Gavetas, 220V)
+                              {/* Linha 1: Identificação Básica */}
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                                {/* Nome */}
+                                <div className="sm:col-span-5 space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-700 block">
+                                    Nome da Opção <span className="text-amber-600">*</span>
                                   </label>
                                   <input
                                     type="text"
                                     value={v.name || ''}
                                     onChange={(e) => handleUpdateVariant(idx, 'name', e.target.value)}
-                                    placeholder="Ex: Vermelho, 220V..."
-                                    className="input-custom text-xs w-full py-1.5 px-2.5"
+                                    placeholder="Ex: Vermelho, 7 Gavetas, 220V..."
+                                    className="form-input text-xs"
                                   />
+                                  <span className="text-[10px] text-slate-400 block">
+                                    Texto exibido no seletor e no resumo do pedido.
+                                  </span>
                                 </div>
 
                                 {/* SKU Omie */}
-                                <div className="sm:col-span-3 space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-600 block">
-                                    Código SKU no Omie
+                                <div className="sm:col-span-4 space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-700 block">
+                                    Código SKU / Omie
                                   </label>
                                   <input
                                     type="text"
                                     value={v.sku || ''}
                                     onChange={(e) => handleUpdateVariant(idx, 'sku', e.target.value)}
-                                    placeholder="Ex: WLF-CAR-VM"
-                                    className="input-custom text-xs w-full py-1.5 px-2.5 font-mono"
+                                    placeholder="Ex: WLF-CAR-VM-01"
+                                    className="form-input text-xs font-mono"
                                   />
+                                  <span className="text-[10px] text-slate-400 block">
+                                    Código do item físico cadastrado no ERP Omie.
+                                  </span>
                                 </div>
 
-                                {/* Color Hex (Optional) */}
-                                <div className="sm:col-span-2 space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-600 block">
-                                    Cor (Bolinha)
+                                {/* Cor (Bolinha) */}
+                                <div className="sm:col-span-3 space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-700 block">
+                                    Cor Visual (Bolinha)
                                   </label>
-                                  <div className="flex items-center gap-1.5">
-                                    <input
-                                      type="color"
-                                      value={v.colorHex || '#DC2626'}
-                                      onChange={(e) => handleUpdateVariant(idx, 'colorHex', e.target.value)}
-                                      className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0 shrink-0"
-                                      title="Selecione a cor"
-                                    />
+                                  <div className="flex items-center gap-2">
+                                    <label 
+                                      className="relative cursor-pointer w-9 h-9 rounded-xl border border-slate-300 shadow-2xs overflow-hidden shrink-0 flex items-center justify-center hover:scale-105 transition-transform" 
+                                      style={{ backgroundColor: v.colorHex || '#f1f5f9' }} 
+                                      title="Clique para escolher a cor na paleta"
+                                    >
+                                      <input
+                                        type="color"
+                                        value={v.colorHex || '#DC2626'}
+                                        onChange={(e) => handleUpdateVariant(idx, 'colorHex', e.target.value)}
+                                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                                      />
+                                    </label>
                                     <input
                                       type="text"
                                       value={v.colorHex || ''}
                                       onChange={(e) => handleUpdateVariant(idx, 'colorHex', e.target.value)}
                                       placeholder="#HEX"
-                                      className="input-custom text-[11px] w-full py-1 px-1.5 font-mono"
+                                      className="form-input text-xs font-mono uppercase"
                                     />
+                                    {v.colorHex && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateVariant(idx, 'colorHex', '')}
+                                        className="p-1 rounded text-slate-400 hover:text-slate-600 text-xs shrink-0 cursor-pointer"
+                                        title="Remover cor (vira botão de texto)"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
                                   </div>
+                                  <span className="text-[10px] text-slate-400 block">
+                                    Preencha apenas se for variação de cor.
+                                  </span>
                                 </div>
+                              </div>
 
-                                {/* Custom Price (Optional) */}
-                                <div className="sm:col-span-3 space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-600 block" title="Deixe vazio para herdar o preço do produto">
-                                    Preço Específico (R$)
+                              {/* Linha 2: Valores, Imagem e Estoque */}
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start pt-2 border-t border-slate-200/60">
+                                {/* Preço Específico */}
+                                <div className="sm:col-span-3 space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-700 block">
+                                    Preço Próprio (R$)
                                   </label>
                                   <input
                                     type="number"
                                     step="0.01"
                                     value={v.price !== undefined ? v.price : ''}
                                     onChange={(e) => handleUpdateVariant(idx, 'price', e.target.value)}
-                                    placeholder="Opcional (herda padrão)"
-                                    className="input-custom text-xs w-full py-1.5 px-2.5"
+                                    placeholder="Herda do produto"
+                                    className="form-input text-xs font-mono"
                                   />
+                                  <span className="text-[10px] text-slate-400 block">
+                                    Vazio = usa preço principal.
+                                  </span>
                                 </div>
 
-                                {/* Custom Image URL (Optional) */}
-                                <div className="sm:col-span-8 space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-600 block">
-                                    URL da Foto desta Opção (opcional — herda foto principal se vazio)
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={v.image || ''}
-                                    onChange={(e) => handleUpdateVariant(idx, 'image', e.target.value)}
-                                    placeholder="https://.../foto-especifica.webp"
-                                    className="input-custom text-xs w-full py-1.5 px-2.5"
-                                  />
-                                </div>
-
-                                {/* Stock Quantity (Optional) */}
-                                <div className="sm:col-span-4 space-y-1">
-                                  <label className="text-[10px] font-bold text-slate-600 block">
-                                    Estoque Próprio (unidades)
+                                {/* Estoque Omie */}
+                                <div className="sm:col-span-3 space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-700 block">
+                                    Estoque da Opção
                                   </label>
                                   <input
                                     type="number"
                                     value={v.stockQty !== undefined ? v.stockQty : ''}
                                     onChange={(e) => handleUpdateVariant(idx, 'stockQty', e.target.value)}
-                                    placeholder="Omie ou 0"
-                                    className="input-custom text-xs w-full py-1.5 px-2.5"
+                                    placeholder="Saldo Omie ou 0"
+                                    className="form-input text-xs"
                                   />
+                                  <span className="text-[10px] text-slate-400 block">
+                                    Saldo físico desta variação.
+                                  </span>
+                                </div>
+
+                                {/* Foto da Opção */}
+                                <div className="sm:col-span-6 space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-700 block">
+                                    Foto Específica desta Opção (URL)
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    {v.image && (
+                                      <div className="w-9 h-9 rounded-xl border border-slate-200 bg-white p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
+                                        <img src={v.image} alt={v.name} className="w-full h-full object-contain" />
+                                      </div>
+                                    )}
+                                    <input
+                                      type="text"
+                                      value={v.image || ''}
+                                      onChange={(e) => handleUpdateVariant(idx, 'image', e.target.value)}
+                                      placeholder="https://.../foto-desta-cor.webp"
+                                      className="form-input text-xs flex-1"
+                                    />
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 block">
+                                    Vazio = mantém as fotos padrão do produto.
+                                  </span>
                                 </div>
                               </div>
                             </div>
