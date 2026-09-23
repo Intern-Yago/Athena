@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { safeStorageGet, safeStorageSet } from '../utils/storage';
+import { isProductQuoteOnly, getVariantAvailability } from '../utils/productVariants';
 
 const CartContext = createContext();
 
@@ -27,13 +28,35 @@ export function CartProvider({ children, showNotification, brands = [], categori
   const addToCart = (product, quantity = 1, selectedVariant = null) => {
     if (!product) return false;
 
+    // Regra 1: Se o produto principal estiver "Sob Consulta", TODAS as variações ficam sob consulta
+    if (isProductQuoteOnly(product)) {
+      if (showNotification) {
+        showNotification('Este equipamento e suas opções estão sob consulta e devem ser cotados diretamente com nossos consultores.', 'info');
+      }
+      return false;
+    }
+
+    // Regra 2: Se uma variação foi selecionada, valida a disponibilidade para venda
+    if (selectedVariant) {
+      const avail = getVariantAvailability(selectedVariant, product);
+      if (!avail.canBuy) {
+        if (showNotification) {
+          if (avail.reason === 'auto_inactive') {
+            showNotification(`A opção "${selectedVariant.name}" esgotou no estoque e foi desativada automaticamente.`, 'warning');
+          } else {
+            showNotification(`A opção "${selectedVariant.name}" está desativada no momento.`, 'warning');
+          }
+        }
+        return false;
+      }
+    }
+
     // Price with fallback: if variant has custom price, use it; otherwise use product base price
     const effectivePrice = selectedVariant?.price != null && Number(selectedVariant.price) > 0
       ? Number(selectedVariant.price)
       : Number(product.price);
 
-    // Quote-only / negotiable check
-    const hasPrice = effectivePrice > 0 && !product.priceNegotiable;
+    const hasPrice = effectivePrice > 0;
     if (!hasPrice) {
       if (showNotification) {
         showNotification('Este equipamento está sob consulta e deve ser cotado diretamente com nossos consultores.', 'info');
@@ -122,11 +145,34 @@ export function CartProvider({ children, showNotification, brands = [], categori
       return false;
     }
 
+    // Regra 1: Se o produto principal estiver "Sob Consulta", TODAS as variações ficam sob consulta
+    if (isProductQuoteOnly(product)) {
+      if (showNotification) {
+        showNotification('Este equipamento e suas opções estão sob consulta e devem ser cotados diretamente com nossos consultores.', 'info');
+      }
+      return false;
+    }
+
+    // Regra 2: Se uma variação foi selecionada, valida a disponibilidade para venda
+    if (selectedVariant) {
+      const avail = getVariantAvailability(selectedVariant, product);
+      if (!avail.canBuy) {
+        if (showNotification) {
+          if (avail.reason === 'auto_inactive') {
+            showNotification(`A opção "${selectedVariant.name}" esgotou no estoque e foi desativada automaticamente.`, 'warning');
+          } else {
+            showNotification(`A opção "${selectedVariant.name}" está desativada no momento.`, 'warning');
+          }
+        }
+        return false;
+      }
+    }
+
     const effectivePrice = selectedVariant?.price != null && Number(selectedVariant.price) > 0
       ? Number(selectedVariant.price)
       : Number(product.price);
 
-    const hasPrice = effectivePrice > 0 && !product.priceNegotiable;
+    const hasPrice = effectivePrice > 0;
     if (!hasPrice) {
       if (showNotification) {
         showNotification('Este equipamento está sob consulta e deve ser cotado diretamente com nossos consultores.', 'info');

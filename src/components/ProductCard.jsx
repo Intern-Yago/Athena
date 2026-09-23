@@ -4,6 +4,7 @@ import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, F
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { isProductPublished } from '../utils/imageUrl';
+import { isVariantVisibleInCatalog } from '../utils/productVariants';
 
 export default function ProductCard({ 
   product, 
@@ -21,7 +22,7 @@ export default function ProductCard({
   const { addToCart, openDirectCheckout, requireVerification } = useCart();
   
   const variants = Array.isArray(product.variants) 
-    ? product.variants.filter(v => v && v.isActive !== false && v.showInCatalog !== false)
+    ? product.variants.filter(v => isVariantVisibleInCatalog(v, product))
     : [];
   const hasVariants = variants.length > 0;
 

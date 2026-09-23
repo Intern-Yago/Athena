@@ -84,6 +84,7 @@ import { safeStorageSet, saveSession } from '../utils/storage';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
 import { isProductPublished } from '../utils/imageUrl';
+import { isProductQuoteOnly, getVariantAvailability, getVariantStockNumber } from '../utils/productVariants';
 
 /**
  * Searchable Combobox Component (Filtragem em tempo real com busca e fallback completo)
@@ -1131,6 +1132,7 @@ export default function AdminPanel({
     price: '',
     image: '',
     stockQty: '',
+    statusControl: 'auto',
     isActive: true,
     showInCatalog: true,
   });
@@ -1995,6 +1997,7 @@ export default function AdminPanel({
       price: '',
       image: '',
       stockQty: '',
+      statusControl: 'auto',
       isActive: true,
       showInCatalog: true,
     });
@@ -2007,6 +2010,12 @@ export default function AdminPanel({
     const v = (productForm.variants || [])[index];
     if (!v) return;
     setEditingVariantIndex(index);
+    let initialControl = v.statusControl;
+    if (!initialControl) {
+      if (v.isActive === false) initialControl = 'manual_inactive';
+      else if (v.isManualForce) initialControl = 'manual_active';
+      else initialControl = 'auto';
+    }
     setVariantModalForm({
       id: v.id || `var_${Date.now()}_${index}`,
       name: v.name || '',
@@ -2015,7 +2024,8 @@ export default function AdminPanel({
       price: v.price !== undefined && v.price !== null ? v.price : '',
       image: v.image || '',
       stockQty: v.stockQty !== undefined && v.stockQty !== null ? v.stockQty : '',
-      isActive: v.isActive !== false,
+      statusControl: initialControl,
+      isActive: initialControl !== 'manual_inactive',
       showInCatalog: v.showInCatalog !== false,
     });
     setIsVariantModalOpen(true);
@@ -2028,6 +2038,9 @@ export default function AdminPanel({
       return;
     }
 
+    const control = variantModalForm.statusControl || 'auto';
+    const isAct = control !== 'manual_inactive';
+
     const cleanedVariant = {
       id: variantModalForm.id || `var_${Date.now()}`,
       name: variantModalForm.name.trim(),
@@ -2036,7 +2049,9 @@ export default function AdminPanel({
       price: variantModalForm.price !== '' ? Number(variantModalForm.price) : '',
       image: (variantModalForm.image || '').trim(),
       stockQty: variantModalForm.stockQty !== '' ? Number(variantModalForm.stockQty) : '',
-      isActive: variantModalForm.isActive !== false,
+      statusControl: control,
+      isManualForce: control === 'manual_active',
+      isActive: isAct,
       showInCatalog: variantModalForm.showInCatalog !== false,
     };
 
@@ -2074,13 +2089,40 @@ export default function AdminPanel({
     showNotification(`Variação duplicada: "${cloned.name}"`, 'success');
   };
 
+  const handleSetVariantStatus = (index, newControl) => {
+    setProductForm((prev) => {
+      const list = [...(prev.variants || [])];
+      if (list[index]) {
+        list[index] = {
+          ...list[index],
+          statusControl: newControl,
+          isActive: newControl !== 'manual_inactive',
+          isManualForce: newControl === 'manual_active'
+        };
+        const statusLabels = {
+          auto: '⚡ Automático (Estoque)',
+          manual_active: '🟢 Ativa (Prioridade Manual)',
+          manual_inactive: '🔴 Desativada (Prioridade Manual)'
+        };
+        showNotification(`Variação "${list[index].name || 'Opção'}" definida como: ${statusLabels[newControl] || newControl}.`, 'info');
+      }
+      return { ...prev, variants: list };
+    });
+  };
+
   const handleToggleVariantActive = (index) => {
     setProductForm((prev) => {
       const list = [...(prev.variants || [])];
       if (list[index]) {
-        const nextState = list[index].isActive === false ? true : false;
-        list[index] = { ...list[index], isActive: nextState };
-        showNotification(`Variação "${list[index].name || 'Opção'}" agora está ${nextState ? 'ativa' : 'inativa'}.`, 'info');
+        const currentControl = list[index].statusControl || (list[index].isActive === false ? 'manual_inactive' : 'auto');
+        const nextControl = (currentControl === 'manual_inactive' || list[index].isActive === false) ? 'manual_active' : 'manual_inactive';
+        list[index] = {
+          ...list[index],
+          statusControl: nextControl,
+          isActive: nextControl !== 'manual_inactive',
+          isManualForce: nextControl === 'manual_active'
+        };
+        showNotification(`Variação "${list[index].name || 'Opção'}" agora está ${nextControl === 'manual_active' ? 'Ativa (Prioridade Manual)' : 'Desativada (Manual)'}.`, 'info');
       }
       return { ...prev, variants: list };
     });
@@ -8711,6 +8753,19 @@ export default function AdminPanel({
                         </button>
                       </div>
 
+                      {/* Aviso de Herança de Preço Sob Consulta */}
+                      {isProductQuoteOnly(productForm) && (
+                        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <div className="space-y-0.5">
+                            <p className="font-extrabold text-amber-950">Aviso: Equipamento em modo "Sob Consulta"</p>
+                            <p className="text-[11px] text-amber-800 leading-relaxed">
+                              Como o produto principal está com preço a combinar ou sem valor numérico definido, <strong>todas as opções herdam o modo Sob Consulta no site</strong>. A compra direta online é desabilitada em favor do botão de orçamento via WhatsApp.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {(!productForm.variants || productForm.variants.length === 0) ? (
                         <div className="py-8 px-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 text-center space-y-2.5">
                           <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 mx-auto flex items-center justify-center shadow-2xs">
@@ -8741,20 +8796,22 @@ export default function AdminPanel({
                                 <th className="py-3 px-3">SKU Omie</th>
                                 <th className="py-3 px-3">Cor Visual</th>
                                 <th className="py-3 px-3">Preço / Estoque</th>
-                                <th className="py-3 px-3 text-center">Ativa</th>
+                                <th className="py-3 px-3 text-center min-w-[150px]">Status de Venda</th>
                                 <th className="py-3 px-3 text-center">Catálogo</th>
                                 <th className="py-3 px-3 text-right">Ações</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
                               {productForm.variants.map((v, idx) => {
-                                const isOptActive = v.isActive !== false;
+                                const variantAvail = getVariantAvailability(v, productForm);
+                                const isParentQuote = isProductQuoteOnly(productForm);
+                                const currentControl = v.statusControl || (v.isActive === false ? 'manual_inactive' : (v.isManualForce ? 'manual_active' : 'auto'));
                                 const isOptCatalog = v.showInCatalog !== false;
                                 const displayPhoto = v.image || productForm.image || (Array.isArray(productForm.images) && productForm.images[0]);
                                 return (
                                   <tr 
                                     key={v.id || idx} 
-                                    className={`hover:bg-slate-50/80 transition-colors ${!isOptActive ? 'opacity-60 bg-slate-50/40' : ''}`}
+                                    className={`hover:bg-slate-50/80 transition-colors ${!variantAvail.canBuy && !isParentQuote ? 'opacity-65 bg-slate-50/40' : ''}`}
                                   >
                                     {/* Foto */}
                                     <td className="py-2.5 px-3 text-center">
@@ -8813,45 +8870,93 @@ export default function AdminPanel({
                                     {/* Preço / Estoque */}
                                     <td className="py-2.5 px-3">
                                       <div className="text-[11px] font-bold text-slate-800">
-                                        {v.price !== undefined && v.price !== '' ? (
-                                          formatBRL(v.price)
+                                        {isParentQuote ? (
+                                          <span className="inline-flex items-center gap-1 text-amber-800 font-bold">
+                                            <span>Sob Consulta</span>
+                                            {v.price !== undefined && v.price !== '' && (
+                                              <span className="text-slate-400 font-normal text-[10px]">({formatBRL(v.price)})</span>
+                                            )}
+                                          </span>
                                         ) : (
-                                          <span className="text-slate-500 font-normal">Padrão ({productForm.price ? formatBRL(productForm.price) : '—'})</span>
+                                          v.price !== undefined && v.price !== '' ? (
+                                            formatBRL(v.price)
+                                          ) : (
+                                            <span className="text-slate-500 font-normal">Padrão ({productForm.price ? formatBRL(productForm.price) : '—'})</span>
+                                          )
                                         )}
                                       </div>
-                                      <div className="text-[10px] text-slate-500">
+                                      <div className="text-[10px] mt-0.5">
                                         {v.stockQty !== undefined && v.stockQty !== '' ? (
-                                          <span>{v.stockQty} un em estoque</span>
+                                          Number(v.stockQty) <= 0 ? (
+                                            <span className="text-red-600 font-bold">0 un (Esgotado)</span>
+                                          ) : (
+                                            <span className="text-slate-600 font-medium">{v.stockQty} un em estoque</span>
+                                          )
                                         ) : (
                                           <span className="text-slate-400">Estoque Omie</span>
                                         )}
                                       </div>
                                     </td>
 
-                                    {/* Ativa Switch */}
+                                    {/* Status de Venda (Auto / Ativa / Desativada) */}
                                     <td className="py-2.5 px-3 text-center">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleToggleVariantActive(idx)}
-                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                          isOptActive 
-                                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200' 
-                                            : 'bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200'
-                                        }`}
-                                        title="Clique para alternar se esta opção está ativa para venda"
-                                      >
-                                        {isOptActive ? (
-                                          <>
-                                            <Check className="w-3 h-3 text-emerald-700 stroke-[3]" />
-                                            <span>Ativa</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <X className="w-3 h-3 text-slate-400" />
-                                            <span>Inativa</span>
-                                          </>
-                                        )}
-                                      </button>
+                                      {isParentQuote ? (
+                                        <div className="flex flex-col items-center">
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                                            <MessageCircle className="w-3 h-3 text-amber-700" />
+                                            <span>Sob Consulta</span>
+                                          </span>
+                                          <span className="text-[9px] text-amber-700 font-medium mt-0.5">Herda do produto</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col items-center gap-1">
+                                          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 shadow-2xs">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSetVariantStatus(idx, 'auto')}
+                                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                                currentControl === 'auto'
+                                                  ? (variantAvail.canBuy 
+                                                      ? 'bg-emerald-600 text-white shadow-2xs' 
+                                                      : 'bg-amber-600 text-white shadow-2xs')
+                                                  : 'text-slate-500 hover:text-slate-800'
+                                              }`}
+                                              title="Modo Automático: Ativa se houver estoque, desativa se zerar"
+                                            >
+                                              ⚡ Auto
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSetVariantStatus(idx, 'manual_active')}
+                                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                                currentControl === 'manual_active'
+                                                  ? 'bg-emerald-600 text-white shadow-2xs'
+                                                  : 'text-slate-500 hover:text-slate-800'
+                                              }`}
+                                              title="Prioridade Manual: Forçar Ativa para venda (mesmo se o estoque zerar)"
+                                            >
+                                              🟢 Ativa
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSetVariantStatus(idx, 'manual_inactive')}
+                                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                                currentControl === 'manual_inactive'
+                                                  ? 'bg-red-600 text-white shadow-2xs'
+                                                  : 'text-slate-500 hover:text-slate-800'
+                                              }`}
+                                              title="Prioridade Manual: Forçar Desativada para venda"
+                                            >
+                                              🔴 Desat.
+                                            </button>
+                                          </div>
+                                          <span className={`text-[9px] font-extrabold leading-none ${
+                                            !variantAvail.canBuy ? 'text-red-600' : 'text-emerald-700'
+                                          }`}>
+                                            {variantAvail.label}
+                                          </span>
+                                        </div>
+                                      )}
                                     </td>
 
                                     {/* Catálogo Switch */}
@@ -10292,32 +10397,112 @@ export default function AdminPanel({
                   </div>
                 </div>
 
-                {/* 4. Status & Visibilidade (Ativa ☑ & Exibir no catálogo ☑) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  {/* Ativa */}
-                  <label 
-                    className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
-                      variantModalForm.isActive !== false 
-                        ? 'bg-emerald-50/70 border-emerald-300 ring-1 ring-emerald-200' 
-                        : 'bg-slate-50 border-slate-200 opacity-70'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={variantModalForm.isActive !== false}
-                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                      className="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                    />
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
-                        <span>Ativa</span>
-                      </span>
-                      <p className="text-[11px] text-slate-500 leading-tight">
-                        Disponível para venda. Desmarque se esta opção estiver temporariamente esgotada sem precisar apagá-la.
-                      </p>
+                {/* 4. Status & Visibilidade (Controle Automático ou Prioridade Manual) */}
+                <div className="space-y-3 pt-1">
+                  {/* Aviso de Herança de Preço Sob Consulta */}
+                  {isProductQuoteOnly(productForm) && (
+                    <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="font-extrabold text-amber-950">Aviso: Equipamento em modo "Sob Consulta"</p>
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          O equipamento principal está marcado como <strong>Sob Consulta</strong> (preço a combinar / R$ 0,00). 
+                          Por isso, no site, esta opção será exibida exclusivamente para <strong>cotação/orçamento</strong>, independente das opções abaixo.
+                        </p>
+                      </div>
                     </div>
-                  </label>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 block">
+                        Disponibilidade & Regra de Venda no Site
+                      </label>
+                      <span className="text-[11px] text-slate-500">
+                        Sua escolha manual tem <strong className="text-slate-800">prioridade máxima</strong>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      {/* 1. Automático pelo estoque */}
+                      <label 
+                        className={`flex flex-col p-3 rounded-2xl border transition-all cursor-pointer select-none text-left ${
+                          (!variantModalForm.statusControl || variantModalForm.statusControl === 'auto')
+                            ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-300 shadow-2xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input
+                            type="radio"
+                            name="variantStatusControl"
+                            value="auto"
+                            checked={!variantModalForm.statusControl || variantModalForm.statusControl === 'auto'}
+                            onChange={() => setVariantModalForm(prev => ({ ...prev, statusControl: 'auto', isActive: true }))}
+                            className="w-4 h-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                          />
+                          <span className="text-xs font-black text-slate-900 flex items-center gap-1">
+                            <span>⚡ Automático</span>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          Controlado pelo estoque. Ativa se houver saldo (&gt; 0) e <strong>desativa automaticamente</strong> se zerar (0 un).
+                        </p>
+                      </label>
+
+                      {/* 2. Forçar Ativa */}
+                      <label 
+                        className={`flex flex-col p-3 rounded-2xl border transition-all cursor-pointer select-none text-left ${
+                          variantModalForm.statusControl === 'manual_active'
+                            ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-300 shadow-2xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input
+                            type="radio"
+                            name="variantStatusControl"
+                            value="manual_active"
+                            checked={variantModalForm.statusControl === 'manual_active'}
+                            onChange={() => setVariantModalForm(prev => ({ ...prev, statusControl: 'manual_active', isActive: true }))}
+                            className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                          <span className="text-xs font-black text-emerald-900 flex items-center gap-1">
+                            <span>🟢 Forçar Ativa</span>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          <strong>Prioridade manual:</strong> Sempre ativa para compra, mesmo se o estoque zerar (ideal para sob encomenda ou produção).
+                        </p>
+                      </label>
+
+                      {/* 3. Forçar Desativada */}
+                      <label 
+                        className={`flex flex-col p-3 rounded-2xl border transition-all cursor-pointer select-none text-left ${
+                          variantModalForm.statusControl === 'manual_inactive'
+                            ? 'bg-red-50/80 border-red-400 ring-2 ring-red-300 shadow-2xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input
+                            type="radio"
+                            name="variantStatusControl"
+                            value="manual_inactive"
+                            checked={variantModalForm.statusControl === 'manual_inactive'}
+                            onChange={() => setVariantModalForm(prev => ({ ...prev, statusControl: 'manual_inactive', isActive: false }))}
+                            className="w-4 h-4 text-red-600 focus:ring-red-500 cursor-pointer"
+                          />
+                          <span className="text-xs font-black text-red-900 flex items-center gap-1">
+                            <span>🔴 Forçar Desativada</span>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          <strong>Prioridade manual:</strong> Indisponível para venda no site, mesmo que ainda haja unidades no estoque.
+                        </p>
+                      </label>
+                    </div>
+                  </div>
 
                   {/* Exibir no Catálogo */}
                   <label 
@@ -10336,7 +10521,7 @@ export default function AdminPanel({
                     <div className="space-y-0.5">
                       <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
                         <Eye className="w-3.5 h-3.5 text-sky-600" />
-                        <span>Exibir no catálogo</span>
+                        <span>Exibir no catálogo (Vitrine / Cards)</span>
                       </span>
                       <p className="text-[11px] text-slate-500 leading-tight">
                         Mostra a bolinha ou miniatura desta opção nos cards da vitrine e na listagem geral.
