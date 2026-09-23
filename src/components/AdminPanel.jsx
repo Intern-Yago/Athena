@@ -1120,6 +1120,24 @@ export default function AdminPanel({
   const [isDraggingBrandLogo, setIsDraggingBrandLogo] = useState(false);
   const [previewingImage, setPreviewingImage] = useState(null);
 
+  // Product Variant Dedicated Modal States
+  const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
+  const [editingVariantIndex, setEditingVariantIndex] = useState(null);
+  const [variantModalForm, setVariantModalForm] = useState({
+    id: '',
+    name: '',
+    sku: '',
+    colorHex: '',
+    price: '',
+    image: '',
+    stockQty: '',
+    isActive: true,
+    showInCatalog: true,
+  });
+  const [isDraggingVariantImage, setIsDraggingVariantImage] = useState(false);
+  const [isUploadingVariantImage, setIsUploadingVariantImage] = useState(false);
+  const [isSelectingVariantMedia, setIsSelectingVariantMedia] = useState(false);
+
   // Shopify-style image upload queue & progress state
   const [uploadingImages, setUploadingImages] = useState([]);
   const isUploadingImages = uploadingImages.length > 0;
@@ -1152,7 +1170,7 @@ export default function AdminPanel({
   // Cloudflare R2 Image Library Modal State
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
 
-  const isAnyModalOpen = isProductModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage || isLibraryModalOpen || isBannerModalOpen || !!bannerToDelete;
+  const isAnyModalOpen = isProductModalOpen || isVariantModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage || isLibraryModalOpen || isBannerModalOpen || !!bannerToDelete;
 
   // Background body scroll lock while any modal is open
   useEffect(() => {
@@ -1966,41 +1984,196 @@ export default function AdminPanel({
     }));
   };
 
-  // Product Variants Helpers (Colors, Sizes, Models, Omie Integration)
-  const handleAddVariant = () => {
-    setProductForm(prev => ({
-      ...prev,
-      variants: [
-        ...(prev.variants || []),
-        {
-          id: `var_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
-          name: '',
-          sku: '',
-          omieCode: '',
-          colorHex: '',
-          price: '',
-          image: '',
-          stockQty: ''
-        }
-      ]
-    }));
+  // Product Variants Helpers (Colors, Sizes, Models, Omie Integration, Modal & Upload)
+  const handleOpenAddVariantModal = () => {
+    setEditingVariantIndex(null);
+    setVariantModalForm({
+      id: `var_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: '',
+      sku: '',
+      colorHex: '',
+      price: '',
+      image: '',
+      stockQty: '',
+      isActive: true,
+      showInCatalog: true,
+    });
+    setIsVariantModalOpen(true);
   };
 
-  const handleUpdateVariant = (index, field, value) => {
-    setProductForm(prev => {
+  const handleAddVariant = handleOpenAddVariantModal;
+
+  const handleOpenEditVariantModal = (index) => {
+    const v = (productForm.variants || [])[index];
+    if (!v) return;
+    setEditingVariantIndex(index);
+    setVariantModalForm({
+      id: v.id || `var_${Date.now()}_${index}`,
+      name: v.name || '',
+      sku: v.sku || '',
+      colorHex: v.colorHex || '',
+      price: v.price !== undefined && v.price !== null ? v.price : '',
+      image: v.image || '',
+      stockQty: v.stockQty !== undefined && v.stockQty !== null ? v.stockQty : '',
+      isActive: v.isActive !== false,
+      showInCatalog: v.showInCatalog !== false,
+    });
+    setIsVariantModalOpen(true);
+  };
+
+  const handleSaveVariantModal = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!variantModalForm.name.trim()) {
+      showNotification('Preencha o Nome da Opção (ex: Vermelho, 7 Gavetas, 220V).', 'error');
+      return;
+    }
+
+    const cleanedVariant = {
+      id: variantModalForm.id || `var_${Date.now()}`,
+      name: variantModalForm.name.trim(),
+      sku: (variantModalForm.sku || '').trim(),
+      colorHex: (variantModalForm.colorHex || '').trim(),
+      price: variantModalForm.price !== '' ? Number(variantModalForm.price) : '',
+      image: (variantModalForm.image || '').trim(),
+      stockQty: variantModalForm.stockQty !== '' ? Number(variantModalForm.stockQty) : '',
+      isActive: variantModalForm.isActive !== false,
+      showInCatalog: variantModalForm.showInCatalog !== false,
+    };
+
+    setProductForm((prev) => {
+      const list = [...(prev.variants || [])];
+      if (editingVariantIndex !== null && editingVariantIndex >= 0 && editingVariantIndex < list.length) {
+        list[editingVariantIndex] = cleanedVariant;
+      } else {
+        list.push(cleanedVariant);
+      }
+      return { ...prev, variants: list };
+    });
+
+    setIsVariantModalOpen(false);
+    setEditingVariantIndex(null);
+    showNotification(
+      editingVariantIndex !== null ? 'Variação atualizada com sucesso!' : 'Variação adicionada com sucesso!',
+      'success'
+    );
+  };
+
+  const handleDuplicateVariant = (index) => {
+    const v = (productForm.variants || [])[index];
+    if (!v) return;
+    const cloned = {
+      ...v,
+      id: `var_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: `${v.name} (Cópia)`,
+      sku: v.sku ? `${v.sku}-COP` : '',
+    };
+    setProductForm((prev) => ({
+      ...prev,
+      variants: [...(prev.variants || []), cloned]
+    }));
+    showNotification(`Variação duplicada: "${cloned.name}"`, 'success');
+  };
+
+  const handleToggleVariantActive = (index) => {
+    setProductForm((prev) => {
       const list = [...(prev.variants || [])];
       if (list[index]) {
-        list[index] = { ...list[index], [field]: value };
+        const nextState = list[index].isActive === false ? true : false;
+        list[index] = { ...list[index], isActive: nextState };
+        showNotification(`Variação "${list[index].name || 'Opção'}" agora está ${nextState ? 'ativa' : 'inativa'}.`, 'info');
+      }
+      return { ...prev, variants: list };
+    });
+  };
+
+  const handleToggleVariantCatalog = (index) => {
+    setProductForm((prev) => {
+      const list = [...(prev.variants || [])];
+      if (list[index]) {
+        const nextState = list[index].showInCatalog === false ? true : false;
+        list[index] = { ...list[index], showInCatalog: nextState };
+        showNotification(`Variação "${list[index].name || 'Opção'}" ${nextState ? 'será exibida' : 'oculta'} no catálogo.`, 'info');
       }
       return { ...prev, variants: list };
     });
   };
 
   const handleRemoveVariant = (index) => {
-    setProductForm(prev => {
+    setProductForm((prev) => {
       const list = (prev.variants || []).filter((_, idx) => idx !== index);
       return { ...prev, variants: list };
     });
+    showNotification('Variação removida.', 'info');
+  };
+
+  const handleVariantImageFileUpload = async (file) => {
+    if (!file || !file.type.startsWith('image/')) {
+      showNotification('Selecione uma imagem válida para a variação.', 'error');
+      return;
+    }
+
+    setIsUploadingVariantImage(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target.result;
+      setVariantModalForm((prev) => ({ ...prev, image: base64Data }));
+      showNotification('Enviando foto da variação para a nuvem...', 'info');
+
+      try {
+        const cleanName = (variantModalForm.name || 'variacao').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
+        const res = await fetch(`${API_BASE_URL}/upload`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            file: base64Data,
+            folder: 'athena_variacoes',
+            filename: `var-${cleanName}-${Date.now().toString(36)}`
+          })
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          onLogout && onLogout('Sua sessão expirou.');
+          setIsUploadingVariantImage(false);
+          return;
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          setVariantModalForm((prev) => ({ ...prev, image: data.url }));
+          showNotification('Foto da variação salva na nuvem R2!', 'success');
+        } else {
+          showNotification('Foto salva localmente na variação.', 'info');
+        }
+      } catch (err) {
+        showNotification('Foto da variação salva localmente.', 'info');
+      } finally {
+        setIsUploadingVariantImage(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDropVariantImage = (e) => {
+    e.preventDefault();
+    setIsDraggingVariantImage(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleVariantImageFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handlePasteVariantModal = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          handleVariantImageFileUpload(file);
+          return;
+        }
+      }
+    }
   };
 
   // Attachments & PDFs Helpers (Upload + Direct Link with Custom Name)
@@ -3297,6 +3470,12 @@ export default function AdminPanel({
         }
         if (isLibraryModalOpen) {
           setIsLibraryModalOpen(false);
+          setIsSelectingVariantMedia(false);
+          return;
+        }
+        if (isVariantModalOpen) {
+          setIsVariantModalOpen(false);
+          setEditingVariantIndex(null);
           return;
         }
         if (previewingImage) {
@@ -3336,7 +3515,10 @@ export default function AdminPanel({
         const isInteractive = ['input', 'textarea', 'select', 'button', 'a'].includes(tagName) || activeEl?.isContentEditable;
 
         if (!isInteractive) {
-          if (isProductModalOpen) {
+          if (isVariantModalOpen) {
+            e.preventDefault();
+            handleSaveVariantModal(e);
+          } else if (isProductModalOpen) {
             e.preventDefault();
             handleProductSubmit(e);
           } else if (isCategoryModalOpen) {
@@ -3360,6 +3542,7 @@ export default function AdminPanel({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [
     isProductModalOpen,
+    isVariantModalOpen,
     isCategoryModalOpen,
     isBrandModalOpen,
     isUserModalOpen,
@@ -8502,19 +8685,26 @@ export default function AdminPanel({
                     <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
                       <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-slate-100">
                         <div>
-                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                            <Tag className="w-4 h-4 text-amber-600" />
-                            <span>Variações do Produto (Cores, Tamanhos & Estoque Omie)</span>
-                          </h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                              <Tag className="w-4 h-4 text-amber-600" />
+                              <span>Variações do Produto (Cores, Tamanhos & Estoque Omie)</span>
+                            </h4>
+                            {Array.isArray(productForm.variants) && productForm.variants.length > 0 && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                                {productForm.variants.length} {productForm.variants.length === 1 ? 'opção' : 'opções'}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            Unifique opções (como cores ou tamanhos) em uma única vitrine. Se não informar preço ou foto, o sistema herda automaticamente os dados principais.
+                            Unifique opções em uma única vitrine com SKUs e fotos exclusivas. Clique em <strong>"Editar / Abrir"</strong> para gerenciar detalhes completos em tela cheia.
                           </p>
                         </div>
 
                         <button
                           type="button"
-                          onClick={handleAddVariant}
-                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-amber-900 bg-amber-100/80 hover:bg-amber-200/80 border border-amber-300 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                          onClick={handleOpenAddVariantModal}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-amber-900 bg-amber-100/90 hover:bg-amber-200/90 border border-amber-300 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
                         >
                           <Plus className="w-4 h-4 text-amber-800" />
                           <span>Nova Variação</span>
@@ -8529,12 +8719,12 @@ export default function AdminPanel({
                           <div className="space-y-1">
                             <p className="text-xs font-bold text-slate-800">Nenhuma variação cadastrada</p>
                             <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-                              Este equipamento será exibido como produto individual. Clique no botão abaixo para adicionar opções como Vermelho, Azul, 5 Gavetas ou 220V.
+                              Este equipamento será exibido como produto individual. Adicione opções como Vermelho, Azul, 5 Gavetas ou 220V para disponibilizar opções de escolha ao cliente.
                             </p>
                           </div>
                           <button
                             type="button"
-                            onClick={handleAddVariant}
+                            onClick={handleOpenAddVariantModal}
                             className="btn-gold text-xs font-bold py-2 px-4 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -8542,179 +8732,191 @@ export default function AdminPanel({
                           </button>
                         </div>
                       ) : (
-                        <div className="space-y-4">
-                          {productForm.variants.map((v, idx) => (
-                            <div key={v.id || idx} className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-slate-50/70 space-y-4 shadow-2xs">
-                              {/* Header da Variação */}
-                              <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-slate-200/80">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-950 bg-amber-200/90 border border-amber-300/80 px-2.5 py-0.5 rounded-lg shadow-2xs">
-                                    Opção #{idx + 1}
-                                  </span>
-                                  {v.colorHex && (
-                                    <span 
-                                      className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs inline-block shrink-0" 
-                                      style={{ backgroundColor: v.colorHex }} 
-                                      title={v.colorHex}
-                                    />
-                                  )}
-                                  <span className="text-xs font-bold text-slate-800 truncate">
-                                    {v.name || 'Nova Opção (preencha o nome abaixo)'}
-                                  </span>
-                                </div>
+                        <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                                <th className="py-3 px-3 w-14 text-center">Foto</th>
+                                <th className="py-3 px-3">Nome da Opção</th>
+                                <th className="py-3 px-3">SKU Omie</th>
+                                <th className="py-3 px-3">Cor Visual</th>
+                                <th className="py-3 px-3">Preço / Estoque</th>
+                                <th className="py-3 px-3 text-center">Ativa</th>
+                                <th className="py-3 px-3 text-center">Catálogo</th>
+                                <th className="py-3 px-3 text-right">Ações</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                              {productForm.variants.map((v, idx) => {
+                                const isOptActive = v.isActive !== false;
+                                const isOptCatalog = v.showInCatalog !== false;
+                                const displayPhoto = v.image || productForm.image || (Array.isArray(productForm.images) && productForm.images[0]);
+                                return (
+                                  <tr 
+                                    key={v.id || idx} 
+                                    className={`hover:bg-slate-50/80 transition-colors ${!isOptActive ? 'opacity-60 bg-slate-50/40' : ''}`}
+                                  >
+                                    {/* Foto */}
+                                    <td className="py-2.5 px-3 text-center">
+                                      <div className="w-10 h-10 rounded-lg border border-slate-200 bg-slate-50 p-0.5 mx-auto overflow-hidden flex items-center justify-center relative group">
+                                        {displayPhoto ? (
+                                          <img src={displayPhoto} alt={v.name} className="w-full h-full object-contain" />
+                                        ) : (
+                                          <Package className="w-4 h-4 text-slate-300" />
+                                        )}
+                                        {!v.image && (
+                                          <span className="absolute bottom-0 inset-x-0 bg-slate-900/80 text-[8px] text-slate-200 font-bold text-center leading-tight py-0.5">
+                                            Herda
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveVariant(idx)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold"
-                                  title="Remover esta variação"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  <span className="hidden sm:inline">Excluir</span>
-                                </button>
-                              </div>
+                                    {/* Nome */}
+                                    <td className="py-2.5 px-3">
+                                      <div className="font-extrabold text-slate-900 text-xs">
+                                        {v.name || <span className="text-red-500 italic">Sem nome</span>}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400">
+                                        Opção #{idx + 1}
+                                      </div>
+                                    </td>
 
-                              {/* Linha 1: Identificação Básica */}
-                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
-                                {/* Nome */}
-                                <div className="sm:col-span-5 space-y-1.5">
-                                  <label className="text-xs font-bold text-slate-700 block">
-                                    Nome da Opção <span className="text-amber-600">*</span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={v.name || ''}
-                                    onChange={(e) => handleUpdateVariant(idx, 'name', e.target.value)}
-                                    placeholder="Ex: Vermelho, 7 Gavetas, 220V..."
-                                    className="form-input text-xs"
-                                  />
-                                  <span className="text-[10px] text-slate-400 block">
-                                    Texto exibido no seletor e no resumo do pedido.
-                                  </span>
-                                </div>
+                                    {/* SKU Omie */}
+                                    <td className="py-2.5 px-3">
+                                      {v.sku ? (
+                                        <span className="font-mono text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                          {v.sku}
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 text-[11px]">—</span>
+                                      )}
+                                    </td>
 
-                                {/* SKU Omie */}
-                                <div className="sm:col-span-4 space-y-1.5">
-                                  <label className="text-xs font-bold text-slate-700 block">
-                                    Código SKU / Omie
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={v.sku || ''}
-                                    onChange={(e) => handleUpdateVariant(idx, 'sku', e.target.value)}
-                                    placeholder="Ex: WLF-CAR-VM-01"
-                                    className="form-input text-xs font-mono"
-                                  />
-                                  <span className="text-[10px] text-slate-400 block">
-                                    Código do item físico cadastrado no ERP Omie.
-                                  </span>
-                                </div>
+                                    {/* Cor Visual */}
+                                    <td className="py-2.5 px-3">
+                                      {v.colorHex ? (
+                                        <div className="flex items-center gap-1.5">
+                                          <span 
+                                            className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs shrink-0" 
+                                            style={{ backgroundColor: v.colorHex }} 
+                                          />
+                                          <span className="font-mono text-[10px] text-slate-600 uppercase font-medium">
+                                            {v.colorHex}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-slate-400 text-[11px] italic">Texto puro</span>
+                                      )}
+                                    </td>
 
-                                {/* Cor (Bolinha) */}
-                                <div className="sm:col-span-3 space-y-1.5">
-                                  <label className="text-xs font-bold text-slate-700 block">
-                                    Cor Visual (Bolinha)
-                                  </label>
-                                  <div className="flex items-center gap-2">
-                                    <label 
-                                      className="relative cursor-pointer w-9 h-9 rounded-xl border border-slate-300 shadow-2xs overflow-hidden shrink-0 flex items-center justify-center hover:scale-105 transition-transform" 
-                                      style={{ backgroundColor: v.colorHex || '#f1f5f9' }} 
-                                      title="Clique para escolher a cor na paleta"
-                                    >
-                                      <input
-                                        type="color"
-                                        value={v.colorHex || '#DC2626'}
-                                        onChange={(e) => handleUpdateVariant(idx, 'colorHex', e.target.value)}
-                                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                                      />
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={v.colorHex || ''}
-                                      onChange={(e) => handleUpdateVariant(idx, 'colorHex', e.target.value)}
-                                      placeholder="#HEX"
-                                      className="form-input text-xs font-mono uppercase"
-                                    />
-                                    {v.colorHex && (
+                                    {/* Preço / Estoque */}
+                                    <td className="py-2.5 px-3">
+                                      <div className="text-[11px] font-bold text-slate-800">
+                                        {v.price !== undefined && v.price !== '' ? (
+                                          formatBRL(v.price)
+                                        ) : (
+                                          <span className="text-slate-500 font-normal">Padrão ({productForm.price ? formatBRL(productForm.price) : '—'})</span>
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] text-slate-500">
+                                        {v.stockQty !== undefined && v.stockQty !== '' ? (
+                                          <span>{v.stockQty} un em estoque</span>
+                                        ) : (
+                                          <span className="text-slate-400">Estoque Omie</span>
+                                        )}
+                                      </div>
+                                    </td>
+
+                                    {/* Ativa Switch */}
+                                    <td className="py-2.5 px-3 text-center">
                                       <button
                                         type="button"
-                                        onClick={() => handleUpdateVariant(idx, 'colorHex', '')}
-                                        className="p-1 rounded text-slate-400 hover:text-slate-600 text-xs shrink-0 cursor-pointer"
-                                        title="Remover cor (vira botão de texto)"
+                                        onClick={() => handleToggleVariantActive(idx)}
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                          isOptActive 
+                                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200' 
+                                            : 'bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200'
+                                        }`}
+                                        title="Clique para alternar se esta opção está ativa para venda"
                                       >
-                                        <X className="w-3.5 h-3.5" />
+                                        {isOptActive ? (
+                                          <>
+                                            <Check className="w-3 h-3 text-emerald-700 stroke-[3]" />
+                                            <span>Ativa</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <X className="w-3 h-3 text-slate-400" />
+                                            <span>Inativa</span>
+                                          </>
+                                        )}
                                       </button>
-                                    )}
-                                  </div>
-                                  <span className="text-[10px] text-slate-400 block">
-                                    Preencha apenas se for variação de cor.
-                                  </span>
-                                </div>
-                              </div>
+                                    </td>
 
-                              {/* Linha 2: Valores, Imagem e Estoque */}
-                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start pt-2 border-t border-slate-200/60">
-                                {/* Preço Específico */}
-                                <div className="sm:col-span-3 space-y-1.5">
-                                  <label className="text-xs font-bold text-slate-700 block">
-                                    Preço Próprio (R$)
-                                  </label>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={v.price !== undefined ? v.price : ''}
-                                    onChange={(e) => handleUpdateVariant(idx, 'price', e.target.value)}
-                                    placeholder="Herda do produto"
-                                    className="form-input text-xs font-mono"
-                                  />
-                                  <span className="text-[10px] text-slate-400 block">
-                                    Vazio = usa preço principal.
-                                  </span>
-                                </div>
+                                    {/* Catálogo Switch */}
+                                    <td className="py-2.5 px-3 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleVariantCatalog(idx)}
+                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                          isOptCatalog 
+                                            ? 'bg-sky-100 text-sky-800 border border-sky-300 hover:bg-sky-200' 
+                                            : 'bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200'
+                                        }`}
+                                        title="Clique para alternar se esta opção aparece nos cards da vitrine"
+                                      >
+                                        {isOptCatalog ? (
+                                          <>
+                                            <Eye className="w-3 h-3 text-sky-700" />
+                                            <span>Visível</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <EyeOff className="w-3 h-3 text-slate-400" />
+                                            <span>Oculta</span>
+                                          </>
+                                        )}
+                                      </button>
+                                    </td>
 
-                                {/* Estoque Omie */}
-                                <div className="sm:col-span-3 space-y-1.5">
-                                  <label className="text-xs font-bold text-slate-700 block">
-                                    Estoque da Opção
-                                  </label>
-                                  <input
-                                    type="number"
-                                    value={v.stockQty !== undefined ? v.stockQty : ''}
-                                    onChange={(e) => handleUpdateVariant(idx, 'stockQty', e.target.value)}
-                                    placeholder="Saldo Omie ou 0"
-                                    className="form-input text-xs"
-                                  />
-                                  <span className="text-[10px] text-slate-400 block">
-                                    Saldo físico desta variação.
-                                  </span>
-                                </div>
+                                    {/* Ações */}
+                                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenEditVariantModal(idx)}
+                                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-900 bg-amber-100/90 hover:bg-amber-200 border border-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
+                                          title="Abrir modal completo desta variação"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5" />
+                                          <span>Editar / Abrir</span>
+                                        </button>
 
-                                {/* Foto da Opção */}
-                                <div className="sm:col-span-6 space-y-1.5">
-                                  <label className="text-xs font-bold text-slate-700 block">
-                                    Foto Específica desta Opção (URL)
-                                  </label>
-                                  <div className="flex items-center gap-2">
-                                    {v.image && (
-                                      <div className="w-9 h-9 rounded-xl border border-slate-200 bg-white p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
-                                        <img src={v.image} alt={v.name} className="w-full h-full object-contain" />
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDuplicateVariant(idx)}
+                                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-colors cursor-pointer"
+                                          title="Duplicar variação"
+                                        >
+                                          <Copy className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveVariant(idx)}
+                                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors cursor-pointer"
+                                          title="Excluir variação"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
                                       </div>
-                                    )}
-                                    <input
-                                      type="text"
-                                      value={v.image || ''}
-                                      onChange={(e) => handleUpdateVariant(idx, 'image', e.target.value)}
-                                      placeholder="https://.../foto-desta-cor.webp"
-                                      className="form-input text-xs flex-1"
-                                    />
-                                  </div>
-                                  <span className="text-[10px] text-slate-400 block">
-                                    Vazio = mantém as fotos padrão do produto.
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       )}
                     </div>
@@ -9925,6 +10127,391 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* DEDICATED PRODUCT VARIANT MODAL (Mounted over Product Modal at !z-[120]) */}
+        {isVariantModalOpen && (
+          <div 
+            className="modal-backdrop !z-[120] p-3 sm:p-6" 
+            onClick={() => {
+              setIsVariantModalOpen(false);
+              setEditingVariantIndex(null);
+            }}
+            onPaste={handlePasteVariantModal}
+          >
+            <div 
+              className="modal-content !max-w-2xl !p-0 bg-white border border-slate-200 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+                    <Tag className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                      {editingVariantIndex !== null ? 'Editar Variação' : 'Nova Variação do Produto'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Configure nome, SKU Omie, estoque, cor e foto exclusiva desta opção.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsVariantModalOpen(false);
+                    setEditingVariantIndex(null);
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  title="Fechar modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Form Body */}
+              <form onSubmit={handleSaveVariantModal} className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+                {/* 1. Nome da Opção */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>Nome da Opção</span>
+                    <span className="text-amber-600">*</span>
+                    <span className="text-[11px] font-normal text-slate-400">(ex: Vermelho, 7 Gavetas, 220V)</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={variantModalForm.name}
+                    onChange={(e) => setVariantModalForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ex: Vermelho, 220V, 5 Gavetas..."
+                    className="form-input text-sm font-semibold"
+                    autoFocus
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Texto exibido no seletor da página do produto, no carrinho e nos pedidos.
+                  </p>
+                </div>
+
+                {/* 2. SKU Omie & Estoque */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      Código SKU no Omie
+                    </label>
+                    <input
+                      type="text"
+                      value={variantModalForm.sku}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, sku: e.target.value }))}
+                      placeholder="Ex: WLF-CAR-VM"
+                      className="form-input text-xs font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Código exato do item no ERP Omie para baixa automática de estoque.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      Estoque Próprio (unidades)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={variantModalForm.stockQty}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, stockQty: e.target.value }))}
+                      placeholder="Saldo Omie ou 0"
+                      className="form-input text-xs"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Deixe vazio para herdar a sincronização pelo SKU do Omie.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Cor Visual & Preço Específico */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Cor */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      Cor (Bolinha)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <label 
+                        className="relative cursor-pointer w-10 h-10 rounded-xl border-2 border-slate-300 shadow-2xs overflow-hidden shrink-0 flex items-center justify-center hover:scale-105 transition-transform" 
+                        style={{ backgroundColor: variantModalForm.colorHex || '#f8fafc' }} 
+                        title="Clique para escolher na paleta de cores"
+                      >
+                        <input
+                          type="color"
+                          value={variantModalForm.colorHex || '#DC2626'}
+                          onChange={(e) => setVariantModalForm(prev => ({ ...prev, colorHex: e.target.value }))}
+                          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        value={variantModalForm.colorHex}
+                        onChange={(e) => setVariantModalForm(prev => ({ ...prev, colorHex: e.target.value }))}
+                        placeholder="#HEX"
+                        className="form-input text-xs font-mono uppercase flex-1"
+                      />
+                      {variantModalForm.colorHex && (
+                        <button
+                          type="button"
+                          onClick={() => setVariantModalForm(prev => ({ ...prev, colorHex: '' }))}
+                          className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 text-xs shrink-0 cursor-pointer"
+                          title="Remover cor (vira botão de texto puro)"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Preencha apenas se for opção de cor para exibir bolinhas no catálogo.
+                    </p>
+                  </div>
+
+                  {/* Preço Específico */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      Preço Específico (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={variantModalForm.price}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, price: e.target.value }))}
+                      placeholder="Opcional (herda padrão)"
+                      className="form-input text-xs font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Se vazio, herda o preço base do produto ({productForm.price ? formatBRL(productForm.price) : 'R$ 0,00'}).
+                    </p>
+                  </div>
+                </div>
+
+                {/* 4. Status & Visibilidade (Ativa ☑ & Exibir no catálogo ☑) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* Ativa */}
+                  <label 
+                    className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                      variantModalForm.isActive !== false 
+                        ? 'bg-emerald-50/70 border-emerald-300 ring-1 ring-emerald-200' 
+                        : 'bg-slate-50 border-slate-200 opacity-70'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={variantModalForm.isActive !== false}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                      className="mt-0.5 w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                        <span>Ativa</span>
+                      </span>
+                      <p className="text-[11px] text-slate-500 leading-tight">
+                        Disponível para venda. Desmarque se esta opção estiver temporariamente esgotada sem precisar apagá-la.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Exibir no Catálogo */}
+                  <label 
+                    className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                      variantModalForm.showInCatalog !== false 
+                        ? 'bg-sky-50/70 border-sky-300 ring-1 ring-sky-200' 
+                        : 'bg-slate-50 border-slate-200 opacity-70'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={variantModalForm.showInCatalog !== false}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, showInCatalog: e.target.checked }))}
+                      className="mt-0.5 w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                    />
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                        <Eye className="w-3.5 h-3.5 text-sky-600" />
+                        <span>Exibir no catálogo</span>
+                      </span>
+                      <p className="text-[11px] text-slate-500 leading-tight">
+                        Mostra a bolinha ou miniatura desta opção nos cards da vitrine e na listagem geral.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* 5. Foto Específica desta Opção */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      URL da Foto desta Opção (opcional — herda foto principal se vazio)
+                    </label>
+                    {variantModalForm.image && (
+                      <button
+                        type="button"
+                        onClick={() => setVariantModalForm(prev => ({ ...prev, image: '' }))}
+                        className="text-[11px] text-red-600 hover:text-red-700 font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Remover foto</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropzone & Preview Area */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDraggingVariantImage(true); }}
+                    onDragLeave={() => setIsDraggingVariantImage(false)}
+                    onDrop={handleDropVariantImage}
+                    className={`relative rounded-2xl border-2 border-dashed p-4 transition-all text-center ${
+                      isDraggingVariantImage 
+                        ? 'border-amber-500 bg-amber-50/80 scale-[1.01]' 
+                        : variantModalForm.image 
+                        ? 'border-slate-200 bg-slate-50/40' 
+                        : 'border-slate-300 bg-slate-50/80 hover:bg-slate-50 hover:border-amber-400'
+                    }`}
+                  >
+                    {variantModalForm.image ? (
+                      <div className="flex items-center justify-center gap-4 flex-wrap">
+                        <div className="w-24 h-24 rounded-xl border border-slate-300 bg-white p-1 shadow-sm overflow-hidden flex items-center justify-center shrink-0">
+                          <img 
+                            src={variantModalForm.image} 
+                            alt={variantModalForm.name || 'Variação'} 
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <div className="text-left space-y-2">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                            <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                            Foto personalizada ativa
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsSelectingVariantMedia(true);
+                                setIsLibraryModalOpen(true);
+                              }}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Images className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Trocar pela Biblioteca R2</span>
+                            </button>
+                            <label className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                              <Upload className="w-3.5 h-3.5 text-slate-600" />
+                              <span>Subir Arquivo</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    handleVariantImageFileUpload(e.target.files[0]);
+                                  }
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-3 space-y-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+                          {isUploadingVariantImage ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+                          ) : (
+                            <Upload className="w-5 h-5" />
+                          )}
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-slate-800">
+                            {isUploadingVariantImage ? 'Enviando imagem...' : 'Arraste uma foto aqui, cole com Ctrl+V ou escolha:'}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            Formatos suportados: WebP, PNG, JPG, GIF
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+                          <label className="btn-secondary text-xs font-bold py-1.5 px-3 rounded-xl gap-1.5 inline-flex items-center cursor-pointer shadow-2xs">
+                            <Upload className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Enviar do Computador</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={isUploadingVariantImage}
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  handleVariantImageFileUpload(e.target.files[0]);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <button
+                            type="button"
+                            disabled={isUploadingVariantImage}
+                            onClick={() => {
+                              setIsSelectingVariantMedia(true);
+                              setIsLibraryModalOpen(true);
+                            }}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Images className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Biblioteca R2</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Manual URL input fallback */}
+                  <div className="space-y-1">
+                    <input
+                      type="url"
+                      value={variantModalForm.image}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, image: e.target.value }))}
+                      placeholder="https://.../foto-especifica.webp"
+                      className="form-input text-xs font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Cole a URL direta da imagem caso prefira link externo ou CDN já existente.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Modal Actions Footer */}
+                <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsVariantModalOpen(false);
+                      setEditingVariantIndex(null);
+                    }}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 border border-slate-300 transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="btn-gold text-xs font-black py-2.5 px-6 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4 stroke-[2.5]" />
+                    <span>{editingVariantIndex !== null ? 'Salvar Alterações' : 'Adicionar Variação'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* CLOUDFLARE R2 IMAGE LIBRARY MODAL (Mounted at root level for flawless stacking over product modal or banner modal) */}
         <ImageLibraryModal
           isOpen={isLibraryModalOpen}
@@ -9932,14 +10519,17 @@ export default function AdminPanel({
             setIsLibraryModalOpen(false);
             setIsSelectingBannerMedia(null);
             setIsSelectingBrandMedia(false);
+            setIsSelectingVariantMedia(false);
           }}
-          isStandalone={!isProductModalOpen && !isSelectingBannerMedia && !isSelectingBrandMedia}
+          isStandalone={!isProductModalOpen && !isSelectingBannerMedia && !isSelectingBrandMedia && !isSelectingVariantMedia}
           products={products}
           brands={brands}
           categories={categories}
           banners={banners}
           currentImages={
-            isSelectingBrandMedia
+            isSelectingVariantMedia
+              ? (variantModalForm.image ? [variantModalForm.image] : [])
+              : isSelectingBrandMedia
               ? (brandForm.logo ? [brandForm.logo] : [])
               : (isSelectingBannerMedia
                   ? (isSelectingBannerMedia === 'desktop'
@@ -9948,14 +10538,21 @@ export default function AdminPanel({
                   : (isProductModalOpen ? (Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])) : []))
           }
           currentCover={
-            isSelectingBrandMedia
+            isSelectingVariantMedia
+              ? (variantModalForm.image || '')
+              : isSelectingBrandMedia
               ? (brandForm.logo || '')
               : (isSelectingBannerMedia
                   ? (isSelectingBannerMedia === 'desktop' ? bannerForm.desktopImage : bannerForm.mobileImage)
                   : (isProductModalOpen ? (productForm.image || '') : ''))
           }
           onSelectImage={
-            isSelectingBrandMedia ? (url) => {
+            isSelectingVariantMedia ? (url) => {
+              setVariantModalForm(prev => ({ ...prev, image: url }));
+              setIsSelectingVariantMedia(false);
+              setIsLibraryModalOpen(false);
+              showNotification('Foto da variação selecionada da Biblioteca R2!', 'success');
+            } : isSelectingBrandMedia ? (url) => {
               setBrandForm(prev => ({ ...prev, logo: url }));
               setIsSelectingBrandMedia(false);
               setIsLibraryModalOpen(false);
@@ -9984,7 +10581,12 @@ export default function AdminPanel({
             } : undefined))
           }
           onRemoveImageFromProduct={
-            isSelectingBrandMedia ? () => {
+            isSelectingVariantMedia ? () => {
+              setVariantModalForm(prev => ({ ...prev, image: '' }));
+              setIsSelectingVariantMedia(false);
+              setIsLibraryModalOpen(false);
+              showNotification('Foto da variação removida.', 'info');
+            } : isSelectingBrandMedia ? () => {
               setBrandForm(prev => ({ ...prev, logo: '' }));
               setIsSelectingBrandMedia(false);
               setIsLibraryModalOpen(false);

@@ -218,7 +218,7 @@ export default function ProductDetailPage({
   const variants = Array.isArray(product?.variants) ? product.variants : [];
   const hasVariants = variants.length > 0;
 
-  // Auto-select first variant on load or when product changes
+  // Auto-select first active variant on load or when product changes
   useEffect(() => {
     if (hasVariants) {
       try {
@@ -232,7 +232,8 @@ export default function ProductDetailPage({
           }
         }
       } catch (e) {}
-      setSelectedVariantId(variants[0].id);
+      const firstActive = variants.find(v => v.isActive !== false) || variants[0];
+      setSelectedVariantId(firstActive.id);
     } else {
       setSelectedVariantId(null);
     }
@@ -241,6 +242,8 @@ export default function ProductDetailPage({
   const selectedVariant = hasVariants 
     ? (variants.find(v => v.id === selectedVariantId) || variants[0])
     : null;
+
+  const isSelectedVariantActive = selectedVariant ? selectedVariant.isActive !== false : true;
 
   // Smart Price Fallback: use variant price if defined and > 0, otherwise fallback to product base price
   const activePrice = (selectedVariant?.price != null && Number(selectedVariant.price) > 0)
@@ -295,7 +298,7 @@ export default function ProductDetailPage({
   };
 
   const variantSuffixText = selectedVariant
-    ? `\n*Opção Selecionada:* ${selectedVariant.name}${selectedVariant.sku ? ` (Cód/SKU: ${selectedVariant.sku})` : ''}`
+    ? `\n*Opção Selecionada:* ${selectedVariant.name}${selectedVariant.sku ? ` (Cód/SKU: ${selectedVariant.sku})` : ''}${selectedVariant.isActive === false ? ' [Opção temporariamente indisponível - solicito previsão]' : ''}`
     : '';
 
   const whatsappMessage = canBuyOnline
@@ -727,6 +730,7 @@ export default function ProductDetailPage({
                   {variants.map((v) => {
                     const isSelected = v.id === selectedVariant?.id;
                     const hasColor = Boolean(v.colorHex && v.colorHex.trim());
+                    const isVariantActive = v.isActive !== false;
 
                     if (hasColor) {
                       // Color Swatch Circle
@@ -739,13 +743,19 @@ export default function ProductDetailPage({
                             isSelected
                               ? 'ring-2 ring-amber-500 ring-offset-2 scale-110 shadow-sm'
                               : 'hover:scale-105 opacity-80 hover:opacity-100'
-                          }`}
-                          title={`${v.name}${v.price ? ` - ${formatBRL(v.price)}` : ''}`}
+                          } ${!isVariantActive ? '!opacity-45 hover:!opacity-70' : ''}`}
+                          title={`${v.name}${!isVariantActive ? ' (Temporariamente indisponível)' : (v.price ? ` - ${formatBRL(v.price)}` : '')}`}
                         >
                           <span
-                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-300 shadow-2xs block"
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-300 shadow-2xs block relative overflow-hidden"
                             style={{ backgroundColor: v.colorHex }}
-                          />
+                          >
+                            {!isVariantActive && (
+                              <span className="absolute inset-0 flex items-center justify-center">
+                                <span className="w-full h-0.5 bg-red-500/80 rotate-45 transform" />
+                              </span>
+                            )}
+                          </span>
                           {isSelected && (
                             <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
                               <Check className="w-3.5 h-3.5 text-white drop-shadow-md stroke-[3]" />
@@ -765,26 +775,37 @@ export default function ProductDetailPage({
                           isSelected
                             ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold shadow-sm ring-1 ring-amber-400'
                             : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
-                        }`}
+                        } ${!isVariantActive ? 'opacity-55 line-through' : ''}`}
                       >
                         {isSelected && <Check className="w-3.5 h-3.5 text-slate-950 shrink-0" />}
                         <span>{v.name}</span>
-                        {v.price != null && Number(v.price) > 0 && Number(v.price) !== Number(product.price) && (
-                          <span className={`text-[10px] ml-1 px-1.5 py-0.5 rounded ${
-                            isSelected ? 'bg-black/10 text-slate-950' : 'bg-slate-100 text-slate-500'
-                          }`}>
-                            {formatBRL(v.price)}
+                        {!isVariantActive ? (
+                          <span className="text-[10px] ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold no-underline">
+                            Indisponível
                           </span>
+                        ) : (
+                          v.price != null && Number(v.price) > 0 && Number(v.price) !== Number(product.price) && (
+                            <span className={`text-[10px] ml-1 px-1.5 py-0.5 rounded ${
+                              isSelected ? 'bg-black/10 text-slate-950' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {formatBRL(v.price)}
+                            </span>
+                          )
                         )}
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Variant Stock Note if present */}
+                {/* Variant Stock / Availability Note */}
                 {selectedVariant && (
                   <div className="flex items-center gap-2 text-xs pt-0.5">
-                    {selectedVariant.inStock === false || (selectedVariant.stockQty != null && selectedVariant.stockQty <= 0) ? (
+                    {selectedVariant.isActive === false ? (
+                      <span className="text-[11px] font-bold text-amber-900 bg-amber-100/90 border border-amber-300 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                        <span>Esta opção está temporariamente indisponível para compra imediata</span>
+                      </span>
+                    ) : selectedVariant.inStock === false || (selectedVariant.stockQty != null && selectedVariant.stockQty <= 0) ? (
                       <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                         Esgotado nesta opção
@@ -881,17 +902,25 @@ export default function ProductDetailPage({
                 <>
                   <button
                     type="button"
+                    disabled={selectedVariant?.isActive === false}
                     onClick={() => openDirectCheckout(product, 1, selectedVariant)}
-                    className="btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-black flex items-center gap-2 cursor-pointer"
+                    className={`btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-black flex items-center gap-2 ${
+                      selectedVariant?.isActive === false ? 'opacity-50 cursor-not-allowed filter grayscale' : 'cursor-pointer'
+                    }`}
                   >
                     <CreditCard className="w-4 h-4" />
-                    <span>Comprar Agora</span>
+                    <span>{selectedVariant?.isActive === false ? 'Opção Indisponível' : 'Comprar Agora'}</span>
                   </button>
 
                   <button
                     type="button"
+                    disabled={selectedVariant?.isActive === false}
                     onClick={() => addToCart(product, 1, selectedVariant)}
-                    className="py-2.5 px-4 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
+                    className={`py-2.5 px-4 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
+                      selectedVariant?.isActive === false 
+                        ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border border-slate-200' 
+                        : 'text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs cursor-pointer'
+                    }`}
                   >
                     <ShoppingCart className="w-4 h-4 text-amber-700" />
                     <span>+ Carrinho</span>
@@ -911,7 +940,7 @@ export default function ProductDetailPage({
                     className="py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
                   >
                     <MessageCircle className="w-4 h-4 text-emerald-600 fill-emerald-600/20" />
-                    <span>Dúvidas no WhatsApp</span>
+                    <span>{selectedVariant?.isActive === false ? 'Consultar Previsão' : 'Dúvidas no WhatsApp'}</span>
                   </a>
                 </>
               ) : (
@@ -929,7 +958,7 @@ export default function ProductDetailPage({
                   className="btn-gold text-xs sm:text-sm py-3 px-6 shadow-md font-extrabold flex items-center gap-2 cursor-pointer"
                 >
                   <MessageCircle className="w-4 h-4 fill-current" />
-                  <span>Solicitar Orçamento no WhatsApp</span>
+                  <span>{selectedVariant?.isActive === false ? 'Consultar Disponibilidade desta Opção' : 'Solicitar Orçamento no WhatsApp'}</span>
                 </a>
               )}
 

@@ -20,7 +20,9 @@ export default function ProductCard({
   const [activePreviewImage, setActivePreviewImage] = useState(null);
   const { addToCart, openDirectCheckout, requireVerification } = useCart();
   
-  const variants = Array.isArray(product.variants) ? product.variants : [];
+  const variants = Array.isArray(product.variants) 
+    ? product.variants.filter(v => v && v.isActive !== false && v.showInCatalog !== false)
+    : [];
   const hasVariants = variants.length > 0;
 
   // Regra de Negocio Athena:
