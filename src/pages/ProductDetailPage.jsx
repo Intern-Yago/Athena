@@ -141,12 +141,28 @@ export const formatAttachmentLabel = (fileName) => {
 
 export function decodeDraftFromToken(token) {
   try {
-    const jsonStr = decodeURIComponent(Array.prototype.map.call(atob(token), (c) => {
+    if (!token || typeof token !== 'string') return null;
+    let clean = token.trim();
+    try {
+      clean = decodeURIComponent(clean);
+    } catch (e) {}
+    // URLSearchParams automatically converts '+' into ' '. Normalize back to '+' for base64 decoding:
+    const normalized = clean.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
+    const jsonStr = decodeURIComponent(Array.prototype.map.call(atob(normalized), (c) => {
       return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
     return JSON.parse(jsonStr);
   } catch (e) {
-    return null;
+    try {
+      let clean = token.trim();
+      try {
+        clean = decodeURIComponent(clean);
+      } catch (e) {}
+      const normalized = clean.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(normalized));
+    } catch (e2) {
+      return null;
+    }
   }
 }
 
@@ -161,7 +177,7 @@ export function encodeDraftToShareableUrl(draftProduct) {
     const base64 = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => {
       return String.fromCharCode('0x' + p1);
     }));
-    return base64;
+    return encodeURIComponent(base64);
   } catch (e) {
     return null;
   }
@@ -199,11 +215,11 @@ export default function ProductDetailPage({
     return null;
   })();
 
-  // 2. Check for active draft preview in sessionStorage ONLY if route is explicitly 'preview'
+  // 2. Check for active draft preview in sessionStorage or localStorage if route is explicitly 'preview'
   const sessionDraft = (() => {
     if (productSlugOrId === 'preview' || isPreview) {
       try {
-        const saved = sessionStorage.getItem('athena_preview_draft_product');
+        const saved = sessionStorage.getItem('athena_preview_draft_product') || localStorage.getItem('athena_preview_draft_product');
         if (saved) {
           return JSON.parse(saved);
         }

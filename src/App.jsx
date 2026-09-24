@@ -847,7 +847,8 @@ export default function App() {
     }
 
     if (currentRoute.startsWith('produto/') || currentRoute.startsWith('product:')) {
-      const slugOrId = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
+      const rawSlug = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
+      const slugOrId = rawSlug ? rawSlug.split('?')[0].split('#')[0] : '';
       return (
         <ProductDetailPage
           productSlugOrId={slugOrId}

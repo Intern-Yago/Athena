@@ -9880,6 +9880,9 @@ export default function AdminPanel({
                       isDraftPreview: true
                     };
                     sessionStorage.setItem('athena_preview_draft_product', JSON.stringify(draftPayload));
+                    try {
+                      localStorage.setItem('athena_preview_draft_product', JSON.stringify(draftPayload));
+                    } catch (e) {}
                     const token = encodeDraftToShareableUrl ? encodeDraftToShareableUrl(draftPayload) : '';
                     const previewUrl = `/produto/preview${token ? `?d=${token}` : ''}`;
                     window.open(previewUrl, '_blank', 'noopener,noreferrer');
