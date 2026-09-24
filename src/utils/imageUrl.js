@@ -12,8 +12,21 @@ export function normalizeImageUrl(url) {
 
 export function normalizeProduct(p) {
   if (!p || typeof p !== 'object') return p;
+  let parsedModel3d = p.model3d || p.model_3d;
+  if (typeof parsedModel3d === 'string') {
+    try {
+      parsedModel3d = JSON.parse(parsedModel3d);
+    } catch (e) {}
+  }
+  if (parsedModel3d && typeof parsedModel3d === 'object' && parsedModel3d.glb) {
+    parsedModel3d = {
+      ...parsedModel3d,
+      glb: normalizeImageUrl(parsedModel3d.glb)
+    };
+  }
   return {
     ...p,
+    model3d: parsedModel3d,
     image: normalizeImageUrl(p.image),
     images: Array.isArray(p.images) ? p.images.map(normalizeImageUrl) : p.images
   };

@@ -34,7 +34,10 @@ export default function Product3DViewer({
   const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   // Extract model info
-  const modelData = product?.model3d || {};
+  const rawModel = product?.model3d || product?.model_3d;
+  const modelData = (typeof rawModel === 'string') 
+    ? (() => { try { return JSON.parse(rawModel); } catch (e) { return {}; } })()
+    : (rawModel || {});
   const modelSrc = modelData.glb || modelData.gltf || product?.modelGlb || product?.model3dUrl || '/models/tool_cart.glb';
   const iosSrc = modelData.usdz || product?.modelUsdz || '';
   const dimensions = modelData.dimensions || { width: 1.27, height: 0.96, depth: 0.75 };
