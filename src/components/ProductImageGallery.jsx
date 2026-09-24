@@ -4,7 +4,7 @@ import Product3DViewer from './Product3DViewer';
 
 export default function ProductImageGallery({ product }) {
   const hasModel3d = Boolean(
-    product?.model3d || 
+    (product?.model3d && (product.model3d.glb || product.model3d.gltf)) || 
     product?.modelGlb || 
     product?.model3dUrl || 
     (product?.status === 'draft' && product?.slug?.includes('3d'))

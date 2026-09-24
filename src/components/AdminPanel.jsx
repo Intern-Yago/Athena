@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Package, 
   Layers, 
+  Box,
+  Ruler,
   Tag, 
   Hash,
   Plus, 
@@ -80,6 +82,7 @@ import CouponManager from './CouponManager';
 import ImageLibraryModal from './ImageLibraryModal';
 import CustomerDetailModal from './CustomerDetailModal';
 import SmartLinkPicker from './SmartLinkPicker';
+import Product3DViewer from './Product3DViewer';
 import { safeStorageSet, saveSession } from '../utils/storage';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
@@ -970,7 +973,14 @@ export default function AdminPanel({
       sku: '',
       stock: 0,
       omieCode: '',
-      variants: []
+      variants: [],
+      model3d: {
+        glb: '',
+        usdz: '',
+        fileName: '',
+        fileSize: '',
+        dimensions: { width: '', height: '', depth: '' }
+      }
     }
   );
 
@@ -1086,6 +1096,10 @@ export default function AdminPanel({
     url: '',
     mode: 'url' // 'url' | 'upload'
   });
+
+  // 3D Model Form State (Upload vs Direct URL)
+  const [model3dMode, setModel3dMode] = useState('url'); // 'url' | 'upload'
+  const [model3dUploading, setModel3dUploading] = useState(false);
 
   // State for Editing Existing Attachment / PDF
   const [editingAttachmentId, setEditingAttachmentId] = useState(null);
@@ -1362,9 +1376,17 @@ export default function AdminPanel({
       sku: '',
       stock: 0,
       omieCode: '',
-      variants: []
+      variants: [],
+      model3d: {
+        glb: '',
+        usdz: '',
+        fileName: '',
+        fileSize: '',
+        dimensions: { width: '', height: '', depth: '' }
+      }
     };
     setProductForm(initialForm);
+    setModel3dMode('url');
     setTagInput('');
     initialProductFormRef.current = JSON.stringify(initialForm);
     setNewAttachmentForm({ title: '', url: '', mode: 'url' });
@@ -1392,9 +1414,27 @@ export default function AdminPanel({
       customTabs: Array.isArray(product.customTabs) ? [...product.customTabs] : [],
       compatibleProductIds: Array.isArray(product.compatibleProductIds) ? [...product.compatibleProductIds] : [],
       recommendedProductIds: Array.isArray(product.recommendedProductIds) ? [...product.recommendedProductIds] : [],
-      variants: Array.isArray(product.variants) ? [...product.variants] : []
+      variants: Array.isArray(product.variants) ? [...product.variants] : [],
+      model3d: product.model3d ? {
+        glb: product.model3d.glb || product.modelGlb || product.model3dUrl || '',
+        usdz: product.model3d.usdz || product.modelUsdz || '',
+        fileName: product.model3d.fileName || '',
+        fileSize: product.model3d.fileSize || '',
+        dimensions: {
+          width: product.model3d.dimensions?.width != null ? product.model3d.dimensions.width : '',
+          height: product.model3d.dimensions?.height != null ? product.model3d.dimensions.height : '',
+          depth: product.model3d.dimensions?.depth != null ? product.model3d.dimensions.depth : ''
+        }
+      } : {
+        glb: '',
+        usdz: '',
+        fileName: '',
+        fileSize: '',
+        dimensions: { width: '', height: '', depth: '' }
+      }
     };
     setProductForm(initialForm);
+    setModel3dMode(initialForm.model3d?.glb?.startsWith('data:') ? 'upload' : 'url');
     setTagInput('');
     initialProductFormRef.current = JSON.stringify(initialForm);
     setNewAttachmentForm({ title: '', url: '', mode: 'url' });
@@ -2365,6 +2405,69 @@ export default function AdminPanel({
       ...prev,
       attachments: (prev.attachments || []).map(a => a.id === attId ? { ...a, title: newTitle, name: newTitle } : a)
     }));
+  };
+
+  // 3D Model & WebAR Handlers
+  const handle3dFileUpload = (file) => {
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.glb') && !name.endsWith('.gltf')) {
+      showNotification('Por favor, selecione um arquivo no formato .glb ou .gltf.', 'error');
+      return;
+    }
+    setModel3dUploading(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+      setProductForm(prev => ({
+        ...prev,
+        model3d: {
+          ...(prev.model3d || {}),
+          glb: dataUrl,
+          fileName: file.name,
+          fileSize: `${sizeMb} MB`
+        }
+      }));
+      setModel3dUploading(false);
+      showNotification(`Modelo 3D "${file.name}" anexado (${sizeMb} MB)!`, 'success');
+    };
+    reader.onerror = () => {
+      setModel3dUploading(false);
+      showNotification('Erro ao processar o arquivo 3D.', 'error');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUseSample3dModel = () => {
+    setProductForm(prev => ({
+      ...prev,
+      model3d: {
+        glb: '/models/tool_cart.glb',
+        fileName: 'tool_cart.glb',
+        fileSize: '3.17 MB',
+        dimensions: {
+          width: 1.27,
+          height: 0.96,
+          depth: 0.75
+        }
+      }
+    }));
+    showNotification('Modelo 3D de teste (Carrinho Wolfcar) aplicado com sucesso!', 'success');
+  };
+
+  const handleRemove3dModel = () => {
+    setProductForm(prev => ({
+      ...prev,
+      model3d: {
+        glb: '',
+        usdz: '',
+        fileName: '',
+        fileSize: '',
+        dimensions: { width: '', height: '', depth: '' }
+      }
+    }));
+    showNotification('Modelo 3D removido deste equipamento.', 'info');
   };
 
   const handleAddSpec = (specText = '') => {
@@ -3429,6 +3532,17 @@ export default function AdminPanel({
       variants: Array.isArray(productForm.variants)
         ? productForm.variants.filter(v => v && (v.name || '').trim() !== '')
         : [],
+      model3d: (productForm.model3d && (productForm.model3d.glb || productForm.model3d.usdz)) ? {
+        glb: (productForm.model3d.glb || '').trim(),
+        usdz: (productForm.model3d.usdz || '').trim(),
+        fileName: productForm.model3d.fileName || '',
+        fileSize: productForm.model3d.fileSize || '',
+        dimensions: {
+          width: productForm.model3d.dimensions?.width !== '' && !isNaN(productForm.model3d.dimensions?.width) ? parseFloat(productForm.model3d.dimensions.width) : 1.0,
+          height: productForm.model3d.dimensions?.height !== '' && !isNaN(productForm.model3d.dimensions?.height) ? parseFloat(productForm.model3d.dimensions.height) : 1.0,
+          depth: productForm.model3d.dimensions?.depth !== '' && !isNaN(productForm.model3d.dimensions?.depth) ? parseFloat(productForm.model3d.dimensions.depth) : 1.0
+        }
+      } : null,
       image: productForm.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80',
       altText: productForm.altText || productForm.name
     };
@@ -8062,6 +8176,256 @@ export default function AdminPanel({
                           })}
                         </div>
                       )}
+                    </div>
+
+                    {/* CARD: Modelo 3D & Realidade Aumentada (WebAR 1:1) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <Box className="w-4 h-4 text-amber-600" />
+                              Modelo 3D & Realidade Aumentada (WebAR 1:1)
+                            </h4>
+                            <span className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              NOVO • WebAR
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Permite girar em 360° no site e projetar em tamanho real (1:1) no chão da oficina pelo celular (Google Scene Viewer / iOS Quick Look).
+                          </p>
+                        </div>
+
+                        {productForm.model3d?.glb && (
+                          <button
+                            type="button"
+                            onClick={handleRemove3dModel}
+                            className="text-red-600 hover:text-red-700 hover:underline text-[11px] font-bold flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Remover 3D
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-slate-700">Origem do Arquivo 3D (.glb):</span>
+                          <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={() => setModel3dMode('url')}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                model3dMode === 'url' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              <LinkIcon className="w-3 h-3 inline mr-1" /> Link / Caminho
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setModel3dMode('upload')}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                model3dMode === 'upload' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              <Upload className="w-3 h-3 inline mr-1" /> Upload .GLB
+                            </button>
+                          </div>
+                        </div>
+
+                        {model3dMode === 'url' ? (
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <input
+                                type="text"
+                                placeholder="ex: /models/tool_cart.glb ou https://seu-cdn.com/modelo.glb"
+                                value={productForm.model3d?.glb || ''}
+                                onChange={(e) => setProductForm(p => ({
+                                  ...p,
+                                  model3d: { ...(p.model3d || {}), glb: e.target.value }
+                                }))}
+                                className="form-input text-xs !pl-10 font-mono text-slate-700 bg-white"
+                              />
+                              <Box className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 flex-wrap pt-0.5">
+                              <p className="text-[10px] text-slate-400">
+                                Dica: Arquivos salvos na pasta <code>public/models/</code> podem ser chamados com <code>/models/nome.glb</code>.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={handleUseSample3dModel}
+                                className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg transition shadow-2xs"
+                              >
+                                <Sparkles className="w-3 h-3 text-amber-600" />
+                                Usar Modelo de Teste (Carrinho Wolfcar)
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <label className="border-2 border-dashed border-slate-300 hover:border-amber-500 bg-white rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition group">
+                              <input
+                                type="file"
+                                accept=".glb,.gltf"
+                                onChange={(e) => e.target.files && handle3dFileUpload(e.target.files[0])}
+                                className="hidden"
+                                disabled={model3dUploading}
+                              />
+                              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                {model3dUploading ? (
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                  <Upload className="w-5 h-5" />
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-amber-600 transition">
+                                {model3dUploading ? 'Processando arquivo 3D...' : 'Clique para selecionar arquivo .GLB ou .GLTF'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 mt-0.5">
+                                Formato único recomendado: .GLB (contém geometria, texturas e materiais em 1 arquivo)
+                              </span>
+                            </label>
+
+                            {productForm.model3d?.fileName && (
+                              <div className="flex items-center justify-between text-xs bg-white p-2.5 rounded-lg border border-slate-200">
+                                <span className="font-mono text-slate-700 font-bold truncate max-w-[260px]">
+                                  📦 {productForm.model3d.fileName}
+                                </span>
+                                {productForm.model3d.fileSize && (
+                                  <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                                    {productForm.model3d.fileSize}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Dimensões em Escala Real 1:1 para Realidade Aumentada */}
+                        <div className="pt-2 border-t border-slate-200/80 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                              <Ruler className="w-3.5 h-3.5 text-amber-600" />
+                              Dimensões Reais do Equipamento (Calibração 1:1)
+                            </span>
+                            <span className="text-[10px] text-slate-400">Em metros (m)</span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Largura (m)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="ex: 1.27"
+                                value={productForm.model3d?.dimensions?.width ?? ''}
+                                onChange={(e) => setProductForm(p => ({
+                                  ...p,
+                                  model3d: {
+                                    ...(p.model3d || {}),
+                                    dimensions: {
+                                      ...(p.model3d?.dimensions || {}),
+                                      width: e.target.value
+                                    }
+                                  }
+                                }))}
+                                className="form-input text-xs bg-white font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Altura (m)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="ex: 0.96"
+                                value={productForm.model3d?.dimensions?.height ?? ''}
+                                onChange={(e) => setProductForm(p => ({
+                                  ...p,
+                                  model3d: {
+                                    ...(p.model3d || {}),
+                                    dimensions: {
+                                      ...(p.model3d?.dimensions || {}),
+                                      height: e.target.value
+                                    }
+                                  }
+                                }))}
+                                className="form-input text-xs bg-white font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Profundidade (m)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="ex: 0.75"
+                                value={productForm.model3d?.dimensions?.depth ?? ''}
+                                onChange={(e) => setProductForm(p => ({
+                                  ...p,
+                                  model3d: {
+                                    ...(p.model3d || {}),
+                                    dimensions: {
+                                      ...(p.model3d?.dimensions || {}),
+                                      depth: e.target.value
+                                    }
+                                  }
+                                }))}
+                                className="form-input text-xs bg-white font-mono"
+                              />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-500">
+                            Essas medidas aparecem no box técnico e orientam o cliente sobre o espaço físico ocupado pelo maquinário.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Live 3D Preview right in Admin */}
+                      {productForm.model3d?.glb && (
+                        <div className="space-y-2 pt-1">
+                          <div className="flex items-center justify-between text-[11px] text-slate-600 font-bold">
+                            <span className="flex items-center gap-1.5 text-slate-800">
+                              <Box className="w-3.5 h-3.5 text-amber-600" />
+                              Pré-visualização Interativa 3D:
+                            </span>
+                            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-bold">
+                              Arraste para girar em 360°
+                            </span>
+                          </div>
+
+                          <div className="rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950">
+                            <Product3DViewer
+                              product={{
+                                name: productForm.name || 'Equipamento',
+                                model3d: productForm.model3d
+                              }}
+                              height="260px"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Help / Converter Guide */}
+                      <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-start gap-2.5">
+                        <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-slate-700 leading-relaxed space-y-1">
+                          <p className="font-bold text-slate-900">
+                            Baixou um arquivo .zip com .gltf, .bin e pasta de texturas?
+                          </p>
+                          <p className="text-slate-600">
+                            Para a web, é recomendado empacotar em um único arquivo <strong>.glb</strong>. Basta acessar o site gratuito{' '}
+                            <a
+                              href="https://gltf.report"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-bold text-amber-800 underline hover:text-amber-900 inline-flex items-center gap-0.5"
+                            >
+                              gltf.report <ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                            , arrastar os arquivos descompactados e clicar em <strong>Export → GLB</strong>.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 

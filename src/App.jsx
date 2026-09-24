@@ -399,7 +399,14 @@ export default function App() {
           const brandData = await brandRes.json();
 
           const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
-          setProducts(rawProducts.map(normalizeProduct));
+          const normProds = rawProducts.map(normalizeProduct);
+          const mergedProds = [...normProds];
+          INITIAL_PRODUCTS.forEach((ip) => {
+            if (!mergedProds.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
+              mergedProds.push(ip);
+            }
+          });
+          setProducts(mergedProds);
           setCategories(catData);
           setBrands(Array.isArray(brandData) ? brandData.map(normalizeBrand) : []);
           setIsBackendConnected(true);
