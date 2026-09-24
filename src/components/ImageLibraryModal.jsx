@@ -135,7 +135,7 @@ export default function ImageLibraryModal({
   const showNotificationRef = useRef(showNotification);
   useEffect(() => { showNotificationRef.current = showNotification; });
 
-  const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'http://localhost:3001/api';
+  const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'https://athena-backend-hu1m.onrender.com/api';
 
   // Mapa de registro global de uso: token (minúsculo) -> { brands: Set(nomes), products: Set(nomes), categories: Set(nomes), banners: Set(nomes) }
   const mediaUsageRegistry = useMemo(() => {

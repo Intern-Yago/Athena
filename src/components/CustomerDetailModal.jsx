@@ -56,7 +56,7 @@ export default function CustomerDetailModal({
   const [sendingReset, setSendingReset] = useState(false);
   const [tempPasswordResult, setTempPasswordResult] = useState(null);
 
-  const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'http://localhost:3001/api';
+  const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'https://athena-backend-hu1m.onrender.com/api';
 
   const getAuthHeadersRef = React.useRef(getAuthHeaders);
   getAuthHeadersRef.current = getAuthHeaders;

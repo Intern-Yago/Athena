@@ -46,7 +46,7 @@ import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/im
 
 const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
   ? 'http://localhost:3001/api'
-  : (import.meta.env.VITE_API_URL || '/api');
+  : (import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api');
 
 // Helper component to connect global cart checkout modal with CartContext
 function GlobalCartCheckout({ currentUser }) {
@@ -385,7 +385,10 @@ export default function App() {
 
   // Fetch from NestJS / Node backend if available
   useEffect(() => {
-    const fetchBackendData = async () => {
+    let retryTimer = null;
+    let isMounted = true;
+
+    const fetchBackendData = async (attempt = 1) => {
       try {
         const [prodRes, catRes, brandRes, bannerRes] = await Promise.all([
           fetch(`${API_BASE_URL}/products`),
@@ -394,51 +397,87 @@ export default function App() {
           fetch(`${API_BASE_URL}/banners?all=true`).catch(() => ({ ok: false }))
         ]);
 
-        if (prodRes.ok && catRes.ok && brandRes.ok) {
+        const contentType = prodRes.headers.get('content-type') || '';
+        if (prodRes.ok && contentType.includes('application/json')) {
           const prodData = await prodRes.json();
           const catData = await catRes.json();
           const brandData = await brandRes.json();
 
           const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
           const normProds = rawProducts.map(normalizeProduct);
-          setProducts((prev) => {
-            const mergedProds = [...normProds];
-            if (Array.isArray(prev) && prev.length > 0) {
-              prev.forEach((localProd) => {
-                const bIdx = mergedProds.findIndex((bp) => bp.id === localProd.id || (bp.slug && bp.slug === localProd.slug));
-                if (bIdx === -1) {
-                  mergedProds.push(localProd);
+          if (isMounted) {
+            setProducts((prev) => {
+              const mergedProds = [...normProds];
+              const localOnlyProds = [];
+
+              if (Array.isArray(prev) && prev.length > 0) {
+                prev.forEach((localProd) => {
+                  const bIdx = mergedProds.findIndex((bp) => bp.id === localProd.id || (bp.slug && bp.slug === localProd.slug));
+                  if (bIdx === -1) {
+                    mergedProds.push(localProd);
+                    localOnlyProds.push(localProd);
+                  }
+                });
+              }
+
+              INITIAL_PRODUCTS.forEach((ip) => {
+                if (!mergedProds.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
+                  mergedProds.push(ip);
                 }
               });
-            }
 
-            INITIAL_PRODUCTS.forEach((ip) => {
-              if (!mergedProds.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
-                mergedProds.push(ip);
+              safeStorageSet('athena_products', mergedProds);
+              idbSet('athena_products', mergedProds).catch(() => {});
+
+              // Auto-sync locally-saved products to PostgreSQL if admin session is active
+              const session = getSession();
+              if (session?.token && (session?.user?.role === 'admin' || session?.user?.isAdmin) && localOnlyProds.length > 0) {
+                localOnlyProds.forEach((lp) => {
+                  const isInitial = INITIAL_PRODUCTS.some(ip => ip.id === lp.id || ip.slug === lp.slug);
+                  if (!isInitial && lp.id && lp.name) {
+                    fetch(`${API_BASE_URL}/products`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.token}`
+                      },
+                      body: JSON.stringify(lp)
+                    }).catch(e => console.warn('[Auto-sync product to DB failed]:', e));
+                  }
+                });
               }
+
+              return mergedProds;
             });
-
-            safeStorageSet('athena_products', mergedProds);
-            idbSet('athena_products', mergedProds).catch(() => {});
-            return mergedProds;
-          });
-          setCategories(catData);
-          setBrands(Array.isArray(brandData) ? brandData.map(normalizeBrand) : []);
-          setIsBackendConnected(true);
-        }
-
-        if (bannerRes && bannerRes.ok) {
-          const bannerData = await bannerRes.json();
-          if (Array.isArray(bannerData)) {
-            setBanners(bannerData);
+            setCategories(catData);
+            setBrands(Array.isArray(brandData) ? brandData.map(normalizeBrand) : []);
+            setIsBackendConnected(true);
           }
+
+          if (bannerRes && bannerRes.ok) {
+            const bannerData = await bannerRes.json();
+            if (Array.isArray(bannerData) && isMounted) {
+              setBanners(bannerData);
+            }
+          }
+        } else if (attempt <= 3 && isMounted) {
+          // Render might be waking up from sleep, retry in 3.5 seconds
+          retryTimer = setTimeout(() => fetchBackendData(attempt + 1), 3500);
         }
       } catch (err) {
-        setIsBackendConnected(false);
+        if (attempt <= 3 && isMounted) {
+          retryTimer = setTimeout(() => fetchBackendData(attempt + 1), 3500);
+        } else if (isMounted) {
+          setIsBackendConnected(false);
+        }
       }
     };
 
     fetchBackendData();
+    return () => {
+      isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, []);
 
   // Sync fallback to safe storage (IndexedDB + safe LocalStorage)
@@ -486,17 +525,16 @@ export default function App() {
       return next;
     });
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/products`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(newProduct)
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/products`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newProduct)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
     }
   };
 
@@ -508,24 +546,25 @@ export default function App() {
       return next;
     });
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/products/${updatedProduct.id}`, {
-          method: 'PUT',
+    try {
+      const res = await fetch(`${API_BASE_URL}/products/${updatedProduct.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedProduct)
+      });
+      if (!res.ok && res.status === 404) {
+        const createRes = await fetch(`${API_BASE_URL}/products`, {
+          method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(updatedProduct)
         });
-        if (!res.ok && res.status === 404) {
-          await fetch(`${API_BASE_URL}/products`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(updatedProduct)
-          });
-        }
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend:', e);
+        if (createRes.ok) setIsBackendConnected(true);
+      } else if (res.ok) {
+        setIsBackendConnected(true);
       }
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
     }
   };
 
@@ -537,50 +576,47 @@ export default function App() {
       return next;
     });
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
-          method: 'DELETE',
-          headers: getAuthHeaders()
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
     }
   };
 
   const handleAddCategory = async (newCat) => {
     setCategories((prev) => [...prev, newCat]);
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/categories`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(newCat)
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newCat)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
     }
   };
 
   const handleUpdateCategory = async (updatedCat) => {
     setCategories((prev) => prev.map((c) => (c.id === updatedCat.id ? updatedCat : c)));
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/categories/${updatedCat.id}`, {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(updatedCat)
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend ao atualizar categoria:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories/${updatedCat.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedCat)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao atualizar categoria:', e);
     }
   };
 
@@ -590,101 +626,95 @@ export default function App() {
       setSelectedCategories(selectedCategories.filter(id => id !== catId));
     }
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/categories/${catId}`, {
-          method: 'DELETE',
-          headers: getAuthHeaders()
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories/${catId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
     }
   };
 
   const handleAddBrand = async (newBrand) => {
     setBrands((prev) => [...prev, newBrand]);
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/brands`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(newBrand)
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/brands`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newBrand)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
     }
   };
 
   const handleUpdateBrand = async (updatedBrand) => {
     setBrands((prev) => prev.map((b) => (b.id === updatedBrand.id ? updatedBrand : b)));
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/brands/${updatedBrand.id}`, {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(updatedBrand)
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/brands/${updatedBrand.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedBrand)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
     }
   };
 
   const handleReorderCategories = async (newCategories) => {
     setCategories(newCategories);
     safeStorageSet('athena_categories', newCategories);
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/categories/reorder`, {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ categories: newCategories })
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend ao reordenar categorias:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ categories: newCategories })
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao reordenar categorias:', e);
     }
   };
 
   const handleReorderBrands = async (newBrands) => {
     setBrands(newBrands);
     safeStorageSet('athena_brands', newBrands);
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/brands/reorder`, {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ brands: newBrands })
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend ao reordenar marcas:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/brands/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ brands: newBrands })
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao reordenar marcas:', e);
     }
   };
 
   const handleReorderProducts = async (newProducts) => {
     setProducts(newProducts);
     safeStorageSet('athena_products', newProducts);
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/products/reorder`, {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ products: newProducts })
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend ao reordenar produtos:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/products/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ products: newProducts })
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao reordenar produtos:', e);
     }
   };
 
@@ -694,16 +724,15 @@ export default function App() {
       setSelectedBrands(selectedBrands.filter(id => id !== brandId));
     }
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/brands/${brandId}`, {
-          method: 'DELETE',
-          headers: getAuthHeaders()
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/brands/${brandId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
     }
   };
 
@@ -716,21 +745,20 @@ export default function App() {
     setBanners((prev) => [...prev, bannerWithId]);
     showNotification('Banner cadastrado com sucesso!', 'success');
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/banners`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(bannerWithId)
-        });
-        handleApiUnauthorized(res);
-        if (res.ok) {
-          const saved = await res.json();
-          setBanners((prev) => prev.map((b) => (b.id === bannerWithId.id ? saved : b)));
-        }
-      } catch (e) {
-        console.error('Erro backend banner:', e);
+    try {
+      const res = await fetch(`${API_BASE_URL}/banners`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(bannerWithId)
+      });
+      handleApiUnauthorized(res);
+      if (res.ok) {
+        setIsBackendConnected(true);
+        const saved = await res.json();
+        setBanners((prev) => prev.map((b) => (b.id === bannerWithId.id ? saved : b)));
       }
+    } catch (e) {
+      console.error('Erro backend banner:', e);
     }
   };
 
@@ -738,17 +766,16 @@ export default function App() {
     setBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
     showNotification('Banner atualizado com sucesso!', 'success');
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/banners/${updatedBanner.id}`, {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify(updatedBanner)
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend banner:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/banners/${updatedBanner.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedBanner)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend banner:', e);
     }
   };
 
@@ -756,33 +783,31 @@ export default function App() {
     setBanners((prev) => prev.filter((b) => b.id !== bannerId));
     showNotification('Banner excluído com sucesso!', 'success');
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/banners/${bannerId}`, {
-          method: 'DELETE',
-          headers: getAuthHeaders()
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend banner:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/banners/${bannerId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend banner:', e);
     }
   };
 
   const handleReorderBanners = async (orderedBanners) => {
     setBanners(orderedBanners);
 
-    if (isBackendConnected) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/banners/reorder`, {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ banners: orderedBanners })
-        });
-        handleApiUnauthorized(res);
-      } catch (e) {
-        console.error('Erro backend banner reorder:', e);
-      }
+    try {
+      const res = await fetch(`${API_BASE_URL}/banners/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ banners: orderedBanners })
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend banner reorder:', e);
     }
   };
 

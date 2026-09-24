@@ -7710,7 +7710,7 @@ export default function AdminPanel({
                                                 imgUrl.includes('images.athenaconsultoria.com.br')
                                               )) {
                                                 try {
-                                                  const apiUrl = API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+                                                  const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'https://athena-backend-hu1m.onrender.com/api';
                                                   fetch(`${apiUrl}/upload/delete`, {
                                                     method: 'POST',
                                                     headers: getAuthHeaders(),
