@@ -292,25 +292,6 @@ export default function Product3DViewer({
             <Compass className="w-3.5 h-3.5" />
           </button>
 
-          {/* Animated Drawers / Parts Button (Auto-detected if 3D model has animations) */}
-          {availableAnimations.length > 0 && (
-            <button
-              type="button"
-              onClick={toggleAnimation}
-              title={isPlayingAnimation ? 'Pausar animação das gavetas' : 'Abrir / Fechar Gavetas'}
-              className={`p-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                isPlayingAnimation 
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold' 
-                  : 'text-amber-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              {isPlayingAnimation ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              <span className="text-[10px] hidden sm:inline">
-                {isPlayingAnimation ? 'Pausar Gavetas' : 'Abrir Gavetas'}
-              </span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => setShowDimensions(prev => !prev)}
@@ -378,6 +359,33 @@ export default function Product3DViewer({
           aria-hidden="true"
           tabIndex={-1}
         />
+
+        {/* INTERACTIVE 3D HOTSPOT (Pinned directly on the 3D model surface) */}
+        {(availableAnimations.length > 0 || modelData.hotspotPosition || modelSrc.includes('refrigerator') || modelSrc.includes('cart') || modelSrc.includes('carrinho')) && (
+          <button
+            slot="hotspot-main"
+            data-position={modelData.hotspotPosition || (modelSrc.includes('refrigerator') ? '0.35m -0.15m 0.38m' : '0m 0.55m 0.38m')}
+            data-normal="0m 0m 1m"
+            data-visibility-attribute="visible"
+            type="button"
+            onClick={toggleAnimation}
+            className="group relative flex items-center justify-center p-0 bg-transparent border-none cursor-pointer outline-none pointer-events-auto transition-transform hover:scale-110 active:scale-95"
+            title={isPlayingAnimation ? 'Clique no hotspot para fechar' : 'Clique no hotspot para abrir'}
+          >
+            {/* Animated Pulsing Ring */}
+            <span className="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-amber-400 opacity-60"></span>
+            
+            {/* 3D Pin Head */}
+            <span className="relative flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 border-2 border-white shadow-xl text-slate-950 font-black text-[10px] transition-colors group-hover:bg-amber-400">
+              {isPlayingAnimation ? '⏸' : '▶'}
+            </span>
+
+            {/* Floating Tooltip Label */}
+            <span className="absolute bottom-8 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-xl bg-slate-900/95 backdrop-blur-md text-white border border-amber-500/40 text-[10px] font-bold whitespace-nowrap shadow-2xl transition-all group-hover:border-amber-400">
+              {isPlayingAnimation ? 'Clique p/ Fechar' : 'Clique p/ Abrir'}
+            </span>
+          </button>
+        )}
 
         {/* CUSTOM AR PROMPT BANNER */}
         <div slot="ar-prompt" className="hidden" />

@@ -2456,6 +2456,25 @@ export default function AdminPanel({
     showNotification('Modelo 3D de teste (Carrinho Wolfcar) aplicado com sucesso!', 'success');
   };
 
+  const handleUseAnimatedSampleModel = () => {
+    setProductForm(prev => ({
+      ...prev,
+      model3d: {
+        glb: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/models/commercial_refrigerator.glb',
+        fileName: 'commercial_refrigerator.glb',
+        fileSize: '9.66 MB',
+        hasAnimations: true,
+        hotspotPosition: '0.35m -0.15m 0.38m',
+        dimensions: {
+          width: 0.85,
+          height: 1.95,
+          depth: 0.72
+        }
+      }
+    }));
+    showNotification('Modelo 3D animado com abertura interativa de porta aplicado!', 'success');
+  };
+
   const handleRemove3dModel = () => {
     setProductForm(prev => ({
       ...prev,
@@ -8253,14 +8272,24 @@ export default function AdminPanel({
                               <p className="text-[10px] text-slate-400">
                                 Dica: Arquivos salvos na pasta <code>public/models/</code> podem ser chamados com <code>/models/nome.glb</code>.
                               </p>
-                              <button
-                                type="button"
-                                onClick={handleUseSample3dModel}
-                                className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg transition shadow-2xs"
-                              >
-                                <Sparkles className="w-3 h-3 text-amber-600" />
-                                Usar Modelo de Teste (Carrinho Wolfcar)
-                              </button>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={handleUseSample3dModel}
+                                  className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg transition shadow-2xs"
+                                >
+                                  <Sparkles className="w-3 h-3 text-amber-600" />
+                                  Usar Modelo de Teste (Carrinho Wolfcar)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleUseAnimatedSampleModel}
+                                  className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-lg transition shadow-2xs"
+                                >
+                                  <Sparkles className="w-3 h-3 text-indigo-600" />
+                                  Usar Modelo Animado (Abertura de Porta)
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ) : (
