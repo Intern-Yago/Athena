@@ -407,13 +407,6 @@ export default function App() {
                 const bIdx = mergedProds.findIndex((bp) => bp.id === localProd.id || (bp.slug && bp.slug === localProd.slug));
                 if (bIdx === -1) {
                   mergedProds.push(localProd);
-                } else {
-                  if (localProd.status === 'published' && mergedProds[bIdx].status !== 'published') {
-                    mergedProds[bIdx] = { ...mergedProds[bIdx], status: 'published' };
-                  }
-                  if (localProd.model3d && !mergedProds[bIdx].model3d) {
-                    mergedProds[bIdx] = { ...mergedProds[bIdx], model3d: localProd.model3d };
-                  }
                 }
               });
             }
