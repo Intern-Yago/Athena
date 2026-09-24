@@ -8396,10 +8396,13 @@ export default function AdminPanel({
                           <div className="rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950">
                             <Product3DViewer
                               product={{
+                                ...productForm,
+                                id: productForm.id || editingProduct?.id || 'prod_carrinho_oficina_modular_3d_ar',
+                                slug: productForm.slug || editingProduct?.slug || 'carrinho-oficina-modular-3d-ar',
                                 name: productForm.name || 'Equipamento',
                                 model3d: productForm.model3d
                               }}
-                              height="260px"
+                              height="280px"
                             />
                           </div>
                         </div>
