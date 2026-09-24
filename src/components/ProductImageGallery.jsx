@@ -10,12 +10,11 @@ export default function ProductImageGallery({ product }) {
     (product?.status === 'draft' && product?.slug?.includes('3d'))
   );
 
-  // Check URL hash for direct 3d activation (#ar-view, #3d, or ?view=3d)
-  const initialMode = typeof window !== 'undefined' && (
-    window.location.hash.includes('ar-view') || 
-    window.location.hash.includes('3d') || 
-    new URLSearchParams(window.location.search).get('view') === '3d'
-  ) ? '3d' : 'photos';
+  // Default to 2D photo gallery first so all customers see high-res product photos immediately.
+  // 3D & AR is activated when the customer clicks the 3D button or thumbnail.
+  const initialMode = typeof window !== 'undefined' && window.location.hash.includes('ar-view') 
+    ? '3d' 
+    : 'photos';
 
   const [mediaMode, setMediaMode] = useState(initialMode); // 'photos' | '3d'
   // Collect all images (primary product.image + optional product.images array)
@@ -37,11 +36,16 @@ export default function ProductImageGallery({ product }) {
 
   const containerRef = useRef(null);
 
-  // Reset index if product changes
+  // Reset index and mediaMode if product changes
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('ar-view')) {
+      setMediaMode('3d');
+    } else {
+      setMediaMode('photos');
+    }
     setCurrentIndex(0);
     setZoomLevel(2.5);
-  }, [product?.id]);
+  }, [product?.id, product?.slug]);
 
   // Lock background scroll and handle ESC/arrow keys when lightbox is open
   useEffect(() => {

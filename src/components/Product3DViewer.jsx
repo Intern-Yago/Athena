@@ -92,7 +92,7 @@ export default function Product3DViewer({
   // Auto-launch AR on mobile if URL hash contains #ar-view
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (window.location.hash.includes('ar-view') || window.location.search.includes('view=3d')) {
+    if (window.location.hash.includes('ar-view')) {
       const timer = setTimeout(() => {
         const viewer = modelRef.current;
         if (viewer && typeof viewer.activateAR === 'function') {
@@ -203,11 +203,16 @@ export default function Product3DViewer({
     if (isMobileDevice && viewer) {
       if (typeof viewer.activateAR === 'function') {
         viewer.activateAR().catch(() => {
-          setShowQrModal(true);
+          const arButton = viewer.querySelector('#native-ar-button') || viewer.querySelector('button[slot="ar-button"]');
+          if (arButton) {
+            arButton.click();
+          } else {
+            setShowQrModal(true);
+          }
         });
         return;
       }
-      const arButton = viewer.querySelector('button[slot="ar-button"]');
+      const arButton = viewer.querySelector('#native-ar-button') || viewer.querySelector('button[slot="ar-button"]');
       if (arButton) {
         arButton.click();
         return;
@@ -323,32 +328,32 @@ export default function Product3DViewer({
         rotation-per-second="20deg"
         style={{ width: '100%', height: '100%', minHeight: '340px', outline: 'none' }}
       >
-        {/* CUSTOM AR LAUNCH BUTTON (Mobile Native Trigger slot) */}
+        {/* Hidden native AR button slot for model-viewer WebXR trigger */}
         <button
+          id="native-ar-button"
           slot="ar-button"
-          className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider shadow-2xl hover:brightness-110 active:scale-95 transition-all border border-amber-300/40"
-        >
-          <Smartphone className="w-4 h-4 text-slate-950" />
-          <span>Ver no seu espaço físico (AR)</span>
-        </button>
+          style={{ display: 'none' }}
+          aria-hidden="true"
+          tabIndex={-1}
+        />
 
         {/* CUSTOM AR PROMPT BANNER */}
         <div slot="ar-prompt" className="hidden" />
       </model-viewer>
 
       {/* BOTTOM FOOTER OVERLAY (Dimensions + AR Launch Button) */}
-      <div className="absolute bottom-4 left-4 right-4 z-20 flex items-end justify-between flex-wrap gap-2 pointer-events-none">
+      <div className="absolute bottom-3.5 left-3.5 right-3.5 z-20 flex items-end justify-between gap-3 pointer-events-none">
         {/* Physical Dimension Box (1:1 Verification) */}
         {showDimensions && (
-          <div className="pointer-events-auto bg-slate-900/95 border border-slate-800 p-2.5 rounded-2xl shadow-xl flex items-center gap-3 text-white">
+          <div className="pointer-events-auto bg-slate-900/95 backdrop-blur-md border border-slate-800 p-2.5 rounded-2xl shadow-xl flex items-center gap-2.5 text-white max-w-[calc(100%-190px)]">
             <div className="w-7 h-7 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
               <Ruler className="w-3.5 h-3.5 text-amber-400" />
             </div>
-            <div className="flex flex-col text-[11px] leading-tight">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
+            <div className="flex flex-col text-[11px] leading-tight min-w-0">
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold truncate">
                 Medidas Reais da Peça
               </span>
-              <div className="flex items-center gap-2 font-mono font-bold text-slate-200 mt-0.5">
+              <div className="flex items-center gap-1.5 sm:gap-2 font-mono font-bold text-slate-200 mt-0.5 text-[11px] sm:text-xs">
                 <span>L: {dimensions.width}m</span>
                 <span className="text-slate-600">•</span>
                 <span>A: {dimensions.height}m</span>
@@ -359,8 +364,8 @@ export default function Product3DViewer({
           </div>
         )}
 
-        {/* AR Launch Button: Direct Native AR on Mobile OR QR Code Modal on Desktop */}
-        <div className="pointer-events-auto ml-auto">
+        {/* Single Clean AR Launch Button: Direct Native AR on Mobile OR QR Code Modal on Desktop */}
+        <div className="pointer-events-auto ml-auto shrink-0">
           <button
             type="button"
             onClick={handleLaunchAR}
