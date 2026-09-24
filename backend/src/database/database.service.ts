@@ -271,8 +271,12 @@ export class DatabaseService implements OnModuleInit {
       this.data.products[index] = { ...this.data.products[index], ...updated };
       this.saveData();
       return this.data.products[index];
+    } else {
+      const newProd = { id, ...updated } as Product;
+      this.data.products.unshift(newProd);
+      this.saveData();
+      return newProd;
     }
-    return null;
   }
 
   deleteProduct(id: string): boolean {

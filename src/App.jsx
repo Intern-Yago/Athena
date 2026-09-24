@@ -400,13 +400,34 @@ export default function App() {
 
           const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
           const normProds = rawProducts.map(normalizeProduct);
-          const mergedProds = [...normProds];
-          INITIAL_PRODUCTS.forEach((ip) => {
-            if (!mergedProds.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
-              mergedProds.push(ip);
+          setProducts((prev) => {
+            const mergedProds = [...normProds];
+            if (Array.isArray(prev) && prev.length > 0) {
+              prev.forEach((localProd) => {
+                const bIdx = mergedProds.findIndex((bp) => bp.id === localProd.id || (bp.slug && bp.slug === localProd.slug));
+                if (bIdx === -1) {
+                  mergedProds.push(localProd);
+                } else {
+                  if (localProd.status === 'published' && mergedProds[bIdx].status !== 'published') {
+                    mergedProds[bIdx] = { ...mergedProds[bIdx], status: 'published' };
+                  }
+                  if (localProd.model3d && !mergedProds[bIdx].model3d) {
+                    mergedProds[bIdx] = { ...mergedProds[bIdx], model3d: localProd.model3d };
+                  }
+                }
+              });
             }
+
+            INITIAL_PRODUCTS.forEach((ip) => {
+              if (!mergedProds.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
+                mergedProds.push(ip);
+              }
+            });
+
+            safeStorageSet('athena_products', mergedProds);
+            idbSet('athena_products', mergedProds).catch(() => {});
+            return mergedProds;
           });
-          setProducts(mergedProds);
           setCategories(catData);
           setBrands(Array.isArray(brandData) ? brandData.map(normalizeBrand) : []);
           setIsBackendConnected(true);
@@ -464,7 +485,12 @@ export default function App() {
   };
 
   const handleAddProduct = async (newProduct) => {
-    setProducts((prev) => [newProduct, ...prev]);
+    setProducts((prev) => {
+      const next = [newProduct, ...prev];
+      safeStorageSet('athena_products', next);
+      idbSet('athena_products', next).catch(() => {});
+      return next;
+    });
 
     if (isBackendConnected) {
       try {
@@ -481,7 +507,12 @@ export default function App() {
   };
 
   const handleUpdateProduct = async (updatedProduct) => {
-    setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));
+    setProducts((prev) => {
+      const next = prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
+      safeStorageSet('athena_products', next);
+      idbSet('athena_products', next).catch(() => {});
+      return next;
+    });
 
     if (isBackendConnected) {
       try {
@@ -490,6 +521,13 @@ export default function App() {
           headers: getAuthHeaders(),
           body: JSON.stringify(updatedProduct)
         });
+        if (!res.ok && res.status === 404) {
+          await fetch(`${API_BASE_URL}/products`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(updatedProduct)
+          });
+        }
         handleApiUnauthorized(res);
       } catch (e) {
         console.error('Erro backend:', e);
@@ -498,7 +536,12 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (productId) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
+    setProducts((prev) => {
+      const next = prev.filter((p) => p.id !== productId);
+      safeStorageSet('athena_products', next);
+      idbSet('athena_products', next).catch(() => {});
+      return next;
+    });
 
     if (isBackendConnected) {
       try {

@@ -100,7 +100,7 @@ export const INITIAL_PRODUCTS = [
     "priceNegotiable": false,
     "inStock": true,
     "stock": 10,
-    "status": "draft",
+    "status": "published",
     "badge": "Protótipo 3D & AR",
     "isFeatured": false,
     "shortDescription": "Carrinho de ferramentas industrial reforçado com gavetas telescópicas, rodízios de alta capacidade e visualização 3D e Realidade Aumentada (WebAR) em escala real 1:1.",

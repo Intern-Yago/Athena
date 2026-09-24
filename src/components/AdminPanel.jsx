@@ -3517,6 +3517,7 @@ export default function AdminPanel({
       inStock: inStock,
       description: finalDescription,
       slug: finalSlug,
+      status: productForm.status || 'published',
       price: parseFloat(productForm.price) || 0,
       aPoints: productForm.aPoints !== '' && !isNaN(productForm.aPoints) && Number(productForm.aPoints) > 0 ? parseInt(productForm.aPoints, 10) : null,
       badge: (productForm.badge || '').trim(),
