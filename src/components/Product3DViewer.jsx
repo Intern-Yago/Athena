@@ -13,7 +13,9 @@ import {
   Sparkles,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  Play,
+  Pause
 } from 'lucide-react';
 
 export default function Product3DViewer({ 
@@ -32,6 +34,8 @@ export default function Product3DViewer({
   const [showDimensions, setShowDimensions] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [availableAnimations, setAvailableAnimations] = useState([]);
+  const [isPlayingAnimation, setIsPlayingAnimation] = useState(false);
 
   // Extract model info
   const rawModel = product?.model3d || product?.model_3d;
@@ -67,6 +71,13 @@ export default function Product3DViewer({
     const handleLoad = () => {
       setIsLoading(false);
       setLoadProgress(100);
+      try {
+        if (viewer.availableAnimations && viewer.availableAnimations.length > 0) {
+          setAvailableAnimations(viewer.availableAnimations);
+        }
+      } catch (err) {
+        console.warn('Could not inspect 3D animations:', err);
+      }
     };
 
     viewer.addEventListener('progress', handleProgress);
@@ -145,6 +156,18 @@ export default function Product3DViewer({
     }
     if (viewer) {
       viewer.cameraOrbit = '0deg 75deg 105%';
+    }
+  };
+
+  const toggleAnimation = () => {
+    const viewer = modelRef.current;
+    if (!viewer) return;
+    if (isPlayingAnimation) {
+      viewer.pause();
+      setIsPlayingAnimation(false);
+    } else {
+      viewer.play();
+      setIsPlayingAnimation(true);
     }
   };
 
@@ -269,6 +292,25 @@ export default function Product3DViewer({
             <Compass className="w-3.5 h-3.5" />
           </button>
 
+          {/* Animated Drawers / Parts Button (Auto-detected if 3D model has animations) */}
+          {availableAnimations.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleAnimation}
+              title={isPlayingAnimation ? 'Pausar animação das gavetas' : 'Abrir / Fechar Gavetas'}
+              className={`p-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                isPlayingAnimation 
+                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold' 
+                  : 'text-amber-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              {isPlayingAnimation ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+              <span className="text-[10px] hidden sm:inline">
+                {isPlayingAnimation ? 'Pausar Gavetas' : 'Abrir Gavetas'}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setShowDimensions(prev => !prev)}
@@ -341,39 +383,33 @@ export default function Product3DViewer({
         <div slot="ar-prompt" className="hidden" />
       </model-viewer>
 
-      {/* BOTTOM FOOTER OVERLAY (Dimensions + AR Launch Button) */}
-      <div className="absolute bottom-3.5 left-3.5 right-3.5 z-20 flex items-end justify-between gap-3 pointer-events-none">
-        {/* Physical Dimension Box (1:1 Verification) */}
+      {/* BOTTOM FOOTER OVERLAY (Dimensions + Action Button) */}
+      <div className="absolute bottom-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        {/* Physical Dimension Badge (1:1 Calibration) - Responsive & Compact */}
         {showDimensions && (
-          <div className="pointer-events-auto bg-slate-900/95 backdrop-blur-md border border-slate-800 p-2.5 rounded-2xl shadow-xl flex items-center gap-2.5 text-white max-w-[calc(100%-190px)]">
-            <div className="w-7 h-7 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
-              <Ruler className="w-3.5 h-3.5 text-amber-400" />
-            </div>
-            <div className="flex flex-col text-[11px] leading-tight min-w-0">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold truncate">
-                Medidas Reais da Peça
-              </span>
-              <div className="flex items-center gap-1.5 sm:gap-2 font-mono font-bold text-slate-200 mt-0.5 text-[11px] sm:text-xs">
-                <span>L: {dimensions.width}m</span>
-                <span className="text-slate-600">•</span>
-                <span>A: {dimensions.height}m</span>
-                <span className="text-slate-600">•</span>
-                <span>P: {dimensions.depth}m</span>
-              </div>
+          <div className="pointer-events-auto bg-slate-900/95 backdrop-blur-md border border-slate-800/90 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl shadow-xl flex items-center gap-2 text-white">
+            <Ruler className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <div className="flex items-center gap-1.5 font-mono font-bold text-slate-200 text-[10px] xs:text-[11px] sm:text-xs whitespace-nowrap">
+              <span className="text-[10px] text-slate-400 font-sans uppercase font-bold mr-0.5 hidden md:inline">Medidas:</span>
+              <span>L: {dimensions.width}m</span>
+              <span className="text-slate-600">•</span>
+              <span>A: {dimensions.height}m</span>
+              <span className="text-slate-600">•</span>
+              <span>P: {dimensions.depth}m</span>
             </div>
           </div>
         )}
 
-        {/* Single Clean Launch Button: Direct Camera on Mobile OR QR Code Modal on Desktop */}
+        {/* Action Button: Direct Camera Projection on Mobile OR QR Code Modal on Desktop */}
         <div className="pointer-events-auto ml-auto shrink-0">
           <button
             type="button"
             onClick={handleLaunchAR}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-xl active:scale-95 border border-amber-300/40"
-            title={isMobileDevice ? 'Abrir câmera e projetar no chão da oficina' : 'Abrir no celular via QR Code'}
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-[11px] sm:text-xs uppercase tracking-wider transition-all shadow-xl active:scale-95 border border-amber-300/40 whitespace-nowrap"
+            title={isMobileDevice ? 'Abrir câmera e projetar no chão da oficina em tamanho real' : 'Abrir no celular via QR Code'}
           >
-            {isMobileDevice ? <Smartphone className="w-4 h-4" /> : <QrCode className="w-4 h-4" />}
-            <span>{isMobileDevice ? 'Ver no Chão da Oficina' : 'Ver na sua Oficina'}</span>
+            {isMobileDevice ? <Smartphone className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+            <span>{isMobileDevice ? 'Ver em 3D' : 'Ver na sua Oficina'}</span>
           </button>
         </div>
       </div>
