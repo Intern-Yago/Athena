@@ -71,13 +71,7 @@ export default function App() {
   const [products, setProducts] = useState(() => {
     const saved = safeStorageGet('athena_products', null);
     if (Array.isArray(saved) && saved.length > 0) {
-      const merged = [...saved];
-      INITIAL_PRODUCTS.forEach((ip) => {
-        if (!merged.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
-          merged.push(ip);
-        }
-      });
-      return merged;
+      return saved;
     }
     return INITIAL_PRODUCTS;
   });
@@ -360,14 +354,10 @@ export default function App() {
         if (Array.isArray(idbProds) && idbProds.length > 0) {
           const normProds = idbProds.map(normalizeProduct);
           setProducts((prev) => {
-            const base = (prev.length === 0 || normProds.length >= prev.length ? normProds : prev);
-            const merged = [...base];
-            INITIAL_PRODUCTS.forEach((ip) => {
-              if (!merged.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
-                merged.push(ip);
-              }
-            });
-            return merged;
+            if (prev.length === 0 || normProds.length >= prev.length) {
+              return normProds;
+            }
+            return prev;
           });
         }
         if (Array.isArray(idbCats) && idbCats.length > 0) {
@@ -407,34 +397,35 @@ export default function App() {
           const normProds = rawProducts.map(normalizeProduct);
           if (isMounted) {
             setProducts((prev) => {
+              if (normProds.length === 0) {
+                return prev.length > 0 ? prev : INITIAL_PRODUCTS;
+              }
+
+              // Backend products are the official source of truth
               const mergedProds = [...normProds];
               const localOnlyProds = [];
 
+              // Keep local offline drafts that have not yet synced to backend
               if (Array.isArray(prev) && prev.length > 0) {
                 prev.forEach((localProd) => {
-                  const bIdx = mergedProds.findIndex((bp) => bp.id === localProd.id || (bp.slug && bp.slug === localProd.slug));
-                  if (bIdx === -1) {
+                  const existsInBackend = mergedProds.some(
+                    (bp) => bp.id === localProd.id || (bp.slug && bp.slug === localProd.slug)
+                  );
+                  if (!existsInBackend && localProd.status === 'draft') {
                     mergedProds.push(localProd);
                     localOnlyProds.push(localProd);
                   }
                 });
               }
 
-              INITIAL_PRODUCTS.forEach((ip) => {
-                if (!mergedProds.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
-                  mergedProds.push(ip);
-                }
-              });
-
               safeStorageSet('athena_products', mergedProds);
               idbSet('athena_products', mergedProds).catch(() => {});
 
-              // Auto-sync locally-saved products to PostgreSQL if admin session is active
+              // Auto-sync locally-saved draft products to PostgreSQL if admin session is active
               const session = getSession();
               if (session?.token && (session?.user?.role === 'admin' || session?.user?.isAdmin) && localOnlyProds.length > 0) {
                 localOnlyProds.forEach((lp) => {
-                  const isInitial = INITIAL_PRODUCTS.some(ip => ip.id === lp.id || ip.slug === lp.slug);
-                  if (!isInitial && lp.id && lp.name) {
+                  if (lp.id && lp.name) {
                     fetch(`${API_BASE_URL}/products`, {
                       method: 'POST',
                       headers: {

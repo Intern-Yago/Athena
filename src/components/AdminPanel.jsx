@@ -25,6 +25,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
+  MousePointer,
   Globe,
   Users,
   Printer,
@@ -8413,17 +8414,17 @@ export default function AdminPanel({
                       {/* Live 3D Preview right in Admin */}
                       {productForm.model3d?.glb && (
                         <div className="space-y-2 pt-1">
-                          <div className="flex items-center justify-between text-[11px] text-slate-600 font-bold">
+                          <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-600 font-bold">
                             <span className="flex items-center gap-1.5 text-slate-800">
                               <Box className="w-3.5 h-3.5 text-amber-600" />
-                              Pré-visualização Interativa 3D:
+                              Editor Visual de Hotspots 3D:
                             </span>
-                            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-bold">
-                              Arraste para girar em 360°
+                            <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-bold">
+                              Botão Direito: Adicionar • Scroll: Configurar Ações
                             </span>
                           </div>
 
-                          <div className="rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950">
+                          <div className="rounded-2xl overflow-hidden border border-slate-300 shadow-md bg-slate-950">
                             <Product3DViewer
                               product={{
                                 ...productForm,
@@ -8432,8 +8433,31 @@ export default function AdminPanel({
                                 name: productForm.name || 'Equipamento',
                                 model3d: productForm.model3d
                               }}
-                              height="280px"
+                              height="360px"
+                              editable={true}
+                              onHotspotsChange={(newHotspots) => {
+                                setProductForm(prev => ({
+                                  ...prev,
+                                  model3d: {
+                                    ...(prev.model3d || {}),
+                                    hotspots: newHotspots
+                                  }
+                                }));
+                              }}
                             />
+                          </div>
+
+                          <div className="p-2.5 bg-slate-100/90 border border-slate-200 rounded-xl text-[11px] text-slate-700 space-y-1">
+                            <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                              <MousePointer className="w-3.5 h-3.5 text-amber-600" />
+                              Controles do Editor 3D:
+                            </div>
+                            <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-slate-600">
+                              <li><strong>Botão Esquerdo (Arrastar):</strong> Gira e orbita o modelo 3D livremente.</li>
+                              <li><strong>Botão Direito na peça 3D:</strong> Adiciona um Hotspot exatamente no local clicado.</li>
+                              <li><strong>Botão Direito no Hotspot:</strong> Abre o menu circular (Lápis à esquerda para editar, Lixeira à direita para excluir).</li>
+                              <li><strong>Botão do Scroll (Clique do Meio no Hotspot):</strong> Abre diretamente a janela para registrar título, animação 1, ação reversa 2 e texto descritivo.</li>
+                            </ul>
                           </div>
                         </div>
                       )}

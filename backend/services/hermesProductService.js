@@ -54,19 +54,40 @@ function normalizeText(str) {
     .trim();
 }
 
+const SKU_STOP_WORDS = new Set([
+  'TOOLS', 'SIGMA', 'MAHOVI', 'DELTA', 'STARKX', 'WOLFCAR', 'LAPEK',
+  'AUTOMOTIVO', 'AUTOMOTIVA', 'VEICULAR', 'PROFISSIONAL', 'UNIVERSAL',
+  'DIGITAL', 'ANALOGICO', 'MANUAL', 'ELETRICO', 'PNEUMATICO', 'HIDRAULICO',
+  'PECAS', 'PECA', 'LITROS', 'LITRO', 'KG', 'TON', 'TONELADAS', 'PSI', 'BAR',
+  'MM', 'CM', 'METROS', 'METRO', 'M', 'POL', 'POLEGADAS', 'PRO', 'PLUS', 'KIT', 'MINI'
+]);
+
 /**
  * Extrai o codigo SKU a partir do titulo do produto.
- * Regra de negocio: O SKU e sempre a ultima palavra do titulo quando separado por espaco (index -1),
- * limpando eventuais pontuacoes como parenteses ou aspas.
- * Exemplo: "Elevador Automotivo 4000kg MAH-4008" -> "MAH-4008"
+ * Ignora nomes de marcas e palavras genericas.
+ * Exemplo: "Elevador Automotivo 4000kg MAH-4008 - Mahovi" -> "MAH-4008"
  */
 function extractSkuFromTitle(str) {
   if (!str) return null;
   const parts = String(str).trim().split(/\s+/);
   if (parts.length === 0) return null;
-  const candidate = parts[parts.length - 1]; // index -1
-  const clean = candidate.replace(/^[(\[{'"]+|[)\]}'"]+$/g, "").trim();
-  return clean.length >= 2 ? clean : null;
+
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const candidate = parts[i].replace(/^[(\[{'"]+|[)\]}'"]+$/g, '').trim();
+    const upper = candidate.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!upper || SKU_STOP_WORDS.has(upper)) continue;
+
+    const hasLetter = /[A-Z]/i.test(candidate);
+    const hasDigit = /[0-9]/.test(candidate);
+    const hasHyphen = candidate.includes('-');
+    const isBarcode = /^[0-9]{6,}$/.test(candidate);
+
+    if ((hasLetter && hasDigit) || (hasHyphen && candidate.length >= 3) || isBarcode) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -368,28 +389,28 @@ async function upsertOmieProductToLocal(pool, omieItem) {
     const preco = Number(omieItem.valor_unitario || 0);
     const estoque = Number(omieItem.quantidade_estoque != null ? omieItem.quantidade_estoque : 0);
 
-    // 1. Verifica se ja existe por omie_codigo_produto, omie_code ou match por SKU
-    const checkRes = await pool.query(`
-      SELECT id, name, slug, price, preco_venda, price_negotiable, estoque_quantidade 
-      FROM products 
-      WHERE omie_codigo_produto = $1 
-         OR omie_product_id = $1 
-         OR (omie_code = $2 AND omie_code IS NOT NULL AND omie_code != '')
-         OR (sku = $2 AND sku IS NOT NULL AND sku != '')
-         OR (omie_code IS NULL AND sku IS NULL AND $2 != '' AND name ILIKE $3)
-      LIMIT 1
-    `, [omieId, omieCode, `%${omieCode}%`]);
+    // 1. Deduplicação inteligente multi-tier (Omie ID, SKU exato, SKU normalizado, chaves de modelo no nome/ID)
+    const { findMatchingAthenaProduct } = require("./omieWebhookService");
+    const matchResult = await findMatchingAthenaProduct(pool, {
+      codigoProduto: omieId,
+      codigoSku: omieCode,
+      descricao: omieName
+    });
 
-    if (checkRes.rows.length > 0) {
-      // Ja existe: UPDATE do cache local (PRESERVANDO o status price_negotiable!)
-      const existing = checkRes.rows[0];
+    if (matchResult && matchResult.product) {
+      // Ja existe: UPDATE do cache local (PRESERVANDO o status price_negotiable e status publicado/rascunho!)
+      const existing = matchResult.product;
       await pool.query(`
         UPDATE products 
         SET 
           omie_codigo_produto = $1,
           omie_product_id = $1,
           omie_code = $2::text,
-          sku = COALESCE(sku, NULLIF($2::text, '')),
+          sku = CASE 
+            WHEN sku IS NULL OR sku = '' OR sku IN ('Tools', 'kg', 'Litros', 'Mahovi', 'Delta', 'Sigma') 
+            THEN COALESCE(NULLIF($2::text, ''), sku) 
+            ELSE sku 
+          END,
           preco_venda = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE preco_venda END,
           price = CASE WHEN (price IS NULL OR price = 0) AND $3::numeric > 0 THEN $3::numeric ELSE price END,
           estoque_quantidade = $4::integer,

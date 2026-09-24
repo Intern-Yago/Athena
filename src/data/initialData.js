@@ -1880,9 +1880,11 @@ export const INITIAL_PRODUCTS = [
     "inStock": true
   },
   {
-    "id": "prod_mahovi_mah-3d1",
-    "name": "Alinhadores MAH-3D1 Mahovi",
-    "slug": "alinhadores-mah-3d1-mahovi",
+    "id": "prod_mahovi_mah3d1_alinhador",
+    "name": "Alinhador 3D de Direção Computadorizado com Coluna Fixa - Mahovi MAH-3D1",
+    "slug": "alinhador-3d-direcao-computadorizado-mahovi-mah3d1",
+    "sku": "MAH3D1",
+    "omieCode": "MAH3D1",
     "categoryId": "cat_alinhadores",
     "brandId": "brand_mahovi",
     "price": 0,

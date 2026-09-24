@@ -19,19 +19,40 @@ const axios = require('axios');
 const OMIE_PRODUTOS_URL = 'https://app.omie.com.br/api/v1/geral/produtos/';
 const OMIE_ESTOQUE_AJUSTE_URL = 'https://app.omie.com.br/api/v1/estoque/ajuste/';
 
+const SKU_STOP_WORDS = new Set([
+  'TOOLS', 'SIGMA', 'MAHOVI', 'DELTA', 'STARKX', 'WOLFCAR', 'LAPEK',
+  'AUTOMOTIVO', 'AUTOMOTIVA', 'VEICULAR', 'PROFISSIONAL', 'UNIVERSAL',
+  'DIGITAL', 'ANALOGICO', 'MANUAL', 'ELETRICO', 'PNEUMATICO', 'HIDRAULICO',
+  'PECAS', 'PECA', 'LITROS', 'LITRO', 'KG', 'TON', 'TONELADAS', 'PSI', 'BAR',
+  'MM', 'CM', 'METROS', 'METRO', 'M', 'POL', 'POLEGADAS', 'PRO', 'PLUS', 'KIT', 'MINI'
+]);
+
 /**
  * Extrai o código SKU a partir do título do produto.
- * Regra: última palavra do título quando separado por espaço (index -1),
- * limpando pontuações e delimitadores.
- * Exemplo: "Elevador Automotivo MAH-4008" -> "MAH-4008"
+ * Ignora nomes de marcas e palavras genéricas.
+ * Exemplo: "Elevador Automotivo MAH-4008 - Mahovi" -> "MAH-4008"
  */
 function extractSkuFromTitle(str) {
   if (!str) return '';
   const parts = String(str).trim().split(/\s+/);
   if (parts.length === 0) return '';
-  const candidate = parts[parts.length - 1]; // index -1
-  const clean = candidate.replace(/^[(\[{'"]+|[)\]}'"]+$/g, '').trim();
-  return clean.length >= 2 ? clean : '';
+
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const candidate = parts[i].replace(/^[(\[{'"]+|[)\]}'"]+$/g, '').trim();
+    const upper = candidate.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!upper || SKU_STOP_WORDS.has(upper)) continue;
+
+    const hasLetter = /[A-Z]/i.test(candidate);
+    const hasDigit = /[0-9]/.test(candidate);
+    const hasHyphen = candidate.includes('-');
+    const isBarcode = /^[0-9]{6,}$/.test(candidate);
+
+    if ((hasLetter && hasDigit) || (hasHyphen && candidate.length >= 3) || isBarcode) {
+      return candidate;
+    }
+  }
+
+  return '';
 }
 
 /**

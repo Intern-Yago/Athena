@@ -15,14 +15,23 @@ import {
   Check,
   ExternalLink,
   Play,
-  Pause
+  Pause,
+  Pencil,
+  Trash2,
+  Plus,
+  Info,
+  Layers,
+  Settings,
+  MousePointer
 } from 'lucide-react';
 
 export default function Product3DViewer({ 
   product, 
   height = '520px', 
   className = '', 
-  autoRotateDefault = true 
+  autoRotateDefault = true,
+  editable = false,
+  onHotspotsChange = null
 }) {
   const modelRef = useRef(null);
   const containerRef = useRef(null);
@@ -45,6 +54,39 @@ export default function Product3DViewer({
   const modelSrc = modelData.glb || modelData.gltf || product?.modelGlb || product?.model3dUrl || '/models/tool_cart.glb';
   const iosSrc = modelData.usdz || product?.modelUsdz || '';
   const dimensions = modelData.dimensions || { width: 1.27, height: 0.96, depth: 0.75 };
+
+  // Hotspots management
+  const [hotspots, setHotspots] = useState(() => {
+    if (Array.isArray(modelData.hotspots)) return modelData.hotspots;
+    return [];
+  });
+
+  useEffect(() => {
+    if (Array.isArray(modelData.hotspots)) {
+      setHotspots(modelData.hotspots);
+    }
+  }, [JSON.stringify(modelData.hotspots)]);
+
+  const [radialMenuHotspotId, setRadialMenuHotspotId] = useState(null);
+  const [editingHotspot, setEditingHotspot] = useState(null);
+  const [activeTooltipHotspotId, setActiveTooltipHotspotId] = useState(null);
+  const [hotspotAnimStates, setHotspotAnimStates] = useState({});
+  const [isPlacingHotspot, setIsPlacingHotspot] = useState(false);
+
+  // Edit modal form fields
+  const [formTitle, setFormTitle] = useState('');
+  const [formAnim, setFormAnim] = useState('');
+  const [formToggleAnim, setFormToggleAnim] = useState('');
+  const [formDesc, setFormDesc] = useState('');
+
+  useEffect(() => {
+    if (editingHotspot) {
+      setFormTitle(editingHotspot.title || '');
+      setFormAnim(editingHotspot.animation || '');
+      setFormToggleAnim(editingHotspot.toggleAnimation || '');
+      setFormDesc(editingHotspot.description || '');
+    }
+  }, [editingHotspot]);
 
   // Detect mobile device
   useEffect(() => {
@@ -125,17 +167,19 @@ export default function Product3DViewer({
     };
   }, []);
 
-  // Escape key to close QR Modal
+  // Escape key to close QR Modal, radial menu or hotspot editor
   useEffect(() => {
-    if (!showQrModal) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        setShowQrModal(false);
+        if (radialMenuHotspotId) setRadialMenuHotspotId(null);
+        if (editingHotspot) setEditingHotspot(null);
+        if (isPlacingHotspot) setIsPlacingHotspot(false);
+        if (showQrModal) setShowQrModal(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showQrModal]);
+  }, [showQrModal, radialMenuHotspotId, editingHotspot, isPlacingHotspot]);
 
   const toggleAutoRotate = () => {
     const viewer = modelRef.current;
@@ -170,6 +214,174 @@ export default function Product3DViewer({
       setIsPlayingAnimation(true);
     }
   };
+
+  const handleSaveHotspotForm = () => {
+    if (!editingHotspot) return;
+    const updated = hotspots.map(h => {
+      if (h.id === editingHotspot.id) {
+        return {
+          ...h,
+          title: formTitle.trim() || 'Ponto Interativo',
+          animation: formAnim,
+          toggleAnimation: formToggleAnim,
+          description: formDesc.trim()
+        };
+      }
+      return h;
+    });
+    setHotspots(updated);
+    onHotspotsChange?.(updated);
+    setEditingHotspot(null);
+  };
+
+  const handleDeleteHotspot = (hsId) => {
+    const updated = hotspots.filter(h => h.id !== hsId);
+    setHotspots(updated);
+    onHotspotsChange?.(updated);
+    setRadialMenuHotspotId(null);
+    if (editingHotspot?.id === hsId) {
+      setEditingHotspot(null);
+    }
+  };
+
+  // Right-click on 3D canvas (creates new hotspot at clicked point)
+  const handleCanvasContextMenu = (e) => {
+    if (!editable) return;
+    e.preventDefault();
+
+    if (e.target.closest('[data-hotspot-container]') || e.target.closest('[data-hotspot-button]') || e.target.closest('button')) {
+      return;
+    }
+
+    const viewer = modelRef.current;
+    if (!viewer || typeof viewer.positionAndNormalFromPoint !== 'function') return;
+
+    const hit = viewer.positionAndNormalFromPoint(e.clientX, e.clientY);
+    if (!hit || !hit.position) return;
+
+    const posStr = `${hit.position.x.toFixed(3)}m ${hit.position.y.toFixed(3)}m ${hit.position.z.toFixed(3)}m`;
+    const normStr = hit.normal ? `${hit.normal.x.toFixed(3)}m ${hit.normal.y.toFixed(3)}m ${hit.normal.z.toFixed(3)}m` : '0m 0m 1m';
+
+    const newHotspot = {
+      id: `hs_${Date.now()}`,
+      title: `Ponto ${hotspots.length + 1}`,
+      position: posStr,
+      normal: normStr,
+      animation: availableAnimations[0] || '',
+      toggleAnimation: '',
+      description: ''
+    };
+
+    const updated = [...hotspots, newHotspot];
+    setHotspots(updated);
+    onHotspotsChange?.(updated);
+    setRadialMenuHotspotId(null);
+    setEditingHotspot(newHotspot);
+    setIsPlacingHotspot(false);
+  };
+
+  // Left-click on 3D canvas when isPlacingHotspot is enabled
+  const handleCanvasClick = (e) => {
+    if (!editable || !isPlacingHotspot) return;
+    if (e.target.closest('[data-hotspot-button]') || e.target.closest('button')) return;
+
+    const viewer = modelRef.current;
+    if (!viewer || typeof viewer.positionAndNormalFromPoint !== 'function') return;
+
+    const hit = viewer.positionAndNormalFromPoint(e.clientX, e.clientY);
+    if (!hit || !hit.position) return;
+
+    const posStr = `${hit.position.x.toFixed(3)}m ${hit.position.y.toFixed(3)}m ${hit.position.z.toFixed(3)}m`;
+    const normStr = hit.normal ? `${hit.normal.x.toFixed(3)}m ${hit.normal.y.toFixed(3)}m ${hit.normal.z.toFixed(3)}m` : '0m 0m 1m';
+
+    const newHotspot = {
+      id: `hs_${Date.now()}`,
+      title: `Ponto ${hotspots.length + 1}`,
+      position: posStr,
+      normal: normStr,
+      animation: availableAnimations[0] || '',
+      toggleAnimation: '',
+      description: ''
+    };
+
+    const updated = [...hotspots, newHotspot];
+    setHotspots(updated);
+    onHotspotsChange?.(updated);
+    setRadialMenuHotspotId(null);
+    setEditingHotspot(newHotspot);
+    setIsPlacingHotspot(false);
+  };
+
+  const handleHotspotContextMenu = (e, hs) => {
+    if (!editable) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setRadialMenuHotspotId(prev => prev === hs.id ? null : hs.id);
+  };
+
+  const handleHotspotAuxClick = (e, hs) => {
+    if (!editable) return;
+    if (e.button === 1) { // Middle click (scroll click)
+      e.preventDefault();
+      e.stopPropagation();
+      setRadialMenuHotspotId(null);
+      setEditingHotspot(hs);
+    }
+  };
+
+  const handleHotspotClick = (e, hs) => {
+    e.stopPropagation();
+    if (radialMenuHotspotId) {
+      setRadialMenuHotspotId(null);
+    }
+
+    // Toggle description tooltip
+    setActiveTooltipHotspotId(prev => prev === hs.id ? null : hs.id);
+
+    // If hotspot has animation configured:
+    const viewer = modelRef.current;
+    if (viewer) {
+      const currentState = hotspotAnimStates[hs.id] || { step: 0 };
+      let animToPlay = hs.animation || (availableAnimations.length > 0 ? availableAnimations[0] : null);
+
+      if (currentState.step === 1 && hs.toggleAnimation) {
+        animToPlay = hs.toggleAnimation;
+      }
+
+      if (animToPlay) {
+        viewer.animationName = animToPlay;
+        viewer.play({ repetitions: 1 });
+        setIsPlayingAnimation(true);
+
+        const nextStep = currentState.step === 0 ? 1 : 0;
+        setHotspotAnimStates(prev => ({
+          ...prev,
+          [hs.id]: { step: nextStep, currentAnim: animToPlay }
+        }));
+      } else if (availableAnimations.length > 0) {
+        toggleAnimation();
+      }
+    }
+  };
+
+  // Compute displayHotspots with fallback for sample commercial_refrigerator
+  const displayHotspots = useMemo(() => {
+    if (hotspots.length > 0) return hotspots;
+    if (modelSrc && modelSrc.includes('refrigerator')) {
+      return [
+        {
+          id: 'hs_door',
+          title: 'Porta do Gabinete',
+          position: '0.35m -0.15m 0.38m',
+          normal: '0m 0m 1m',
+          animation: availableAnimations[0] || 'FridgeDoor',
+          toggleAnimation: '',
+          description: 'Clique para abrir ou fechar a porta do gabinete.'
+        }
+      ];
+    }
+    return [];
+  }, [hotspots, modelSrc, availableAnimations]);
 
   const toggleFullscreen = () => {
     const container = containerRef.current;
@@ -316,6 +528,47 @@ export default function Product3DViewer({
         </div>
       </div>
 
+      {/* ADMIN 3D HOTSPOT EDITOR TOOLBAR */}
+      {editable && (
+        <div className="absolute top-14 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-2 bg-slate-950/90 backdrop-blur-md border border-amber-500/50 px-3 py-1.5 rounded-2xl shadow-xl">
+            <Layers className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-[11px] font-bold text-amber-300">
+              Hotspots 3D
+            </span>
+            <span className="text-[10px] text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full font-mono">
+              {hotspots.length} {hotspots.length === 1 ? 'ponto' : 'pontos'}
+            </span>
+          </div>
+
+          <div className="pointer-events-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPlacingHotspot(prev => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-[11px] font-bold shadow-xl transition-all border ${
+                isPlacingHotspot 
+                  ? 'bg-amber-500 text-slate-950 border-amber-300 animate-pulse font-black' 
+                  : 'bg-slate-900/90 text-white hover:bg-slate-800 border-slate-700'
+              }`}
+              title="Clique para ativar a mira e posicionar ponto na superfície 3D (ou clique c/ botão direito direto na peça)"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>{isPlacingHotspot ? 'Clique na peça...' : '+ Adicionar Ponto'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Helper Banner when Placing Hotspot */}
+      {editable && isPlacingHotspot && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none animate-in fade-in slide-in-from-top-2">
+          <div className="bg-amber-500/95 text-slate-950 text-[11px] font-black px-3.5 py-1.5 rounded-full shadow-2xl flex items-center gap-1.5 border border-white/50">
+            <MousePointer className="w-3.5 h-3.5 animate-bounce" />
+            <span>Clique com o botão esquerdo na peça (ou ESC para cancelar)</span>
+          </div>
+        </div>
+      )}
+
       {/* LOADING OVERLAY */}
       {isLoading && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950/90">
@@ -349,7 +602,15 @@ export default function Product3DViewer({
         auto-rotate
         auto-rotate-delay="1500"
         rotation-per-second="20deg"
-        style={{ width: '100%', height: '100%', minHeight: '340px', outline: 'none' }}
+        onContextMenu={handleCanvasContextMenu}
+        onClick={handleCanvasClick}
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          minHeight: '340px', 
+          outline: 'none',
+          cursor: isPlacingHotspot ? 'crosshair' : (editable ? 'default' : 'grab')
+        }}
       >
         {/* Hidden native AR button slot for model-viewer WebXR trigger */}
         <button
@@ -360,32 +621,135 @@ export default function Product3DViewer({
           tabIndex={-1}
         />
 
-        {/* INTERACTIVE 3D HOTSPOT (Pinned directly on the 3D model surface) */}
-        {(availableAnimations.length > 0 || modelData.hotspotPosition || modelSrc.includes('refrigerator') || modelSrc.includes('cart') || modelSrc.includes('carrinho')) && (
-          <button
-            slot="hotspot-main"
-            data-position={modelData.hotspotPosition || (modelSrc.includes('refrigerator') ? '0.35m -0.15m 0.38m' : '0m 0.55m 0.38m')}
-            data-normal="0m 0m 1m"
-            data-visibility-attribute="visible"
-            type="button"
-            onClick={toggleAnimation}
-            className="group relative flex items-center justify-center p-0 bg-transparent border-none cursor-pointer outline-none pointer-events-auto transition-transform hover:scale-110 active:scale-95"
-            title={isPlayingAnimation ? 'Clique no hotspot para fechar' : 'Clique no hotspot para abrir'}
-          >
-            {/* Animated Pulsing Ring */}
-            <span className="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-amber-400 opacity-60"></span>
-            
-            {/* 3D Pin Head */}
-            <span className="relative flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 border-2 border-white shadow-xl text-slate-950 font-black text-[10px] transition-colors group-hover:bg-amber-400">
-              {isPlayingAnimation ? '⏸' : '▶'}
-            </span>
+        {/* INTERACTIVE 3D HOTSPOTS */}
+        {displayHotspots.map((hs, index) => {
+          const isRadialOpen = radialMenuHotspotId === hs.id;
+          const isTooltipOpen = activeTooltipHotspotId === hs.id;
+          const animState = hotspotAnimStates[hs.id];
+          const isToggled = animState?.step === 1;
 
-            {/* Floating Tooltip Label */}
-            <span className="absolute bottom-8 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-xl bg-slate-900/95 backdrop-blur-md text-white border border-amber-500/40 text-[10px] font-bold whitespace-nowrap shadow-2xl transition-all group-hover:border-amber-400">
-              {isPlayingAnimation ? 'Clique p/ Fechar' : 'Clique p/ Abrir'}
-            </span>
-          </button>
-        )}
+          return (
+            <div
+              key={hs.id || index}
+              slot={`hotspot-${hs.id}`}
+              data-position={hs.position}
+              data-normal={hs.normal || '0m 0m 1m'}
+              data-visibility-attribute="visible"
+              data-hotspot-container="true"
+              className="pointer-events-auto select-none"
+            >
+              <div className="relative flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
+                {/* CIRCULAR RADIAL FRAME (When right-clicked on existing hotspot) */}
+                {isRadialOpen && editable && (
+                  <div 
+                    className="absolute z-50 w-28 h-28 rounded-full border-2 border-dashed border-amber-400 bg-slate-950/85 backdrop-blur-md animate-in zoom-in-75 duration-150 flex items-center justify-between px-2.5 shadow-2xl pointer-events-auto"
+                    onClick={(e) => e.stopPropagation()}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  >
+                    {/* Left: Pencil (Edit actions & text) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRadialMenuHotspotId(null);
+                        setEditingHotspot(hs);
+                      }}
+                      title="Editar ações e texto descritivo"
+                      className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-115 active:scale-95 border border-blue-400"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Center: Close indicator */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRadialMenuHotspotId(null);
+                      }}
+                      title="Fechar"
+                      className="w-5 h-5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-[10px]"
+                    >
+                      ✕
+                    </button>
+
+                    {/* Right: Trash (Delete hotspot) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteHotspot(hs.id);
+                      }}
+                      title="Excluir este Hotspot"
+                      className="w-8 h-8 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-115 active:scale-95 border border-red-400"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* MAIN PIN BUTTON */}
+                <button
+                  data-hotspot-button="true"
+                  type="button"
+                  onClick={(e) => handleHotspotClick(e, hs)}
+                  onContextMenu={(e) => handleHotspotContextMenu(e, hs)}
+                  onAuxClick={(e) => handleHotspotAuxClick(e, hs)}
+                  className="group relative flex items-center justify-center p-0 bg-transparent border-none cursor-pointer outline-none transition-transform hover:scale-115 active:scale-95 z-30"
+                  title={
+                    editable 
+                      ? `${hs.title || 'Ponto Interativo'}\n• Botão Direito: Menu radial (Lápis e Lixeira)\n• Botão do Scroll: Configurar Ações\n• Botão Esquerdo: Disparar Ação/Animação`
+                      : (hs.title || 'Clique para interagir')
+                  }
+                >
+                  {/* Animated Ping Ring */}
+                  <span className="animate-ping absolute inline-flex h-7 w-7 rounded-full bg-amber-400 opacity-60 pointer-events-none" />
+
+                  {/* Pin Head */}
+                  <span className={`relative flex items-center justify-center w-7 h-7 rounded-full border-2 border-white shadow-2xl font-black text-[11px] transition-colors ${
+                    isToggled 
+                      ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/50' 
+                      : 'bg-amber-500 text-slate-950 shadow-amber-500/50 group-hover:bg-amber-400'
+                  }`}>
+                    {isToggled ? '↺' : (isPlayingAnimation ? '⏸' : '▶')}
+                  </span>
+
+                  {/* Label tag */}
+                  <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-lg bg-slate-900/90 backdrop-blur-md text-white border border-amber-500/40 text-[9px] font-bold whitespace-nowrap shadow-xl pointer-events-none group-hover:border-amber-400 transition-colors">
+                    {hs.title || `Ponto ${index + 1}`}
+                  </span>
+                </button>
+
+                {/* OPTIONAL DESCRIPTION TOOLTIP CARD */}
+                {hs.description && (isTooltipOpen || !editable) && (
+                  <div 
+                    className={`absolute left-1/2 -translate-x-1/2 bottom-8 w-48 sm:w-56 p-2.5 rounded-2xl bg-slate-950/95 backdrop-blur-md border border-amber-500/50 text-white shadow-2xl text-[11px] leading-relaxed z-40 animate-in fade-in zoom-in-95 pointer-events-auto ${
+                      isTooltipOpen ? 'block' : 'hidden group-hover:block'
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between gap-1 mb-1 pb-1 border-b border-slate-800">
+                      <span className="font-bold text-amber-400 text-[10px] uppercase tracking-wider">
+                        {hs.title || 'Informações'}
+                      </span>
+                      {editable && (
+                        <button 
+                          type="button" 
+                          onClick={() => setEditingHotspot(hs)}
+                          className="text-slate-400 hover:text-white"
+                          title="Editar"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-slate-300 text-[10px] leading-tight">{hs.description}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
 
         {/* CUSTOM AR PROMPT BANNER */}
         <div slot="ar-prompt" className="hidden" />
@@ -485,6 +849,168 @@ export default function Product3DViewer({
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HOTSPOT CONFIGURATION / REGISTRATION MODAL */}
+      {editingHotspot && (
+        <div 
+          className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs pointer-events-auto animate-in fade-in duration-150"
+          onClick={() => setEditingHotspot(null)}
+        >
+          <div 
+            className="bg-slate-900 border border-slate-700/80 rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl text-white relative animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Settings className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Configurar Ponto Interativo</h3>
+                  <p className="text-[10px] text-slate-400">Ações acionadas pelo clique no hotspot</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingHotspot(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body Form */}
+            <div className="space-y-3.5 py-4 text-xs">
+              {/* Hotspot Title */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                  Nome / Título do Ponto
+                </label>
+                <input
+                  type="text"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="Ex: Alavanca do Elevador, Porta da Estufa..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-xs"
+                />
+              </div>
+
+              {/* Primary Animation */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Ação Primária (1º Clique)</span>
+                  <span className="text-[10px] text-amber-400 font-normal">Animação 3D</span>
+                </label>
+                {availableAnimations.length > 0 ? (
+                  <select
+                    value={formAnim}
+                    onChange={(e) => setFormAnim(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-500 text-xs"
+                  >
+                    <option value="">Selecione a animação...</option>
+                    {availableAnimations.map((anim, idx) => (
+                      <option key={anim} value={anim}>
+                        {anim} {idx === 0 ? '(Padrão)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={formAnim}
+                    onChange={(e) => setFormAnim(e.target.value)}
+                    placeholder="Nome da animação no GLB (opcional)"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-xs"
+                  />
+                )}
+              </div>
+
+              {/* Secondary / Toggle Animation (e.g. Reverse or Close) */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Ação Alternada (2º Clique / Reversa)</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Opcional</span>
+                </label>
+                {availableAnimations.length > 0 ? (
+                  <select
+                    value={formToggleAnim}
+                    onChange={(e) => setFormToggleAnim(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-amber-500 text-xs"
+                  >
+                    <option value="">Nenhuma (ou repetir mesma animação)</option>
+                    {availableAnimations.map(anim => (
+                      <option key={anim} value={anim}>{anim}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={formToggleAnim}
+                    onChange={(e) => setFormToggleAnim(e.target.value)}
+                    placeholder="Ex: descer_elevador, fechar_gaveta (opcional)"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-xs"
+                  />
+                )}
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Permite que a mesma alavanca suba no 1º clique e desça no 2º clique.
+                </p>
+              </div>
+
+              {/* Optional Description */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Texto Descritivo do Equipamento</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Opcional</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  placeholder="Ex: Pressione para destravar os braços telescópicos de elevação..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 text-xs resize-none"
+                />
+              </div>
+
+              {/* Coordinates info (read-only) */}
+              <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800 text-[10px] font-mono text-slate-400 flex items-center justify-between">
+                <span>Posição 3D:</span>
+                <span className="text-amber-400/90">{editingHotspot.position}</span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
+              <button
+                type="button"
+                onClick={() => handleDeleteHotspot(editingHotspot.id)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-red-400 hover:text-white hover:bg-red-600/30 transition-colors text-xs font-semibold"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Excluir</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingHotspot(null)}
+                  className="px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-xs font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveHotspotForm}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-transform active:scale-95 shadow-lg"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Salvar Ponto</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
