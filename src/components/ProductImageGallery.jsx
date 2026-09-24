@@ -151,7 +151,7 @@ export default function ProductImageGallery({ product }) {
               }`}
             >
               <Box className="w-3.5 h-3.5" />
-              <span>Visualização 3D & AR</span>
+              <span>Visualização 3D</span>
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
@@ -322,10 +322,10 @@ export default function ProductImageGallery({ product }) {
                   ? 'border-amber-500 bg-slate-950 text-amber-400 scale-105 shadow-md ring-2 ring-amber-500/20'
                   : 'border-slate-300 bg-slate-900 text-slate-300 hover:border-amber-400'
               }`}
-              title="Abrir Visualizador 3D & Realidade Aumentada"
+              title="Abrir Visualização 3D Interativa"
             >
               <Box className="w-5 h-5 text-amber-400 animate-pulse" />
-              <span className="text-[9px] font-black uppercase tracking-wider text-amber-300">3D / AR</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">3D</span>
             </button>
           )}
 

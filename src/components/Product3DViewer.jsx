@@ -240,7 +240,7 @@ export default function Product3DViewer({
         <div className="pointer-events-auto flex items-center gap-1.5 bg-slate-900/90 border border-amber-500/40 px-3 py-1.5 rounded-xl shadow-lg">
           <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
           <span className="text-[11px] font-black tracking-wider uppercase text-amber-300">
-            Escala Real 1:1 (WebAR)
+            Escala Real 1:1
           </span>
         </div>
 
@@ -364,16 +364,16 @@ export default function Product3DViewer({
           </div>
         )}
 
-        {/* Single Clean AR Launch Button: Direct Native AR on Mobile OR QR Code Modal on Desktop */}
+        {/* Single Clean Launch Button: Direct Camera on Mobile OR QR Code Modal on Desktop */}
         <div className="pointer-events-auto ml-auto shrink-0">
           <button
             type="button"
             onClick={handleLaunchAR}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-xl active:scale-95 border border-amber-300/40"
-            title={isMobileDevice ? 'Abrir câmera e projetar no chão da oficina' : 'Abrir no celular via QR Code para Realidade Aumentada'}
+            title={isMobileDevice ? 'Abrir câmera e projetar no chão da oficina' : 'Abrir no celular via QR Code'}
           >
             {isMobileDevice ? <Smartphone className="w-4 h-4" /> : <QrCode className="w-4 h-4" />}
-            <span>{isMobileDevice ? 'Ver no Chão da Oficina (AR)' : 'Ver na sua Oficina (AR)'}</span>
+            <span>{isMobileDevice ? 'Ver no Chão da Oficina' : 'Ver na sua Oficina'}</span>
           </button>
         </div>
       </div>
@@ -402,17 +402,17 @@ export default function Product3DViewer({
             </div>
 
             <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug">
-              Veja na sua Oficina em Realidade Aumentada
+              Veja no Espaço da sua Oficina
             </h3>
             
             <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-              Aponte a câmera do seu celular (iOS ou Android) para o QR Code. O equipamento surgirá no chão em <strong className="text-amber-800 font-bold">tamanho real (1:1)</strong> sem instalar nada!
+              Aponte a câmera do seu celular (iOS ou Android) para o QR Code. O equipamento surgirá no chão em <strong className="text-amber-800 font-bold">tamanho real (1:1)</strong> sem precisar instalar nenhum aplicativo!
             </p>
 
             <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl inline-block shadow-xs">
               <img 
                 src={qrCodeImageUrl} 
-                alt="QR Code Realidade Aumentada Athena" 
+                alt="QR Code Athena" 
                 className="w-48 h-48 sm:w-52 sm:h-52 mx-auto rounded-lg"
               />
             </div>
@@ -437,7 +437,7 @@ export default function Product3DViewer({
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    <span>Copiar link do WebAR para WhatsApp</span>
+                    <span>Copiar link para WhatsApp</span>
                   </>
                 )}
               </button>

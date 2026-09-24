@@ -1025,41 +1025,6 @@ export default function ProductDetailPage({
               )}
             </div>
 
-            {/* 3D / WebAR Feature Card */}
-            {(product.model3d || product.modelGlb || product.model3dUrl || (product.status === 'draft' && product.slug?.includes('3d'))) && (
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-amber-500/40 text-white shadow-xl flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
-                    <Box className="w-5 h-5 text-amber-400 animate-pulse" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black uppercase tracking-wider text-amber-400">
-                        Realidade Aumentada (WebAR)
-                      </span>
-                      <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
-                        Escala 1:1
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 mt-0.5">
-                      Projete este equipamento no piso da sua oficina usando a câmera do celular.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const el = document.getElementById('product-gallery-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    window.location.hash = 'ar-view';
-                  }}
-                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Ver em 3D / AR</span>
-                </button>
-              </div>
-            )}
 
             {/* VIDEO EMBED: Between Description / CTA and Custom Tabs */}
             {(() => {

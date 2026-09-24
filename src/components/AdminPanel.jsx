@@ -8186,10 +8186,10 @@ export default function AdminPanel({
                           <div className="flex items-center gap-2">
                             <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                               <Box className="w-4 h-4 text-amber-600" />
-                              Modelo 3D & Realidade Aumentada (WebAR 1:1)
+                              Modelo 3D & Projeção no Chão (1:1)
                             </h4>
                             <span className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">
-                              NOVO • WebAR
+                              NOVO • 3D
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500 mt-0.5">
