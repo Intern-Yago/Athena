@@ -1,7 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, X, Box, Eye, Sparkles } from 'lucide-react';
+import Product3DViewer from './Product3DViewer';
 
 export default function ProductImageGallery({ product }) {
+  const hasModel3d = Boolean(
+    product?.model3d || 
+    product?.modelGlb || 
+    product?.model3dUrl || 
+    (product?.status === 'draft' && product?.slug?.includes('3d'))
+  );
+
+  // Check URL hash for direct 3d activation (#ar-view, #3d, or ?view=3d)
+  const initialMode = typeof window !== 'undefined' && (
+    window.location.hash.includes('ar-view') || 
+    window.location.hash.includes('3d') || 
+    new URLSearchParams(window.location.search).get('view') === '3d'
+  ) ? '3d' : 'photos';
+
+  const [mediaMode, setMediaMode] = useState(initialMode); // 'photos' | '3d'
   // Collect all images (primary product.image + optional product.images array)
   const rawImages = [
     product?.image,
@@ -104,154 +120,220 @@ export default function ProductImageGallery({ product }) {
   return (
     <div className="space-y-3 select-none">
       
-      {/* Main Image Viewport with Hover Zoom Lens + Click to Expand */}
-      <div 
-        ref={containerRef}
-        onClick={() => setIsLightboxOpen(true)}
-        className="bg-white p-3 rounded-3xl border border-slate-200 shadow-xs aspect-square relative flex items-center justify-center overflow-hidden cursor-pointer group"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        title="Clique para abrir e ver a foto expandida"
-      >
-        <img 
-          src={currentImageUrl} 
-          alt={product?.name || 'Equipamento Athena'} 
-          decoding="async"
-          className="w-full h-full object-cover rounded-2xl transition-opacity duration-300"
-          onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
-          }}
-        />
+      {/* 3D / AR vs Photos Mode Switcher Bar */}
+      {hasModel3d && (
+        <div className="flex items-center justify-between gap-2 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setMediaMode('photos')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                mediaMode === 'photos'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Fotos ({displayImages.length})</span>
+            </button>
 
-        {/* Badge Overlay */}
-        {product?.badge && (
-          <span className="absolute top-4 left-4 badge badge-gold shadow-md z-10 pointer-events-none">
-            {product.badge}
-          </span>
-        )}
-
-        {/* Click to Expand Trigger Button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsLightboxOpen(true);
-          }}
-          onMouseEnter={(e) => {
-            e.stopPropagation();
-            setZoomState((prev) => ({ ...prev, show: false }));
-          }}
-          onMouseMove={(e) => {
-            e.stopPropagation();
-            setZoomState((prev) => ({ ...prev, show: false }));
-          }}
-          className="no-zoom-control absolute top-4 right-4 z-30 p-2 rounded-xl bg-white/90 hover:bg-amber-600 text-slate-800 hover:text-white shadow-md transition-all flex items-center gap-1.5 text-xs font-bold backdrop-blur-xs"
-          title="Ver foto expandida sem zoom"
-        >
-          <Maximize2 className="w-4 h-4 text-amber-600 hover:text-white transition-colors" />
-          <span className="hidden sm:inline text-[11px]">Ampliar</span>
-        </button>
-
-        {/* Desktop PC Magnifier Zoom Layer (Triggers on Hover) */}
-        {zoomState.show && (
-          <div 
-            className="absolute inset-0 z-20 pointer-events-none rounded-2xl bg-no-repeat shadow-inner hidden md:block"
-            style={{
-              backgroundImage: `url("${currentImageUrl}")`,
-              backgroundPosition: `${zoomState.x}% ${zoomState.y}%`,
-              backgroundSize: `${zoomLevel * 100}%`,
-              backgroundColor: '#ffffff'
-            }}
-          >
-            {/* Live Zoom Level Indicator & Control Prompt */}
-            <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-slate-900/90 backdrop-blur-md text-white text-[11px] font-bold flex items-center gap-2 shadow-xl border border-slate-700">
-              <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
-              <span>Zoom: {zoomLevel.toFixed(1)}x</span>
-              <span className="text-[9px] text-slate-400 border-l border-slate-700 pl-2">
-                (Clique para tela cheia)
+            <button
+              type="button"
+              onClick={() => setMediaMode('3d')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                mediaMode === '3d'
+                  ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                  : 'text-amber-600 hover:text-amber-700 bg-amber-500/10'
+              }`}
+            >
+              <Box className="w-3.5 h-3.5" />
+              <span>Visualização 3D & AR</span>
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
               </span>
-            </div>
+            </button>
           </div>
-        )}
 
-        {/* Previous / Next Arrow Controls (Shown when multiple images exist) */}
-        {displayImages.length > 1 && (
-          <>
-            <button
-              onClick={handlePrev}
-              onMouseEnter={(e) => {
-                e.stopPropagation();
-                setZoomState((prev) => ({ ...prev, show: false }));
-              }}
-              onMouseMove={(e) => {
-                e.stopPropagation();
-                setZoomState((prev) => ({ ...prev, show: false }));
-              }}
-              className="no-zoom-control absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/90 text-slate-800 shadow-md hover:bg-amber-600 hover:text-white transition-all opacity-80 group-hover:opacity-100 active:scale-95"
-              title="Foto Anterior"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+          <div className="hidden sm:flex items-center gap-1 text-[11px] font-semibold text-slate-500 pr-2">
+            <Sparkles className="w-3 h-3 text-amber-500" />
+            <span>Escala Real 1:1</span>
+          </div>
+        </div>
+      )}
 
-            <button
-              onClick={handleNext}
-              onMouseEnter={(e) => {
-                e.stopPropagation();
-                setZoomState((prev) => ({ ...prev, show: false }));
-              }}
-              onMouseMove={(e) => {
-                e.stopPropagation();
-                setZoomState((prev) => ({ ...prev, show: false }));
-              }}
-              className="no-zoom-control absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/90 text-slate-800 shadow-md hover:bg-amber-600 hover:text-white transition-all opacity-80 group-hover:opacity-100 active:scale-95"
-              title="Próxima Foto"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+      {/* Conditionally Render 3D Viewer or Photo Gallery */}
+      {mediaMode === '3d' ? (
+        <Product3DViewer product={product} />
+      ) : (
+        /* Main Image Viewport with Hover Zoom Lens + Click to Expand */
+        <div 
+          ref={containerRef}
+          onClick={() => setIsLightboxOpen(true)}
+          className="bg-white p-3 rounded-3xl border border-slate-200 shadow-xs aspect-square relative flex items-center justify-center overflow-hidden cursor-pointer group"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          title="Clique para abrir e ver a foto expandida"
+        >
+          <img 
+            src={currentImageUrl} 
+            alt={product?.name || 'Equipamento Athena'} 
+            decoding="async"
+            className="w-full h-full object-cover rounded-2xl transition-opacity duration-300"
+            onError={(e) => {
+              e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
+            }}
+          />
 
-            {/* Autoplay Progress Dots / Counter */}
+          {/* Badge Overlay */}
+          {product?.badge && (
+            <span className="absolute top-4 left-4 badge badge-gold shadow-md z-10 pointer-events-none">
+              {product.badge}
+            </span>
+          )}
+
+          {/* Click to Expand Trigger Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsLightboxOpen(true);
+            }}
+            onMouseEnter={(e) => {
+              e.stopPropagation();
+              setZoomState((prev) => ({ ...prev, show: false }));
+            }}
+            onMouseMove={(e) => {
+              e.stopPropagation();
+              setZoomState((prev) => ({ ...prev, show: false }));
+            }}
+            className="no-zoom-control absolute top-4 right-4 z-30 p-2 rounded-xl bg-white/90 hover:bg-amber-600 text-slate-800 hover:text-white shadow-md transition-all flex items-center gap-1.5 text-xs font-bold backdrop-blur-xs"
+            title="Ver foto expandida sem zoom"
+          >
+            <Maximize2 className="w-4 h-4 text-amber-600 hover:text-white transition-colors" />
+            <span className="hidden sm:inline text-[11px]">Ampliar</span>
+          </button>
+
+          {/* Desktop PC Magnifier Zoom Layer (Triggers on Hover) */}
+          {zoomState.show && (
             <div 
-              onMouseEnter={(e) => {
-                e.stopPropagation();
-                setZoomState((prev) => ({ ...prev, show: false }));
+              className="absolute inset-0 z-20 pointer-events-none rounded-2xl bg-no-repeat shadow-inner hidden md:block"
+              style={{
+                backgroundImage: `url("${currentImageUrl}")`,
+                backgroundPosition: `${zoomState.x}% ${zoomState.y}%`,
+                backgroundSize: `${zoomLevel * 100}%`,
+                backgroundColor: '#ffffff'
               }}
-              onMouseMove={(e) => {
-                e.stopPropagation();
-                setZoomState((prev) => ({ ...prev, show: false }));
-              }}
-              className="no-zoom-control absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/75 backdrop-blur-xs text-white text-[10px] font-bold"
             >
-              {displayImages.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentIndex(idx);
-                  }}
-                  onMouseEnter={(e) => {
-                    e.stopPropagation();
-                    setZoomState((prev) => ({ ...prev, show: false }));
-                  }}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    currentIndex === idx ? 'bg-amber-400 w-4' : 'bg-white/60 hover:bg-white'
-                  }`}
-                  title={`Foto ${idx + 1}`}
-                />
-              ))}
+              {/* Live Zoom Level Indicator & Control Prompt */}
+              <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-slate-900/90 backdrop-blur-md text-white text-[11px] font-bold flex items-center gap-2 shadow-xl border border-slate-700">
+                <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
+                <span>Zoom: {zoomLevel.toFixed(1)}x</span>
+                <span className="text-[9px] text-slate-400 border-l border-slate-700 pl-2">
+                  (Clique para tela cheia)
+                </span>
+              </div>
             </div>
-          </>
-        )}
-      </div>
+          )}
 
-      {/* Thumbnails Row (Shown when multiple images exist) */}
-      {displayImages.length > 1 && (
+          {/* Previous / Next Arrow Controls (Shown when multiple images exist) */}
+          {displayImages.length > 1 && (
+            <>
+              <button
+                onClick={handlePrev}
+                onMouseEnter={(e) => {
+                  e.stopPropagation();
+                  setZoomState((prev) => ({ ...prev, show: false }));
+                }}
+                onMouseMove={(e) => {
+                  e.stopPropagation();
+                  setZoomState((prev) => ({ ...prev, show: false }));
+                }}
+                className="no-zoom-control absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/90 text-slate-800 shadow-md hover:bg-amber-600 hover:text-white transition-all opacity-80 group-hover:opacity-100 active:scale-95"
+                title="Foto Anterior"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={handleNext}
+                onMouseEnter={(e) => {
+                  e.stopPropagation();
+                  setZoomState((prev) => ({ ...prev, show: false }));
+                }}
+                onMouseMove={(e) => {
+                  e.stopPropagation();
+                  setZoomState((prev) => ({ ...prev, show: false }));
+                }}
+                className="no-zoom-control absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-white/90 text-slate-800 shadow-md hover:bg-amber-600 hover:text-white transition-all opacity-80 group-hover:opacity-100 active:scale-95"
+                title="Próxima Foto"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+
+              {/* Autoplay Progress Dots / Counter */}
+              <div 
+                onMouseEnter={(e) => {
+                  e.stopPropagation();
+                  setZoomState((prev) => ({ ...prev, show: false }));
+                }}
+                onMouseMove={(e) => {
+                  e.stopPropagation();
+                  setZoomState((prev) => ({ ...prev, show: false }));
+                }}
+                className="no-zoom-control absolute bottom-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/75 backdrop-blur-xs text-white text-[10px] font-bold"
+              >
+                {displayImages.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentIndex(idx);
+                    }}
+                    onMouseEnter={(e) => {
+                      e.stopPropagation();
+                      setZoomState((prev) => ({ ...prev, show: false }));
+                    }}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      currentIndex === idx ? 'bg-amber-400 w-4' : 'bg-white/60 hover:bg-white'
+                    }`}
+                    title={`Foto ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Thumbnails Row (Shown when multiple images exist or has 3D model) */}
+      {(displayImages.length > 1 || hasModel3d) && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {hasModel3d && (
+            <button
+              type="button"
+              onClick={() => setMediaMode('3d')}
+              className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 flex flex-col items-center justify-center gap-1 shadow-xs cursor-pointer ${
+                mediaMode === '3d'
+                  ? 'border-amber-500 bg-slate-950 text-amber-400 scale-105 shadow-md ring-2 ring-amber-500/20'
+                  : 'border-slate-300 bg-slate-900 text-slate-300 hover:border-amber-400'
+              }`}
+              title="Abrir Visualizador 3D & Realidade Aumentada"
+            >
+              <Box className="w-5 h-5 text-amber-400 animate-pulse" />
+              <span className="text-[9px] font-black uppercase tracking-wider text-amber-300">3D / AR</span>
+            </button>
+          )}
+
           {displayImages.map((imgUrl, idx) => (
             <button
               key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 bg-white shadow-xs ${
-                currentIndex === idx
+              onClick={() => {
+                setMediaMode('photos');
+                setCurrentIndex(idx);
+              }}
+              className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 bg-white shadow-xs cursor-pointer ${
+                mediaMode === 'photos' && currentIndex === idx
                   ? 'border-amber-500 scale-105 shadow-md'
                   : 'border-slate-200 hover:border-amber-300 opacity-70 hover:opacity-100'
               }`}

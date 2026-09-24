@@ -91,6 +91,56 @@ export const INITIAL_BRANDS = [
 
 export const INITIAL_PRODUCTS = [
   {
+    "id": "prod_carrinho_oficina_modular_3d_ar",
+    "name": "Carrinho de Oficina com 2 Gavetas Wolfcar (Piloto 3D & Realidade Aumentada)",
+    "slug": "carrinho-oficina-modular-3d-ar",
+    "categoryId": "cat_ferramentas",
+    "brandId": "brand_wolfcar",
+    "price": 2890.00,
+    "priceNegotiable": false,
+    "inStock": true,
+    "stock": 10,
+    "status": "draft",
+    "badge": "Protótipo 3D & AR",
+    "isFeatured": false,
+    "shortDescription": "Carrinho de ferramentas industrial reforçado com gavetas telescópicas, rodízios de alta capacidade e visualização 3D e Realidade Aumentada (WebAR) em escala real 1:1.",
+    "description": "<p><strong>PROTÓTIPO PILOTO: Visualização 3D Interativa e Realidade Aumentada (WebAR) em Escala Real 1:1.</strong></p><p>O <strong>Carrinho de Oficina Wolfcar</strong> foi desenvolvido para máxima resistência e organização no ambiente severo de oficinas mecânicas, centros automotivos e concessionárias.</p><ul><li><strong>Estrutura:</strong> Aço reforçado com pintura eletrostática a pó de alta durabilidade.</li><li><strong>Armazenamento:</strong> 2 gavetas com trilhos telescópicos de rolamento suave e prateleira inferior de alta capacidade.</li><li><strong>Mobilidade:</strong> 4 rodízios giratórios para trabalho pesado com travas de segurança.</li><li><strong>Dimensões Calibradas (1:1):</strong> 1,27m de largura x 0,96m de altura x 0,75m de profundidade.</li><li><strong>Compatibilidade WebAR:</strong> Teste agora mesmo apontando a câmera do celular para ver o equipamento no chão da sua oficina antes de comprar!</li></ul>",
+    "image": "https://cdn.polyhaven.com/asset_img/primary/tool_cart.png?height=760",
+    "images": [
+      "https://cdn.polyhaven.com/asset_img/primary/tool_cart.png?height=760",
+      "https://cdn.polyhaven.com/asset_img/thumbs/tool_cart.png?width=630&quality=95"
+    ],
+    "altText": "Carrinho de Oficina com 2 Gavetas Wolfcar Piloto 3D e Realidade Aumentada Athena",
+    "model3d": {
+      "glb": "/models/tool_cart.glb",
+      "gltf": "/models/tool_cart/tool_cart_1k.gltf",
+      "name": "Carrinho de Ferramentas Metálico",
+      "scale": "1 1 1",
+      "dimensions": {
+        "width": 1.27,
+        "height": 0.96,
+        "depth": 0.75
+      }
+    },
+    "specs": [
+      "Capacidade Total de Carga: 350 kg",
+      "Número de Gavetas: 2 Gavetas com corrediças telescópicas reforçadas",
+      "Rodízios: 4 rodas de poliuretano industrial (2 com freio de pedal)",
+      "Material: Chapa de aço tratada com fosfatização e pintura epóxi",
+      "Dimensões Físicas: 1,27m (L) x 0,96m (A) x 0,75m (P)",
+      "Tecnologia WebAR: Escala Real 1:1 nativa (Google Scene Viewer / Apple Quick Look)"
+    ],
+    "features": [
+      "Visualização 360° interativa diretamente no navegador",
+      "Projeção em Realidade Aumentada (AR) sem necessidade de instalar aplicativos",
+      "Trava de escala 1:1 para verificar espaço físico exato na oficina",
+      "Pintura anticorrosiva de padrão industrial",
+      "Gavetas com puxadores ergonômicos e tranca de segurança"
+    ],
+    "sku": "WLF-CART-3D-AR",
+    "aPoints": 57
+  },
+  {
     "id": "prod_wolfcar_w1058",
     "name": "Conjunto Modular de Armários de Oficina 4915mm Wolfcar W1058",
     "slug": "conjunto-modular-de-armarios-de-oficina-4915mm-wolfcar-w1058",

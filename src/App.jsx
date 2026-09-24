@@ -27,7 +27,7 @@ import LegalPage from './pages/LegalPage';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import { CartProvider, useCart } from './context/CartContext';
 
-import { INITIAL_CATEGORIES, INITIAL_BRANDS } from './data/initialData';
+import { INITIAL_CATEGORIES, INITIAL_BRANDS, INITIAL_PRODUCTS } from './data/initialData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
 import { 
   safeStorageGet, 
@@ -69,8 +69,16 @@ function GlobalCartCheckout({ currentUser }) {
 export default function App() {
   const [products, setProducts] = useState(() => {
     const saved = safeStorageGet('athena_products', null);
-    if (Array.isArray(saved)) return saved;
-    return [];
+    if (Array.isArray(saved) && saved.length > 0) {
+      const merged = [...saved];
+      INITIAL_PRODUCTS.forEach((ip) => {
+        if (!merged.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
+          merged.push(ip);
+        }
+      });
+      return merged;
+    }
+    return INITIAL_PRODUCTS;
   });
 
   const [categories, setCategories] = useState(() => {
@@ -350,7 +358,16 @@ export default function App() {
         ]);
         if (Array.isArray(idbProds) && idbProds.length > 0) {
           const normProds = idbProds.map(normalizeProduct);
-          setProducts((prev) => (prev.length === 0 || normProds.length >= prev.length ? normProds : prev));
+          setProducts((prev) => {
+            const base = (prev.length === 0 || normProds.length >= prev.length ? normProds : prev);
+            const merged = [...base];
+            INITIAL_PRODUCTS.forEach((ip) => {
+              if (!merged.some((p) => p.id === ip.id || (p.slug && p.slug === ip.slug))) {
+                merged.push(ip);
+              }
+            });
+            return merged;
+          });
         }
         if (Array.isArray(idbCats) && idbCats.length > 0) {
           setCategories((prev) => (prev.length <= INITIAL_CATEGORIES.length ? idbCats : prev));
