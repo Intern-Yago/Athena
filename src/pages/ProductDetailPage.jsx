@@ -608,6 +608,56 @@ export default function ProductDetailPage({
     }
   }, [product?.id, hasSpecs, showCompatTab, validCustomTabs.length, hasAttachments, hasVideo]);
 
+  const renderProductTitleBlock = (isMobile = false) => {
+    if (!product) return null;
+    return (
+      <div className="space-y-2.5 sm:space-y-3">
+        {/* Category & Brand Pills + Badges */}
+        <div className="flex flex-wrap items-center gap-2">
+          {category && (
+            <button 
+              type="button"
+              onClick={() => onNavigate(`categoria/${category.slug || category.id}`)}
+              className="badge badge-gray hover:bg-slate-200 cursor-pointer"
+            >
+              <Layers className="w-3 h-3 text-amber-600" />
+              {category.name}
+            </button>
+          )}
+
+          {brand && (
+            <button 
+              type="button"
+              onClick={() => onNavigate(`marca/${brand.slug || brand.id}`)}
+              className="badge badge-blue hover:bg-sky-100 cursor-pointer"
+            >
+              <Tag className="w-3 h-3 text-sky-600" />
+              {brand.name}
+            </button>
+          )}
+
+          {product.productType === 'digital' && (
+            <span className="badge bg-emerald-600 text-white font-bold flex items-center gap-1 shadow-xs">
+              <Zap className="w-3 h-3" />
+              <span>Licença / Produto Digital</span>
+            </span>
+          )}
+
+          {product.badge && product.badge.trim() && (
+            <span className="badge badge-gold font-bold">
+              {product.badge}
+            </span>
+          )}
+        </div>
+
+        {/* Title */}
+        <h1 className={`font-extrabold text-slate-900 leading-tight ${isMobile ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'}`}>
+          {product.name}
+        </h1>
+      </div>
+    );
+  };
+
   // 1. If we are currently verifying or loading the equipment, show the loading skeleton state
   if (isVerifyingProduct) {
     return (
@@ -630,8 +680,20 @@ export default function ProductDetailPage({
 
           {/* Main 2-column skeleton matching product detail layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* Left Column: Image Gallery Skeleton */}
-            <div className="lg:col-span-7 space-y-4">
+            {/* Left Column: Image Gallery Skeleton (+ Mobile Title) */}
+            <div className="lg:col-span-5 space-y-4">
+              {/* Mobile Title Skeleton */}
+              <div className="lg:hidden space-y-2.5 pb-1">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-24 rounded-full bg-slate-200 animate-pulse" />
+                  <div className="h-6 w-20 rounded-full bg-amber-100 animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-7 w-11/12 rounded-xl bg-slate-200 animate-pulse" />
+                  <div className="h-7 w-3/4 rounded-xl bg-slate-200 animate-pulse" />
+                </div>
+              </div>
+
               <div className="aspect-square sm:aspect-4/3 w-full rounded-3xl bg-slate-100 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col items-center justify-center p-8 text-center">
                 <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center mb-4 shadow-xs">
                   <Loader2 className="w-8 h-8 text-amber-600 animate-spin" />
@@ -650,21 +712,33 @@ export default function ProductDetailPage({
                   <div key={i} className="aspect-square rounded-2xl bg-slate-100 border border-slate-200/70 animate-pulse" />
                 ))}
               </div>
+
+              {/* Trust badges skeleton below gallery */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-12 rounded-2xl bg-slate-100 border border-slate-200/70 animate-pulse" />
+                <div className="h-12 rounded-2xl bg-slate-100 border border-slate-200/70 animate-pulse" />
+              </div>
             </div>
 
             {/* Right Column: Info & Action Skeleton */}
-            <div className="lg:col-span-5 space-y-6">
-              {/* Badges */}
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-24 rounded-full bg-slate-200 animate-pulse" />
-                <div className="h-6 w-20 rounded-full bg-amber-100 animate-pulse" />
+            <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              {/* Desktop Badges & Title Skeleton */}
+              <div className="hidden lg:block space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-24 rounded-full bg-slate-200 animate-pulse" />
+                  <div className="h-6 w-20 rounded-full bg-amber-100 animate-pulse" />
+                </div>
+                <div className="space-y-2">
+                  <div className="h-8 w-11/12 rounded-xl bg-slate-200 animate-pulse" />
+                  <div className="h-8 w-3/4 rounded-xl bg-slate-200 animate-pulse" />
+                </div>
               </div>
 
-              {/* Title & SKU */}
-              <div className="space-y-3">
-                <div className="h-8 w-11/12 rounded-xl bg-slate-200 animate-pulse" />
-                <div className="h-8 w-3/4 rounded-xl bg-slate-200 animate-pulse" />
-                <div className="h-4 w-36 rounded-md bg-slate-100 animate-pulse" />
+              {/* Description skeleton */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="h-3 w-32 rounded bg-slate-200 animate-pulse" />
+                <div className="h-4 w-full rounded bg-slate-100 animate-pulse" />
+                <div className="h-4 w-5/6 rounded bg-slate-100 animate-pulse" />
               </div>
 
               {/* Price card skeleton */}
@@ -678,12 +752,6 @@ export default function ProductDetailPage({
               <div className="space-y-3 pt-2">
                 <div className="h-13 w-full rounded-2xl bg-amber-500/20 border border-amber-500/30 animate-pulse" />
                 <div className="h-13 w-full rounded-2xl bg-slate-100 border border-slate-200 animate-pulse" />
-              </div>
-
-              {/* Trust badges */}
-              <div className="pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
-                <div className="h-10 rounded-xl bg-slate-100 animate-pulse" />
-                <div className="h-10 rounded-xl bg-slate-100 animate-pulse" />
               </div>
             </div>
           </div>
@@ -811,6 +879,11 @@ export default function ProductDetailPage({
           
           {/* Left Column: Interactive Carousel & Zoom Gallery + Trust Badges */}
           <div id="product-gallery-section" className="lg:col-span-5 space-y-4 lg:sticky lg:top-24 self-start">
+            {/* Mobile Title Block: On mobile/tablet, Title is placed above the image */}
+            <div className="lg:hidden pb-1">
+              {renderProductTitleBlock(true)}
+            </div>
+
             <ProductImageGallery product={effectiveProduct || product} />
 
             {/* Trust Badges */}
@@ -836,51 +909,13 @@ export default function ProductDetailPage({
           {/* Right Column: Title, Modest Price, Clean Description, WhatsApp CTA & Dynamic Tabs */}
           <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-5">
             
-            <div className="space-y-3">
-              {/* Category & Brand Pills + Quick Video Access */}
-              <div className="flex flex-wrap items-center gap-2">
-                {category && (
-                  <button 
-                    onClick={() => onNavigate(`categoria/${category.slug || category.id}`)}
-                    className="badge badge-gray hover:bg-slate-200 cursor-pointer"
-                  >
-                    <Layers className="w-3 h-3 text-amber-600" />
-                    {category.name}
-                  </button>
-                )}
-
-                {brand && (
-                  <button 
-                    onClick={() => onNavigate(`marca/${brand.slug || brand.id}`)}
-                    className="badge badge-blue hover:bg-sky-100 cursor-pointer"
-                  >
-                    <Tag className="w-3 h-3 text-sky-600" />
-                    {brand.name}
-                  </button>
-                )}
-
-                {product.productType === 'digital' && (
-                  <span className="badge bg-emerald-600 text-white font-bold flex items-center gap-1 shadow-xs">
-                    <Zap className="w-3 h-3" />
-                    <span>Licença / Produto Digital</span>
-                  </span>
-                )}
-
-                {product.badge && product.badge.trim() && (
-                  <span className="badge badge-gold font-bold">
-                    {product.badge}
-                  </span>
-                )}
-              </div>
-
-              {/* Title */}
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
-                {product.name}
-              </h1>
+            {/* Desktop Title Block: Shown only on lg+ screens */}
+            <div className="hidden lg:block">
+              {renderProductTitleBlock(false)}
             </div>
 
             {/* Clean Description on Normal White Background */}
-            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+            <div className="space-y-1.5 lg:pt-2 lg:border-t lg:border-slate-100">
               <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Descrição do Equipamento</h3>
               <div className="text-xs sm:text-sm text-slate-600 leading-relaxed">
                 <FormattedDescription 

@@ -8,7 +8,8 @@ import {
   buildProductRelationsMap, 
   matchProductWithRelations,
   normalizeSearchText,
-  cleanAlphanumeric 
+  cleanAlphanumeric,
+  getProductSuggestionProfile
 } from '../utils/productSearch';
 import { isProductPublished } from '../utils/imageUrl';
 
@@ -102,45 +103,42 @@ export default function Catalog({
       const cleanQuery = cleanAlphanumeric(rawTerm);
 
       const getTier = (p) => {
-        const normName = normalizeSearchText(p.name || '');
-        const cleanName = cleanAlphanumeric(p.name || '');
+        const prof = getProductSuggestionProfile(p, brandsMap, categoriesMap);
+        if (!prof) return 999;
+
         // Tier 0: correspondência exata no título
-        if (normName === normQuery || (cleanQuery.length >= 3 && cleanName === cleanQuery)) return 0;
+        if (prof.pNorm === normQuery || (cleanQuery.length >= 3 && prof.pClean === cleanQuery)) return 0;
         // Tier 1: título começa com a pesquisa
-        if (normName.startsWith(normQuery)) return 1;
+        if (prof.pNorm.startsWith(normQuery)) return 1;
         // Tier 2: título contém a pesquisa
-        if (normName.includes(normQuery)) return 2;
+        if (prof.pNorm.includes(normQuery)) return 2;
         // Tier 2.5: Tag / Palavra-chave de busca (#hashtags)
-        const tagsArr = Array.isArray(p.tags) ? p.tags : (typeof p.tags === 'string' ? p.tags.split(/[,;\s]+/) : []);
-        if (tagsArr.some(t => {
-          const tNorm = normalizeSearchText(t.replace(/^#/, ''));
-          return tNorm === normQuery || tNorm.includes(normQuery) || (cleanQuery.length >= 3 && cleanAlphanumeric(t).includes(cleanQuery));
-        })) return 2.5;
+        if (prof.normTags.length > 0) {
+          const hasTagMatch = prof.normTags.some(t => 
+            t.norm === normQuery || t.norm.includes(normQuery) || (cleanQuery.length >= 3 && t.clean.includes(cleanQuery))
+          );
+          if (hasTagMatch) return 2.5;
+        }
         // Tier 3: SKU ou código Omie
-        const skuNorm = normalizeSearchText(p.sku || p.omieCode || '');
-        if (skuNorm.includes(normQuery) || (cleanQuery.length >= 3 && cleanAlphanumeric(skuNorm).includes(cleanQuery))) return 3;
+        if (prof.skuNorm && (prof.skuNorm.includes(normQuery) || (cleanQuery.length >= 3 && prof.skuClean.includes(cleanQuery)))) return 3;
         // Tier 3.3: Especificações Técnicas (specs)
-        const specsContent = Array.isArray(p.specs) ? p.specs.join(' ') : '';
-        const specsNorm = normalizeSearchText(specsContent);
-        if (specsNorm.includes(normQuery) || (cleanQuery.length >= 3 && cleanAlphanumeric(specsContent).includes(cleanQuery))) return 3.3;
+        if (prof.specsNorm && (prof.specsNorm.includes(normQuery) || (cleanQuery.length >= 3 && prof.specsClean.includes(cleanQuery)))) return 3.3;
         // Tier 3.6: Abas personalizadas (customTabs)
-        const customTabsContent = Array.isArray(p.customTabs) ? p.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ') : '';
-        const tabsNorm = normalizeSearchText(customTabsContent);
-        if (tabsNorm.includes(normQuery) || (cleanQuery.length >= 3 && cleanAlphanumeric(customTabsContent).includes(cleanQuery))) return 3.6;
+        if (prof.tabsNorm && (prof.tabsNorm.includes(normQuery) || (cleanQuery.length >= 3 && prof.tabsClean.includes(cleanQuery)))) return 3.6;
         // Tier 4: Marca ou categoria
-        const bName = normalizeSearchText(brandsMap.get(p.brandId)?.name || '');
-        const cName = normalizeSearchText(categoriesMap.get(p.categoryId)?.name || '');
-        if (bName.includes(normQuery) || cName.includes(normQuery)) return 4;
+        if (prof.brandNorm.includes(normQuery) || prof.catNorm.includes(normQuery)) return 4;
         // Tier 5: Encontrado diretamente na descrição
         if (!p._matchedVia) return 5;
         // Tier 6: Encontrado via produto relacionado
         return 6;
       };
 
+      for (let i = 0; i < matched.length; i++) {
+        matched[i]._tier = getTier(matched[i]);
+      }
+
       matched.sort((a, b) => {
-        const tierA = getTier(a);
-        const tierB = getTier(b);
-        if (tierA !== tierB) return tierA - tierB;
+        if (a._tier !== b._tier) return a._tier - b._tier;
         return (b._searchScore || 0) - (a._searchScore || 0);
       });
     }

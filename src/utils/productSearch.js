@@ -689,6 +689,69 @@ export const matchProductWithRelations = (
   return { matches: false, isDirectMatch: false, matchedViaProduct: null, score: 0, matchType: 'none' };
 };
 
+const suggestionProfileCache = new WeakMap();
+
+export const getProductSuggestionProfile = (p, brandsMap, categoriesMap) => {
+  if (!p) return null;
+  let cached = suggestionProfileCache.get(p);
+  if (cached) return cached;
+
+  const pNorm = normalizeSearchText(p.name);
+  const pClean = cleanAlphanumeric(p.name);
+
+  const tagsArr = Array.isArray(p.tags) 
+    ? p.tags 
+    : (typeof p.tags === 'string' ? p.tags.split(/[,;\s]+/) : []);
+  const normTags = tagsArr.map(t => ({
+    norm: normalizeSearchText(t.replace(/^#/, '')),
+    clean: cleanAlphanumeric(t)
+  }));
+
+  const skuRaw = p.sku || p.omieCode || '';
+  const skuNorm = normalizeSearchText(skuRaw);
+  const skuClean = cleanAlphanumeric(skuRaw);
+
+  const specsContent = Array.isArray(p.specs) ? p.specs.join(' ') : '';
+  const specsNorm = normalizeSearchText(specsContent);
+  const specsClean = cleanAlphanumeric(specsContent);
+
+  const tabsContent = Array.isArray(p.customTabs) 
+    ? p.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ') 
+    : '';
+  const tabsNorm = normalizeSearchText(tabsContent);
+  const tabsClean = cleanAlphanumeric(tabsContent);
+
+  const brandName = (brandsMap instanceof Map ? brandsMap.get(p.brandId)?.name : null) || p.brandName || 'Athena';
+  const brandNorm = normalizeSearchText(brandName);
+
+  const catName = (categoriesMap instanceof Map ? categoriesMap.get(p.categoryId)?.name : null) || p.categoryName || 'Geral';
+  const catNorm = normalizeSearchText(catName);
+
+  const descNorm = normalizeSearchText(p.description || '');
+  const descClean = cleanAlphanumeric(p.description || '');
+
+  cached = {
+    pNorm,
+    pClean,
+    normTags,
+    skuNorm,
+    skuClean,
+    specsNorm,
+    specsClean,
+    tabsNorm,
+    tabsClean,
+    brandName,
+    brandNorm,
+    categoryName: catName,
+    catNorm,
+    descNorm,
+    descClean
+  };
+
+  suggestionProfileCache.set(p, cached);
+  return cached;
+};
+
 /**
  * Identifica se a busca do usuário corresponde exatamente a 1 único produto
  * (ex: nome exato, SKU exato ou termo que aparece no título de exclusivamente 1 produto).
@@ -702,23 +765,20 @@ export const findUniqueDirectMatch = (products, rawTerm) => {
 
   // 1. Correspondência exata no nome completo do produto
   const exactNameMatches = products.filter(p => {
-    const pNorm = normalizeSearchText(p.name);
-    const pClean = cleanAlphanumeric(p.name);
-    return pNorm === normTerm || (cleanTerm.length >= 3 && pClean === cleanTerm);
+    const prof = getProductSuggestionProfile(p);
+    return prof.pNorm === normTerm || (cleanTerm.length >= 3 && prof.pClean === cleanTerm);
   });
   if (exactNameMatches.length === 1) return exactNameMatches[0];
 
   // 2. Correspondência exata no código SKU / Omie completo
   const exactSkuMatches = products.filter(p => {
-    if (!p.omieCode) return false;
-    const sNorm = normalizeSearchText(p.omieCode);
-    const sClean = cleanAlphanumeric(p.omieCode);
-    return sNorm === normTerm || (cleanTerm.length >= 3 && sClean === cleanTerm);
+    if (!p.omieCode && !p.sku) return false;
+    const prof = getProductSuggestionProfile(p);
+    return prof.skuNorm === normTerm || (cleanTerm.length >= 3 && prof.skuClean === cleanTerm);
   });
   if (exactSkuMatches.length === 1) return exactSkuMatches[0];
 
   // 3. Correspondência em modelo/código isolado (ex: "0516" vs "0516K", "MAH-4008" vs "MAH-4008A")
-  // Se o termo digitado aparece como código ou número isolado com limites (hífen, espaço ou fim)
   if (cleanTerm.length >= 2) {
     try {
       const codeBoundaryRegex = new RegExp(`(?:^|[^a-zA-Z0-9])${cleanTerm}(?:[^a-zA-Z0-9]|$)`, 'i');
@@ -736,8 +796,8 @@ export const findUniqueDirectMatch = (products, rawTerm) => {
   // 4. Busca única: Se exatamente 1 único produto possui o termo no título
   if (normTerm.length >= 3) {
     const titleMatches = products.filter(p => {
-      const pNorm = normalizeSearchText(p.name);
-      return pNorm.includes(normTerm);
+      const prof = getProductSuggestionProfile(p);
+      return prof.pNorm.includes(normTerm);
     });
     if (titleMatches.length === 1) return titleMatches[0];
   }
@@ -755,51 +815,43 @@ export const getSearchSuggestions = (products, rawTerm, categories = [], brands 
   const cleanTerm = cleanAlphanumeric(rawTerm);
   if (!normTerm) return { suggestions: [], totalMatches: 0 };
 
-  const categoriesMap = new Map((Array.isArray(categories) ? categories : []).map(c => [c.id, c]));
-  const brandsMap = new Map((Array.isArray(brands) ? brands : []).map(b => [b.id, b]));
+  const categoriesMap = categories instanceof Map 
+    ? categories 
+    : new Map((Array.isArray(categories) ? categories : []).map(c => [c.id, c]));
+  const brandsMap = brands instanceof Map 
+    ? brands 
+    : new Map((Array.isArray(brands) ? brands : []).map(b => [b.id, b]));
   const queryTokens = normTerm.split(/\s+/).filter(Boolean);
 
   const getProductTier = (p) => {
-    const pNorm = normalizeSearchText(p.name);
-    const pClean = cleanAlphanumeric(p.name);
+    const prof = getProductSuggestionProfile(p, brandsMap, categoriesMap);
+    if (!prof) return 999;
 
     // Tier 0: Exato no título
-    if (pNorm === normTerm || (cleanTerm.length >= 3 && pClean === cleanTerm)) return 0;
+    if (prof.pNorm === normTerm || (cleanTerm.length >= 3 && prof.pClean === cleanTerm)) return 0;
     // Tier 1: Título inicia com o termo
-    if (pNorm.startsWith(normTerm)) return 1;
+    if (prof.pNorm.startsWith(normTerm)) return 1;
     // Tier 2: Título contém o termo completo
-    if (pNorm.includes(normTerm)) return 2;
+    if (prof.pNorm.includes(normTerm)) return 2;
     // Tier 2.5: Tag / Palavra-chave de busca (#hashtags)
-    const tagsArr = Array.isArray(p.tags) ? p.tags : (typeof p.tags === 'string' ? p.tags.split(/[,;\s]+/) : []);
-    const hasTagMatch = tagsArr.some(t => {
-      const tNorm = normalizeSearchText(t.replace(/^#/, ''));
-      const tClean = cleanAlphanumeric(t);
-      return tNorm === normTerm || tNorm.includes(normTerm) || (cleanTerm.length >= 3 && tClean.includes(cleanTerm));
-    });
-    if (hasTagMatch) return 2.5;
+    if (prof.normTags.length > 0) {
+      const hasTagMatch = prof.normTags.some(t => 
+        t.norm === normTerm || t.norm.includes(normTerm) || (cleanTerm.length >= 3 && t.clean.includes(cleanTerm))
+      );
+      if (hasTagMatch) return 2.5;
+    }
     // Tier 3: Título contém todos os tokens digitados
-    if (queryTokens.length > 1 && queryTokens.every(tok => pNorm.includes(tok))) return 3;
+    if (queryTokens.length > 1 && queryTokens.every(tok => prof.pNorm.includes(tok))) return 3;
     // Tier 4: SKU / Código Omie
-    const skuNorm = normalizeSearchText(p.sku || p.omieCode || '');
-    if (skuNorm.includes(normTerm) || (cleanTerm.length >= 3 && cleanAlphanumeric(skuNorm).includes(cleanTerm))) return 4;
+    if (prof.skuNorm && (prof.skuNorm.includes(normTerm) || (cleanTerm.length >= 3 && prof.skuClean.includes(cleanTerm)))) return 4;
     // Tier 4.2: Especificações Técnicas (specs)
-    const specsContent = (p.specs || []).join(' ');
-    const specsNorm = normalizeSearchText(specsContent);
-    const specsClean = cleanAlphanumeric(specsContent);
-    if (specsNorm.includes(normTerm) || (cleanTerm.length >= 3 && specsClean.includes(cleanTerm))) return 4.2;
+    if (prof.specsNorm && (prof.specsNorm.includes(normTerm) || (cleanTerm.length >= 3 && prof.specsClean.includes(cleanTerm)))) return 4.2;
     // Tier 4.5: Abas personalizadas (customTabs)
-    const tabsContent = Array.isArray(p.customTabs) ? p.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ') : '';
-    const tabsNorm = normalizeSearchText(tabsContent);
-    const tabsClean = cleanAlphanumeric(tabsContent);
-    if (tabsNorm.includes(normTerm) || (cleanTerm.length >= 3 && tabsClean.includes(cleanTerm))) return 4.5;
+    if (prof.tabsNorm && (prof.tabsNorm.includes(normTerm) || (cleanTerm.length >= 3 && prof.tabsClean.includes(cleanTerm)))) return 4.5;
     // Tier 5: Marca ou Categoria
-    const bName = normalizeSearchText(brandsMap.get(p.brandId)?.name || '');
-    const cName = normalizeSearchText(categoriesMap.get(p.categoryId)?.name || '');
-    if (bName.includes(normTerm) || cName.includes(normTerm)) return 5;
+    if (prof.brandNorm.includes(normTerm) || prof.catNorm.includes(normTerm)) return 5;
     // Tier 6: Descrição geral
-    const fullNorm = normalizeSearchText(p.description || '');
-    const fullClean = cleanAlphanumeric(p.description || '');
-    if (fullNorm.includes(normTerm) || (cleanTerm.length >= 3 && fullClean.includes(cleanTerm)) || (queryTokens.length > 1 && queryTokens.every(tok => fullNorm.includes(tok)))) return 6;
+    if (prof.descNorm.includes(normTerm) || (cleanTerm.length >= 3 && prof.descClean.includes(cleanTerm)) || (queryTokens.length > 1 && queryTokens.every(tok => prof.descNorm.includes(tok)))) return 6;
 
     return 999;
   };
@@ -809,11 +861,12 @@ export const getSearchSuggestions = (products, rawTerm, categories = [], brands 
     const p = products[i];
     const tier = getProductTier(p);
     if (tier < 999) {
+      const prof = getProductSuggestionProfile(p, brandsMap, categoriesMap);
       matched.push({
         product: p,
         tier,
-        brandName: brandsMap.get(p.brandId)?.name || 'Athena',
-        categoryName: categoriesMap.get(p.categoryId)?.name || 'Geral'
+        brandName: prof.brandName,
+        categoryName: prof.categoryName
       });
     }
   }

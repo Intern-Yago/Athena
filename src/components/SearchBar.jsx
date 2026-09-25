@@ -30,17 +30,43 @@ export default function SearchBar({
   onSelectProduct,
   onNavigate
 }) {
+  const [localValue, setLocalValue] = useState(value || '');
+  const [debouncedQuery, setDebouncedQuery] = useState(localValue);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const containerRef = useRef(null);
+  const debounceTimerRef = useRef(null);
 
-  // Computa sugestões ranqueadas em tempo real com prioridade em títulos
+  // Sincroniza o valor local caso a prop externa seja alterada (ex: limpar filtros)
+  useEffect(() => {
+    setLocalValue(value || '');
+  }, [value]);
+
+  // Debounce suave de 60ms para a busca de sugestões dropdown
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(localValue);
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [localValue]);
+
+  // Limpa debounce ao desmontar
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // COMPUTATION ULTRA-RÁPIDA: Só computa sugestões se o dropdown estiver ABERTO
+  // Barras de busca inativas/fechadas na página (ex: desktop/mobile alternados) fazem 0 computações!
   const { suggestions, totalMatches } = useMemo(() => {
-    if (!products || products.length === 0 || !value || !value.trim()) {
+    if (!isOpen || !products || products.length === 0 || !debouncedQuery || !debouncedQuery.trim()) {
       return { suggestions: [], totalMatches: 0 };
     }
-    return getSearchSuggestions(products, value, categories, brands, 6);
-  }, [products, value, categories, brands]);
+    return getSearchSuggestions(products, debouncedQuery, categories, brands, 6);
+  }, [isOpen, products, debouncedQuery, categories, brands]);
 
   // Fecha dropdown ao clicar fora
   useEffect(() => {
@@ -55,12 +81,25 @@ export default function SearchBar({
 
   const handleChange = (e) => {
     const val = e.target.value;
-    if (onChange) onChange(val);
+    // Atualização local INSTANTÂNEA: digitação com 0ms de lag a 60/120fps
+    setLocalValue(val);
     setIsOpen(Boolean(val.trim()));
     setSelectedIndex(-1);
+
+    // Propaga para o componente pai (filtro pesado do catálogo) com debounce
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      if (onChange) onChange(val);
+    }, 180);
   };
 
   const handleClear = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    setLocalValue('');
     if (onChange) onChange('');
     if (onClear) onClear();
     setIsOpen(false);
@@ -68,6 +107,9 @@ export default function SearchBar({
   };
 
   const handleSelectProductItem = (prod) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
     setIsOpen(false);
     setSelectedIndex(-1);
     if (onSelectProduct) {
@@ -82,6 +124,14 @@ export default function SearchBar({
   const executeSearch = (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
+    // Imediatamente sincroniza qualquer valor pendente sem esperar o debounce
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    if (onChange && localValue !== value) {
+      onChange(localValue);
+    }
+
     // 1. Se o usuário selecionou uma sugestão via setas do teclado
     if (selectedIndex >= 0 && suggestions[selectedIndex]) {
       handleSelectProductItem(suggestions[selectedIndex].product);
@@ -89,10 +139,8 @@ export default function SearchBar({
     }
 
     // 2. Identificação inteligente no Enter:
-    // Se houver correspondência exata de título/SKU ou exatamente 1 único produto
-    // contendo o termo no título em todo o catálogo, abre direto a página do produto!
-    if (products && products.length > 0 && value.trim()) {
-      const uniqueDirectMatch = findUniqueDirectMatch(products, value);
+    if (products && products.length > 0 && localValue.trim()) {
+      const uniqueDirectMatch = findUniqueDirectMatch(products, localValue);
       if (uniqueDirectMatch) {
         handleSelectProductItem(uniqueDirectMatch);
         return;
@@ -132,7 +180,7 @@ export default function SearchBar({
 
   // Renderiza o Dropdown de Sugestões de Opções
   const renderSuggestionsDropdown = () => {
-    if (!isOpen || suggestions.length === 0 || !value.trim()) return null;
+    if (!isOpen || suggestions.length === 0 || !localValue.trim()) return null;
 
     let dropdownWidthClass = 'w-full left-0';
     if (variant === 'header') {
@@ -246,16 +294,16 @@ export default function SearchBar({
         <form onSubmit={executeSearch} className="relative w-full">
           <input
             type="text"
-            value={value}
+            value={localValue}
             onChange={handleChange}
-            onFocus={() => { if (value.trim()) setIsOpen(true); }}
+            onFocus={() => { if (localValue.trim()) setIsOpen(true); }}
             onKeyDown={handleKeyDown}
             autoFocus={autoFocus}
             placeholder={placeholder || 'Busque por produto, marca ou categoria (ex: Elevador, Scanner, Launch)...'}
             className={`w-full bg-white border-2 border-slate-300 focus:border-amber-500 text-slate-900 placeholder-slate-400 text-sm sm:text-base rounded-2xl pl-12 pr-28 py-4 shadow-md shadow-slate-200/50 transition-all outline-none ${inputClassName}`}
           />
           <Search className="w-5 h-5 text-amber-600 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:scale-110 transition-transform pointer-events-none" />
-          {value ? (
+          {localValue ? (
             <button
               type="button"
               onClick={handleClear}
@@ -281,16 +329,16 @@ export default function SearchBar({
         <form onSubmit={executeSearch} className="relative w-full">
           <input
             type="text"
-            value={value}
+            value={localValue}
             onChange={handleChange}
-            onFocus={() => { if (value.trim()) setIsOpen(true); }}
+            onFocus={() => { if (localValue.trim()) setIsOpen(true); }}
             onKeyDown={handleKeyDown}
             autoFocus={autoFocus}
             placeholder={placeholder || 'Buscar por elevador, scanner, alinhador ou marca (ex: Launch, Engecass)...'}
             className={`w-full bg-white text-slate-900 placeholder-slate-500 text-xs sm:text-sm rounded-2xl pl-11 pr-24 py-3.5 shadow-2xl border-2 border-amber-400/60 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30 transition-all outline-none ${inputClassName}`}
           />
           <Search className="w-4 h-4 text-amber-600 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          {value && (
+          {localValue && (
             <button
               type="button"
               onClick={handleClear}
@@ -312,9 +360,9 @@ export default function SearchBar({
         <form onSubmit={executeSearch} className="relative w-full">
           <input
             type="text"
-            value={value}
+            value={localValue}
             onChange={handleChange}
-            onFocus={() => { if (value.trim()) setIsOpen(true); }}
+            onFocus={() => { if (localValue.trim()) setIsOpen(true); }}
             onKeyDown={handleKeyDown}
             autoFocus={autoFocus}
             placeholder={placeholder || 'Buscar equipamento...'}
@@ -327,7 +375,7 @@ export default function SearchBar({
           >
             <Search className="w-4 h-4" />
           </button>
-          {value && (
+          {localValue && (
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <button
                 type="button"
@@ -359,9 +407,9 @@ export default function SearchBar({
         <form onSubmit={executeSearch} className="relative w-full">
           <input
             type="text"
-            value={value}
+            value={localValue}
             onChange={handleChange}
-            onFocus={() => { if (value.trim()) setIsOpen(true); }}
+            onFocus={() => { if (localValue.trim()) setIsOpen(true); }}
             onKeyDown={handleKeyDown}
             autoFocus={autoFocus}
             placeholder={placeholder || 'Buscar...'}
@@ -374,7 +422,7 @@ export default function SearchBar({
           >
             <Search className="w-3.5 h-3.5" />
           </button>
-          {value && (
+          {localValue && (
             <button
               type="button"
               onClick={handleClear}
@@ -397,16 +445,16 @@ export default function SearchBar({
         <div className="relative w-full">
           <input
             type="text"
-            value={value}
+            value={localValue}
             onChange={handleChange}
-            onFocus={() => { if (value.trim()) setIsOpen(true); }}
+            onFocus={() => { if (localValue.trim()) setIsOpen(true); }}
             onKeyDown={handleKeyDown}
             autoFocus={autoFocus}
             placeholder={placeholder || 'Digite o nome...'}
             className={`w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 text-xs rounded-xl pl-8 pr-7 py-2 outline-none transition-colors ${inputClassName}`}
           />
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          {value && (
+          {localValue && (
             <button
               type="button"
               onClick={handleClear}
@@ -429,16 +477,16 @@ export default function SearchBar({
         <div className="relative w-full">
           <input
             type="text"
-            value={value}
+            value={localValue}
             onChange={handleChange}
-            onFocus={() => { if (value.trim()) setIsOpen(true); }}
+            onFocus={() => { if (localValue.trim()) setIsOpen(true); }}
             onKeyDown={handleKeyDown}
             autoFocus={autoFocus}
             placeholder={placeholder || 'Buscar equipamentos...'}
             className={`w-full pl-8 pr-7 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-1 focus:ring-amber-500 outline-none transition-colors ${inputClassName}`}
           />
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          {value && (
+          {localValue && (
             <button
               type="button"
               onClick={handleClear}
@@ -461,15 +509,15 @@ export default function SearchBar({
         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
         <input
           type="text"
-          value={value}
+          value={localValue}
           onChange={handleChange}
-          onFocus={() => { if (value.trim()) setIsOpen(true); }}
+          onFocus={() => { if (localValue.trim()) setIsOpen(true); }}
           onKeyDown={handleKeyDown}
           autoFocus={autoFocus}
           placeholder={placeholder || 'Buscar...'}
           className={`w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 text-xs sm:text-sm rounded-xl pl-9 pr-8 py-2 outline-none transition-colors ${inputClassName}`}
         />
-        {value && (
+        {localValue && (
           <button
             type="button"
             onClick={handleClear}
