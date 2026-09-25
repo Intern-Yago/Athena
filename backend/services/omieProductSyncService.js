@@ -55,8 +55,10 @@ function extractSkuFromTitle(str) {
   return '';
 }
 
+let omieBlockedUntil = 0;
+
 /**
- * Helper para chamadas seguras à API do Omie
+ * Helper para chamadas seguras à API do Omie com proteção anti-flood e cooldown
  */
 async function callOmie(url, callMethod, paramObj) {
   const appKey = process.env.OMIE_APP_KEY;
@@ -64,6 +66,16 @@ async function callOmie(url, callMethod, paramObj) {
 
   if (!appKey || !appSecret) {
     return { success: false, reason: 'credentials_missing' };
+  }
+
+  // Se o Omie nos bloqueou temporariamente, respeita a janela de cooldown
+  if (Date.now() < omieBlockedUntil) {
+    const remainingSeconds = Math.ceil((omieBlockedUntil - Date.now()) / 1000);
+    return { 
+      success: false, 
+      isBlocked: true, 
+      error: `Omie ERP em cooldown por rate limit. Aguardando ${remainingSeconds}s antes de enviar novas requisições.` 
+    };
   }
 
   try {
@@ -75,7 +87,16 @@ async function callOmie(url, callMethod, paramObj) {
     }, { timeout: 8000 });
     return { success: true, data: response.data };
   } catch (err) {
-    const fault = err.response?.data?.faultstring || err.message;
+    const fault = err.response?.data?.faultstring || err.message || '';
+
+    // Detecta bloqueio por consumo indevido da API do Omie
+    if (/bloqueada por consumo indevido/i.test(fault)) {
+      const match = fault.match(/novamente em\s+(\d+)\s+segundos/i);
+      const seconds = match ? parseInt(match[1], 10) : 1800;
+      omieBlockedUntil = Date.now() + (seconds * 1000);
+      console.warn(`[Omie Sync] ⚠️ Rate limit detectado no Omie ERP: "${fault}". Cooldown ativado por ${seconds}s.`);
+    }
+
     return { success: false, error: fault };
   }
 }
@@ -142,12 +163,24 @@ async function syncProductToOmie(pool, product) {
       console.warn(`[Omie Sync] Aviso ao atualizar dados no Omie: ${alterRes.error}`);
     }
 
-    // 3. Atualização de estoque no Omie se informado
+    // 3. Atualização de estoque no Omie se informado e diferente do atual
     const stockQty = product.stock != null 
       ? Number(product.stock) 
       : (product.estoqueQuantidade != null ? Number(product.estoqueQuantidade) : null);
 
-    if (stockQty != null && !isNaN(stockQty) && stockQty >= 0) {
+    const currentOmieStock = omieItem.quantidade_estoque != null
+      ? Number(omieItem.quantidade_estoque)
+      : (omieItem.saldo_fisico != null ? Number(omieItem.saldo_fisico) : null);
+
+    // Evita chamadas repetitivas e abusivas a IncluirAjusteEstoque:
+    // Apenas envia ajuste se o estoque mudou de fato, se for > 0, ou se syncStock for explicitamente pedido
+    const shouldSyncStock = stockQty != null && !isNaN(stockQty) && stockQty >= 0 && (
+      product.syncStock === true ||
+      (currentOmieStock != null && stockQty !== currentOmieStock) ||
+      (currentOmieStock == null && stockQty > 0)
+    );
+
+    if (shouldSyncStock) {
       const today = new Date();
       const dd = String(today.getDate()).padStart(2, '0');
       const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -170,6 +203,8 @@ async function syncProductToOmie(pool, product) {
       } else {
         console.warn(`[Omie Sync] Aviso ao sincronizar estoque no Omie (${stockQty} un.): ${ajusteRes.error}`);
       }
+    } else if (stockQty != null) {
+      console.log(`[Omie Sync] Estoque do produto "${product.name}" (${stockQty} un.) já alinhado com Omie ERP (${currentOmieStock ?? 0} un.). Ajuste de estoque ignorado.`);
     }
 
     // 4. Salva o vínculo e timestamp de sincronização no PostgreSQL local

@@ -6930,39 +6930,7 @@ export const INITIAL_PRODUCTS = [
     "attachments": [],
     "inStock": true
   },
-  {
-    "id": "prod_sigma_sgt-tp-02",
-    "name": "Car-10 - Carrinho Ergonômico Para Chave De Impacto 1” SGT-TP-02 Sigma Tools",
-    "slug": "car-10-carrinho-ergonomico-para-chave-de-impacto-1-sgt-tp-02-sigma-tools",
-    "categoryId": "cat_ferramentas",
-    "brandId": "brand_sigmatools",
-    "price": 0,
-    "priceNegotiable": true,
-    "badge": "Sigma Pro",
-    "status": "published",
-    "isFeatured": false,
-    "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-037211081df1.webp",
-    "images": [
-      "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/car-10-carrinho-ergonomico-par-2f9a651d611c.webp"
-    ],
-    "altText": "Car-10 - Carrinho Ergonômico Para Chave De Impacto 1” SGT-TP-02 Sigma Tools Athena Soluções Automotivas",
-    "description": "TORQUÍMETROS - ESTALO ACOMPANHA SUPORTE PARA FILTRO REGULADOR E LUBRIFICADOR! REDUZ O ESFORÇO DO MECÂNICO;",
-    "specs": [
-      "CAR10  CARRINHO ERGONÔMICO PARA CHAVE DE IMPACTO 1”",
-      "Cód.: 07 61 1000 00",
-      "*CHAVE DE IMPACTO, MANGUEIRAS E  CONJUNTO LUBRIFIL NÃO INCLUSOS.",
-      "SUPORTA ATÉ 25 kg;",
-      "FIXAÇÃO NO PADRÃO DO MANÍPULO DAS CHAVES;",
-      "28 à 210 Nm",
-      "1,3 kg",
-      "0,341 kg",
-      "Código do Produto: SGT-TP-02",
-      "Garantia: 6 meses oficial de fábrica"
-    ],
-    "attachments": [],
-    "inStock": true
-  },
-  {
+    {
     "id": "prod_sigma_sgt-tp-03",
     "name": "Car-10 - Carrinho Ergonômico Para Chave De Impacto 1” SGT-TP-03 Sigma Tools",
     "slug": "car-10-carrinho-ergonomico-para-chave-de-impacto-1-sgt-tp-03-sigma-tools",

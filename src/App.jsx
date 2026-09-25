@@ -560,7 +560,9 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (productId) => {
+    let previousProducts = null;
     setProducts((prev) => {
+      previousProducts = prev;
       const next = prev.filter((p) => p.id !== productId);
       safeStorageSet('athena_products', next);
       idbSet('athena_products', next).catch(() => {});
@@ -568,14 +570,34 @@ export default function App() {
     });
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        signal: controller.signal
       });
-      if (res.ok) setIsBackendConnected(true);
-      handleApiUnauthorized(res);
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        setIsBackendConnected(true);
+      } else {
+        handleApiUnauthorized(res);
+        console.error(`Falha ao excluir produto no servidor (status ${res.status}). Revertendo.`);
+        if (previousProducts) {
+          setProducts(previousProducts);
+          safeStorageSet('athena_products', previousProducts);
+          idbSet('athena_products', previousProducts).catch(() => {});
+        }
+      }
     } catch (e) {
-      console.error('Erro backend:', e);
+      console.error('Erro backend ao excluir produto:', e);
+      if (previousProducts) {
+        setProducts(previousProducts);
+        safeStorageSet('athena_products', previousProducts);
+        idbSet('athena_products', previousProducts).catch(() => {});
+      }
     }
   };
 

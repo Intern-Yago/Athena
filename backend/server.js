@@ -768,12 +768,12 @@ async function initDb() {
         if (parseInt(rewardCheck.rows[0].count, 10) === 0) {
           await pool.query(`
             INSERT INTO loyalty_rewards (id, name, description, category, points_cost, cash_cost, image, "order") VALUES
-            ('rw_espuma_cera', 'Espuma Aplicadora de Cera 100mm', 'Espuma macia de alta densidade para aplicação uniforme de ceras e selantes.', 'consumables', 50, 0, 'https://images.athenaconsultoria.com.br/produtos/espuma-aplicadora.webp', 1),
-            ('rw_toalha_microfibra', 'Toalha de Microfibra Especial 40x40cm', 'Toalha de alta gramatura anti-risco para secagem e acabamento automotivo.', 'accessories', 100, 0, 'https://images.athenaconsultoria.com.br/produtos/toalha-microfibra.webp', 2),
-            ('rw_luva_microfibra', 'Luva de Lavagem Automotiva em Microfibra', 'Luva anatômica de microfibra macia com punho elástico para lavagem segura.', 'accessories', 150, 0, 'https://images.athenaconsultoria.com.br/produtos/luva-lavagem.webp', 3),
-            ('rw_kit_soquetes', 'Jogo de Soquetes e Bits Especiais 10 Peças', 'Conjunto compacto de ferramentas em cromo-vanádio para bancada e oficina.', 'tools', 300, 0, 'https://images.athenaconsultoria.com.br/produtos/jogo-soquetes.webp', 4),
-            ('rw_cupom_300', 'Voucher R$ 300 em Novos Equipamentos', 'Desconto direto de R$ 300 na aquisição de elevadores, desmontadoras ou scanners.', 'vouchers', 600, 0, 'https://images.athenaconsultoria.com.br/produtos/voucher-300.webp', 5),
-            ('rw_cupom_600', 'Voucher R$ 600 em Equipamentos Premium', 'Desconto direto de R$ 600 na compra de alinhadores 3D ou recicladoras de ar condicionado.', 'vouchers', 1200, 0, 'https://images.athenaconsultoria.com.br/produtos/voucher-600.webp', 6);
+            ('rw_espuma_cera', 'Espuma Aplicadora de Cera 100mm', 'Espuma macia de alta densidade para aplicação uniforme de ceras e selantes.', 'consumables', 50, 0, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/espuma-aplicadora.webp', 1),
+            ('rw_toalha_microfibra', 'Toalha de Microfibra Especial 40x40cm', 'Toalha de alta gramatura anti-risco para secagem e acabamento automotivo.', 'accessories', 100, 0, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/toalha-microfibra.webp', 2),
+            ('rw_luva_microfibra', 'Luva de Lavagem Automotiva em Microfibra', 'Luva anatômica de microfibra macia com punho elástico para lavagem segura.', 'accessories', 150, 0, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/luva-lavagem.webp', 3),
+            ('rw_kit_soquetes', 'Jogo de Soquetes e Bits Especiais 10 Peças', 'Conjunto compacto de ferramentas em cromo-vanádio para bancada e oficina.', 'tools', 300, 0, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/jogo-soquetes.webp', 4),
+            ('rw_cupom_300', 'Voucher R$ 300 em Novos Equipamentos', 'Desconto direto de R$ 300 na aquisição de elevadores, desmontadoras ou scanners.', 'vouchers', 600, 0, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/voucher-300.webp', 5),
+            ('rw_cupom_600', 'Voucher R$ 600 em Equipamentos Premium', 'Desconto direto de R$ 600 na compra de alinhadores 3D ou recicladoras de ar condicionado.', 'vouchers', 1200, 0, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/voucher-600.webp', 6);
           `);
         }
       } catch (errRew) {
@@ -890,19 +890,27 @@ async function initDb() {
         }
       }
 
-      // Migrate existing image URLs in PostgreSQL to custom CDN domain
+      // Migrate any stale/broken images.athenaconsultoria.com.br URLs back to the canonical public R2 endpoint
       try {
         await pool.query(`
           UPDATE products 
-          SET image = REPLACE(image, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev', 'https://images.athenaconsultoria.com.br')
-          WHERE image LIKE '%pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev%';
+          SET image = REPLACE(image, 'https://images.athenaconsultoria.com.br', 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev')
+          WHERE image LIKE '%images.athenaconsultoria.com.br%';
+        `);
+        await pool.query(`
+          UPDATE products 
+          SET images = (
+            SELECT jsonb_agg(to_jsonb(REPLACE(elem, 'https://images.athenaconsultoria.com.br', 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev')))
+            FROM jsonb_array_elements_text(COALESCE(images, '[]'::jsonb)) AS elem
+          )
+          WHERE images::text LIKE '%images.athenaconsultoria.com.br%';
         `);
         await pool.query(`
           UPDATE brands 
-          SET logo = REPLACE(logo, 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev', 'https://images.athenaconsultoria.com.br')
-          WHERE logo LIKE '%pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev%';
+          SET logo = REPLACE(logo, 'https://images.athenaconsultoria.com.br', 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev')
+          WHERE logo LIKE '%images.athenaconsultoria.com.br%';
         `);
-        console.log('[CDN Migration] Imagens migradas com sucesso para https://images.athenaconsultoria.com.br no PostgreSQL!');
+        console.log('[CDN Migration] Imagens verificadas e migradas para endpoint canônico R2 no PostgreSQL!');
       } catch (migErr) {
         console.warn('[CDN Migration Notice]:', migErr.message);
       }
@@ -2142,8 +2150,8 @@ app.post('/api/upload/delete', authenticateToken, async (req, res) => {
           await pool.query(`
             UPDATE products
             SET image = CASE 
-              WHEN array_length(images, 1) > 1 AND (images[1] = $1 OR ($2 != '' AND images[1] LIKE '%' || $2)) THEN COALESCE(images[2], '')
-              WHEN array_length(images, 1) > 1 THEN COALESCE(images[1], '')
+              WHEN jsonb_typeof(images) = 'array' AND jsonb_array_length(images) > 1 AND (images->>0 = $1 OR ($2 != '' AND images->>0 LIKE '%' || $2)) THEN COALESCE(images->>1, '')
+              WHEN jsonb_typeof(images) = 'array' AND jsonb_array_length(images) > 0 AND NOT (images->>0 = $1 OR ($2 != '' AND images->>0 LIKE '%' || $2)) THEN COALESCE(images->>0, '')
               ELSE ''
             END
             WHERE image = $1 OR ($2 != '' AND image LIKE '%' || $2)
@@ -2152,11 +2160,14 @@ app.post('/api/upload/delete', authenticateToken, async (req, res) => {
           // Desvincula produto (galeria de imagens)
           const updateRes = await pool.query(`
             UPDATE products
-            SET images = ARRAY(
-              SELECT elem FROM unnest(COALESCE(images, ARRAY[]::text[])) AS elem 
+            SET images = COALESCE((
+              SELECT jsonb_agg(to_jsonb(elem)) FROM jsonb_array_elements_text(COALESCE(images, '[]'::jsonb)) AS elem 
               WHERE elem != $1 AND ($2 = '' OR elem NOT LIKE '%' || $2)
+            ), '[]'::jsonb)
+            WHERE jsonb_typeof(images) = 'array' AND EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(images) elem 
+              WHERE elem = $1 OR ($2 != '' AND elem LIKE '%' || $2)
             )
-            WHERE $1 = ANY(images) OR ($2 != '' AND EXISTS (SELECT 1 FROM unnest(images) elem WHERE elem LIKE '%' || $2))
           `, [url, filename]);
           cleanedProductsCount += (updateRes.rowCount || 0);
         }
@@ -7172,7 +7183,7 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
         productToDelete = selectRes.rows[0];
       }
     } catch (e) {
-      console.error('[Delete Product DB Select Error]:', e);
+      console.error('[Delete Product DB Select Error]:', e.message);
     }
   }
 
@@ -7181,66 +7192,85 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
     productToDelete = (db.products || []).find((p) => p.id === productId);
   }
 
-  // If product found, delete its images & attachments from Cloudflare R2 / Cloudinary
+  // 1. Exclui imediatamente do PostgreSQL
+  if (pool) {
+    try {
+      await pool.query('DELETE FROM products WHERE id = $1', [productId]);
+      console.log(`[Product Delete] Produto ${productId} excluído com sucesso do PostgreSQL.`);
+    } catch (dbErr) {
+      console.error('[Product Delete DB Error]:', dbErr.message);
+      return res.status(500).json({ error: 'Falha ao excluir produto do banco de dados.', details: dbErr.message });
+    }
+  }
+
+  // 2. Sincroniza exclusão no athena-db.json local
+  try {
+    const db = readDbJson();
+    if (db && Array.isArray(db.products)) {
+      db.products = db.products.filter((p) => p.id !== productId);
+      writeDbJson(db);
+    }
+  } catch (jsonErr) {
+    console.warn('[Product Delete JSON Sync Notice]:', jsonErr.message);
+  }
+
+  // 3. Responde imediatamente ao cliente (evita timeout na rede / Render)
+  res.json({ success: true, id: productId });
+
+  // 4. Limpeza de imagens e anexos em segundo plano (não bloqueia o usuário)
   if (productToDelete) {
     const imagesToDelete = [];
-
-    // Main image
-    if (productToDelete.image) {
-      imagesToDelete.push(productToDelete.image);
-    }
-
-    // Gallery images
+    if (productToDelete.image) imagesToDelete.push(productToDelete.image);
     if (Array.isArray(productToDelete.images)) {
       productToDelete.images.forEach(img => {
         if (img && typeof img === 'string') imagesToDelete.push(img);
       });
     }
-
-    // PDF Attachments
     if (Array.isArray(productToDelete.attachments)) {
       productToDelete.attachments.forEach(att => {
         if (att && att.url && typeof att.url === 'string') imagesToDelete.push(att.url);
       });
     }
 
-    // Remove duplicates
-    const uniqueUrls = [...new Set(imagesToDelete)];
+    const uniqueUrls = [...new Set(imagesToDelete)].filter(u => u && typeof u === 'string');
 
-    for (const url of uniqueUrls) {
-      try {
-        if (isR2Configured && (url.includes('.r2.dev') || url.includes('.r2.cloudflarestorage.com'))) {
-          await deleteFromR2(url);
-          console.log(`[Product Delete] Imagem removida do Cloudflare R2: ${url}`);
-        } else if (url.includes('cloudinary.com')) {
+    if (uniqueUrls.length > 0) {
+      setImmediate(async () => {
+        for (const url of uniqueUrls) {
           try {
-            const parts = url.split('/');
-            const fileWithExt = parts.slice(-2).join('/');
-            const publicId = fileWithExt.replace(/\.[^/.]+$/, '');
-            await cloudinary.uploader.destroy(publicId);
-            console.log(`[Product Delete] Imagem removida do Cloudinary: ${publicId}`);
-          } catch (cErr) {
-            console.warn('[Cloudinary Delete Warning]:', cErr.message);
+            // Verifica se outro produto ainda utiliza esta imagem antes de deletar do R2
+            if (pool) {
+              const inUse = await pool.query(
+                'SELECT 1 FROM products WHERE image = $1 OR images::text LIKE $2 LIMIT 1',
+                [url, `%"${url}"%`]
+              );
+              if (inUse.rows.length > 0) {
+                console.log(`[Storage Delete] Imagem mantida pois ainda está em uso por outro produto: ${url}`);
+                continue;
+              }
+            }
+
+            if (isR2Configured && (url.includes('.r2.dev') || url.includes('.r2.cloudflarestorage.com') || url.includes('athenaconsultoria.com.br'))) {
+              await deleteFromR2(url);
+              console.log(`[Product Delete] Imagem removida do Cloudflare R2: ${url}`);
+            } else if (url.includes('cloudinary.com')) {
+              try {
+                const parts = url.split('/');
+                const fileWithExt = parts.slice(-2).join('/');
+                const publicId = fileWithExt.replace(/\.[^/.]+$/, '');
+                await cloudinary.uploader.destroy(publicId);
+                console.log(`[Product Delete] Imagem removida do Cloudinary: ${publicId}`);
+              } catch (cErr) {
+                console.warn('[Cloudinary Delete Warning]:', cErr.message);
+              }
+            }
+          } catch (err) {
+            console.warn(`[Storage Delete Warning] Falha ao excluir ${url}:`, err.message);
           }
         }
-      } catch (err) {
-        console.warn(`[Storage Delete Warning] Falha ao excluir ${url}:`, err.message);
-      }
+      });
     }
   }
-
-  if (pool) {
-    try {
-      await pool.query('DELETE FROM products WHERE id = $1', [productId]);
-      return res.json({ success: true, id: productId });
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  const db = readDbJson();
-  db.products = (db.products || []).filter((p) => p.id !== productId);
-  writeDbJson(db);
-  res.json({ success: true, id: productId });
 });
 
 app.listen(PORT, () => {
