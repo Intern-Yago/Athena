@@ -859,15 +859,10 @@ export default function ProductDetailPage({
                   </button>
                 )}
 
-                {product.productType === 'digital' ? (
-                  <span className="badge bg-emerald-600 text-white font-bold flex items-center gap-1">
+                {product.productType === 'digital' && (
+                  <span className="badge bg-emerald-600 text-white font-bold flex items-center gap-1 shadow-xs">
                     <Zap className="w-3 h-3" />
                     <span>Licença / Produto Digital</span>
-                  </span>
-                ) : (
-                  <span className="badge bg-slate-100 text-slate-700 font-bold border border-slate-200 flex items-center gap-1">
-                    <Truck className="w-3 h-3 text-slate-500" />
-                    <span>Equipamento Físico</span>
                   </span>
                 )}
 
@@ -875,19 +870,6 @@ export default function ProductDetailPage({
                   <span className="badge badge-gold font-bold">
                     {product.badge}
                   </span>
-                )}
-
-                {hasVideo && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      document.getElementById('video-demonstrativo')?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="badge badge-red hover:bg-red-100 cursor-pointer text-red-700 bg-red-50 border border-red-200 flex items-center gap-1"
-                  >
-                    <Play className="w-3 h-3 fill-current text-red-600" />
-                    <span>Vídeo Demonstrativo</span>
-                  </button>
                 )}
               </div>
 

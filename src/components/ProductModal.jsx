@@ -112,17 +112,6 @@ export default function ProductModal({
                     {product.badge}
                   </span>
                 )}
-                {(product.videoUrl || product.youtubeVideoUrl) && (
-                  <a
-                    href={product.videoUrl || product.youtubeVideoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="badge badge-red hover:bg-red-100 flex items-center gap-1 text-red-700 bg-red-50 border-red-200"
-                  >
-                    <Play className="w-3 h-3 fill-current text-red-600" />
-                    <span>Vídeo Demonstrativo</span>
-                  </a>
-                )}
               </div>
 
               {/* Title */}
