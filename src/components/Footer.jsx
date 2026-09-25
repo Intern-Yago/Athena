@@ -1,5 +1,5 @@
 import React from 'react';
-import { PhoneCall, Mail, MapPin, Instagram, ExternalLink, ArrowUp, Lock } from 'lucide-react';
+import { PhoneCall, Mail, MapPin, Instagram, ExternalLink, ArrowUp, Lock, Youtube } from 'lucide-react';
 
 export default function Footer({ setActiveTab, currentUser }) {
   const scrollToTop = () => {
@@ -9,6 +9,7 @@ export default function Footer({ setActiveTab, currentUser }) {
   const formattedPhone = "(61) 98348-5671";
   const whatsappUrl = "https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+informa%C3%A7%C3%B5es.";
   const instagramUrl = "https://www.instagram.com/athena.solucoes.automotivas/";
+  const youtubeUrl = "https://www.youtube.com/@AthenaConsultoriaAutomotiva";
 
   const mapsUrl = "https://www.google.com/maps/place/Sh+Arniqueiras%2FCol%C3%B4nia+Agr%C3%ADcola+Vereda+da+Cruz+Chac+517+-+Col.+Agr%C3%ADcola+Vereda+da+Cruz+-+St.+Hab.+Arniqueira,+Bras%C3%ADlia+-+DF/@-15.8485476,-48.0273207,18z/data=!3m1!4b1!4m6!3m5!1s0x935a3276830b9d97:0x8d02e1421cc9ab49!8m2!3d-15.8485502!4d-48.0260306!16s%2Fg%2F11c5jw91kp?entry=ttu";
 
@@ -42,15 +43,26 @@ export default function Footer({ setActiveTab, currentUser }) {
               Especialistas em equipamentos automotivos de alta tecnologia. Elevadores, scanners de diagnóstico com IA, alinhadores 3D e soluções completas para auto centers.
             </p>
 
-            <div className="pt-1">
+            <div className="pt-1 flex flex-col gap-2">
               <a
                 href={instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-semibold text-amber-400 hover:text-amber-300 hover:border-amber-500 transition-all"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-semibold text-amber-400 hover:text-amber-300 hover:border-amber-500 transition-all w-fit"
               >
-                <Instagram className="w-3.5 h-3.5" />
+                <Instagram className="w-3.5 h-3.5 text-pink-400" />
                 <span>@athena.solucoes.automotivas</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </a>
+
+              <a
+                href={youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-300 hover:text-red-400 hover:border-red-500/50 transition-all w-fit"
+              >
+                <Youtube className="w-3.5 h-3.5 text-red-500" />
+                <span>@AthenaConsultoriaAutomotiva</span>
                 <ExternalLink className="w-3 h-3 text-slate-400" />
               </a>
             </div>
@@ -129,6 +141,20 @@ export default function Footer({ setActiveTab, currentUser }) {
                   className="hover:underline text-slate-300 hover:text-pink-400 font-medium inline-flex items-center gap-1"
                 >
                   <span>Instagram: @athena.solucoes.automotivas</span>
+                  <ExternalLink className="w-3 h-3 opacity-70" />
+                </a>
+              </div>
+
+              {/* YouTube abaixo do Instagram */}
+              <div className="flex items-center gap-2">
+                <Youtube className="w-4 h-4 text-red-500 shrink-0" />
+                <a 
+                  href={youtubeUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="hover:underline text-slate-300 hover:text-red-400 font-medium inline-flex items-center gap-1"
+                >
+                  <span>YouTube: @AthenaConsultoriaAutomotiva</span>
                   <ExternalLink className="w-3 h-3 opacity-70" />
                 </a>
               </div>

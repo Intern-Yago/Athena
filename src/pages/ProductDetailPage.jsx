@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ProductCard from '../components/ProductCard';
 import ProductImageGallery from '../components/ProductImageGallery';
 import FormattedDescription, { stripFormattingTags } from '../components/FormattedDescription';
@@ -6,7 +6,7 @@ import ProductModal from '../components/ProductModal';
 import InstallmentModal from '../components/InstallmentModal';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import NotFoundPage from './NotFoundPage';
-import { isProductPublished } from '../utils/imageUrl';
+import { isProductPublished, normalizeProduct } from '../utils/imageUrl';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -35,7 +35,8 @@ import {
   ShoppingCart,
   Zap,
   AlertTriangle,
-  Box
+  Box,
+  Loader2
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { isProductQuoteOnly, getVariantAvailability, isVariantActiveForSale } from '../utils/productVariants';
@@ -194,7 +195,10 @@ export default function ProductDetailPage({
   currentUser,
   onEditProduct,
   comparisonList,
-  onToggleComparison
+  onToggleComparison,
+  API_BASE_URL,
+  isLoadingCatalog = false,
+  onProductLoaded
 }) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [activeTab, setActiveTab] = useState('specs');
@@ -202,6 +206,12 @@ export default function ProductDetailPage({
   const [isInstallmentModalOpen, setIsInstallmentModalOpen] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState(null);
   const { addToCart, openDirectCheckout, requireVerification } = useCart();
+
+  // State for direct fetch when product is not yet in global products list (e.g. fresh page load)
+  const [directProduct, setDirectProduct] = useState(null);
+  const [isDirectFetching, setIsDirectFetching] = useState(false);
+  const [hasAttemptedDirectFetch, setHasAttemptedDirectFetch] = useState(false);
+  const [directFetch404, setDirectFetch404] = useState(false);
 
   // 1. Check for shareable encoded draft in URL search params (?d=... or ?token=...)
   const urlDraft = (() => {
@@ -238,7 +248,71 @@ export default function ProductDetailPage({
       window.location.search.includes('draft=true')
     ));
 
-  const product = draftProduct || products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId);
+  const matchedProductInCatalog = useMemo(() => {
+    if (!productSlugOrId || productSlugOrId === 'preview') return null;
+    return products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId) || null;
+  }, [products, productSlugOrId]);
+
+  const product = draftProduct || matchedProductInCatalog || directProduct;
+
+  // Direct fetch for cold visits / direct links when product is not found in initial products list
+  useEffect(() => {
+    if (draftProduct || matchedProductInCatalog || !productSlugOrId || productSlugOrId === 'preview') {
+      setIsDirectFetching(false);
+      setHasAttemptedDirectFetch(true);
+      return;
+    }
+
+    let isMounted = true;
+    setIsDirectFetching(true);
+    setDirectFetch404(false);
+    setHasAttemptedDirectFetch(false);
+
+    const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'https://athena-backend-hu1m.onrender.com/api';
+
+    const fetchDirectProduct = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/products/${encodeURIComponent(productSlugOrId)}`);
+        if (!isMounted) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.id || data.name)) {
+            const norm = normalizeProduct(data);
+            setDirectProduct(norm);
+            setHasAttemptedDirectFetch(true);
+            setDirectFetch404(false);
+            if (typeof onProductLoaded === 'function') {
+              onProductLoaded(norm);
+            }
+            return;
+          }
+        }
+        if (res.status === 404) {
+          setDirectFetch404(true);
+        }
+      } catch (err) {
+        console.warn('[ProductDetailPage] Erro na busca direta do produto:', err);
+      } finally {
+        if (isMounted) {
+          setIsDirectFetching(false);
+          setHasAttemptedDirectFetch(true);
+        }
+      }
+    };
+
+    fetchDirectProduct();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [productSlugOrId, matchedProductInCatalog, draftProduct, API_BASE_URL]);
+
+  // Determining if we are currently waiting to confirm if product exists
+  const isVerifyingProduct = !product && (
+    isDirectFetching || 
+    !hasAttemptedDirectFetch ||
+    (isLoadingCatalog && !directFetch404)
+  );
 
   // Dynamic Variants handling with smart fallback to base product
   const variants = Array.isArray(product?.variants) ? product.variants : [];
@@ -299,8 +373,12 @@ export default function ProductDetailPage({
   const isAdminUser = Boolean(currentUser && (currentUser.role === 'admin' || currentUser.isAdmin));
   const canAccessDraft = isPreviewMode || isAdminUser;
 
-  const category = product ? categories.find((c) => c.id === product.categoryId) : null;
-  const brand = product ? brands.find((b) => b.id === product.brandId) : null;
+  const category = (product ? categories.find((c) => c.id === product.categoryId) : null) || (
+    product?.categoryName ? { id: product.categoryId, name: product.categoryName, slug: product.categorySlug } : null
+  );
+  const brand = (product ? brands.find((b) => b.id === product.brandId) : null) || (
+    product?.brandName ? { id: product.brandId, name: product.brandName, slug: product.brandSlug } : null
+  );
 
   const canBuyOnline = !isQuoteOnly && Number(activePrice) > 0;
 
@@ -530,12 +608,106 @@ export default function ProductDetailPage({
     }
   }, [product?.id, hasSpecs, showCompatTab, validCustomTabs.length, hasAttachments, hasVideo]);
 
-  // Block public direct access to draft products or non-existent products
-  if (!product || (!isProductPublished(product) && !canAccessDraft)) {
+  // 1. If we are currently verifying or loading the equipment, show the loading skeleton state
+  if (isVerifyingProduct) {
+    return (
+      <div className="min-h-[75vh] py-8 sm:py-12">
+        <div className="container-custom max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+          {/* Breadcrumb / Back placeholder */}
+          <div className="flex items-center justify-between gap-4">
+            <button
+              onClick={() => onNavigate('catalog')}
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-amber-600 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Voltar ao Catálogo</span>
+            </button>
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-amber-800 bg-amber-50 px-3 py-1 rounded-full border border-amber-200/80 shadow-xs">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+              <span>Carregando equipamento...</span>
+            </div>
+          </div>
+
+          {/* Main 2-column skeleton matching product detail layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            {/* Left Column: Image Gallery Skeleton */}
+            <div className="lg:col-span-7 space-y-4">
+              <div className="aspect-square sm:aspect-4/3 w-full rounded-3xl bg-slate-100 border border-slate-200/80 shadow-xs relative overflow-hidden flex flex-col items-center justify-center p-8 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center mb-4 shadow-xs">
+                  <Loader2 className="w-8 h-8 text-amber-600 animate-spin" />
+                </div>
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-800 tracking-tight">
+                  Localizando Equipamento
+                </h3>
+                <p className="text-xs text-slate-500 max-w-xs mt-1.5 leading-relaxed">
+                  Buscando especificações técnicas, fotos e disponibilidade no catálogo Athena...
+                </p>
+              </div>
+
+              {/* Thumbnails row skeleton */}
+              <div className="grid grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="aspect-square rounded-2xl bg-slate-100 border border-slate-200/70 animate-pulse" />
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: Info & Action Skeleton */}
+            <div className="lg:col-span-5 space-y-6">
+              {/* Badges */}
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-24 rounded-full bg-slate-200 animate-pulse" />
+                <div className="h-6 w-20 rounded-full bg-amber-100 animate-pulse" />
+              </div>
+
+              {/* Title & SKU */}
+              <div className="space-y-3">
+                <div className="h-8 w-11/12 rounded-xl bg-slate-200 animate-pulse" />
+                <div className="h-8 w-3/4 rounded-xl bg-slate-200 animate-pulse" />
+                <div className="h-4 w-36 rounded-md bg-slate-100 animate-pulse" />
+              </div>
+
+              {/* Price card skeleton */}
+              <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200/80 space-y-4">
+                <div className="h-10 w-44 rounded-xl bg-slate-200 animate-pulse" />
+                <div className="h-6 w-56 rounded-lg bg-emerald-100/60 animate-pulse" />
+                <div className="h-4 w-40 rounded-md bg-slate-200 animate-pulse" />
+              </div>
+
+              {/* CTA Buttons skeleton */}
+              <div className="space-y-3 pt-2">
+                <div className="h-13 w-full rounded-2xl bg-amber-500/20 border border-amber-500/30 animate-pulse" />
+                <div className="h-13 w-full rounded-2xl bg-slate-100 border border-slate-200 animate-pulse" />
+              </div>
+
+              {/* Trust badges */}
+              <div className="pt-4 border-t border-slate-100 grid grid-cols-2 gap-3">
+                <div className="h-10 rounded-xl bg-slate-100 animate-pulse" />
+                <div className="h-10 rounded-xl bg-slate-100 animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. If verification finished and product does NOT exist in catalog
+  if (!product) {
     return (
       <NotFoundPage
         onNavigate={onNavigate}
-        message={`O equipamento "${productSlugOrId}" não está disponível publicamente ou encontra-se em modo de rascunho.`}
+        message={`O equipamento "${productSlugOrId}" não foi encontrado em nosso catálogo. Verifique o link digitado ou explore outros modelos disponíveis.`}
+      />
+    );
+  }
+
+  // 3. If product exists but is a draft and user cannot access drafts
+  if (!isProductPublished(product) && !canAccessDraft) {
+    return (
+      <NotFoundPage
+        onNavigate={onNavigate}
+        message={`O equipamento "${product.name || productSlugOrId}" encontra-se em modo de rascunho e não está disponível publicamente no momento.`}
       />
     );
   }

@@ -111,6 +111,7 @@ export default function App() {
   });
 
   const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
 
   // Authenticated User State (OWASP Secure Session with Inactivity Timeout & Expiration)
   const [currentUser, setCurrentUser] = useState(() => {
@@ -443,6 +444,7 @@ export default function App() {
             setCategories(catData);
             setBrands(Array.isArray(brandData) ? brandData.map(normalizeBrand) : []);
             setIsBackendConnected(true);
+            setIsLoadingCatalog(false);
           }
 
           if (bannerRes && bannerRes.ok) {
@@ -454,12 +456,15 @@ export default function App() {
         } else if (attempt <= 3 && isMounted) {
           // Render might be waking up from sleep, retry in 3.5 seconds
           retryTimer = setTimeout(() => fetchBackendData(attempt + 1), 3500);
+        } else if (isMounted) {
+          setIsLoadingCatalog(false);
         }
       } catch (err) {
         if (attempt <= 3 && isMounted) {
           retryTimer = setTimeout(() => fetchBackendData(attempt + 1), 3500);
         } else if (isMounted) {
           setIsBackendConnected(false);
+          setIsLoadingCatalog(false);
         }
       }
     };
@@ -937,6 +942,17 @@ export default function App() {
           onEditProduct={handleEditProductFromCatalog}
           comparisonList={comparisonList}
           onToggleComparison={handleToggleComparison}
+          API_BASE_URL={API_BASE_URL}
+          isLoadingCatalog={isLoadingCatalog}
+          onProductLoaded={(loadedProd) => {
+            if (!loadedProd || !loadedProd.id) return;
+            setProducts((prev) => {
+              if (prev.some((p) => p.id === loadedProd.id || (p.slug && p.slug === loadedProd.slug))) {
+                return prev;
+              }
+              return [...prev, loadedProd];
+            });
+          }}
         />
       );
     }
