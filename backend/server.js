@@ -2663,37 +2663,19 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
     const ipRecord = await getIpSecurityRecord(clientIp);
     const isIpCooldown = ipRecord.lockedUntil && new Date(ipRecord.lockedUntil) > new Date();
 
-    if (ipRecord.isBlocked) {
+    if (ipRecord.isBlocked || isIpCooldown) {
       logSecurityEvent({
         event: 'LOGIN_ATTEMPT',
         email: inputEmail,
         ip: clientIp,
         userAgent: req.headers['user-agent'],
         outcome: 'BLOCKED',
-        reason: 'Endereço IP na blocklist permanente de segurança (8+ falhas)'
+        reason: ipRecord.isBlocked ? 'Endereço IP na blocklist permanente de segurança (8+ falhas)' : 'Endereço IP em pausa temporária de segurança de 24 horas (7 falhas)'
       });
       return res.status(403).json({
-        error: 'Este endereço IP foi bloqueado permanentemente por segurança devido a 8 tentativas incorretas. Entre em contato com a administração da Athena para liberação.',
+        error: 'Conta ou endereço IP bloqueado por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso e liberar seu acesso seguro.',
         isIpBlocked: true,
-        isLocked: true,
-        isPermanent: true
-      });
-    }
-
-    if (isIpCooldown) {
-      logSecurityEvent({
-        event: 'LOGIN_ATTEMPT',
-        email: inputEmail,
-        ip: clientIp,
-        userAgent: req.headers['user-agent'],
-        outcome: 'BLOCKED',
-        reason: 'Endereço IP em pausa temporária de segurança de 24 horas (7 falhas)'
-      });
-      return res.status(403).json({
-        error: 'Acesso suspenso temporariamente por 24 horas por motivos de segurança após 7 tentativas incorretas.',
-        isIpBlocked: true,
-        isLocked: true,
-        isCooldown: true
+        isLocked: true
       });
     }
 
@@ -2750,32 +2732,10 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
     if (foundUser) {
       const isUserCooldown = foundUser.lockedUntil && new Date(foundUser.lockedUntil) > new Date();
 
-      if (foundUser.isLocked) {
-        lockedAccountsMemory.set(inputEmail, {
-          lockedUntil: null,
-          isLocked: true
-        });
-        logSecurityEvent({
-          event: 'LOGIN_ATTEMPT',
-          userId: foundUser.id,
-          email: inputEmail,
-          ip: clientIp,
-          userAgent: req.headers['user-agent'],
-          outcome: 'BLOCKED',
-          reason: 'Conta travada com bloqueio permanente (8+ falhas)'
-        });
-        return res.status(403).json({
-          error: 'Esta conta foi bloqueada por motivos de segurança após 8 tentativas incorretas. Entre em contato com a administração da Athena para liberação.',
-          isAccountLocked: true,
-          isLocked: true,
-          isPermanent: true
-        });
-      }
-
-      if (isUserCooldown) {
+      if (foundUser.isLocked || isUserCooldown) {
         lockedAccountsMemory.set(inputEmail, {
           lockedUntil: foundUser.lockedUntil,
-          isLocked: false
+          isLocked: foundUser.isLocked
         });
         logSecurityEvent({
           event: 'LOGIN_ATTEMPT',
@@ -2784,13 +2744,12 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
           ip: clientIp,
           userAgent: req.headers['user-agent'],
           outcome: 'BLOCKED',
-          reason: 'Conta em pausa temporária de segurança de 24 horas (7 falhas)'
+          reason: foundUser.isLocked ? 'Conta travada com bloqueio permanente (8+ falhas)' : 'Conta em pausa temporária de segurança de 24 horas (7 falhas)'
         });
         return res.status(403).json({
-          error: 'Acesso suspenso temporariamente por 24 horas por motivos de segurança após 7 tentativas incorretas.',
+          error: 'Conta ou endereço IP bloqueado por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso e liberar seu acesso seguro.',
           isAccountLocked: true,
-          isLocked: true,
-          isCooldown: true
+          isLocked: true
         });
       }
     }
@@ -3030,15 +2989,14 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
       });
 
       return res.status(403).json({
-        error: 'Acesso bloqueado por segurança após 8 tentativas incorretas. Entre em contato com a administração da Athena para liberação.',
+        error: 'Conta ou endereço IP bloqueado por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso e liberar seu acesso seguro.',
         isLocked: true,
-        isPermanent: true,
         isAccountLocked: Boolean(foundUser),
         isIpBlocked: Boolean(updatedIp.isBlocked)
       });
     }
 
-    // 2. Se atingiu 7 falhas (Pausa de Segurança de 24 Horas):
+    // 2. Se atingiu 7 falhas (Pausa de Segurança de 24 Horas no banco, mensagem visual idêntica):
     if (isNowCooldown || updatedUserFailures === 7 || updatedIp.failedAttempts === 7 || updatedIp.lockedUntil) {
       logSecurityEvent({
         event: 'ACCOUNT_COOLDOWN',
@@ -3052,9 +3010,8 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
       });
 
       return res.status(403).json({
-        error: 'Acesso temporariamente suspenso por 24 horas por motivos de segurança após 7 tentativas incorretas.',
+        error: 'Conta ou endereço IP bloqueado por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso e liberar seu acesso seguro.',
         isLocked: true,
-        isCooldown: true,
         isAccountLocked: Boolean(foundUser),
         isIpBlocked: Boolean(updatedIp.lockedUntil)
       });
