@@ -526,3 +526,18 @@ Para evitar criar categorias infinitas para cada detalhe técnico, a página de 
   - Reduzido `express.json` global de 50MB para 2MB (mantendo 50MB isolado exclusivamente na rota `/api/upload`).
   - Adicionado teto compulsório de segurança (`LIMIT 100`) em `GET /api/products` quando não paginado.
   - Rate limit dedicado estrito de 5 requisições a cada 15 min adicionado em `POST /api/auth/forgot-password`.
+
+### 8.3 [FUTURO] Autenticação Multi-Fator (MFA / 2FA) & Reautenticação Sensível
+- [ ] **MFA Obrigatório para Contas Administrativas (/admin):**
+  - Implementar suporte a TOTP (RFC 6238 / Google Authenticator / Authy / 1Password) para todos os usuários com papel `admin`.
+  - Fluxo de setup: geração de QR Code base32 (`otplib`), validação do primeiro código de 6 dígitos e emissão de códigos de backup de emergência (Recovery Codes) com hash bcrypt.
+- [ ] **MFA Opcional para Clientes B2B & Oficinas:**
+  - Permitir que clientes ativem verificação em 2 etapas voluntariamente em suas configurações de conta (`/minha-conta`).
+- [ ] **Reautenticação Mandatória (Step-up Authentication / OWASP):**
+  - Exigir confirmação de senha primária (ou token MFA) antes de operações de alto impacto:
+    - Alteração de senha, e-mail de acesso ou telefone cadastral.
+    - Geração de Link de Acesso Emergencial (Magic Link) pelo administrador para clientes.
+    - Exclusão de contas ou alteração de papéis/permissões (`role`).
+- [ ] **Blindagem Permanente de Sessões Magic Link:**
+  - Sessões emitidas via Link Emergencial já estão bloqueadas contra alteração de senha/e-mail; manter essa restrição e formalizar exigência de login com senha completa para modificações cadastrais.
+

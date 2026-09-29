@@ -390,8 +390,9 @@ app.use((req, res, next) => {
 });
 
 // Secure Client IP Extractor
-// Relies strictly on Express-resolved trusted proxy hop (Render/Cloudflare load balancer)
-// Eliminates client header-spoofing attacks (arbitrary X-Forwarded-For / CF-Connecting-IP injection)
+// Utiliza a resolução nativa do Express (baseada no hop configurado via trust proxy).
+// Evita leitura direta de headers não sanitizados injetados pelo cliente. Nota de arquitetura:
+// a imunidade contra spoofing depende da topologia de rede entre cliente -> Cloudflare -> Render -> Node.
 function getClientIp(req) {
   let ip = req.ip || req.socket?.remoteAddress || '127.0.0.1';
   if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
@@ -2312,11 +2313,44 @@ app.post('/api/admin/migrate-r2', authenticateToken, requireAdmin, async (req, r
 });
 
 // -------------------------------------------------------------
+// STRUCTURED SECURITY AUDIT LOGGING (OWASP A09:2021)
+// -------------------------------------------------------------
+function logSecurityEvent({ event, userId = null, email = null, ip = null, userAgent = null, outcome = 'SUCCESS', reason = null, details = {} }) {
+  try {
+    const sanitizedDetails = { ...details };
+    // Zero-leakage policy: jamais registrar senhas, tokens brutos, segredos ou hashes
+    delete sanitizedDetails.password;
+    delete sanitizedDetails.token;
+    delete sanitizedDetails.magicToken;
+    delete sanitizedDetails.rawToken;
+    delete sanitizedDetails.passwordHash;
+    delete sanitizedDetails.secret;
+
+    const payload = {
+      type: 'SECURITY_AUDIT',
+      timestamp: new Date().toISOString(),
+      event,
+      outcome, // 'SUCCESS' | 'FAILURE' | 'BLOCKED' | 'CHALLENGE_REQUIRED' | 'CHALLENGE_FAILED'
+      userId: userId || null,
+      email: email ? String(email).toLowerCase().trim() : null,
+      ip: ip || null,
+      userAgent: userAgent ? String(userAgent).substring(0, 250) : null,
+      reason: reason || null,
+      details: sanitizedDetails
+    };
+
+    console.info(`[SECURITY_AUDIT] ${JSON.stringify(payload)}`);
+  } catch (err) {
+    console.error('Falha ao emitir log de auditoria de segurança:', err.message);
+  }
+}
+
+// -------------------------------------------------------------
 // CLOUDFLARE TURNSTILE & ADVANCED SECURITY HELPERS
 // -------------------------------------------------------------
 const ipSecurityTracker = new Map(); // ip -> { failedAttempts: number, isBlocked: boolean, blockedAt: Date }
 // In-Memory Fast-Path Cache for Locked Accounts & IP Cooldowns
-// Rejects massive bot floods (e.g. 10,000 reqs/sec) in 0.05ms without touching PostgreSQL or Bcrypt
+// Cache local do processo (redução de carga): descarta requisições contra contas travadas antes de consultar o PostgreSQL ou rodar Bcrypt
 const lockedAccountsMemory = new Map(); // lowercase_email -> { lockedUntil: Date, isLocked: boolean }
 
 async function verifyCloudflareTurnstile(token, clientIp) {
@@ -2463,12 +2497,19 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
 
     const inputEmail = email.trim().toLowerCase();
 
-    // 0. FAST-PATH SHORT-CIRCUIT (IN-MEMORY): Se o e-mail estiver no cache de bloqueio, rejeita em 0.05ms
-    // Impede que enxurradas de 10.000 requisições simultâneas toquem no banco ou no bcrypt
+    // 0. FAST-PATH SHORT-CIRCUIT (IN-MEMORY): Cache local do processo para rejeitar contas bloqueadas antes do banco
     const memLock = lockedAccountsMemory.get(inputEmail);
     if (memLock) {
       const isCooldown = memLock.lockedUntil && new Date(memLock.lockedUntil) > new Date();
       if (memLock.isLocked || isCooldown) {
+        logSecurityEvent({
+          event: 'LOGIN_ATTEMPT',
+          email: inputEmail,
+          ip: clientIp,
+          userAgent: req.headers['user-agent'],
+          outcome: 'BLOCKED',
+          reason: 'Conta em cache local de bloqueio/cooldown temporário'
+        });
         return res.status(403).json({
           error: 'Conta temporariamente bloqueada por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso.',
           isAccountLocked: true,
@@ -2483,6 +2524,14 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
     // 1. CHECAGEM PRÉVIA: O IP ESTÁ BLOQUEADO?
     const ipRecord = await getIpSecurityRecord(clientIp);
     if (ipRecord.isBlocked) {
+      logSecurityEvent({
+        event: 'LOGIN_ATTEMPT',
+        email: inputEmail,
+        ip: clientIp,
+        userAgent: req.headers['user-agent'],
+        outcome: 'BLOCKED',
+        reason: 'Endereço IP na blocklist de segurança'
+      });
       return res.status(403).json({
         error: 'Este endereço IP foi bloqueado por segurança devido a excesso de tentativas incorretas. Entre em contato com o suporte da Athena.',
         isIpBlocked: true,
@@ -2543,10 +2592,19 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
     if (foundUser) {
       const isCooldownActive = foundUser.lockedUntil && new Date(foundUser.lockedUntil) > new Date();
       if (foundUser.isLocked || isCooldownActive) {
-        // Armazena no cache de memória para proteger as próximas requisições instantaneamente
+        // Armazena no cache de memória local para aliviar o banco nas próximas requisições
         lockedAccountsMemory.set(inputEmail, {
           lockedUntil: foundUser.lockedUntil,
           isLocked: foundUser.isLocked
+        });
+        logSecurityEvent({
+          event: 'LOGIN_ATTEMPT',
+          userId: foundUser.id,
+          email: inputEmail,
+          ip: clientIp,
+          userAgent: req.headers['user-agent'],
+          outcome: 'BLOCKED',
+          reason: foundUser.isLocked ? 'Conta travada por bloqueio de administrador' : 'Conta em pausa de segurança temporária (24 horas)'
         });
         return res.status(403).json({
           error: 'Conta temporariamente bloqueada por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso.',
@@ -2563,6 +2621,15 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
 
     if (requiresCaptcha) {
       if (!turnstileToken) {
+        logSecurityEvent({
+          event: 'TURNSTILE_CHALLENGE',
+          userId: foundUser?.id,
+          email: inputEmail,
+          ip: clientIp,
+          userAgent: req.headers['user-agent'],
+          outcome: 'CHALLENGE_REQUIRED',
+          reason: 'Token Turnstile não fornecido'
+        });
         return res.status(400).json({
           error: 'Por favor, complete a verificação de segurança (CAPTCHA) para continuar.',
           requiresCaptcha: true,
@@ -2572,6 +2639,15 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
 
       const turnstileVerification = await verifyCloudflareTurnstile(turnstileToken, clientIp);
       if (!turnstileVerification.success) {
+        logSecurityEvent({
+          event: 'TURNSTILE_CHALLENGE',
+          userId: foundUser?.id,
+          email: inputEmail,
+          ip: clientIp,
+          userAgent: req.headers['user-agent'],
+          outcome: 'CHALLENGE_FAILED',
+          reason: turnstileVerification.error || 'Falha na verificação Cloudflare Turnstile'
+        });
         return res.status(400).json({
           error: turnstileVerification.error || 'Verificação de segurança falhou. Tente novamente.',
           requiresCaptcha: true,
@@ -2660,6 +2736,16 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
         isVerified
       });
 
+      logSecurityEvent({
+        event: 'LOGIN_ATTEMPT',
+        userId: authUser.id,
+        email: inputEmail,
+        ip: clientIp,
+        userAgent: req.headers['user-agent'],
+        outcome: 'SUCCESS',
+        details: { role: userRole }
+      });
+
       return res.json({
         id: authUser.id,
         name: authUser.name,
@@ -2743,7 +2829,7 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
         writeDbJson(db);
       }
 
-      // Se entrou em cooldown de 24h ou bloqueio total, grava no cache de memória ultrarrápido
+      // Se entrou em cooldown de 24h ou bloqueio total, grava no cache de memória local
       if (isNowCooldown || isNowLocked) {
         lockedAccountsMemory.set(inputEmail, {
           lockedUntil: lockedUntilDate,
@@ -2754,6 +2840,17 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
 
     // Se atingiu 7 falhas (pausa de 24h) ou 8+ falhas (bloqueio total) ou IP bloqueado:
     if (isNowCooldown || isNowLocked || updatedUserFailures >= 7 || updatedIp.isBlocked) {
+      logSecurityEvent({
+        event: 'ACCOUNT_LOCKOUT',
+        userId: foundUser?.id,
+        email: inputEmail,
+        ip: clientIp,
+        userAgent: req.headers['user-agent'],
+        outcome: 'BLOCKED',
+        reason: isNowLocked ? 'Bloqueio total de conta (8+ falhas)' : 'Pausa de segurança de 24 horas acionada (7 falhas)',
+        details: { failedAttempts: updatedUserFailures, isIpBlocked: Boolean(updatedIp.isBlocked) }
+      });
+
       return res.status(403).json({
         error: 'Conta temporariamente bloqueada por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso.',
         isLocked: true,
@@ -2765,6 +2862,17 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
 
     const nextRequiresCaptcha = updatedUserFailures >= 5;
     const remainingAttempts = Math.max(1, 7 - updatedUserFailures);
+
+    logSecurityEvent({
+      event: 'LOGIN_ATTEMPT',
+      userId: foundUser?.id,
+      email: inputEmail,
+      ip: clientIp,
+      userAgent: req.headers['user-agent'],
+      outcome: 'FAILURE',
+      reason: 'Credenciais incorretas',
+      details: { failedAttempts: updatedUserFailures, requiresCaptcha: nextRequiresCaptcha }
+    });
 
     return res.status(401).json({
       error: 'E-mail ou senha incorretos.',
@@ -2811,6 +2919,13 @@ app.post('/api/auth/magic-login', async (req, res) => {
     }
 
     if (!matchedUser) {
+      logSecurityEvent({
+        event: 'MAGIC_LINK_AUTH',
+        ip: getClientIp(req),
+        userAgent: req.headers['user-agent'],
+        outcome: 'FAILURE',
+        reason: 'Token de uso único inválido, inexistente ou expirado'
+      });
       return res.status(401).json({ error: 'Este link de acesso expirou ou já foi utilizado. Solicite um novo link ao time de suporte.' });
     }
 
@@ -2842,7 +2957,18 @@ app.post('/api/auth/magic-login', async (req, res) => {
       name: matchedUser.name,
       email: matchedUser.email,
       role: userRole,
-      isVerified
+      isVerified,
+      isMagicLinkSession: true
+    });
+
+    logSecurityEvent({
+      event: 'MAGIC_LINK_AUTH',
+      userId: matchedUser.id,
+      email: matchedUser.email,
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'SUCCESS',
+      details: { role: userRole }
     });
 
     return res.json({
@@ -2858,6 +2984,7 @@ app.post('/api/auth/magic-login', async (req, res) => {
       address: matchedUser.address || null,
       isVerified,
       mustChangePassword: Boolean(matchedUser.mustChangePassword),
+      isMagicLinkSession: true,
       token,
       expiresAt
     });
@@ -3073,6 +3200,15 @@ app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) =>
       foundUser = (db.users || []).find(u => u.email.toLowerCase() === inputEmail);
     }
 
+    logSecurityEvent({
+      event: 'PASSWORD_RESET_REQUEST',
+      email: inputEmail,
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'SUCCESS',
+      details: { accountFound: Boolean(foundUser) }
+    });
+
     if (!foundUser) {
       // Segurança: Não divulga se o e-mail existe ou não (prevenção de enumeração de contas)
       return res.json({
@@ -3167,6 +3303,14 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
 
     if (!validReset) {
+      logSecurityEvent({
+        event: 'PASSWORD_RESET_SUBMIT',
+        email: inputEmail,
+        ip: getClientIp(req),
+        userAgent: req.headers['user-agent'],
+        outcome: 'FAILURE',
+        reason: 'Código inválido ou expirado'
+      });
       return res.status(400).json({ error: 'Código inválido ou expirado. Solicite um novo código de recuperação.' });
     }
 
@@ -3194,6 +3338,14 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
     writeDbJson(db);
 
+    logSecurityEvent({
+      event: 'PASSWORD_RESET_SUCCESS',
+      email: inputEmail,
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'SUCCESS'
+    });
+
     return res.json({
       success: true,
       message: 'Sua senha foi redefinida com sucesso! Você já pode entrar com a nova senha.'
@@ -3207,6 +3359,22 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // Force Change Temporary Password (After Support Reset)
 app.post('/api/auth/force-change-password', authenticateToken, async (req, res) => {
   try {
+    // OWASP Hardening: Sessões geradas via Magic Link não têm autorização para trocar senhas sem reautenticação
+    if (req.user?.isMagicLinkSession) {
+      logSecurityEvent({
+        event: 'SENSITIVE_ACTION_BLOCKED',
+        userId: req.user.id,
+        email: req.user.email,
+        ip: getClientIp(req),
+        userAgent: req.headers['user-agent'],
+        outcome: 'BLOCKED',
+        reason: 'Tentativa de alteração de senha definitiva via sessão de Magic Link'
+      });
+      return res.status(403).json({
+        error: 'Sessões autenticadas via Link de Acesso Emergencial não possuem autorização para alterar senhas. Por segurança, acesse sua conta usando suas credenciais completas.'
+      });
+    }
+
     const { newPassword } = req.body;
     if (!newPassword) {
       return res.status(400).json({ error: 'A nova senha definitiva é obrigatória.' });
@@ -3237,6 +3405,15 @@ app.post('/api/auth/force-change-password', authenticateToken, async (req, res) 
       db.users[uIdx].must_change_password = false;
       writeDbJson(db);
     }
+
+    logSecurityEvent({
+      event: 'PASSWORD_CHANGED',
+      userId: req.user.id,
+      email: req.user.email,
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'SUCCESS'
+    });
 
     return res.json({
       success: true,
@@ -3451,6 +3628,22 @@ app.put('/api/customer/profile', authenticateToken, async (req, res) => {
 
     if (!existingUser) {
       return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    // OWASP Hardening: Sessões geradas via Magic Link não têm autorização para trocar senhas ou dados sensíveis sem reautenticação
+    if (req.user?.isMagicLinkSession && (newPassword || (req.body.email && req.body.email.toLowerCase().trim() !== (existingUser.email || '').toLowerCase().trim()))) {
+      logSecurityEvent({
+        event: 'SENSITIVE_ACTION_BLOCKED',
+        userId: req.user.id,
+        email: existingUser.email,
+        ip: getClientIp(req),
+        userAgent: req.headers['user-agent'],
+        outcome: 'BLOCKED',
+        reason: 'Tentativa de alteração de credenciais sensíveis via sessão de Magic Link em /api/customer/profile'
+      });
+      return res.status(403).json({
+        error: 'Sessões autenticadas via Link de Acesso Emergencial não possuem autorização para alterar senhas ou dados permanentes de acesso. Por segurança, realize login com suas credenciais completas.'
+      });
     }
 
     // Password change check if requested
@@ -6400,6 +6593,21 @@ app.post('/api/admin/users/:id/generate-magic-link', authenticateToken, requireS
       whatsappUrl = `https://wa.me/55${cleanPhone}?text=${msg}`;
     }
 
+    logSecurityEvent({
+      event: 'MAGIC_LINK_GENERATED',
+      userId: req.user?.id,
+      email: targetUser.email,
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'SUCCESS',
+      details: {
+        adminId: req.user?.id,
+        adminName,
+        targetUserId: targetId,
+        expiresInMinutes: 120
+      }
+    });
+
     return res.json({
       success: true,
       magicUrl,
@@ -6469,6 +6677,20 @@ app.post('/api/admin/users/:id/unlock', authenticateToken, requireStaff, async (
       lockedAccountsMemory.delete(targetUser.email.toLowerCase());
     }
 
+    logSecurityEvent({
+      event: 'ADMIN_UNLOCK',
+      userId: req.user?.id,
+      email: targetUser.email,
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'SUCCESS',
+      details: {
+        adminId: req.user?.id,
+        adminName,
+        targetUserId: targetId
+      }
+    });
+
     return res.json({
       success: true,
       message: `Acesso do usuário ${targetUser.name} desbloqueado com sucesso por ${adminName}!`,
@@ -6504,6 +6726,19 @@ app.post('/api/admin/security/unblock-ip', authenticateToken, requireAdmin, asyn
     const { ip } = req.body;
     if (!ip) return res.status(400).json({ error: 'Endereço IP é obrigatório.' });
     await unblockIpRecord(ip, req.user?.name || 'Administrador');
+
+    logSecurityEvent({
+      event: 'ADMIN_UNBLOCK_IP',
+      userId: req.user?.id,
+      ip,
+      userAgent: req.headers['user-agent'],
+      outcome: 'SUCCESS',
+      details: {
+        adminId: req.user?.id,
+        adminName: req.user?.name || 'Administrador'
+      }
+    });
+
     return res.json({ success: true, message: `IP ${ip} desbloqueado com sucesso!` });
   } catch (e) {
     return res.status(500).json({ error: 'Erro ao desbloquear IP.' });
@@ -6901,6 +7136,22 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
   const db = readDbJson();
   const userIdx = (db.users || []).findIndex(u => u.id === userId);
   const existingUser = userIdx !== -1 ? db.users[userIdx] : null;
+
+  // OWASP Hardening: Sessões geradas via Magic Link não têm autorização para alterar senhas ou privilégios
+  if (req.user?.isMagicLinkSession && (newPassword || (email && email.toLowerCase().trim() !== (existingUser?.email || '').toLowerCase().trim()) || role)) {
+    logSecurityEvent({
+      event: 'SENSITIVE_ACTION_BLOCKED',
+      userId: req.user.id,
+      email: req.user.email,
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'BLOCKED',
+      reason: 'Tentativa de alteração de credenciais/perfil via Magic Link em /api/users/:id'
+    });
+    return res.status(403).json({
+      error: 'Sessões temporárias de Link Emergencial não têm autorização para modificar senhas, e-mails ou privilégios.'
+    });
+  }
 
   if (currentPassword && existingUser && !checkPassword(currentPassword, existingUser.passwordHash || existingUser.password_hash)) {
     return res.status(400).json({ error: 'Senha atual incorreta.' });
