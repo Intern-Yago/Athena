@@ -107,9 +107,10 @@ export default function ClientsManagementTab({
                 filteredClients.map((client) => {
                   const isTemp = Boolean(client.mustChangePassword);
                   const isLocked = Boolean(client.isLocked || client.is_locked);
+                  const isCooldown = Boolean(client.lockedUntil && new Date(client.lockedUntil) > new Date());
 
                   return (
-                    <tr key={client.id} className={`hover:bg-slate-50/80 transition-colors ${isLocked ? 'bg-rose-50/30' : ''}`}>
+                    <tr key={client.id} className={`hover:bg-slate-50/80 transition-colors ${isLocked ? 'bg-rose-50/30' : isCooldown ? 'bg-amber-50/20' : ''}`}>
                       <td className="py-3.5 px-4">
                         <button
                           type="button"
@@ -168,10 +169,20 @@ export default function ClientsManagementTab({
                             type="button"
                             onClick={() => setSelectedCustomerForModal(client)}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 animate-pulse cursor-pointer transition-colors"
-                            title="Conta bloqueada após excesso de tentativas. Clique para desbloquear no modal de suporte."
+                            title="Conta com bloqueio definitivo após 8+ falhas. Clique para gerenciar ou desbloquear."
                           >
                             <Lock className="w-3 h-3 text-rose-700" />
-                            <span>Bloqueado (8 falhas)</span>
+                            <span>Bloqueado (Admin)</span>
+                          </button>
+                        ) : isCooldown ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCustomerForModal(client)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 animate-pulse cursor-pointer transition-colors"
+                            title="Conta em pausa de segurança de 24 horas (7 falhas). Clique para gerar link emergencial de acesso."
+                          >
+                            <Lock className="w-3 h-3 text-amber-700" />
+                            <span>Pausa 24h ({client.failedAttempts || 7} falhas)</span>
                           </button>
                         ) : isTemp ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Cliente acessando com senha temporária. O sistema obrigará a troca de senha no próximo login.">

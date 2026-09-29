@@ -122,8 +122,46 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
   const [turnstileToken, setTurnstileToken] = useState('');
   const [isLocked, setIsLocked] = useState(false);
   const [attemptsLeft, setAttemptsLeft] = useState(null);
+  const [magicTokenLoading, setMagicTokenLoading] = useState(false);
   const turnstileWidgetRef = React.useRef(null);
   const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAFJUklvzXjiUat3z';
+
+  // Process Emergency Magic Link on Mount (bypass for legitimate customers)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const magicToken = urlParams.get('magic_token');
+
+    if (magicToken && API_BASE_URL) {
+      setMagicTokenLoading(true);
+      setErrorMsg('');
+      fetch(`${API_BASE_URL}/auth/magic-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ magicToken })
+      })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            // Remove token from address bar so it cannot be copied/bookmarked
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            setSuccessMsg(data.message || 'Acesso emergencial autenticado com sucesso!');
+            setTimeout(() => {
+              onLoginSuccess?.(data);
+            }, 600);
+          } else {
+            setErrorMsg(data.error || 'Link de acesso emergencial inválido ou já expirado.');
+          }
+        })
+        .catch(() => {
+          setErrorMsg('Não foi possível validar o link emergencial. Verifique sua conexão.');
+        })
+        .finally(() => {
+          setMagicTokenLoading(false);
+        });
+    }
+  }, [API_BASE_URL, onLoginSuccess]);
 
   // Render Cloudflare Turnstile explicitly when requiresCaptcha is active
   useEffect(() => {
@@ -494,6 +532,16 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
           </div>
         )}
 
+        {/* Magic Token Loading Banner */}
+        {magicTokenLoading && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-2 animate-pulse">
+            <div className="w-8 h-8 mx-auto rounded-full bg-amber-500/20 text-amber-700 flex items-center justify-center">
+              <KeyRound className="w-4 h-4 animate-spin" />
+            </div>
+            <p className="text-xs font-bold text-amber-900">Validando link de acesso emergencial seguro...</p>
+          </div>
+        )}
+
         {/* Error Alert */}
         {errorMsg && (
           <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
@@ -577,7 +625,7 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
               </div>
             )}
 
-            {/* Account / IP Locked Support Box (Shown after 8 failed attempts) */}
+            {/* Account / IP Locked Support Box (Shown after failed attempts) */}
             {isLocked && (
               <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 space-y-3 animate-fadeIn">
                 <div className="flex items-center gap-2 font-black text-xs text-rose-800">
@@ -585,7 +633,7 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
                   <span>Acesso Bloqueado por Segurança</span>
                 </div>
                 <p className="text-xs text-rose-700 leading-relaxed">
-                  Limite de 8 tentativas incorretas consecutivas atingido. Por segurança, a conta e o endereço foram bloqueados. Um administrador precisa liberar o acesso no painel.
+                  Conta temporariamente bloqueada por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso e liberar seu acesso seguro.
                 </p>
                 <div className="pt-2 border-t border-rose-200 flex flex-col sm:flex-row gap-2">
                   <a
