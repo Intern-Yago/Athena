@@ -392,7 +392,8 @@ function requireStaff(req, res, next) {
 app.disable('x-powered-by');
 
 // Enable trust proxy for Render / Cloudflare / Heroku load balancers
-app.set('trust proxy', 1);
+// Ignora saltos internos e proxies privados (loopback, linklocal, uniquelocal / 10.x / 172.16-31.x / 192.168.x)
+app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
 
 // -------------------------------------------------------------
 // OWASP SECURITY HARDENING & RATE LIMITING MIDDLEWARES
@@ -444,17 +445,48 @@ if (ATHENA_ORIGIN_SECRET) {
   });
 }
 
+// Helper: Determina se um IP é privado, local ou de roteador interno (RFC 1918)
+function isPrivateOrInternalIp(ip) {
+  if (!ip || typeof ip !== 'string') return true;
+  const clean = ip.replace('::ffff:', '').trim();
+  if (clean === '127.0.0.1' || clean === '::1' || clean === 'localhost') return true;
+  if (/^10\./.test(clean)) return true;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(clean)) return true;
+  if (/^192\.168\./.test(clean)) return true;
+  if (/^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./.test(clean)) return true;
+  if (/^169\.254\./.test(clean) || clean.startsWith('fe80:')) return true;
+  return false;
+}
+
 // Secure Client IP Extractor
-// Quando autenticado via ATHENA_ORIGIN_SECRET, confia no CF-Connecting-IP sanitizado pela Cloudflare.
-// Caso contrário, recorre à resolução estrita do Express baseada no trust proxy.
+// Prioriza o cabeçalho canônico da Cloudflare (CF-Connecting-IP) ou o primeiro IP público da cadeia
 function getClientIp(req) {
-  if (ATHENA_ORIGIN_SECRET && req.headers['x-athena-origin-secret'] === ATHENA_ORIGIN_SECRET && req.headers['cf-connecting-ip']) {
-    return String(req.headers['cf-connecting-ip']).split(',')[0].trim();
+  // 1. Cloudflare fornece o IP real do cliente no cabeçalho CF-Connecting-IP
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (cfIp && typeof cfIp === 'string') {
+    const cleanCf = cfIp.split(',')[0].trim().replace('::ffff:', '');
+    if (cleanCf && !isPrivateOrInternalIp(cleanCf)) {
+      return cleanCf;
+    }
   }
+
+  // 2. IP resolvido pelo Express via trust proxy (já filtra proxies locais e privados configurados)
   let ip = req.ip || req.socket?.remoteAddress || '127.0.0.1';
   if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
     ip = ip.replace('::ffff:', '');
   }
+  if (!isPrivateOrInternalIp(ip)) {
+    return ip.trim();
+  }
+
+  // 3. Fallback: analisa X-Forwarded-For em busca do primeiro IP público não-privado
+  const xff = req.headers['x-forwarded-for'];
+  if (xff && typeof xff === 'string') {
+    const parts = xff.split(',').map(s => s.trim().replace('::ffff:', '')).filter(Boolean);
+    const publicIp = parts.find(p => !isPrivateOrInternalIp(p));
+    if (publicIp) return publicIp;
+  }
+
   return typeof ip === 'string' ? ip.trim() : '127.0.0.1';
 }
 
@@ -2450,6 +2482,11 @@ async function verifyCloudflareTurnstile(token, clientIp) {
 }
 
 async function getIpSecurityRecord(ip) {
+  // IPs internos, privados ou de loopback (Render internal router, localhost, Docker) NUNCA são bloqueados
+  if (isPrivateOrInternalIp(ip)) {
+    return { failedAttempts: 0, isBlocked: false, blockedAt: null };
+  }
+
   let mem = ipSecurityTracker.get(ip);
   if (mem) return mem;
 
@@ -2477,6 +2514,11 @@ async function getIpSecurityRecord(ip) {
 }
 
 async function recordFailedIpAttempt(ip, reason = 'Tentativas repetidas de login incorretas') {
+  // IPs internos, privados ou de loopback (Render internal router, localhost, Docker) NUNCA são bloqueados
+  if (isPrivateOrInternalIp(ip)) {
+    return { failedAttempts: 0, isBlocked: false, blockedAt: null };
+  }
+
   const rec = await getIpSecurityRecord(ip);
   rec.failedAttempts = (rec.failedAttempts || 0) + 1;
   if (rec.failedAttempts >= 8) {
