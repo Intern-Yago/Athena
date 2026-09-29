@@ -350,6 +350,18 @@ function authenticateToken(req, res, next) {
 
 // Require Administrator Role Middleware
 function requireAdmin(req, res, next) {
+  if (req.user?.isMagicLinkSession) {
+    logSecurityEvent({
+      event: 'PRIVILEGE_ESCALATION_BLOCKED',
+      userId: req.user.id,
+      email: req.user.email,
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'BLOCKED',
+      reason: 'Tentativa de acesso a rota de administrador via sessão restrita de Magic Link'
+    });
+    return res.status(403).json({ error: 'Acesso negado. Sessões de Link Emergencial não possuem autorização para executar ações administrativas.' });
+  }
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Permissão negada. Apenas administradores podem executar esta ação.' });
   }
@@ -358,6 +370,18 @@ function requireAdmin(req, res, next) {
 
 // Require Staff / Internal Collaborator Role Middleware (Admin, Vendedor, Editor)
 function requireStaff(req, res, next) {
+  if (req.user?.isMagicLinkSession) {
+    logSecurityEvent({
+      event: 'PRIVILEGE_ESCALATION_BLOCKED',
+      userId: req.user.id,
+      email: req.user.email,
+      ip: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'BLOCKED',
+      reason: 'Tentativa de acesso a rota de equipe/staff via sessão restrita de Magic Link'
+    });
+    return res.status(403).json({ error: 'Acesso negado. Sessões de Link Emergencial não possuem autorização para executar ações de equipe.' });
+  }
   if (!req.user || !['admin', 'vendedor', 'editor', 'edicao'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Permissão negada. Acesso restrito à equipe interna.' });
   }
@@ -389,11 +413,44 @@ app.use((req, res, next) => {
   next();
 });
 
+// -------------------------------------------------------------
+// ORIGIN ISOLATION & DIRECT-TO-ORIGIN BYPASS HARDENING
+// -------------------------------------------------------------
+// Quando a variável ATHENA_ORIGIN_SECRET estiver configurada no Render, qualquer requisição
+// direta ao endpoint *.onrender.com sem passar pela Cloudflare (onde a Transform Rule injeta este cabeçalho)
+// é sumariamente rejeitada com HTTP 403 Forbidden.
+const ATHENA_ORIGIN_SECRET = process.env.ATHENA_ORIGIN_SECRET;
+if (ATHENA_ORIGIN_SECRET) {
+  app.use((req, res, next) => {
+    // Permite health checks internos do Render (para não falhar o deploy ou monitoramento)
+    if (req.path === '/api/health' || req.path === '/api/ping' || req.headers['user-agent']?.includes('Render/')) {
+      return next();
+    }
+
+    const incomingSecret = req.headers['x-athena-origin-secret'];
+    if (!incomingSecret || incomingSecret !== ATHENA_ORIGIN_SECRET) {
+      logSecurityEvent({
+        event: 'ORIGIN_BYPASS_BLOCKED',
+        ip: req.socket?.remoteAddress || 'unknown',
+        userAgent: req.headers['user-agent'],
+        outcome: 'BLOCKED',
+        reason: 'Tentativa de acesso direto ao Origin (onrender.com) sem passar pelo proxy da Cloudflare'
+      });
+      return res.status(403).json({
+        error: 'Acesso direto à origem proibido. Todas as requisições devem transitar pela borda autorizada da Cloudflare.'
+      });
+    }
+    next();
+  });
+}
+
 // Secure Client IP Extractor
-// Utiliza a resolução nativa do Express (baseada no hop configurado via trust proxy).
-// Evita leitura direta de headers não sanitizados injetados pelo cliente. Nota de arquitetura:
-// a imunidade contra spoofing depende da topologia de rede entre cliente -> Cloudflare -> Render -> Node.
+// Quando autenticado via ATHENA_ORIGIN_SECRET, confia no CF-Connecting-IP sanitizado pela Cloudflare.
+// Caso contrário, recorre à resolução estrita do Express baseada no trust proxy.
 function getClientIp(req) {
+  if (ATHENA_ORIGIN_SECRET && req.headers['x-athena-origin-secret'] === ATHENA_ORIGIN_SECRET && req.headers['cf-connecting-ip']) {
+    return String(req.headers['cf-connecting-ip']).split(',')[0].trim();
+  }
   let ip = req.ip || req.socket?.remoteAddress || '127.0.0.1';
   if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
     ip = ip.replace('::ffff:', '');
@@ -2899,23 +2956,36 @@ app.post('/api/auth/magic-login', async (req, res) => {
 
     const tokenHash = crypto.createHash('sha256').update(magicToken.trim()).digest('hex');
 
+    // USO ÚNICO ATÔMICO CONTRA RACE CONDITIONS (Mitigação do Teste 6 - Concorrência de Replay):
+    // Queima o token e obtém os dados do usuário em uma única instrução SQL atômica com Row-Level Lock.
+    // Se 2 requisições paralelas concorrentes chegarem no mesmo milissegundo:
+    // A primeira queima o token e recebe a linha; a segunda encontra 0 linhas e é rejeitada com 401.
     let matchedUser = null;
     if (pool) {
-      const resU = await pool.query(`
-        SELECT id, name, email, role, phone, document, company_name as "companyName", 
-               address, is_verified as "isVerified", COALESCE(must_change_password, false) as "mustChangePassword",
-               locked_until as "lockedUntil", is_locked as "isLocked"
-        FROM users 
+      const updateRes = await pool.query(`
+        UPDATE users 
+        SET magic_token = NULL, magic_token_expires = NULL 
         WHERE magic_token = $1 AND magic_token_expires > CURRENT_TIMESTAMP
+        RETURNING id, name, email, role, phone, document, company_name as "companyName", 
+                  address, is_verified as "isVerified", COALESCE(must_change_password, false) as "mustChangePassword",
+                  locked_until as "lockedUntil", is_locked as "isLocked"
       `, [tokenHash]);
-      if (resU.rows && resU.rows.length > 0) matchedUser = resU.rows[0];
+      if (updateRes.rows && updateRes.rows.length > 0) {
+        matchedUser = updateRes.rows[0];
+      }
     } else {
       const db = readDbJson();
-      matchedUser = (db.users || []).find(u => 
+      const uIdx = (db.users || []).findIndex(u => 
         u.magic_token === tokenHash && 
         u.magic_token_expires && 
         new Date(u.magic_token_expires) > new Date()
       );
+      if (uIdx !== -1) {
+        matchedUser = { ...db.users[uIdx] };
+        db.users[uIdx].magic_token = null;
+        db.users[uIdx].magic_token_expires = null;
+        writeDbJson(db);
+      }
     }
 
     if (!matchedUser) {
@@ -2924,25 +2994,9 @@ app.post('/api/auth/magic-login', async (req, res) => {
         ip: getClientIp(req),
         userAgent: req.headers['user-agent'],
         outcome: 'FAILURE',
-        reason: 'Token de uso único inválido, inexistente ou expirado'
+        reason: 'Token de uso único já consumido, inválido ou expirado (Proteção Atômica Anti-Replay)'
       });
       return res.status(401).json({ error: 'Este link de acesso expirou ou já foi utilizado. Solicite um novo link ao time de suporte.' });
-    }
-
-    // USO ÚNICO: Queima o token imediatamente para não poder ser reutilizado
-    if (pool) {
-      await pool.query(`
-        UPDATE users 
-        SET magic_token = NULL, magic_token_expires = NULL 
-        WHERE id = $1
-      `, [matchedUser.id]);
-    }
-    const db = readDbJson();
-    const uIdx = (db.users || []).findIndex(u => u.id === matchedUser.id);
-    if (uIdx !== -1) {
-      db.users[uIdx].magic_token = null;
-      db.users[uIdx].magic_token_expires = null;
-      writeDbJson(db);
     }
 
     // OBSERVAÇÃO CRÍTICA (Requisito de Segurança): NÃO zeramos locked_until nem failed_login_attempts!
