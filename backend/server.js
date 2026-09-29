@@ -11,6 +11,7 @@ const { isR2Configured, uploadToR2, deleteFromR2, listR2Objects, invalidateR2Cac
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const slowDown = require('express-slow-down');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
@@ -388,32 +389,72 @@ app.use((req, res, next) => {
   next();
 });
 
+// Client IP Extractor (Prioritizes Cloudflare CF-Connecting-IP over proxy headers)
+function getClientIp(req) {
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (cfIp) return (Array.isArray(cfIp) ? cfIp[0] : cfIp).split(',')[0].trim();
+  const xForwarded = req.headers['x-forwarded-for'];
+  if (xForwarded) {
+    const raw = Array.isArray(xForwarded) ? xForwarded[0] : xForwarded;
+    return raw.split(',')[0].trim();
+  }
+  return req.ip || req.socket?.remoteAddress || '127.0.0.1';
+}
+
 // General API Rate Limiter against DoS Flooding Attacks
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 300, // 300 requests per 15 minutes per IP
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
   validate: { xForwardedForHeader: false },
   message: { error: 'Muitas requisições originadas deste IP. Por favor, aguarde alguns minutos.' }
 });
 
-// Strict Rate Limiter against Login Brute-Force Password Attacks
-// Only failed attempts consume tokens, avoiding accidental lockouts for legitimate users
+// Progressive Delay Limiter against Brute-Force:
+// Tentativas 1 a 3: Sem delay (resposta instantânea)
+// Tentativa 4 em diante: Começa com 1s e acumula +1s a cada tentativa (até o teto de 4s)
+const loginSlowDown = slowDown({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  delayAfter: 3, // Começa o delay a partir da 4ª requisição
+  delayMs: (hits) => (hits - 3) * 1000, // 4ª = 1s, 5ª = 2s, 6ª = 3s, etc.
+  maxDelayMs: 4000, // Teto máximo de 4 segundos
+  keyGenerator: (req) => getClientIp(req),
+  validate: { xForwardedForHeader: false }
+});
+
+// Strict Rate Limiter against Password Attacks (Backstop)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Max 10 failed login attempts per 15 min per IP
+  max: 15, // Max 15 failed attempts per 15 min per IP
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
   validate: { xForwardedForHeader: false },
-  message: { error: 'Muitas tentativas de login incorretas. Acesso bloqueado temporariamente por 15 minutos por segurança contra ataques de força bruta.' }
+  message: { error: 'Muitas tentativas de login incorretas deste endereço. Acesso bloqueado temporariamente por 15 minutos por segurança.' }
+});
+
+// Dedicated Strict Limiter for Forgot Password / Google SMTP (Prevents Mailgun/Gmail socket exhaustion)
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Max 5 requests per 15 min per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
+  validate: { xForwardedForHeader: false },
+  message: { error: 'Muitas solicitações de recuperação de senha deste endereço. Por segurança, aguarde 15 minutos antes de tentar novamente.' }
 });
 
 app.use('/api/', apiLimiter);
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// OWASP DoS Protection: High payload limit strictly for media upload endpoint, bounded 2MB globally
+app.use('/api/upload', express.json({ limit: '50mb' }));
+app.use('/api/upload', express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
 
 // Ultra-fast Healthcheck & Pre-Warming Endpoints (Sub-5ms response, wakes up cold Render containers)
 app.get('/api/ping', (req, res) => {
@@ -595,7 +636,24 @@ async function initDb() {
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS a_points INTEGER DEFAULT 0;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS locked_at TIMESTAMP DEFAULT NULL;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS locked_reason VARCHAR(255) DEFAULT NULL;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS unlocked_by VARCHAR(100) DEFAULT NULL;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS unlocked_at TIMESTAMP DEFAULT NULL;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+        CREATE TABLE IF NOT EXISTS security_ip_blocklist (
+          ip VARCHAR(64) PRIMARY KEY,
+          failed_attempts INTEGER DEFAULT 0,
+          is_blocked BOOLEAN DEFAULT FALSE,
+          blocked_at TIMESTAMP DEFAULT NULL,
+          blocked_reason VARCHAR(255) DEFAULT NULL,
+          unblocked_by VARCHAR(100) DEFAULT NULL,
+          unblocked_at TIMESTAMP DEFAULT NULL,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
       `);
 
       // Create Email Verifications Table
@@ -2252,13 +2310,143 @@ app.post('/api/admin/migrate-r2', authenticateToken, requireAdmin, async (req, r
 });
 
 // -------------------------------------------------------------
+// CLOUDFLARE TURNSTILE & ADVANCED SECURITY HELPERS
+// -------------------------------------------------------------
+const ipSecurityTracker = new Map(); // ip -> { failedAttempts: number, isBlocked: boolean, blockedAt: Date }
+
+async function verifyCloudflareTurnstile(token, clientIp) {
+  const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || '0x4AAAAAAFJUksP_3AaeuNPMh-vcX_RFSKI';
+  if (!token || typeof token !== 'string') {
+    return { success: false, error: 'Token do Cloudflare Turnstile não fornecido.' };
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.append('secret', secretKey);
+    params.append('response', token);
+    if (clientIp) {
+      params.append('remoteip', clientIp);
+    }
+
+    const response = await axios.post(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      params.toString(),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 6000
+      }
+    );
+
+    if (response.data && response.data.success) {
+      return { success: true };
+    }
+
+    console.warn('[Turnstile siteverify falhou]:', response.data);
+    return {
+      success: false,
+      error: 'Validação do Cloudflare Turnstile rejeitada. Por favor, marque o desafio novamente.',
+      codes: response.data?.['error-codes'] || []
+    };
+  } catch (err) {
+    console.error('[Turnstile Network Error]:', err.message);
+    return { success: false, error: 'Falha ao validar desafio junto à Cloudflare. Tente novamente.' };
+  }
+}
+
+async function getIpSecurityRecord(ip) {
+  let mem = ipSecurityTracker.get(ip);
+  if (mem) return mem;
+
+  if (pool) {
+    try {
+      const res = await pool.query('SELECT ip, failed_attempts, is_blocked, blocked_at FROM security_ip_blocklist WHERE ip = $1', [ip]);
+      if (res.rows.length > 0) {
+        const row = res.rows[0];
+        mem = {
+          failedAttempts: row.failed_attempts || 0,
+          isBlocked: Boolean(row.is_blocked),
+          blockedAt: row.blocked_at
+        };
+        ipSecurityTracker.set(ip, mem);
+        return mem;
+      }
+    } catch (e) {
+      console.warn('Erro ao consultar security_ip_blocklist:', e.message);
+    }
+  }
+
+  mem = { failedAttempts: 0, isBlocked: false, blockedAt: null };
+  ipSecurityTracker.set(ip, mem);
+  return mem;
+}
+
+async function recordFailedIpAttempt(ip, reason = 'Tentativas repetidas de login incorretas') {
+  const rec = await getIpSecurityRecord(ip);
+  rec.failedAttempts = (rec.failedAttempts || 0) + 1;
+  if (rec.failedAttempts >= 8) {
+    rec.isBlocked = true;
+    rec.blockedAt = new Date();
+  }
+  ipSecurityTracker.set(ip, rec);
+
+  if (pool) {
+    try {
+      await pool.query(`
+        INSERT INTO security_ip_blocklist (ip, failed_attempts, is_blocked, blocked_at, blocked_reason, updated_at)
+        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+        ON CONFLICT (ip)
+        DO UPDATE SET 
+          failed_attempts = $2, 
+          is_blocked = $3, 
+          blocked_at = CASE WHEN $3 = true THEN COALESCE(security_ip_blocklist.blocked_at, CURRENT_TIMESTAMP) ELSE security_ip_blocklist.blocked_at END,
+          blocked_reason = $5,
+          updated_at = CURRENT_TIMESTAMP
+      `, [ip, rec.failedAttempts, rec.isBlocked, rec.blockedAt, reason]);
+    } catch (e) {
+      console.warn('Erro ao persistir falha de IP no PostgreSQL:', e.message);
+    }
+  }
+  return rec;
+}
+
+async function resetIpAttempts(ip) {
+  const rec = await getIpSecurityRecord(ip);
+  rec.failedAttempts = 0;
+  ipSecurityTracker.set(ip, rec);
+
+  if (pool) {
+    try {
+      await pool.query(`
+        UPDATE security_ip_blocklist 
+        SET failed_attempts = 0, updated_at = CURRENT_TIMESTAMP
+        WHERE ip = $1
+      `, [ip]);
+    } catch (e) {}
+  }
+}
+
+async function unblockIpRecord(ip, unblockedBy = 'Admin') {
+  ipSecurityTracker.set(ip, { failedAttempts: 0, isBlocked: false, blockedAt: null });
+  if (pool) {
+    try {
+      await pool.query(`
+        UPDATE security_ip_blocklist 
+        SET is_blocked = false, failed_attempts = 0, unblocked_by = $1, unblocked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE ip = $2
+      `, [unblockedBy, ip]);
+    } catch (e) {}
+  }
+}
+
+// -------------------------------------------------------------
 // AUTH & USER ROLES ENDPOINTS
 // -------------------------------------------------------------
 
-// Login (Protected by strict loginLimiter rate limiting)
-app.post('/api/auth/login', loginLimiter, async (req, res) => {
+// Login (Protected by progressive loginSlowDown and strict loginLimiter rate limiting)
+app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const clientIp = getClientIp(req);
+    const { email, password, turnstileToken } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Informe e-mail e senha.' });
     }
@@ -2269,61 +2457,23 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     }
 
     const inputEmail = email.trim().toLowerCase();
-    const envAdminEmail = (process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br').trim().toLowerCase();
-    const envAdminPassword = process.env.ADMIN_PASSWORD || 'Athena16/10*';
-    const envAdminName = process.env.ADMIN_NAME || 'Administrador Geral';
 
-    // 1. Direct Master Admin check (Environment based master credentials)
-    const isMasterAdminEmail = (
-      inputEmail === envAdminEmail ||
-      inputEmail === 'administracao@athenaconsultoria.com.br' ||
-      inputEmail === 'admin@athena.com.br'
-    );
-    const isMasterAdmin = isMasterAdminEmail && (password === envAdminPassword);
-
-    if (isMasterAdmin) {
-      const { token, expiresAt } = generateToken({
-        id: 'user_admin_default',
-        name: envAdminName,
-        email: envAdminEmail,
-        role: 'admin',
-        isVerified: true
-      });
-
-      // Background asynchronous database sync (Never blocks the client response)
-      if (pool) {
-        setImmediate(async () => {
-          try {
-            const hashedAdminPass = await bcrypt.hash(envAdminPassword, 10);
-            await pool.query(`
-              INSERT INTO users (id, name, email, password_hash, role) 
-              VALUES ($1, $2, $3, $4, $5) 
-              ON CONFLICT (email) 
-              DO UPDATE SET password_hash = $4, name = $2, role = 'admin'
-            `, ['user_admin_default', envAdminName, envAdminEmail, hashedAdminPass, 'admin']);
-          } catch (e) {
-            console.error('Erro ao auto-sync admin em background:', e.message);
-          }
-        });
-      }
-
-      return res.json({
-        id: 'user_admin_default',
-        name: envAdminName,
-        email: envAdminEmail,
-        role: 'admin',
-        isVerified: true,
-        token,
-        expiresAt
+    // 1. CHECAGEM PRÉVIA: O IP ESTÁ BLOQUEADO?
+    const ipRecord = await getIpSecurityRecord(clientIp);
+    if (ipRecord.isBlocked) {
+      return res.status(403).json({
+        error: 'Este endereço IP foi bloqueado por segurança devido a excesso de tentativas incorretas. Entre em contato com o suporte da Athena.',
+        isIpBlocked: true,
+        isLocked: true
       });
     }
 
-    // 2. Query PostgreSQL using indexed LOWER(email)
+    // 2. BUSCA DO USUÁRIO NO BANCO DE DADOS
     let foundUser = null;
     if (pool) {
       try {
         const result = await pool.query(
-          'SELECT id, name, email, password_hash as "passwordHash", role, phone, document, company_name as "companyName", address, is_verified as "isVerified", COALESCE(must_change_password, false) as "mustChangePassword" FROM users WHERE LOWER(email) = $1',
+          'SELECT id, name, email, password_hash as "passwordHash", role, phone, document, company_name as "companyName", address, is_verified as "isVerified", COALESCE(must_change_password, false) as "mustChangePassword", COALESCE(failed_login_attempts, 0) as "failedAttempts", COALESCE(is_locked, false) as "isLocked" FROM users WHERE LOWER(email) = $1',
           [inputEmail]
         );
         if (result.rows && result.rows.length > 0) {
@@ -2334,7 +2484,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
       }
     }
 
-    // 3. Fallback to Local JSON DB if not found in PG or if PG query failed
+    // Fallback to Local JSON DB if not found in PG or if PG query failed
     if (!foundUser) {
       const db = readDbJson();
       const user = (db.users || []).find(u => (u.email || '').toLowerCase() === inputEmail);
@@ -2350,57 +2500,198 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
           companyName: user.companyName || user.company_name || '',
           address: user.address || null,
           isVerified: Boolean(user.isVerified || user.is_verified || false),
-          mustChangePassword: Boolean(user.mustChangePassword || user.must_change_password || false)
+          mustChangePassword: Boolean(user.mustChangePassword || user.must_change_password || false),
+          failedAttempts: user.failed_login_attempts || user.failedAttempts || 0,
+          isLocked: Boolean(user.is_locked || user.isLocked || false)
         };
       }
     }
 
-    // 4. Validate found user's credentials asynchronously (libuv threadpool, no event-loop stall)
-    const isValidPass = foundUser ? await checkPasswordAsync(password, foundUser.passwordHash) : false;
-    if (foundUser && isValidPass) {
+    // 3. CHECAGEM PRÉVIA: A CONTA DO USUÁRIO ESTÁ BLOQUEADA?
+    if (foundUser && foundUser.isLocked) {
+      return res.status(403).json({
+        error: 'Esta conta foi bloqueada por motivos de segurança após repetidas tentativas incorretas. Entre em contato com o administrador da Athena para desbloqueio.',
+        isAccountLocked: true,
+        isLocked: true
+      });
+    }
+
+    // 4. REGRA DE CAPTCHA CLOUDFLARE TURNSTILE (APÓS 5 TENTATIVAS FALHAS)
+    const currentFailures = Math.max(foundUser?.failedAttempts || 0, ipRecord.failedAttempts || 0);
+    const requiresCaptcha = currentFailures >= 5;
+
+    if (requiresCaptcha) {
+      if (!turnstileToken) {
+        return res.status(400).json({
+          error: 'Por favor, complete a verificação de segurança (CAPTCHA) para continuar.',
+          requiresCaptcha: true,
+          attemptsLeft: Math.max(1, 8 - currentFailures)
+        });
+      }
+
+      const turnstileVerification = await verifyCloudflareTurnstile(turnstileToken, clientIp);
+      if (!turnstileVerification.success) {
+        return res.status(400).json({
+          error: turnstileVerification.error || 'Verificação de segurança falhou. Tente novamente.',
+          requiresCaptcha: true,
+          attemptsLeft: Math.max(1, 8 - currentFailures)
+        });
+      }
+    }
+
+    // 5. VALIDAÇÃO DAS CREDENCIAIS (MASTER ADMIN OU USUÁRIO CADASTRADO)
+    const envAdminEmail = (process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br').trim().toLowerCase();
+    const envAdminPassword = process.env.ADMIN_PASSWORD || 'Athena16/10*';
+    const envAdminName = process.env.ADMIN_NAME || 'Administrador Geral';
+
+    const isMasterAdminEmail = (
+      inputEmail === envAdminEmail ||
+      inputEmail === 'administracao@athenaconsultoria.com.br' ||
+      inputEmail === 'admin@athena.com.br'
+    );
+    const isMasterAdmin = isMasterAdminEmail && (password === envAdminPassword);
+
+    let isPasswordValid = false;
+    let authUser = null;
+
+    if (isMasterAdmin) {
+      isPasswordValid = true;
+      authUser = {
+        id: 'user_admin_default',
+        name: envAdminName,
+        email: envAdminEmail,
+        role: 'admin',
+        isVerified: true
+      };
+    } else if (foundUser) {
+      isPasswordValid = await checkPasswordAsync(password, foundUser.passwordHash);
+      if (isPasswordValid) {
+        authUser = foundUser;
+      }
+    }
+
+    // 6. TRATAMENTO DE SUCESSO: ZERA CONTADORES DE FALHA
+    if (isPasswordValid && authUser) {
+      // Zera falhas do IP
+      resetIpAttempts(clientIp).catch(() => {});
+
+      // Zera falhas do Usuário no PostgreSQL
+      if (foundUser && pool) {
+        pool.query('UPDATE users SET failed_login_attempts = 0 WHERE id = $1', [foundUser.id]).catch(() => {});
+      }
+      // Zera no JSON DB se aplicável
+      const db = readDbJson();
+      const uIdx = (db.users || []).findIndex(u => (u.email || '').toLowerCase() === inputEmail);
+      if (uIdx !== -1) {
+        db.users[uIdx].failed_login_attempts = 0;
+        db.users[uIdx].failedAttempts = 0;
+        writeDbJson(db);
+      }
+
       // Auto-upgrade legacy plaintext password to secure bcrypt hash in background
-      if (foundUser.passwordHash === password) {
+      if (foundUser && foundUser.passwordHash === password) {
         bcrypt.hash(password, 10).then(upgradedHash => {
           if (pool) {
             pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [upgradedHash, foundUser.id]).catch(() => {});
           }
-          const db = readDbJson();
-          const uIdx = (db.users || []).findIndex(u => u.id === foundUser.id);
-          if (uIdx !== -1) {
-            db.users[uIdx].passwordHash = upgradedHash;
-            writeDbJson(db);
+          const freshDb = readDbJson();
+          const fIdx = (freshDb.users || []).findIndex(u => u.id === foundUser.id);
+          if (fIdx !== -1) {
+            freshDb.users[fIdx].passwordHash = upgradedHash;
+            writeDbJson(freshDb);
           }
         }).catch(() => {});
       }
 
-      const userRole = foundUser.role || 'cliente';
-      const isVerified = Boolean(foundUser.isVerified || foundUser.is_verified || userRole === 'admin');
+      const userRole = authUser.role || 'cliente';
+      const isVerified = Boolean(authUser.isVerified || authUser.is_verified || userRole === 'admin');
 
       const { token, expiresAt } = generateToken({
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
+        id: authUser.id,
+        name: authUser.name,
+        email: authUser.email,
         role: userRole,
         isVerified
       });
 
       return res.json({
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
+        id: authUser.id,
+        name: authUser.name,
+        email: authUser.email,
         role: userRole,
-        phone: foundUser.phone || '',
-        document: foundUser.document || '',
-        companyName: foundUser.companyName || '',
-        address: foundUser.address || null,
+        phone: authUser.phone || '',
+        document: authUser.document || '',
+        companyName: authUser.companyName || '',
+        address: authUser.address || null,
         isVerified,
-        mustChangePassword: Boolean(foundUser.mustChangePassword || foundUser.must_change_password || false),
+        mustChangePassword: Boolean(authUser.mustChangePassword || authUser.must_change_password || false),
         token,
         expiresAt
       });
     }
 
-    return res.status(401).json({ error: 'E-mail ou senha incorretos.' });
+    // 7. TRATAMENTO DE FALHA: INCREMENTA FALHAS E APLICA BLOQUEIOS SE ATINGIR 8
+    const updatedIp = await recordFailedIpAttempt(clientIp);
+    let updatedUserFailures = 0;
+
+    if (foundUser) {
+      updatedUserFailures = (foundUser.failedAttempts || 0) + 1;
+      const shouldLockUser = updatedUserFailures >= 8;
+
+      if (pool) {
+        try {
+          await pool.query(`
+            UPDATE users 
+            SET failed_login_attempts = $1,
+                is_locked = CASE WHEN $2 = true THEN true ELSE is_locked END,
+                locked_at = CASE WHEN $2 = true THEN CURRENT_TIMESTAMP ELSE locked_at END,
+                locked_reason = CASE WHEN $2 = true THEN 'Excesso de tentativas incorretas de login (8 falhas)' ELSE locked_reason END
+            WHERE id = $3
+          `, [updatedUserFailures, shouldLockUser, foundUser.id]);
+        } catch (e) {
+          console.error('Erro ao atualizar falhas de login no Postgres:', e.message);
+        }
+      }
+
+      const db = readDbJson();
+      const uIdx = (db.users || []).findIndex(u => u.id === foundUser.id);
+      if (uIdx !== -1) {
+        db.users[uIdx].failed_login_attempts = updatedUserFailures;
+        db.users[uIdx].failedAttempts = updatedUserFailures;
+        if (shouldLockUser) {
+          db.users[uIdx].is_locked = true;
+          db.users[uIdx].isLocked = true;
+          db.users[uIdx].locked_at = new Date().toISOString();
+          db.users[uIdx].locked_reason = 'Excesso de tentativas incorretas de login (8 falhas)';
+        }
+        writeDbJson(db);
+      }
+    }
+
+    const totalFailures = Math.max(updatedUserFailures, updatedIp.failedAttempts);
+
+    // Se atingiu 8 falhas ou mais: BLOQUEIO TOTAL
+    if (totalFailures >= 8 || updatedIp.isBlocked) {
+      return res.status(403).json({
+        error: 'Conta e endereço de acesso bloqueados por segurança após 8 tentativas incorretas. Entre em contato com o administrador da Athena para desbloqueio.',
+        isLocked: true,
+        isAccountLocked: Boolean(foundUser),
+        isIpBlocked: true
+      });
+    }
+
+    const nextRequiresCaptcha = totalFailures >= 5;
+    const remainingAttempts = 8 - totalFailures;
+
+    return res.status(401).json({
+      error: 'E-mail ou senha incorretos.',
+      failedAttempts: totalFailures,
+      requiresCaptcha: nextRequiresCaptcha,
+      attemptsLeft: remainingAttempts,
+      message: nextRequiresCaptcha 
+        ? `Tentativa ${totalFailures} de 8. Por segurança, o CAPTCHA foi ativado. Restam ${remainingAttempts} tentativas antes do bloqueio da conta.`
+        : `Tentativa ${totalFailures} de 8. Restam ${remainingAttempts} tentativas.`
+    });
   } catch (err) {
     console.error('Erro inesperado no login:', err);
     return res.status(500).json({ error: 'Erro interno ao processar login.' });
@@ -2588,8 +2879,8 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// Forgot Password - Send Google SMTP Email with Reset Code
-app.post('/api/auth/forgot-password', async (req, res) => {
+// Forgot Password - Send Google SMTP Email with Reset Code (Protected by dedicated rate limiter)
+app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
@@ -5747,6 +6038,10 @@ app.get('/api/users', authenticateToken, requireStaff, async (req, res) => {
       const baseSelect = `
         SELECT id, name, email, role, phone, document, company_name as "companyName", 
                a_points as "aPoints", COALESCE(must_change_password, false) as "mustChangePassword", 
+               COALESCE(is_locked, false) as "isLocked",
+               COALESCE(failed_login_attempts, 0) as "failedAttempts",
+               locked_at as "lockedAt",
+               locked_reason as "lockedReason",
                created_at as "createdAt" 
         FROM users 
         ${whereClause}
@@ -5786,7 +6081,11 @@ app.get('/api/users', authenticateToken, requireStaff, async (req, res) => {
   let cleanUsers = (db.users || []).map(({ passwordHash, password_hash, ...rest }) => ({
     ...rest,
     aPoints: rest.aPoints || rest.a_points || 0,
-    mustChangePassword: Boolean(rest.mustChangePassword || rest.must_change_password || false)
+    mustChangePassword: Boolean(rest.mustChangePassword || rest.must_change_password || false),
+    isLocked: Boolean(rest.is_locked || rest.isLocked || false),
+    failedAttempts: rest.failed_login_attempts || rest.failedAttempts || 0,
+    lockedAt: rest.locked_at || rest.lockedAt || null,
+    lockedReason: rest.locked_reason || rest.lockedReason || null
   }));
 
   if (req.query.role) {
@@ -5877,6 +6176,94 @@ app.post('/api/admin/users/:id/generate-temp-password', authenticateToken, requi
   } catch (err) {
     console.error('Erro ao gerar senha temporária no admin:', err);
     return res.status(500).json({ error: 'Erro ao gerar senha temporária.' });
+  }
+});
+
+// Suporte / Admin: Desbloquear Acesso de Usuário Bloqueado por Tentativas
+app.post('/api/admin/users/:id/unlock', authenticateToken, requireStaff, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const adminName = req.user?.name || req.user?.email || 'Administrador';
+
+    let targetUser = null;
+    if (pool) {
+      const uRes = await pool.query('SELECT id, name, email, role, is_locked, failed_login_attempts FROM users WHERE id = $1', [targetId]);
+      if (uRes.rows.length > 0) targetUser = uRes.rows[0];
+    } else {
+      const db = readDbJson();
+      targetUser = (db.users || []).find(u => u.id === targetId);
+    }
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    if (pool) {
+      try {
+        await pool.query(`
+          UPDATE users 
+          SET is_locked = false,
+              failed_login_attempts = 0,
+              unlocked_by = $1,
+              unlocked_at = CURRENT_TIMESTAMP,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+        `, [adminName, targetId]);
+      } catch (e) {
+        console.error('Erro ao desbloquear usuário no PostgreSQL:', e.message);
+      }
+    }
+
+    const db = readDbJson();
+    const uIdx = (db.users || []).findIndex(u => u.id === targetId);
+    if (uIdx !== -1) {
+      db.users[uIdx].is_locked = false;
+      db.users[uIdx].isLocked = false;
+      db.users[uIdx].failed_login_attempts = 0;
+      db.users[uIdx].failedAttempts = 0;
+      db.users[uIdx].unlocked_by = adminName;
+      db.users[uIdx].unlocked_at = new Date().toISOString();
+      writeDbJson(db);
+    }
+
+    return res.json({
+      success: true,
+      message: `Acesso do usuário ${targetUser.name} desbloqueado com sucesso por ${adminName}!`,
+      userId: targetUser.id,
+      unlockedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Erro ao desbloquear usuário:', err);
+    return res.status(500).json({ error: 'Erro ao desbloquear usuário.' });
+  }
+});
+
+// Suporte / Admin: Listar IPs bloqueados
+app.get('/api/admin/security/blocked-ips', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    if (pool) {
+      const result = await pool.query('SELECT * FROM security_ip_blocklist WHERE is_blocked = true ORDER BY blocked_at DESC');
+      return res.json(result.rows);
+    }
+    const memList = [];
+    for (const [ip, data] of ipSecurityTracker.entries()) {
+      if (data.isBlocked) memList.push({ ip, ...data });
+    }
+    return res.json(memList);
+  } catch (e) {
+    return res.status(500).json({ error: 'Erro ao listar IPs bloqueados.' });
+  }
+});
+
+// Suporte / Admin: Desbloquear IP bloqueado
+app.post('/api/admin/security/unblock-ip', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ error: 'Endereço IP é obrigatório.' });
+    await unblockIpRecord(ip, req.user?.name || 'Administrador');
+    return res.json({ success: true, message: `IP ${ip} desbloqueado com sucesso!` });
+  } catch (e) {
+    return res.status(500).json({ error: 'Erro ao desbloquear IP.' });
   }
 });
 
@@ -6958,7 +7345,9 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
           }
         });
       } else {
-        const result = await pool.query(baseSelect, values);
+        // OWASP Hardening: Teto compulsório de 100 itens para requisições não-paginadas, prevenindo Memory Exhaustion DoS
+        const safeSelect = `${baseSelect} LIMIT 100`;
+        const result = await pool.query(safeSelect, values);
         return res.json(result.rows);
       }
     } catch (e) {
@@ -7002,7 +7391,8 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
     });
   }
 
-  res.json(products);
+  // Teto compulsório de 100 itens no JSON local
+  res.json(products.slice(0, 100));
 });
 
 app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, res) => {

@@ -117,6 +117,63 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
   const [forgotSuccessMsg, setForgotSuccessMsg] = useState('');
   const [forgotErrorMsg, setForgotErrorMsg] = useState('');
 
+  // Security, CAPTCHA & Anti-Brute Force State
+  const [requiresCaptcha, setRequiresCaptcha] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [isLocked, setIsLocked] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState(null);
+  const turnstileWidgetRef = React.useRef(null);
+  const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAFJUklvzXjiUat3z';
+
+  // Render Cloudflare Turnstile explicitly when requiresCaptcha is active
+  useEffect(() => {
+    let timer;
+    if (requiresCaptcha && !isLocked && typeof window !== 'undefined') {
+      const renderTurnstile = () => {
+        const container = document.getElementById('turnstile-container');
+        if (container && window.turnstile && !turnstileWidgetRef.current) {
+          try {
+            container.innerHTML = '';
+            turnstileWidgetRef.current = window.turnstile.render('#turnstile-container', {
+              sitekey: TURNSTILE_SITE_KEY,
+              theme: 'light',
+              callback: (token) => {
+                setTurnstileToken(token);
+                setErrorMsg('');
+              },
+              'error-callback': () => {
+                setTurnstileToken('');
+              },
+              'expired-callback': () => {
+                setTurnstileToken('');
+              }
+            });
+          } catch (e) {
+            console.warn('Turnstile render warning:', e);
+          }
+        }
+      };
+
+      timer = setTimeout(renderTurnstile, 150);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [requiresCaptcha, isLocked, TURNSTILE_SITE_KEY]);
+
+  const resetSecurityState = () => {
+    setRequiresCaptcha(false);
+    setTurnstileToken('');
+    setIsLocked(false);
+    setAttemptsLeft(null);
+    if (turnstileWidgetRef.current && window.turnstile) {
+      try {
+        window.turnstile.remove(turnstileWidgetRef.current);
+      } catch (e) {}
+      turnstileWidgetRef.current = null;
+    }
+  };
+
   // General Status State
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -161,9 +218,19 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
   };
   const [loading, setLoading] = useState(false);
 
-  // Handle Login Submit
+  // Handle Login Submit with Progressive Delay, Turnstile & Account Lockout
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (isLocked) {
+      setErrorMsg('Acesso e conta bloqueados por segurança. Entre em contato com o suporte da Athena.');
+      return;
+    }
+
+    if (requiresCaptcha && !turnstileToken) {
+      setErrorMsg('Por favor, resolva a validação de segurança (CAPTCHA) abaixo para prosseguir.');
+      return;
+    }
+
     setErrorMsg('');
     setSuccessMsg('');
     setLoading(true);
@@ -174,16 +241,35 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: loginEmail.trim(),
-          password: loginPassword
+          password: loginPassword,
+          turnstileToken: turnstileToken || undefined
         })
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok) {
-        const userData = await res.json();
-        onLoginSuccess(userData);
+        resetSecurityState();
+        onLoginSuccess(data);
       } else {
-        const errData = await res.json().catch(() => ({}));
-        setErrorMsg(errData.error || 'E-mail ou senha incorretos.');
+        if (data.isLocked || data.isAccountLocked || data.isIpBlocked || res.status === 403) {
+          setIsLocked(true);
+          setErrorMsg(data.error || 'Acesso e conta bloqueados por segurança após tentativas excessivas.');
+        } else {
+          if (data.requiresCaptcha) {
+            setRequiresCaptcha(true);
+            setTurnstileToken('');
+            if (turnstileWidgetRef.current && window.turnstile) {
+              try {
+                window.turnstile.reset(turnstileWidgetRef.current);
+              } catch (e) {}
+            }
+          }
+          if (data.attemptsLeft !== undefined) {
+            setAttemptsLeft(data.attemptsLeft);
+          }
+          setErrorMsg(data.error || 'E-mail ou senha incorretos.');
+        }
       }
     } catch (err) {
       setErrorMsg('Não foi possível conectar ao servidor. Verifique sua conexão com a internet.');
@@ -470,13 +556,67 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
               </div>
             </div>
 
+            {/* Cloudflare Turnstile CAPTCHA Widget (Shown after 5 failed attempts) */}
+            {requiresCaptcha && !isLocked && (
+              <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between text-xs font-black text-amber-950">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Validação de Segurança Athena</span>
+                  </div>
+                  {attemptsLeft !== null && (
+                    <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold border border-rose-200">
+                      Restam {attemptsLeft} tentativas
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-amber-800 leading-tight">
+                  Após tentativas repetidas incorretas, confirme a verificação inteligente da Cloudflare abaixo para continuar.
+                </p>
+                <div id="turnstile-container" className="flex justify-center pt-1 min-h-[65px]"></div>
+              </div>
+            )}
+
+            {/* Account / IP Locked Support Box (Shown after 8 failed attempts) */}
+            {isLocked && (
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 space-y-3 animate-fadeIn">
+                <div className="flex items-center gap-2 font-black text-xs text-rose-800">
+                  <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Acesso Bloqueado por Segurança</span>
+                </div>
+                <p className="text-xs text-rose-700 leading-relaxed">
+                  Limite de 8 tentativas incorretas consecutivas atingido. Por segurança, a conta e o endereço foram bloqueados. Um administrador precisa liberar o acesso no painel.
+                </p>
+                <div className="pt-2 border-t border-rose-200 flex flex-col sm:flex-row gap-2">
+                  <a
+                    href="https://wa.me/5561983485671?text=Ol%C3%A1%2C%20meu%20acesso%20ao%20site%20da%20Athena%20foi%20bloqueado%20por%20tentativas%20incorretas.%20Poderiam%20me%20ajudar%20a%20desbloquear%3F"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors text-center"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Falar no WhatsApp</span>
+                  </a>
+                  <a
+                    href="mailto:administracao@athenaconsultoria.com.br?subject=Solicitação de Desbloqueio de Acesso - Athena"
+                    className="py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors text-center"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Enviar E-mail</span>
+                  </a>
+                </div>
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || isLocked || (requiresCaptcha && !turnstileToken)}
               className="w-full btn-gold text-xs font-bold py-3.5 justify-center shadow-md disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <span>Autenticando...</span>
+              ) : isLocked ? (
+                <span>Acesso Bloqueado</span>
               ) : (
                 <>
                   <span>Entrar na Minha Conta</span>

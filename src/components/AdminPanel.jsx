@@ -538,6 +538,11 @@ export default function AdminPanel({
     departmentId: 'dept_ferramentas_manuais'
   });
   const [categoryDeptFilter, setCategoryDeptFilter] = useState('all');
+  const [isInlineDeptOpen, setIsInlineDeptOpen] = useState(false);
+  const [inlineDeptForm, setInlineDeptForm] = useState({
+    name: '',
+    shortName: ''
+  });
 
   // Macro-Category (Departments) Modal & Details State
   const [editingDept, setEditingDept] = useState(null);
@@ -3491,8 +3496,10 @@ export default function AdminPanel({
       description: '',
       slug: '',
       icon: 'Layers',
-      departmentId: categoryDeptFilter !== 'all' ? categoryDeptFilter : 'dept_ferramentas_manuais'
+      departmentId: categoryDeptFilter !== 'all' ? categoryDeptFilter : (departments?.[0]?.id || 'dept_ferramentas_manuais')
     });
+    setIsInlineDeptOpen(false);
+    setInlineDeptForm({ name: '', shortName: '' });
     setIsCategoryModalOpen(true);
   };
 
@@ -3506,7 +3513,35 @@ export default function AdminPanel({
       icon: cat.icon || 'Layers',
       departmentId: cat.departmentId || existingDept?.id || 'dept_ferramentas_manuais'
     });
+    setIsInlineDeptOpen(false);
+    setInlineDeptForm({ name: '', shortName: '' });
     setIsCategoryModalOpen(true);
+  };
+
+  const handleSaveInlineDept = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!inlineDeptForm.name.trim()) {
+      showNotification('Informe o nome da macro-categoria.', 'error');
+      return;
+    }
+    const newDeptObj = {
+      id: `dept_${Date.now()}`,
+      name: inlineDeptForm.name.trim(),
+      shortName: inlineDeptForm.shortName.trim() || inlineDeptForm.name.trim(),
+      icon: 'Layers',
+      order: (departments?.length || 0) + 1
+    };
+
+    if (onAddDepartment) {
+      onAddDepartment(newDeptObj);
+    }
+    setCategoryForm(prev => ({ ...prev, departmentId: newDeptObj.id }));
+    setInlineDeptForm({ name: '', shortName: '' });
+    setIsInlineDeptOpen(false);
+    showNotification(`Macro-categoria "${newDeptObj.name}" criada e selecionada!`, 'success');
   };
 
   const handleCategorySubmit = (e) => {
@@ -3542,6 +3577,8 @@ export default function AdminPanel({
     }
 
     setIsCategoryModalOpen(false);
+    setIsInlineDeptOpen(false);
+    setInlineDeptForm({ name: '', shortName: '' });
     setEditingCategory(null);
   };
 
@@ -3814,8 +3851,13 @@ export default function AdminPanel({
           setIsPdfModalOpen(false);
           return;
         }
+        if (isInlineDeptOpen) {
+          setIsInlineDeptOpen(false);
+          return;
+        }
         if (isCategoryModalOpen) {
           setIsCategoryModalOpen(false);
+          setIsInlineDeptOpen(false);
           return;
         }
         if (isBrandModalOpen) {
@@ -3872,6 +3914,7 @@ export default function AdminPanel({
     isProductModalOpen,
     isVariantModalOpen,
     isCategoryModalOpen,
+    isInlineDeptOpen,
     isBrandModalOpen,
     isUserModalOpen,
     isQuickCatModalOpen,
@@ -10592,7 +10635,13 @@ export default function AdminPanel({
 
         {/* CATEGORY MODAL (CREATE / EDIT) */}
         {isCategoryModalOpen && canEditContent && (
-          <div className="modal-backdrop !z-[110]" onClick={() => setIsCategoryModalOpen(false)}>
+          <div
+            className="modal-backdrop !z-[110]"
+            onClick={() => {
+              setIsCategoryModalOpen(false);
+              setIsInlineDeptOpen(false);
+            }}
+          >
             <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
                 <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -10601,8 +10650,11 @@ export default function AdminPanel({
                 </h4>
                 <button
                   type="button"
-                  onClick={() => setIsCategoryModalOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  onClick={() => {
+                    setIsCategoryModalOpen(false);
+                    setIsInlineDeptOpen(false);
+                  }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -10641,9 +10693,105 @@ export default function AdminPanel({
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Macro-Departamento *
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">
+                      Macro-Departamento *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsInlineDeptOpen(prev => !prev)}
+                      className="text-xs text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                      title={isInlineDeptOpen ? 'Fechar cadastro de macro' : 'Cadastrar uma nova macro agora'}
+                    >
+                      <Plus className="w-3.5 h-3.5 text-amber-600" />
+                      <span>{isInlineDeptOpen ? 'Fechar Cadastro' : 'Nova Macro'}</span>
+                    </button>
+                  </div>
+
+                  {/* Mini-Card Inline para Cadastro Rápido de Macro */}
+                  {isInlineDeptOpen && (
+                    <div className="mb-3 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 shadow-sm animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-amber-200/60">
+                        <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                          <FolderTree className="w-3.5 h-3.5 text-amber-600" />
+                          Cadastrar Nova Macro-Categoria
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsInlineDeptOpen(false)}
+                          className="text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                          title="Fechar"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                            Nome da Macro *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Equipamentos Pesados"
+                            value={inlineDeptForm.name}
+                            onChange={(e) => setInlineDeptForm(prev => ({ ...prev, name: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleSaveInlineDept(e);
+                              }
+                            }}
+                            className="form-input text-xs !bg-white"
+                            autoFocus
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                            Nome Curto (Menu Lateral / Catálogo)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Pesados (opcional)"
+                            value={inlineDeptForm.shortName}
+                            onChange={(e) => setInlineDeptForm(prev => ({ ...prev, shortName: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleSaveInlineDept(e);
+                              }
+                            }}
+                            className="form-input text-xs !bg-white"
+                          />
+                          <span className="text-[10px] text-slate-400 mt-0.5 block">
+                            Usado em menus compactos. Deixe vazio para usar o nome completo.
+                          </span>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setIsInlineDeptOpen(false)}
+                            className="px-2.5 py-1.5 text-xs text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveInlineDept}
+                            className="px-3 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Salvar e Vincular</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <select
                     value={categoryForm.departmentId}
                     onChange={(e) => setCategoryForm({ ...categoryForm, departmentId: e.target.value })}
@@ -10674,7 +10822,14 @@ export default function AdminPanel({
                 </div>
 
                 <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
-                  <button type="button" onClick={() => setIsCategoryModalOpen(false)} className="btn-secondary text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCategoryModalOpen(false);
+                      setIsInlineDeptOpen(false);
+                    }}
+                    className="btn-secondary text-xs"
+                  >
                     Cancelar
                   </button>
                   <button type="submit" className="btn-gold text-xs font-bold py-2.5 px-4 flex items-center gap-1.5">

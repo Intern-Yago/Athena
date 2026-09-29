@@ -22,7 +22,8 @@ import {
   CheckCircle2,
   ExternalLink,
   ChevronRight,
-  ShoppingBag
+  ShoppingBag,
+  Lock
 } from 'lucide-react';
 
 /**
@@ -54,6 +55,7 @@ export default function CustomerDetailModal({
 
   const [generatingTemp, setGeneratingTemp] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
   const [tempPasswordResult, setTempPasswordResult] = useState(null);
 
   const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'https://athena-backend-hu1m.onrender.com/api';
@@ -239,6 +241,39 @@ export default function CustomerDetailModal({
     }
   };
 
+  const isCustomerLocked = Boolean(user.isLocked || user.is_locked);
+
+  const handleUnlockAccount = async () => {
+    if (!user?.id) return;
+    setIsUnlocking(true);
+    try {
+      const headers = getAuthHeadersRef.current ? getAuthHeadersRef.current() : { 'Content-Type': 'application/json' };
+      const res = await fetch(`${apiUrl}/admin/users/${user.id}/unlock`, {
+        method: 'POST',
+        headers
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showNotificationRef.current && showNotificationRef.current(data.message || 'Conta desbloqueada com sucesso!', 'success');
+        if (historyData) {
+          setHistoryData(prev => prev ? ({
+            ...prev,
+            user: { ...prev.user, isLocked: false, is_locked: false, failedAttempts: 0, failed_login_attempts: 0 }
+          }) : prev);
+        }
+        if (onCustomerUpdated) {
+          onCustomerUpdated({ ...user, isLocked: false, is_locked: false, failedAttempts: 0, failed_login_attempts: 0 });
+        }
+      } else {
+        showNotificationRef.current && showNotificationRef.current(data.error || 'Erro ao desbloquear conta.', 'error');
+      }
+    } catch (err) {
+      showNotificationRef.current && showNotificationRef.current('Erro de conexão ao desbloquear.', 'error');
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
+
   return (
     <div 
       className="fixed inset-0 z-[160] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200"
@@ -263,7 +298,11 @@ export default function CustomerDetailModal({
                   <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold text-[10px] border border-purple-500/30 shrink-0">
                     Cliente do Portal
                   </span>
-                  {isTemp ? (
+                  {isCustomerLocked ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold text-[10px] border border-rose-500/30 flex items-center gap-1 animate-pulse">
+                      <Lock className="w-3 h-3 text-rose-400" /> Acesso Bloqueado
+                    </span>
+                  ) : isTemp ? (
                     <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px] border border-amber-500/30 flex items-center gap-1">
                       <KeyRound className="w-3 h-3 text-amber-400" /> Senha Provisória Ativa
                     </span>
@@ -589,6 +628,33 @@ export default function CustomerDetailModal({
                   <p className="text-xs text-slate-500">
                     Preste suporte imediato caso o cliente não consiga entrar ou tenha esquecido a senha.
                   </p>
+
+                  {/* Account Security & Lockout Status Box */}
+                  {isCustomerLocked && (
+                    <div className="p-4 bg-rose-50 rounded-2xl border border-rose-300 space-y-2.5 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs font-black text-rose-950">
+                          <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>Conta Bloqueada por Tentativas</span>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-200 text-rose-900 font-extrabold">
+                          {user.failedAttempts || 8} falhas
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-rose-800 leading-tight">
+                        Este cliente excedeu o limite de segurança de 8 tentativas consecutivas de senha incorreta. O acesso está suspenso.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={isUnlocking}
+                        onClick={handleUnlockAccount}
+                        className="w-full py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                      >
+                        {isUnlocking ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                        <span>Desbloquear Conta Imediatamente</span>
+                      </button>
+                    </div>
+                  )}
 
                   {/* Temporary Password Result Alert */}
                   {tempPasswordResult && (

@@ -482,3 +482,47 @@ Para evitar criar categorias infinitas para cada detalhe técnico, a página de 
   Adicionar botão "✨ Sugerir com IA" ao lado do campo de descrição com modal de prévia das sugestões (título, categoria, tags, specs e abas).
 - [ ] **7.5 Validação com Fichas Técnicas Complexas:**  
   Testar com textos reais de kits completos (Gedore, Sigma, Mahovi) garantindo precisão em títulos, encaixes e contagem de peças.
+
+---
+
+## 🛡️ 8. [SEGURANÇA & INFRAESTRUTURA] Hardening Cloudflare, Turnstile & Mitigação de DoS
+
+### 8.1 Correções de Segurança na Cloudflare (Security Insights)
+- [x] **Criar `security.txt` e `.well-known/security.txt` (RFC 9116):**
+  - Implementado em `public/.well-known/security.txt` e `public/security.txt` com e-mails oficiais de reporte responsável.
+- [ ] **Forçar versão mínima TLS 1.2 (SSL/TLS ➔ Edge Certificates):**
+  - *Problema:* Subdomínios aceitam TLS 1.0 e 1.1 obsoletos.
+  - *Solução:* Configurar "Minimum TLS Version" para `TLS 1.2` no painel da Cloudflare.
+- [ ] **Ativar "Always Use HTTPS" (SSL/TLS ➔ Edge Certificates):**
+  - *Problema:* Requisições HTTP sem SSL não são forçadas para HTTPS.
+  - *Solução:* Habilitar a chave "Always Use HTTPS" para redirecionar tráfego inseguro automaticamente.
+- [ ] **Ativar HSTS (HTTP Strict Transport Security):**
+  - *Problema:* Ausência de cabeçalho HSTS permitindo ataques Man-in-the-Middle.
+  - *Solução:* Ativar HSTS com `max-age: 6 meses` e `include subdomains`.
+- [ ] **Proxy no CNAME `rifa.athenaconsultoria.com.br` (DNS ➔ Records):**
+  - *Problema:* CNAME sem proxy (nuvem cinza), expondo o IP de origem.
+  - *Solução:* Ativar nuvem laranja (Proxied) se o subdomínio estiver ativo, ou remover se for legado.
+- [ ] **Ajuste do Registro TXT de DMARC (DNS ➔ Records):**
+  - *Problema:* Sintaxe ou ausência de política DMARC de e-mail.
+  - *Solução:* Criar ou corrigir registro TXT `_dmarc.athenaconsultoria.com.br` com:
+    `v=DMARC1; p=none; rua=mailto:athena.consultoria.automotiva@gmail.com`.
+- [ ] **Ativar 2FA / MFA na conta Cloudflare:**
+  - *Problema:* Usuário root da Cloudflare sem autenticação de dois fatores.
+  - *Solução:* Ativar aplicativo autenticador (TOTP) no perfil da conta Cloudflare.
+
+### 8.2 Proteção de Login & Anti-Brute Force (Passo 3)
+- [x] **Configurar Chaves do Cloudflare Turnstile:**
+  - `CLOUDFLARE_TURNSTILE_SITE_KEY` e `CLOUDFLARE_TURNSTILE_SECRET_KEY` salvas em `backend/.env`.
+  - `VITE_TURNSTILE_SITE_KEY` salva no `.env` da raiz (Vite).
+- [x] **Delay Progressivo (Slow Down):**
+  - Implementado com `express-slow-down`. Após 3 tentativas falhas consecutivas do IP, adiciona delay cumulativo (+1s, +2s, +3s até teto de 4s).
+- [x] **Desafio CAPTCHA Obrigatório (Turnstile):**
+  - A partir da 5ª tentativa falha (da conta ou do IP), o widget do Cloudflare Turnstile é exigido no frontend (`LoginPage.jsx`) e validado pelo backend via API `siteverify` da Cloudflare.
+- [x] **Bloqueio de Conta & IP com Desbloqueio no Admin:**
+  - Na 8ª tentativa falha (5 + 3), a conta é travada no PostgreSQL (`users.is_locked = true`), o IP é gravado em `security_ip_blocklist` e memória.
+  - Implementado botão de ação "Desbloquear Conta Imediatamente" e badges visuais no painel de administração (`ClientsManagementTab.jsx` e `CustomerDetailModal.jsx`).
+  - Endpoints administrativos dedicados criados: `POST /api/admin/users/:id/unlock` e `POST /api/admin/security/unblock-ip`.
+- [x] **Hardening Geral contra DoS na API:**
+  - Reduzido `express.json` global de 50MB para 2MB (mantendo 50MB isolado exclusivamente na rota `/api/upload`).
+  - Adicionado teto compulsório de segurança (`LIMIT 100`) em `GET /api/products` quando não paginado.
+  - Rate limit dedicado estrito de 5 requisições a cada 15 min adicionado em `POST /api/auth/forgot-password`.
