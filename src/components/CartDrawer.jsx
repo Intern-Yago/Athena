@@ -52,15 +52,15 @@ export function CartDrawer() {
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden animate-in fade-in duration-150 overscroll-none">
+    <div className="fixed inset-0 z-[120] overflow-hidden overscroll-none">
       {/* Backdrop */}
       <div 
         onClick={() => setIsCartOpen(false)}
-        className="absolute inset-0 bg-slate-950/75 transition-opacity"
+        className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs animate-backdrop-fade cursor-pointer"
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between border-l border-slate-200 animate-in slide-in-from-right duration-300">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
+        <div className="w-screen max-w-md h-[100dvh] max-h-[100dvh] bg-white shadow-2xl flex flex-col justify-between border-l border-slate-200 animate-drawer-slide-right">
           
           {/* Header */}
           <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
@@ -219,7 +219,7 @@ export function CartDrawer() {
 
           {/* Footer & Checkout Trigger */}
           {cartItems.length > 0 && (
-            <div className="p-4 sm:p-5 border-t border-slate-200 bg-slate-50 space-y-3.5">
+            <div className="p-4 sm:p-5 pb-16 sm:pb-5 border-t border-slate-200 bg-slate-50 space-y-3.5">
               {/* Totals Breakdown */}
               <div className="space-y-1.5 text-xs">
                 <div className="flex items-center justify-between text-slate-600">

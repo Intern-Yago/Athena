@@ -12,6 +12,7 @@ import {
   getProductSuggestionProfile
 } from '../utils/productSearch';
 import { isProductPublished } from '../utils/imageUrl';
+import { MACRO_DEPARTMENTS } from '../data/departmentsData';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -19,6 +20,7 @@ export default function Catalog({
   products, 
   categories, 
   brands, 
+  departments = MACRO_DEPARTMENTS,
   selectedCategories, 
   setSelectedCategories,
   selectedBrands,
@@ -167,6 +169,29 @@ export default function Catalog({
     maxPriceFilter !== null || 
     searchTerm !== '';
 
+  // Detect if any macro department is currently in focus based on selectedCategories
+  const activeDepartment = useMemo(() => {
+    if (!selectedCategories || selectedCategories.length === 0) return null;
+    let maxMatch = 0;
+    let bestDept = null;
+    const deptsList = Array.isArray(departments) && departments.length > 0 ? departments : MACRO_DEPARTMENTS;
+    for (const dept of deptsList) {
+      const deptCats = (categories || []).filter(cat => {
+        if (cat.departmentId) return cat.departmentId === dept.id;
+        return (dept.categoryIds || []).includes(cat.id);
+      });
+      const matchCount = deptCats.filter(c => selectedCategories.includes(c.id)).length;
+      if (matchCount > maxMatch) {
+        maxMatch = matchCount;
+        bestDept = {
+          ...dept,
+          categoryIds: deptCats.map(c => c.id)
+        };
+      }
+    }
+    return bestDept;
+  }, [selectedCategories, categories, departments]);
+
   const resetAllFilters = () => {
     setSelectedCategories([]);
     setSelectedBrands([]);
@@ -203,6 +228,7 @@ export default function Catalog({
               products={products}
               categories={categories}
               brands={brands}
+              departments={departments}
               selectedCategories={selectedCategories}
               setSelectedCategories={setSelectedCategories}
               selectedBrands={selectedBrands}
@@ -254,51 +280,61 @@ export default function Catalog({
                       <option value="price-high">Maior Preço</option>
                       <option value="name-az">Nome (A - Z)</option>
                     </select>
-
-                    {sortBy === 'featured' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShuffleSeed(Math.floor(Math.random() * 1000000));
-                          setCurrentPage(1);
-                        }}
-                        className="p-2 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition-all border border-slate-200 bg-white shadow-2xs group"
-                        title="Nova combinação de destaques (Embaralhar marcas e categorias)"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500 text-amber-600" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* View Mode Switcher (Grid / List) */}
-                  <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
-                        viewMode === 'grid'
-                          ? 'bg-white text-amber-700 shadow-xs'
-                          : 'text-slate-500 hover:text-slate-900'
-                      }`}
-                      title="Visualização em Grade Ampla"
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                      <span className="hidden md:inline">Grade</span>
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
-                        viewMode === 'list'
-                          ? 'bg-white text-amber-700 shadow-xs'
-                          : 'text-slate-500 hover:text-slate-900'
-                      }`}
-                      title="Visualização em Lista / Ficha Técnica"
-                    >
-                      <List className="w-4 h-4" />
-                      <span className="hidden md:inline">Lista</span>
-                    </button>
                   </div>
                 </div>
               </div>
+
+              {/* Horizontal Subcategory Quick Chips (Modelo KaBuM!) */}
+              {activeDepartment && (
+                <div className="pt-3 border-t border-slate-100 flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none]">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{activeDepartment.shortName}:</span>
+                  </span>
+
+                  {/* Button Ver Todos do Departamento */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategories(activeDepartment.categoryIds)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+                      activeDepartment.categoryIds.every((id) => selectedCategories.includes(id))
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    Ver Todos ({activeDepartment.categoryIds.reduce((acc, cid) => acc + (products.filter(p => p.categoryId === cid).length), 0)})
+                  </button>
+
+                  {/* Subcategory Chips */}
+                  {activeDepartment.categoryIds.map((catId) => {
+                    const catObj = categories.find((c) => c.id === catId);
+                    if (!catObj) return null;
+                    const count = products.filter((p) => p.categoryId === catId).length;
+                    if (count === 0) return null;
+                    const isSelected = selectedCategories.includes(catId) && !activeDepartment.categoryIds.every((id) => selectedCategories.includes(id));
+
+                    return (
+                      <button
+                        key={catId}
+                        type="button"
+                        onClick={() => setSelectedCategories([catId])}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-amber-600 text-white font-bold shadow-xs'
+                            : 'bg-white text-slate-700 hover:bg-amber-50 hover:text-amber-900 border border-slate-200'
+                        }`}
+                      >
+                        <span>{catObj.name}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                          isSelected ? 'bg-amber-700 text-white' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Accumulative Active Badges Bar */}
               {hasActiveFilters && (

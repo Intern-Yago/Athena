@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ShieldCheck, Lock, Eye, EyeOff, Check, X, AlertCircle, Loader2, KeyRound } from 'lucide-react';
-import { getPasswordValidation } from '../pages/LoginPage';
+import { getPasswordValidation } from '../utils/documentUtils';
 import { saveSession } from '../utils/storage';
 
 export default function ForceChangePasswordModal({

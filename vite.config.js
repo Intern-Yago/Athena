@@ -8,12 +8,27 @@ export default defineConfig({
     tailwindcss(),
     react()
   ],
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-react')) return 'vendor-lucide';
+            if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
+            return 'vendor-libs';
+          }
+        }
+      }
+    }
+  },
   server: {
+    host: '0.0.0.0',
     port: 3000,
-    open: true,
+    open: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://127.0.0.1:3001',
         changeOrigin: true
       }
     }

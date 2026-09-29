@@ -73,7 +73,14 @@ import {
   Phone,
   Building2,
   MessageCircle,
-  Images
+  Images,
+  FolderTree,
+  Disc,
+  Droplet,
+  Wrench,
+  Wind,
+  Grid,
+  Cpu
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl, getVideoEmbedInfo } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
@@ -89,6 +96,9 @@ import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../u
 import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
 import { isProductPublished } from '../utils/imageUrl';
 import { isProductQuoteOnly, getVariantAvailability, getVariantStockNumber } from '../utils/productVariants';
+import ProductVariantsManager from './admin/ProductVariantsManager';
+import ClientsManagementTab from './admin/ClientsManagementTab';
+import { MACRO_DEPARTMENTS, getDepartmentByCategoryId, getDepartmentById } from '../data/departmentsData';
 
 /**
  * Searchable Combobox Component (Filtragem em tempo real com busca e fallback completo)
@@ -412,10 +422,49 @@ function RadialProgressCircle({ progress = 0, size = 48, strokeWidth = 4 }) {
   );
 }
 
+const DEPT_AVAILABLE_ICONS = [
+  { name: 'Layers', label: 'Camadas' },
+  { name: 'FolderTree', label: 'Estrutura' },
+  { name: 'Sparkles', label: 'Estética / Brilho' },
+  { name: 'Disc', label: 'Disco / Pneus' },
+  { name: 'Cpu', label: 'Eletrônica / Chip' },
+  { name: 'Droplet', label: 'Óleos / Fluidos' },
+  { name: 'Wrench', label: 'Mecânica / Chave' },
+  { name: 'Wind', label: 'Pneumática / Ar' },
+  { name: 'Box', label: 'Caixa / Móveis' },
+  { name: 'Zap', label: 'Elétrica / Potência' },
+  { name: 'Truck', label: 'Pesados / Transporte' },
+  { name: 'Shield', label: 'Segurança' },
+  { name: 'Package', label: 'Equipamentos' },
+  { name: 'Grid', label: 'Grade Geral' }
+];
+
+function MacroIcon({ name, className = 'w-5 h-5' }) {
+  switch (name) {
+    case 'Sparkles': return <Sparkles className={className} />;
+    case 'Disc': return <Disc className={className} />;
+    case 'Layers': return <Layers className={className} />;
+    case 'Cpu': return <Cpu className={className} />;
+    case 'Droplet': return <Droplet className={className} />;
+    case 'Wrench': return <Wrench className={className} />;
+    case 'Wind': return <Wind className={className} />;
+    case 'Box': return <Box className={className} />;
+    case 'Zap': return <Zap className={className} />;
+    case 'Truck': return <Truck className={className} />;
+    case 'Shield': return <Shield className={className} />;
+    case 'Package': return <Package className={className} />;
+    case 'Grid': return <Grid className={className} />;
+    case 'FolderTree':
+    default:
+      return <FolderTree className={className} />;
+  }
+}
+
 export default function AdminPanel({
   products,
   categories,
   brands,
+  departments = MACRO_DEPARTMENTS,
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
@@ -424,6 +473,9 @@ export default function AdminPanel({
   onUpdateCategory,
   onDeleteCategory,
   onReorderCategories,
+  onAddDepartment,
+  onUpdateDepartment,
+  onDeleteDepartment,
   onAddBrand,
   onUpdateBrand,
   onDeleteBrand,
@@ -482,8 +534,21 @@ export default function AdminPanel({
     name: '',
     description: '',
     slug: '',
-    icon: 'Layers'
+    icon: 'Layers',
+    departmentId: 'dept_ferramentas_manuais'
   });
+  const [categoryDeptFilter, setCategoryDeptFilter] = useState('all');
+
+  // Macro-Category (Departments) Modal & Details State
+  const [editingDept, setEditingDept] = useState(null);
+  const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
+  const [deptForm, setDeptForm] = useState({
+    name: '',
+    shortName: '',
+    icon: 'Layers',
+    order: 0
+  });
+  const [selectedMacroForDetails, setSelectedMacroForDetails] = useState(null);
 
   // User Role checks
   const userRole = currentUser?.role || 'admin';
@@ -1154,6 +1219,7 @@ export default function AdminPanel({
   const [isDraggingVariantImage, setIsDraggingVariantImage] = useState(false);
   const [isUploadingVariantImage, setIsUploadingVariantImage] = useState(false);
   const [isSelectingVariantMedia, setIsSelectingVariantMedia] = useState(false);
+  const [pendingVariantImageCallback, setPendingVariantImageCallback] = useState(null);
 
   // Shopify-style image upload queue & progress state
   const [uploadingImages, setUploadingImages] = useState([]);
@@ -1187,7 +1253,7 @@ export default function AdminPanel({
   // Cloudflare R2 Image Library Modal State
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
 
-  const isAnyModalOpen = isProductModalOpen || isVariantModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage || isLibraryModalOpen || isBannerModalOpen || !!bannerToDelete;
+  const isAnyModalOpen = isProductModalOpen || isVariantModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage || isLibraryModalOpen || isBannerModalOpen || !!bannerToDelete || isDeptModalOpen || !!selectedMacroForDetails;
 
   // Background body scroll lock while any modal is open
   useEffect(() => {
@@ -3424,18 +3490,21 @@ export default function AdminPanel({
       name: '',
       description: '',
       slug: '',
-      icon: 'Layers'
+      icon: 'Layers',
+      departmentId: categoryDeptFilter !== 'all' ? categoryDeptFilter : 'dept_ferramentas_manuais'
     });
     setIsCategoryModalOpen(true);
   };
 
   const openEditCategoryModal = (cat) => {
     setEditingCategory(cat);
+    const existingDept = getDepartmentByCategoryId(cat.id, categories);
     setCategoryForm({
       name: cat.name || '',
       description: cat.description || '',
       slug: cat.slug || '',
-      icon: cat.icon || 'Layers'
+      icon: cat.icon || 'Layers',
+      departmentId: cat.departmentId || existingDept?.id || 'dept_ferramentas_manuais'
     });
     setIsCategoryModalOpen(true);
   };
@@ -3454,7 +3523,8 @@ export default function AdminPanel({
       slug: catSlug,
       description: categoryForm.description.trim() || 'Equipamentos e soluções para oficina automotiva.',
       icon: categoryForm.icon || 'Layers',
-      order: editingCategory ? editingCategory.order : categories.length + 1
+      order: editingCategory ? editingCategory.order : categories.length + 1,
+      departmentId: categoryForm.departmentId || 'dept_ferramentas_manuais'
     };
 
     if (editingCategory) {
@@ -3475,6 +3545,86 @@ export default function AdminPanel({
     setEditingCategory(null);
   };
 
+  // Macro-Category (Departments) Handlers
+  const openNewDeptModal = () => {
+    setEditingDept(null);
+    setDeptForm({
+      name: '',
+      shortName: '',
+      icon: 'Layers',
+      order: departments.length + 1
+    });
+    setIsDeptModalOpen(true);
+  };
+
+  const openEditDeptModal = (dept, e) => {
+    if (e) e.stopPropagation();
+    setEditingDept(dept);
+    setDeptForm({
+      name: dept.name || '',
+      shortName: dept.shortName || dept.name || '',
+      icon: dept.icon || 'Layers',
+      order: dept.order || 0
+    });
+    setIsDeptModalOpen(true);
+  };
+
+  const handleDeptSubmit = (e) => {
+    e.preventDefault();
+    if (!deptForm.name.trim()) {
+      showNotification('Informe o nome da macro-categoria.', 'error');
+      return;
+    }
+
+    const deptObj = {
+      id: editingDept ? editingDept.id : `dept_${Date.now()}`,
+      name: deptForm.name.trim(),
+      shortName: deptForm.shortName.trim() || deptForm.name.trim(),
+      icon: deptForm.icon || 'Layers',
+      order: editingDept ? (editingDept.order || 0) : departments.length + 1
+    };
+
+    if (editingDept) {
+      if (onUpdateDepartment) {
+        onUpdateDepartment(deptObj);
+      }
+      showNotification(`Macro-categoria "${deptObj.name}" atualizada com sucesso!`, 'success');
+      if (selectedMacroForDetails?.id === deptObj.id) {
+        setSelectedMacroForDetails(deptObj);
+      }
+    } else {
+      if (onAddDepartment) {
+        onAddDepartment(deptObj);
+      }
+      showNotification(`Macro-categoria "${deptObj.name}" criada com sucesso!`, 'success');
+    }
+
+    setIsDeptModalOpen(false);
+    setEditingDept(null);
+  };
+
+  const handleDeleteDept = (dept, e) => {
+    if (e) e.stopPropagation();
+    const count = categories.filter(c => {
+      if (c.departmentId) return c.departmentId === dept.id;
+      return (dept.categoryIds || []).includes(c.id);
+    }).length;
+
+    const confirmMsg = count > 0
+      ? `Atenção: A macro-categoria "${dept.name}" possui ${count} categoria(s) vinculada(s). Ao excluí-la, essas categorias ficarão sem macro associada.\n\nDeseja realmente excluir?`
+      : `Deseja realmente excluir a macro-categoria "${dept.name}"?`;
+
+    if (window.confirm(confirmMsg)) {
+      if (onDeleteDepartment) {
+        onDeleteDepartment(dept.id);
+      }
+      showNotification(`Macro-categoria "${dept.name}" excluída.`, 'info');
+      if (selectedMacroForDetails?.id === dept.id) {
+        setSelectedMacroForDetails(null);
+      }
+    }
+  };
+
   const handleQuickCategoryCreate = (e) => {
     e.preventDefault();
     if (!quickCatName.trim()) return;
@@ -3486,7 +3636,8 @@ export default function AdminPanel({
       slug: slug,
       order: categories.length + 1,
       description: 'Equipamentos e ferramentas da linha.',
-      icon: 'Layers'
+      icon: 'Layers',
+      departmentId: categoryDeptFilter !== 'all' ? categoryDeptFilter : 'dept_ferramentas_manuais'
     };
 
     onAddCategory(newCat);
@@ -4021,6 +4172,7 @@ export default function AdminPanel({
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold">
                 {activeAdminTab === 'products' && <Package className="w-4 h-4" />}
+                {activeAdminTab === 'departments' && <FolderTree className="w-4 h-4" />}
                 {activeAdminTab === 'categories' && <Layers className="w-4 h-4" />}
                 {activeAdminTab === 'brands' && <Tag className="w-4 h-4" />}
                 {activeAdminTab === 'banners' && <Images className="w-4 h-4" />}
@@ -4033,6 +4185,7 @@ export default function AdminPanel({
               <div className="text-left">
                 <div className="text-xs font-black text-slate-900 leading-tight">
                   {activeAdminTab === 'products' && `Produtos (${products.length})`}
+                  {activeAdminTab === 'departments' && `Macro-Categorias (${departments.length})`}
                   {activeAdminTab === 'categories' && `Categorias (${categories.length})`}
                   {activeAdminTab === 'brands' && `Marcas (${brands.length})`}
                   {activeAdminTab === 'banners' && `Banners da Home (${(banners || []).length})`}
@@ -4096,6 +4249,26 @@ export default function AdminPanel({
                     activeAdminTab === 'products' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
                   }`}>
                     {products.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('departments'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'departments'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <FolderTree className="w-4 h-4 shrink-0" />
+                    <span>Macro-Categorias</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'departments' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {departments.length}
                   </span>
                 </button>
 
@@ -4822,13 +4995,143 @@ export default function AdminPanel({
           );
         })()}
 
+        {/* MACRO-CATEGORIES (DEPARTMENTS) MANAGEMENT TAB */}
+        {activeAdminTab === 'departments' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FolderTree className="w-5 h-5 text-amber-600" />
+                  <span>Gerenciar Macro-Categorias</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Grandes departamentos que organizam o catálogo da loja. Clique em qualquer macro para ver, reatribuir ou editar suas categorias.
+                </p>
+              </div>
+
+              {canEditContent && (
+                <button
+                  type="button"
+                  onClick={openNewDeptModal}
+                  className="btn-gold text-xs font-bold py-2 px-3.5 flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nova Macro-Categoria</span>
+                </button>
+              )}
+            </div>
+
+            {/* Macro-Categories Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+              {(departments || MACRO_DEPARTMENTS).map((dept) => {
+                const deptCategories = categories.filter(c => {
+                  if (c.departmentId) return c.departmentId === dept.id;
+                  return (dept.categoryIds || []).includes(c.id);
+                });
+                const deptProductsCount = products.filter(p => deptCategories.some(c => c.id === p.categoryId)).length;
+
+                return (
+                  <div
+                    key={dept.id}
+                    onClick={() => setSelectedMacroForDetails(dept)}
+                    className="bg-slate-50/70 hover:bg-white rounded-2xl border border-slate-200 hover:border-amber-400 hover:shadow-md transition-all p-5 flex flex-col justify-between group cursor-pointer relative"
+                  >
+                    <div>
+                      {/* Top Header: Icon & Action buttons */}
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold shadow-2xs group-hover:scale-105 transition-transform">
+                          <MacroIcon name={dept.icon} className="w-5 h-5" />
+                        </div>
+
+                        {canEditContent && (
+                          <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={(e) => openEditDeptModal(dept, e)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+                              title="Editar Nome, Nome Curto e Ícone desta Macro"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteDept(dept, e)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title="Excluir Macro-Categoria"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Title & Short Name */}
+                      <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-amber-700 transition-colors line-clamp-1 mb-0.5">
+                        {dept.name}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 font-medium mb-3">
+                        Abreviado: <span className="font-semibold text-slate-700">{dept.shortName || dept.name}</span>
+                      </p>
+
+                      {/* Stat Badges */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100/70 text-amber-900 font-bold text-[11px]">
+                          <Layers className="w-3 h-3 text-amber-700" />
+                          {deptCategories.length} categorias
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-200/80 text-slate-800 font-bold text-[11px]">
+                          <Package className="w-3 h-3 text-slate-600" />
+                          {deptProductsCount} produtos
+                        </span>
+                      </div>
+
+                      {/* Category preview pills */}
+                      {deptCategories.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {deptCategories.slice(0, 3).map((cat) => (
+                            <span
+                              key={cat.id}
+                              className="px-2 py-0.5 bg-white border border-slate-200/80 rounded-md text-[10px] text-slate-600 font-medium truncate max-w-[130px]"
+                            >
+                              {cat.name}
+                            </span>
+                          ))}
+                          {deptCategories.length > 3 && (
+                            <span className="px-1.5 py-0.5 text-[10px] text-amber-700 font-bold">
+                              +{deptCategories.length - 3} mais...
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic mb-4">
+                          Nenhuma categoria vinculada ainda.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Footer Button: Ver Categorias */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMacroForDetails(dept)}
+                      className="w-full mt-2 py-2 px-3 rounded-xl bg-white hover:bg-amber-500 hover:text-slate-950 text-slate-700 text-xs font-bold border border-slate-200 hover:border-amber-500 shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer group-hover:border-amber-400"
+                    >
+                      <span>Gerenciar Categorias ({deptCategories.length})</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* CATEGORIES MANAGEMENT TAB */}
         {activeAdminTab === 'categories' && (
           <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900">Gerenciar & Reordenar Categorias</h3>
-                <p className="text-xs text-slate-500">Defina a ordem de exibição comercial no filtro (as de topo aparecem primeiro).</p>
+                <p className="text-xs text-slate-500">Defina a ordem de exibição comercial no filtro e o Macro-Departamento pai.</p>
               </div>
 
               {canEditContent && (
@@ -4849,8 +5152,53 @@ export default function AdminPanel({
               )}
             </div>
 
+            {/* Filter by Macro-Department Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="text-xs font-bold text-slate-700">Filtrar por Macro-Departamento:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={categoryDeptFilter}
+                  onChange={(e) => setCategoryDeptFilter(e.target.value)}
+                  className="form-input text-xs py-1.5 px-3 min-w-[240px] bg-white font-medium"
+                >
+                  <option value="all">Todos os Macro-Departamentos ({categories.length})</option>
+                  {(departments || MACRO_DEPARTMENTS).map(dept => {
+                    const count = categories.filter(c => {
+                      if (c.departmentId) return c.departmentId === dept.id;
+                      return (dept.categoryIds || []).includes(c.id);
+                    }).length;
+                    return (
+                      <option key={dept.id} value={dept.id}>
+                        {dept.name} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
+                {categoryDeptFilter !== 'all' && (
+                  <button
+                    onClick={() => setCategoryDeptFilter('all')}
+                    className="text-xs text-amber-700 hover:text-amber-800 font-bold hover:underline shrink-0"
+                  >
+                    Ver Todas
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-3">
-              {categories.map((cat, idx) => (
+              {categories
+                .filter(cat => {
+                  if (categoryDeptFilter === 'all') return true;
+                  if (cat.departmentId) return cat.departmentId === categoryDeptFilter;
+                  const dept = (departments || MACRO_DEPARTMENTS).find(d => d.id === categoryDeptFilter);
+                  return dept ? (dept.categoryIds || []).includes(cat.id) : false;
+                })
+                .map((cat, idx) => {
+                  const dept = getDepartmentByCategoryId(cat.id, categories, departments);
+                  return (
                 <div 
                   key={cat.id} 
                   draggable={canEditContent}
@@ -4904,7 +5252,7 @@ export default function AdminPanel({
                       {idx + 1}
                     </span>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span 
                           onClick={() => canEditContent && openEditCategoryModal(cat)}
                           className={`font-bold text-xs text-slate-900 ${canEditContent ? 'cursor-pointer hover:text-amber-600 hover:underline' : ''}`}
@@ -4912,6 +5260,14 @@ export default function AdminPanel({
                         >
                           {cat.name}
                         </span>
+                        {dept && (
+                          <span 
+                            className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 text-[10px] font-semibold border border-amber-200/60"
+                            title={`Macro-Departamento: ${dept.name}`}
+                          >
+                            {dept.shortName}
+                          </span>
+                        )}
                         {cat.status === 'draft' && (
                           <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold">
                             Rascunho
@@ -4998,7 +5354,8 @@ export default function AdminPanel({
                     )}
                   </div>
                 </div>
-              ))}
+                  );
+                })}
             </div>
           </div>
         )}
@@ -5426,173 +5783,10 @@ export default function AdminPanel({
 
         {/* CLIENTS / PORTAL USERS MANAGEMENT & SUPPORT TAB */}
         {activeAdminTab === 'clients' && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700 shadow-2xs">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900">
-                      Clientes do Site & Recuperação de Acesso
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Consulte clientes cadastrados no portal, saldo de fidelidade A-Points e preste suporte imediato de recuperação de senha.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-200">
-                  Total de Clientes: <strong className="text-purple-700">{clientsList.length}</strong>
-                </span>
-              </div>
-            </div>
-
-            {/* Search & Filter Bar */}
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="relative w-full sm:max-w-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={clientSearch}
-                  onChange={(e) => setClientSearch(e.target.value)}
-                  placeholder="Buscar por nome, e-mail, telefone ou CPF/CNPJ..."
-                  className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-amber-500 focus:bg-white transition-colors"
-                />
-                {clientSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setClientSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              <div className="text-[11px] font-medium text-slate-400">
-                Mostrando <strong className="text-slate-700">{filteredClients.length}</strong> de {clientsList.length} clientes
-              </div>
-            </div>
-
-            {/* Customers Table */}
-            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-700">
-                  <thead className="bg-slate-100 uppercase text-[10px] text-slate-600 border-b border-slate-200 font-black tracking-wider">
-                    <tr>
-                      <th className="py-3.5 px-4">Cliente / Cadastro</th>
-                      <th className="py-3.5 px-4">Contato & Documento</th>
-                      <th className="py-3.5 px-4 text-center">Saldo A-Points</th>
-                      <th className="py-3.5 px-4 text-center">Status de Acesso</th>
-                      <th className="py-3.5 px-4 text-right">Suporte ao Cliente</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredClients.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="py-12 text-center text-slate-400 text-xs">
-                          {clientSearch ? 'Nenhum cliente encontrado para os termos pesquisados.' : 'Nenhum cliente cadastrado no portal Athena até o momento.'}
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredClients.map((client) => {
-                        const isTemp = Boolean(client.mustChangePassword);
-                        const isGenerating = generatingTempForId === client.id;
-                        const isSendingReset = sendingResetForId === client.id;
-
-                        return (
-                          <tr key={client.id} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="py-3.5 px-4">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedCustomerForModal(client)}
-                                className="font-bold text-slate-900 hover:text-amber-600 transition-colors text-sm flex items-center gap-1.5 group cursor-pointer text-left"
-                                title="Abrir perfil detalhado, compras e pontos"
-                              >
-                                <span>{client.name}</span>
-                                <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500 shrink-0" />
-                              </button>
-                              <div className="text-[10px] text-slate-400">
-                                {client.createdAt ? `Desde ${new Date(client.createdAt).toLocaleDateString('pt-BR')}` : 'Cadastro direto'}
-                              </div>
-                            </td>
-
-                            <td className="py-3.5 px-4">
-                              <div className="font-mono text-slate-700 font-medium select-all">{client.email}</div>
-                              <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-500">
-                                {client.phone ? (
-                                  <a
-                                    href={`https://wa.me/55${client.phone.replace(/\D/g, '')}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 hover:bg-emerald-100 transition-colors"
-                                    title="Conversar no WhatsApp"
-                                  >
-                                    <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
-                                    <span>{client.phone}</span>
-                                  </a>
-                                ) : (
-                                  <span className="text-slate-400 text-[10px]">Sem telefone</span>
-                                )}
-                                {client.document && (
-                                  <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono text-[10px] border border-slate-200">
-                                    {client.document}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-
-                            <td className="py-3.5 px-4 text-center">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedCustomerForModal(client)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs cursor-pointer transition-colors"
-                                title="Ver extrato completo de pontos"
-                              >
-                                <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                <span>{Number(client.aPoints || 0)} pts</span>
-                              </button>
-                            </td>
-
-                            <td className="py-3.5 px-4 text-center">
-                              {isTemp ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Cliente acessando com senha temporária. O sistema obrigará a troca de senha no próximo login.">
-                                  <KeyRound className="w-3 h-3 text-amber-700" />
-                                  <span>Senha Provisória Ativa</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                  <Check className="w-3 h-3 text-emerald-600" />
-                                  <span>Acesso Normal</span>
-                                </span>
-                              )}
-                            </td>
-
-                            <td className="py-3.5 px-4 text-right">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedCustomerForModal(client)}
-                                className="inline-flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 hover:text-amber-300 font-bold text-xs shadow-xs cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
-                                title="Ver perfil completo, histórico de compras, extrato de pontos e suporte"
-                              >
-                                <Eye className="w-3.5 h-3.5 text-amber-400" />
-                                <span>Ver Histórico</span>
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <ClientsManagementTab
+            clientsList={clientsList}
+            setSelectedCustomerForModal={setSelectedCustomerForModal}
+          />
         )}
 
         {/* EMPLOYEES & ACCESS CONTROL TAB (ADMIN ONLY - INTERNAL STAFF ONLY) */}
@@ -9144,305 +9338,21 @@ export default function AdminPanel({
 
                     {/* CARD: Variações do Produto (Cores, Tamanhos & Integração Omie) */}
                     <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
-                      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-slate-100">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                              <Tag className="w-4 h-4 text-amber-600" />
-                              <span>Variações do Produto (Cores, Tamanhos & Estoque Omie)</span>
-                            </h4>
-                            {Array.isArray(productForm.variants) && productForm.variants.length > 0 && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
-                                {productForm.variants.length} {productForm.variants.length === 1 ? 'opção' : 'opções'}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            Unifique opções em uma única vitrine com SKUs e fotos exclusivas. Clique em <strong>"Editar / Abrir"</strong> para gerenciar detalhes completos em tela cheia.
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={handleOpenAddVariantModal}
-                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-amber-900 bg-amber-100/90 hover:bg-amber-200/90 border border-amber-300 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-                        >
-                          <Plus className="w-4 h-4 text-amber-800" />
-                          <span>Nova Variação</span>
-                        </button>
-                      </div>
-
-                      {/* Aviso de Herança de Preço Sob Consulta */}
-                      {isProductQuoteOnly(productForm) && (
-                        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
-                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                          <div className="space-y-0.5">
-                            <p className="font-extrabold text-amber-950">Aviso: Equipamento em modo "Sob Consulta"</p>
-                            <p className="text-[11px] text-amber-800 leading-relaxed">
-                              Como o produto principal está com preço a combinar ou sem valor numérico definido, <strong>todas as opções herdam o modo Sob Consulta no site</strong>. A compra direta online é desabilitada em favor do botão de orçamento via WhatsApp.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {(!productForm.variants || productForm.variants.length === 0) ? (
-                        <div className="py-8 px-4 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 text-center space-y-2.5">
-                          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 mx-auto flex items-center justify-center shadow-2xs">
-                            <Tag className="w-5 h-5" />
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-bold text-slate-800">Nenhuma variação cadastrada</p>
-                            <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-                              Este equipamento será exibido como produto individual. Adicione opções como Vermelho, Azul, 5 Gavetas ou 220V para disponibilizar opções de escolha ao cliente.
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleOpenAddVariantModal}
-                            className="btn-gold text-xs font-bold py-2 px-4 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Adicionar Primeira Variação</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
-                          <table className="w-full text-left border-collapse text-xs">
-                            <thead>
-                              <tr className="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                                <th className="py-3 px-3 w-14 text-center">Foto</th>
-                                <th className="py-3 px-3">Nome da Opção</th>
-                                <th className="py-3 px-3">SKU Omie</th>
-                                <th className="py-3 px-3">Cor Visual</th>
-                                <th className="py-3 px-3">Preço / Estoque</th>
-                                <th className="py-3 px-3 text-center min-w-[150px]">Status de Venda</th>
-                                <th className="py-3 px-3 text-center">Catálogo</th>
-                                <th className="py-3 px-3 text-right">Ações</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 bg-white">
-                              {productForm.variants.map((v, idx) => {
-                                const variantAvail = getVariantAvailability(v, productForm);
-                                const isParentQuote = isProductQuoteOnly(productForm);
-                                const currentControl = v.statusControl || (v.isActive === false ? 'manual_inactive' : (v.isManualForce ? 'manual_active' : 'auto'));
-                                const isOptCatalog = v.showInCatalog !== false;
-                                const displayPhoto = v.image || productForm.image || (Array.isArray(productForm.images) && productForm.images[0]);
-                                return (
-                                  <tr 
-                                    key={v.id || idx} 
-                                    className={`hover:bg-slate-50/80 transition-colors ${!variantAvail.canBuy && !isParentQuote ? 'opacity-65 bg-slate-50/40' : ''}`}
-                                  >
-                                    {/* Foto */}
-                                    <td className="py-2.5 px-3 text-center">
-                                      <div className="w-10 h-10 rounded-lg border border-slate-200 bg-slate-50 p-0.5 mx-auto overflow-hidden flex items-center justify-center relative group">
-                                        {displayPhoto ? (
-                                          <img src={displayPhoto} alt={v.name} className="w-full h-full object-contain" />
-                                        ) : (
-                                          <Package className="w-4 h-4 text-slate-300" />
-                                        )}
-                                        {!v.image && (
-                                          <span className="absolute bottom-0 inset-x-0 bg-slate-900/80 text-[8px] text-slate-200 font-bold text-center leading-tight py-0.5">
-                                            Herda
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
-
-                                    {/* Nome */}
-                                    <td className="py-2.5 px-3">
-                                      <div className="font-extrabold text-slate-900 text-xs">
-                                        {v.name || <span className="text-red-500 italic">Sem nome</span>}
-                                      </div>
-                                      <div className="text-[10px] text-slate-400">
-                                        Opção #{idx + 1}
-                                      </div>
-                                    </td>
-
-                                    {/* SKU Omie */}
-                                    <td className="py-2.5 px-3">
-                                      {v.sku ? (
-                                        <span className="font-mono text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                                          {v.sku}
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-400 text-[11px]">—</span>
-                                      )}
-                                    </td>
-
-                                    {/* Cor Visual */}
-                                    <td className="py-2.5 px-3">
-                                      {v.colorHex ? (
-                                        <div className="flex items-center gap-1.5">
-                                          <span 
-                                            className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs shrink-0" 
-                                            style={{ backgroundColor: v.colorHex }} 
-                                          />
-                                          <span className="font-mono text-[10px] text-slate-600 uppercase font-medium">
-                                            {v.colorHex}
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <span className="text-slate-400 text-[11px] italic">Texto puro</span>
-                                      )}
-                                    </td>
-
-                                    {/* Preço / Estoque */}
-                                    <td className="py-2.5 px-3">
-                                      <div className="text-[11px] font-bold text-slate-800">
-                                        {isParentQuote ? (
-                                          <span className="inline-flex items-center gap-1 text-amber-800 font-bold">
-                                            <span>Sob Consulta</span>
-                                            {v.price !== undefined && v.price !== '' && (
-                                              <span className="text-slate-400 font-normal text-[10px]">({formatBRL(v.price)})</span>
-                                            )}
-                                          </span>
-                                        ) : (
-                                          v.price !== undefined && v.price !== '' ? (
-                                            formatBRL(v.price)
-                                          ) : (
-                                            <span className="text-slate-500 font-normal">Padrão ({productForm.price ? formatBRL(productForm.price) : '—'})</span>
-                                          )
-                                        )}
-                                      </div>
-                                      <div className="text-[10px] mt-0.5">
-                                        {v.stockQty !== undefined && v.stockQty !== '' ? (
-                                          Number(v.stockQty) <= 0 ? (
-                                            <span className="text-red-600 font-bold">0 un (Esgotado)</span>
-                                          ) : (
-                                            <span className="text-slate-600 font-medium">{v.stockQty} un em estoque</span>
-                                          )
-                                        ) : (
-                                          <span className="text-slate-400">Estoque Omie</span>
-                                        )}
-                                      </div>
-                                    </td>
-
-                                    {/* Status de Venda (Auto / Ativa / Desativada) */}
-                                    <td className="py-2.5 px-3 text-center">
-                                      {isParentQuote ? (
-                                        <div className="flex flex-col items-center">
-                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
-                                            <MessageCircle className="w-3 h-3 text-amber-700" />
-                                            <span>Sob Consulta</span>
-                                          </span>
-                                          <span className="text-[9px] text-amber-700 font-medium mt-0.5">Herda do produto</span>
-                                        </div>
-                                      ) : (
-                                        <div className="flex flex-col items-center gap-1">
-                                          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 shadow-2xs">
-                                            <button
-                                              type="button"
-                                              onClick={() => handleSetVariantStatus(idx, 'auto')}
-                                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                                                currentControl === 'auto'
-                                                  ? (variantAvail.canBuy 
-                                                      ? 'bg-emerald-600 text-white shadow-2xs' 
-                                                      : 'bg-amber-600 text-white shadow-2xs')
-                                                  : 'text-slate-500 hover:text-slate-800'
-                                              }`}
-                                              title="Modo Automático: Ativa se houver estoque, desativa se zerar"
-                                            >
-                                              ⚡ Auto
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => handleSetVariantStatus(idx, 'manual_active')}
-                                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                                                currentControl === 'manual_active'
-                                                  ? 'bg-emerald-600 text-white shadow-2xs'
-                                                  : 'text-slate-500 hover:text-slate-800'
-                                              }`}
-                                              title="Prioridade Manual: Forçar Ativa para venda (mesmo se o estoque zerar)"
-                                            >
-                                              🟢 Ativa
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => handleSetVariantStatus(idx, 'manual_inactive')}
-                                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                                                currentControl === 'manual_inactive'
-                                                  ? 'bg-red-600 text-white shadow-2xs'
-                                                  : 'text-slate-500 hover:text-slate-800'
-                                              }`}
-                                              title="Prioridade Manual: Forçar Desativada para venda"
-                                            >
-                                              🔴 Desat.
-                                            </button>
-                                          </div>
-                                          <span className={`text-[9px] font-extrabold leading-none ${
-                                            !variantAvail.canBuy ? 'text-red-600' : 'text-emerald-700'
-                                          }`}>
-                                            {variantAvail.label}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </td>
-
-                                    {/* Catálogo Switch */}
-                                    <td className="py-2.5 px-3 text-center">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleToggleVariantCatalog(idx)}
-                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                          isOptCatalog 
-                                            ? 'bg-sky-100 text-sky-800 border border-sky-300 hover:bg-sky-200' 
-                                            : 'bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200'
-                                        }`}
-                                        title="Clique para alternar se esta opção aparece nos cards da vitrine"
-                                      >
-                                        {isOptCatalog ? (
-                                          <>
-                                            <Eye className="w-3 h-3 text-sky-700" />
-                                            <span>Visível</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <EyeOff className="w-3 h-3 text-slate-400" />
-                                            <span>Oculta</span>
-                                          </>
-                                        )}
-                                      </button>
-                                    </td>
-
-                                    {/* Ações */}
-                                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                                      <div className="flex items-center justify-end gap-1.5">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenEditVariantModal(idx)}
-                                          className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-900 bg-amber-100/90 hover:bg-amber-200 border border-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
-                                          title="Abrir modal completo desta variação"
-                                        >
-                                          <Edit3 className="w-3.5 h-3.5" />
-                                          <span>Editar / Abrir</span>
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDuplicateVariant(idx)}
-                                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-colors cursor-pointer"
-                                          title="Duplicar variação"
-                                        >
-                                          <Copy className="w-3.5 h-3.5" />
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRemoveVariant(idx)}
-                                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors cursor-pointer"
-                                          title="Excluir variação"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                      <ProductVariantsManager
+                        productForm={productForm}
+                        setProductForm={setProductForm}
+                        showNotification={showNotification}
+                        isProductQuoteOnly={isProductQuoteOnly}
+                        getVariantAvailability={getVariantAvailability}
+                        formatBRL={formatBRL}
+                        apiBaseUrl={API_BASE_URL}
+                        getAuthHeaders={getAuthHeaders}
+                        onOpenMediaLibrary={(callback) => {
+                          setPendingVariantImageCallback(() => callback);
+                          setIsSelectingVariantMedia(true);
+                          setIsLibraryModalOpen(true);
+                        }}
+                      />
                     </div>
 
                     {/* CARD 7: Especificações Técnicas (Smart Manager) */}
@@ -10413,6 +10323,273 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* SUBCATEGORIES MANAGEMENT MODAL (FOR SELECTED MACRO-DEPARTMENT) */}
+        {selectedMacroForDetails && (
+          <div className="modal-backdrop !z-[110]" onClick={() => setSelectedMacroForDetails(null)}>
+            <div
+              className="modal-content max-w-2xl w-full p-6 bg-white border-slate-200 relative max-h-[90vh] flex flex-col shadow-2xl rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                    <MacroIcon name={selectedMacroForDetails.icon} className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-900 leading-snug">
+                      Categorias de "{selectedMacroForDetails.name}"
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      {(() => {
+                        const macroCats = categories.filter(c => {
+                          if (c.departmentId) return c.departmentId === selectedMacroForDetails.id;
+                          return (selectedMacroForDetails.categoryIds || []).includes(c.id);
+                        });
+                        return `${macroCats.length} categoria(s) registrada(s) nesta Macro.`;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedMacroForDetails(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Informative Tip Banner */}
+              <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-xs text-amber-950 flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Ações Rápidas:</span> Clique no nome de qualquer categoria para abrir a edição completa de nome, slug, descrição e ícone. Ou use o seletor ao lado para mudar o Macro-Departamento dela instantaneamente.
+                </div>
+              </div>
+
+              {/* Categories List */}
+              <div className="flex-1 overflow-y-auto my-3 space-y-2 pr-1 max-h-[52vh]">
+                {(() => {
+                  const macroCats = categories.filter(c => {
+                    if (c.departmentId) return c.departmentId === selectedMacroForDetails.id;
+                    return (selectedMacroForDetails.categoryIds || []).includes(c.id);
+                  });
+
+                  if (macroCats.length === 0) {
+                    return (
+                      <div className="py-12 text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                          <FolderTree className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">Nenhuma categoria vinculada a esta macro ainda.</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Cadastre uma nova categoria ou reatribua categorias existentes de outra macro.</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return macroCats.map((cat, idx) => {
+                    const catProdsCount = products.filter(p => p.categoryId === cat.id).length;
+
+                    return (
+                      <div
+                        key={cat.id}
+                        className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-amber-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
+                      >
+                        {/* Left: Number + Clickable Name + Prods Count */}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedMacroForDetails(null);
+                                openEditCategoryModal(cat);
+                              }}
+                              className="text-left font-bold text-xs sm:text-sm text-slate-900 hover:text-amber-600 hover:underline flex items-center gap-1.5 group cursor-pointer truncate"
+                              title="Clique para abrir a edição completa desta categoria"
+                            >
+                              <span className="truncate">{cat.name}</span>
+                              <Edit3 className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 shrink-0 transition-colors" />
+                            </button>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {catProdsCount} produto(s) cadastrado(s)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Right: Change Macro Selector */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <span className="text-[11px] font-bold text-slate-600 shrink-0">Macro:</span>
+                          <select
+                            value={cat.departmentId || selectedMacroForDetails.id}
+                            onChange={(e) => {
+                              const newDeptId = e.target.value;
+                              const targetDept = (departments || MACRO_DEPARTMENTS).find(d => d.id === newDeptId);
+                              if (onUpdateCategory) {
+                                onUpdateCategory({ ...cat, departmentId: newDeptId });
+                              }
+                              showNotification(`Categoria "${cat.name}" movida para "${targetDept?.name || newDeptId}"!`, 'success');
+                            }}
+                            className="form-input text-xs py-1 px-2.5 bg-white font-medium min-w-[200px]"
+                          >
+                            {(departments || MACRO_DEPARTMENTS).map((dept) => (
+                              <option key={dept.id} value={dept.id}>
+                                {dept.shortName || dept.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Footer */}
+              <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                {canEditContent && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const deptId = selectedMacroForDetails.id;
+                      setSelectedMacroForDetails(null);
+                      setEditingCategory(null);
+                      setCategoryForm({
+                        name: '',
+                        description: '',
+                        slug: '',
+                        icon: 'Layers',
+                        departmentId: deptId
+                      });
+                      setIsCategoryModalOpen(true);
+                    }}
+                    className="w-full sm:w-auto text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 py-2 px-3.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Nova Categoria nesta Macro</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedMacroForDetails(null)}
+                  className="w-full sm:w-auto btn-secondary text-xs font-bold py-2 px-5"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MACRO-CATEGORY MODAL (CREATE / EDIT) */}
+        {isDeptModalOpen && canEditContent && (
+          <div className="modal-backdrop !z-[110]" onClick={() => setIsDeptModalOpen(false)}>
+            <div className="modal-content max-w-lg p-6 bg-white border-slate-200 relative shadow-2xl rounded-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FolderTree className="w-5 h-5 text-amber-600" />
+                  <span>{editingDept ? `Editar Macro-Categoria "${editingDept.name}"` : 'Nova Macro-Categoria'}</span>
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsDeptModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleDeptSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Nome Completo da Macro-Categoria *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Funilaria, Pintura & Estética"
+                    value={deptForm.name}
+                    onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                    autoFocus
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Nome descritivo exibido nos menus e cabeçalhos de departamentos.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Nome Curto / Abreviado *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Funilaria & Estética"
+                    value={deptForm.shortName}
+                    onChange={(e) => setDeptForm({ ...deptForm, shortName: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Nome compacto utilizado em filtros laterais, tags e telas menores de smartphone.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-2">
+                    Ícone da Macro-Categoria
+                  </label>
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 max-h-48 overflow-y-auto p-1 border border-slate-200 rounded-xl bg-slate-50">
+                    {DEPT_AVAILABLE_ICONS.map((ic) => {
+                      const isSelected = deptForm.icon === ic.name;
+                      return (
+                        <button
+                          key={ic.name}
+                          type="button"
+                          onClick={() => setDeptForm({ ...deptForm, icon: ic.name })}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all cursor-pointer text-center ${
+                            isSelected
+                              ? 'bg-amber-500 text-slate-950 font-black shadow-xs ring-2 ring-amber-400'
+                              : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80'
+                          }`}
+                          title={ic.label}
+                        >
+                          <MacroIcon name={ic.name} className="w-4 h-4 mb-1 shrink-0" />
+                          <span className="text-[9px] truncate max-w-full leading-tight font-medium">
+                            {ic.label.split('/')[0].trim()}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsDeptModalOpen(false)}
+                    className="btn-secondary text-xs font-bold py-2 px-4"
+                  >
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn-gold text-xs font-bold py-2 px-5 flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{editingDept ? 'Salvar Alterações' : 'Criar Macro-Categoria'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* CATEGORY MODAL (CREATE / EDIT) */}
         {isCategoryModalOpen && canEditContent && (
           <div className="modal-backdrop !z-[110]" onClick={() => setIsCategoryModalOpen(false)}>
@@ -10461,6 +10638,27 @@ export default function AdminPanel({
                     />
                   </div>
                   <span className="text-[10px] text-slate-400 mt-1 block">Deixe vazio para gerar automaticamente a partir do nome.</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Macro-Departamento *
+                  </label>
+                  <select
+                    value={categoryForm.departmentId}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, departmentId: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  >
+                    {(departments || MACRO_DEPARTMENTS).map((dept) => (
+                      <option key={dept.id} value={dept.id}>
+                        {dept.name} ({dept.shortName})
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Agrupa esta categoria/subcategoria sob o departamento correspondente no menu lateral e catálogo.
+                  </span>
                 </div>
 
                 <div>
@@ -10654,8 +10852,8 @@ export default function AdminPanel({
           </div>
         )}
 
-        {/* DEDICATED PRODUCT VARIANT MODAL (Mounted over Product Modal at !z-[120]) */}
-        {isVariantModalOpen && (
+        {/* DEDICATED PRODUCT VARIANT MODAL DEPRECATED - MANAGED BY ProductVariantsManager */}
+        {false && (
           <div 
             className="modal-backdrop !z-[120] p-3 sm:p-6" 
             onClick={() => {
@@ -11155,7 +11353,12 @@ export default function AdminPanel({
           }
           onSelectImage={
             isSelectingVariantMedia ? (url) => {
-              setVariantModalForm(prev => ({ ...prev, image: url }));
+              if (pendingVariantImageCallback) {
+                pendingVariantImageCallback(url);
+                setPendingVariantImageCallback(null);
+              } else {
+                setVariantModalForm(prev => ({ ...prev, image: url }));
+              }
               setIsSelectingVariantMedia(false);
               setIsLibraryModalOpen(false);
               showNotification('Foto da variação selecionada da Biblioteca R2!', 'success');

@@ -207,6 +207,63 @@ async function syncProductToOmie(pool, product) {
       console.log(`[Omie Sync] Estoque do produto "${product.name}" (${stockQty} un.) já alinhado com Omie ERP (${currentOmieStock ?? 0} un.). Ajuste de estoque ignorado.`);
     }
 
+    // 3.1 Sincronização individual das variações (se houverem)
+    if (Array.isArray(product.variants) && product.variants.length > 0) {
+      for (let i = 0; i < product.variants.length; i++) {
+        const v = product.variants[i];
+        if (!v) continue;
+        const vSku = String(v.sku || v.omieCode || '').trim();
+        const vOmieId = v.omieProductId ? Number(v.omieProductId) : (v.omieCode && /^\d+$/.test(v.omieCode) ? Number(v.omieCode) : null);
+        if (!vSku && !vOmieId) continue;
+
+        try {
+          let omieVarItem = null;
+          if (vOmieId && vOmieId > 0) {
+            const res = await callOmie(OMIE_PRODUTOS_URL, 'ConsultarProduto', { codigo_produto: vOmieId });
+            if (res.success && res.data) omieVarItem = res.data;
+          }
+          if (!omieVarItem && vSku) {
+            const res = await callOmie(OMIE_PRODUTOS_URL, 'ConsultarProduto', { codigo: vSku });
+            if (res.success && res.data) omieVarItem = res.data;
+          }
+
+          if (omieVarItem) {
+            const vProdId = Number(omieVarItem.codigo_produto);
+            const vPrice = Number(v.price || 0);
+            if (vPrice > 0) {
+              await callOmie(OMIE_PRODUTOS_URL, 'AlterarProduto', {
+                codigo_produto: vProdId,
+                codigo: omieVarItem.codigo || vSku,
+                descricao: `${product.name} - ${v.name}`,
+                valor_unitario: vPrice
+              });
+            }
+            const vStock = v.stockQty != null ? Number(v.stockQty) : null;
+            if (vStock != null && !isNaN(vStock) && vStock >= 0) {
+              const currentVStock = omieVarItem.quantidade_estoque != null ? Number(omieVarItem.quantidade_estoque) : null;
+              if (currentVStock != null && vStock !== currentVStock) {
+                const today = new Date();
+                const dd = String(today.getDate()).padStart(2, '0');
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const yyyy = today.getFullYear();
+                await callOmie(OMIE_ESTOQUE_AJUSTE_URL, 'IncluirAjusteEstoque', {
+                  id_prod: vProdId,
+                  data: `${dd}/${mm}/${yyyy}`,
+                  quan: vStock,
+                  obs: `Ajuste variação ${v.name} via Painel Admin Athena`,
+                  origem: 'AJU',
+                  tipo: 'ENT',
+                  motivo: 'INV'
+                });
+              }
+            }
+          }
+        } catch (vErr) {
+          console.warn(`[Omie Sync] Aviso ao sincronizar variação "${v.name}":`, vErr.message);
+        }
+      }
+    }
+
     // 4. Salva o vínculo e timestamp de sincronização no PostgreSQL local
     if (pool && product.id) {
       await pool.query(`

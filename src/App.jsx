@@ -3,17 +3,20 @@ import Header from './components/Header';
 import HeroSlim from './components/HeroSlim';
 import HomeBannerCarousel from './components/HomeBannerCarousel';
 import Catalog from './components/Catalog';
-import AdminPanel from './components/AdminPanel';
+// Lazy-loaded pages and heavy panels for blazing-fast initial load & code-splitting
+const AdminPanel = React.lazy(() => import('./components/AdminPanel'));
+const ProductDetailPage = React.lazy(() => import('./pages/ProductDetailPage'));
+const CategoryPage = React.lazy(() => import('./pages/CategoryPage'));
+const BrandPage = React.lazy(() => import('./pages/BrandPage'));
+const AboutPage = React.lazy(() => import('./pages/AboutPage'));
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const CustomerAccountPage = React.lazy(() => import('./pages/CustomerAccountPage'));
+const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
+const ServerErrorPage = React.lazy(() => import('./pages/ServerErrorPage'));
+const LegalPage = React.lazy(() => import('./pages/LegalPage'));
+
 import Footer from './components/Footer';
 import Toast from './components/Toast';
-import ProductDetailPage from './pages/ProductDetailPage';
-import CategoryPage from './pages/CategoryPage';
-import BrandPage from './pages/BrandPage';
-import AboutPage from './pages/AboutPage';
-import LoginPage from './pages/LoginPage';
-import CustomerAccountPage from './pages/CustomerAccountPage';
-import NotFoundPage from './pages/NotFoundPage';
-import ServerErrorPage from './pages/ServerErrorPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import BottomNavBar from './components/BottomNavBar';
 import ComparisonFloatingBar from './components/ComparisonFloatingBar';
@@ -23,11 +26,11 @@ import InstallmentModal from './components/InstallmentModal';
 import APointsBanner from './components/APointsBanner';
 import EmailVerificationModal from './components/EmailVerificationModal';
 import ForceChangePasswordModal from './components/ForceChangePasswordModal';
-import LegalPage from './pages/LegalPage';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import { CartProvider, useCart } from './context/CartContext';
 
 import { INITIAL_CATEGORIES, INITIAL_BRANDS, INITIAL_PRODUCTS } from './data/initialData';
+import { MACRO_DEPARTMENTS } from './data/departmentsData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
 import { 
   safeStorageGet, 
@@ -39,14 +42,32 @@ import {
   getSession, 
   touchSession, 
   clearSession, 
-  isSessionExpired 
+  isSessionExpired,
+  checkAndInvalidateCatalogCache
 } from './utils/storage';
 
 import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
 
-const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-  ? 'http://localhost:3001/api'
-  : (import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api');
+// Invalidate obsolete catalog caches (e.g. removed 1-product categories)
+if (typeof window !== 'undefined') {
+  checkAndInvalidateCatalogCache();
+}
+
+const REMOTE_API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
+const LOCAL_API_BASE_URL = typeof window !== 'undefined' 
+  ? `${window.location.protocol}//${window.location.hostname}:3001/api` 
+  : 'http://localhost:3001/api';
+const IS_LOCALHOST = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' || 
+  window.location.hostname === '127.0.0.1' || 
+  window.location.hostname === '0.0.0.0' ||
+  /^192\.168\./.test(window.location.hostname) ||
+  /^10\./.test(window.location.hostname) ||
+  /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname)
+);
+
+export let activeApiBaseUrl = IS_LOCALHOST ? LOCAL_API_BASE_URL : REMOTE_API_BASE_URL;
+const API_BASE_URL = activeApiBaseUrl;
 
 // Helper component to connect global cart checkout modal with CartContext
 function GlobalCartCheckout({ currentUser }) {
@@ -64,6 +85,15 @@ function GlobalCartCheckout({ currentUser }) {
         clearCart();
       }}
     />
+  );
+}
+
+function PageLoadingFallback({ message = 'Carregando...' }) {
+  return (
+    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 p-8 text-slate-500">
+      <div className="w-9 h-9 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
+      <span className="text-xs font-bold tracking-wider uppercase text-slate-400">{message}</span>
+    </div>
   );
 }
 
@@ -108,6 +138,14 @@ export default function App() {
     const saved = safeStorageGet('athena_banners', null);
     if (Array.isArray(saved)) return saved;
     return [];
+  });
+
+  const [departments, setDepartments] = useState(() => {
+    const saved = safeStorageGet('athena_departments', null);
+    if (Array.isArray(saved) && saved.length > 0) {
+      return saved;
+    }
+    return MACRO_DEPARTMENTS;
   });
 
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -381,11 +419,31 @@ export default function App() {
 
     const fetchBackendData = async (attempt = 1) => {
       try {
-        const [prodRes, catRes, brandRes, bannerRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/products`),
-          fetch(`${API_BASE_URL}/categories`),
-          fetch(`${API_BASE_URL}/brands`),
-          fetch(`${API_BASE_URL}/banners?all=true`).catch(() => ({ ok: false }))
+        let currentBaseUrl = activeApiBaseUrl;
+
+        // If on localhost, verify if local port 3001 is reachable. If not, fallback immediately to remote Render API
+        if (IS_LOCALHOST && currentBaseUrl === LOCAL_API_BASE_URL) {
+          try {
+            const probe = await fetch(`${LOCAL_API_BASE_URL}/categories`, { 
+              method: 'GET', 
+              signal: AbortSignal.timeout(1500) 
+            });
+            if (!probe.ok) {
+              currentBaseUrl = REMOTE_API_BASE_URL;
+              activeApiBaseUrl = REMOTE_API_BASE_URL;
+            }
+          } catch {
+            currentBaseUrl = REMOTE_API_BASE_URL;
+            activeApiBaseUrl = REMOTE_API_BASE_URL;
+          }
+        }
+
+        const [prodRes, catRes, brandRes, bannerRes, deptRes] = await Promise.all([
+          fetch(`${currentBaseUrl}/products`),
+          fetch(`${currentBaseUrl}/categories`),
+          fetch(`${currentBaseUrl}/brands`),
+          fetch(`${currentBaseUrl}/banners?all=true`).catch(() => ({ ok: false })),
+          fetch(`${currentBaseUrl}/departments`).catch(() => ({ ok: false }))
         ]);
 
         const contentType = prodRes.headers.get('content-type') || '';
@@ -427,7 +485,7 @@ export default function App() {
               if (session?.token && (session?.user?.role === 'admin' || session?.user?.isAdmin) && localOnlyProds.length > 0) {
                 localOnlyProds.forEach((lp) => {
                   if (lp.id && lp.name) {
-                    fetch(`${API_BASE_URL}/products`, {
+                    fetch(`${currentBaseUrl}/products`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -441,8 +499,17 @@ export default function App() {
 
               return mergedProds;
             });
-            setCategories(catData);
-            setBrands(Array.isArray(brandData) ? brandData.map(normalizeBrand) : []);
+            if (Array.isArray(catData) && catData.length > 0) {
+              setCategories(catData);
+              safeStorageSet('athena_categories', catData);
+              idbSet('athena_categories', catData).catch(() => {});
+            }
+            if (Array.isArray(brandData)) {
+              const normBrands = brandData.map(normalizeBrand);
+              setBrands(normBrands);
+              safeStorageSet('athena_brands', normBrands);
+              idbSet('athena_brands', normBrands).catch(() => {});
+            }
             setIsBackendConnected(true);
             setIsLoadingCatalog(false);
           }
@@ -451,6 +518,14 @@ export default function App() {
             const bannerData = await bannerRes.json();
             if (Array.isArray(bannerData) && isMounted) {
               setBanners(bannerData);
+            }
+          }
+
+          if (deptRes && deptRes.ok) {
+            const deptData = await deptRes.json();
+            if (Array.isArray(deptData) && deptData.length > 0 && isMounted) {
+              setDepartments(deptData);
+              safeStorageSet('athena_departments', deptData);
             }
           }
         } else if (attempt <= 3 && isMounted) {
@@ -500,6 +575,12 @@ export default function App() {
       safeStorageSet('athena_banners', banners);
     }
   }, [banners]);
+
+  useEffect(() => {
+    if (departments && departments.length > 0) {
+      safeStorageSet('athena_departments', departments);
+    }
+  }, [departments]);
 
   const showNotification = (message, type = 'success') => {
     let cleanMsg = 'Notificação';
@@ -754,6 +835,54 @@ export default function App() {
     }
   };
 
+  const handleAddDepartment = async (newDept) => {
+    setDepartments((prev) => [...prev, newDept]);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/departments`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newDept)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao criar macro-departamento:', e);
+    }
+  };
+
+  const handleUpdateDepartment = async (updatedDept) => {
+    setDepartments((prev) => prev.map((d) => (d.id === updatedDept.id ? updatedDept : d)));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/departments/${updatedDept.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedDept)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao atualizar macro-departamento:', e);
+    }
+  };
+
+  const handleDeleteDepartment = async (deptId) => {
+    setDepartments((prev) => prev.filter((d) => d.id !== deptId));
+    setCategories((prev) => prev.map((c) => (c.departmentId === deptId ? { ...c, departmentId: null } : c)));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/departments/${deptId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao excluir macro-departamento:', e);
+    }
+  };
+
   const handleAddBanner = async (newBanner) => {
     const bannerWithId = {
       ...newBanner,
@@ -851,6 +980,7 @@ export default function App() {
               products={products}
               categories={categories}
               brands={brands}
+              departments={departments}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
@@ -859,6 +989,9 @@ export default function App() {
               onUpdateCategory={handleUpdateCategory}
               onDeleteCategory={handleDeleteCategory}
               onReorderCategories={handleReorderCategories}
+              onAddDepartment={handleAddDepartment}
+              onUpdateDepartment={handleUpdateDepartment}
+              onDeleteDepartment={handleDeleteDepartment}
               onAddBrand={handleAddBrand}
               onUpdateBrand={handleUpdateBrand}
               onDeleteBrand={handleDeleteBrand}
@@ -1146,6 +1279,7 @@ export default function App() {
           products={products}
           categories={categories}
           brands={brands}
+          departments={departments}
           onAddProduct={handleAddProduct}
           onUpdateProduct={handleUpdateProduct}
           onDeleteProduct={handleDeleteProduct}
@@ -1154,6 +1288,9 @@ export default function App() {
           onUpdateCategory={handleUpdateCategory}
           onDeleteCategory={handleDeleteCategory}
           onReorderCategories={handleReorderCategories}
+          onAddDepartment={handleAddDepartment}
+          onUpdateDepartment={handleUpdateDepartment}
+          onDeleteDepartment={handleDeleteDepartment}
           onAddBrand={handleAddBrand}
           onUpdateBrand={handleUpdateBrand}
           onDeleteBrand={handleDeleteBrand}
@@ -1214,6 +1351,7 @@ export default function App() {
             products={publicProducts}
             categories={categories}
             brands={brands}
+            departments={departments}
             selectedCategories={selectedCategories}
             setSelectedCategories={setSelectedCategories}
             selectedBrands={selectedBrands}
@@ -1262,6 +1400,7 @@ export default function App() {
             brandsCount={brands.length}
             categories={categories}
             brands={brands}
+            departments={departments}
             products={publicProducts}
             currentUser={currentUser}
             onLogout={handleLogout}
@@ -1276,7 +1415,9 @@ export default function App() {
 
           {/* Main Page Content */}
           <main className="flex-1 pt-16 sm:pt-20">
-            {renderCurrentPage()}
+            <React.Suspense fallback={<PageLoadingFallback />}>
+              {renderCurrentPage()}
+            </React.Suspense>
           </main>
 
           {/* Floating WhatsApp Action Button (Desktop Only) */}

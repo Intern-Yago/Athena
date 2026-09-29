@@ -31,8 +31,7 @@ import {
   X
 } from 'lucide-react';
 import { saveSession } from '../utils/storage';
-import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
-import { getPasswordValidation } from './LoginPage';
+import { formatCpfCnpj, fetchCnpjData, formatPhone, getPasswordValidation } from '../utils/documentUtils';
 
 export default function CustomerAccountPage({
   currentUser,

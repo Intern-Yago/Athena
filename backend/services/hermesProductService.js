@@ -130,11 +130,12 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           p.omie_codigo_produto as "omieCodigoProduto",
           p.omie_code as "omieCode",
           p.description, p.specs,
+          COALESCE(p.variants, '[]'::jsonb) as "variants",
           c.name as "categoryName", b.name as "brandName"
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
-        WHERE p.omie_codigo_produto = $1 OR p.omie_product_id = $1 OR p.omie_code = $2 OR p.sku = $2
+        WHERE p.omie_codigo_produto = $1 OR p.omie_product_id = $1 OR p.omie_code = $2 OR p.sku = $2 OR (p.variants IS NOT NULL AND p.variants::text ILIKE '%' || $2 || '%')
         LIMIT $3
       `, [clean, clean, numLimit]);
     } else {
@@ -150,11 +151,12 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           p.omie_codigo_produto as "omieCodigoProduto",
           p.omie_code as "omieCode",
           p.description, p.specs,
+          COALESCE(p.variants, '[]'::jsonb) as "variants",
           c.name as "categoryName", b.name as "brandName"
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
-        WHERE LOWER(p.omie_code) = LOWER($1) OR LOWER(COALESCE(p.sku, '')) = LOWER($1) OR LOWER(p.slug) = LOWER($1)
+        WHERE LOWER(p.omie_code) = LOWER($1) OR LOWER(COALESCE(p.sku, '')) = LOWER($1) OR LOWER(p.slug) = LOWER($1) OR (p.variants IS NOT NULL AND p.variants::text ILIKE '%' || $1 || '%')
         LIMIT $2
       `, [clean, numLimit]);
     }
@@ -163,7 +165,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
       return exactRes.rows.map(mapDbRowToHermesProduct);
     }
 
-    // 2. Busca textual flexivel por tokens no nome, descricao, marca e categoria
+    // 2. Busca textual flexivel por tokens no nome, descricao, marca, categoria e variacoes
     let whereClauses = ["(p.status IS NULL OR p.status IN ('published', 'draft', 'rascunho'))"];
     let params = [];
 
@@ -174,14 +176,16 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
         whereClauses.push(`(
           LOWER(p.name) LIKE $${pNum} OR 
           LOWER(COALESCE(p.omie_code, '')) LIKE $${pNum} OR 
+          LOWER(COALESCE(p.sku, '')) LIKE $${pNum} OR 
           LOWER(COALESCE(b.name, '')) LIKE $${pNum} OR 
           LOWER(COALESCE(c.name, '')) LIKE $${pNum} OR
-          LOWER(COALESCE(p.description, '')) LIKE $${pNum}
+          LOWER(COALESCE(p.description, '')) LIKE $${pNum} OR
+          LOWER(COALESCE(p.variants::text, '')) LIKE $${pNum}
         )`);
       });
     } else {
       params.push(`%${clean.toLowerCase()}%`);
-      whereClauses.push(`(LOWER(p.name) LIKE $1 OR LOWER(COALESCE(p.omie_code, '')) LIKE $1)`);
+      whereClauses.push(`(LOWER(p.name) LIKE $1 OR LOWER(COALESCE(p.omie_code, '')) LIKE $1 OR LOWER(COALESCE(p.variants::text, '')) LIKE $1)`);
     }
 
     params.push(numLimit);
@@ -195,9 +199,11 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
         p.price_negotiable as "priceNegotiable",
         p.status,
         p.badge, p.image, p.images, p.in_stock as "inStock",
+        p.sku,
         p.omie_codigo_produto as "omieCodigoProduto",
         p.omie_code as "omieCode",
         p.description, p.specs,
+        COALESCE(p.variants, '[]'::jsonb) as "variants",
         c.name as "categoryName", b.name as "brandName",
         CASE 
           WHEN LOWER(p.name) = LOWER($1) THEN 1
@@ -234,6 +240,29 @@ function mapDbRowToHermesProduct(row) {
   const isDraft = statusStr === 'draft' || statusStr === 'rascunho';
   const canBuyOnline = priceNum > 0 && !isNegotiable && !isDraft;
 
+  // Processa variações vinculadas ao Omie
+  const rawVariants = Array.isArray(row.variants) 
+    ? row.variants 
+    : (typeof row.variants === 'string' ? JSON.parse(row.variants || '[]') : []);
+
+  const mappedVariants = rawVariants.filter(v => v && (v.name || v.sku)).map((v, i) => {
+    const vPrice = (v.price !== undefined && v.price !== null && v.price !== '') ? Number(v.price) : priceNum;
+    const vStock = (v.stockQty !== undefined && v.stockQty !== null && v.stockQty !== '') ? Number(v.stockQty) : null;
+    return {
+      id: v.id || `var_${i}`,
+      name: v.name || `Opção #${i + 1}`,
+      sku: v.sku || null,
+      omieCode: v.omieCode || null,
+      precoVenda: vPrice,
+      precoFormatado: vPrice > 0 ? `R$ ${vPrice.toFixed(2)}` : (priceNum > 0 ? `R$ ${priceNum.toFixed(2)} (Herda base)` : "Sob Consulta"),
+      estoqueQuantidade: vStock,
+      colorHex: v.colorHex || null,
+      image: v.image || row.image || null,
+      statusControl: v.statusControl || 'auto',
+      isActive: v.isActive !== false
+    };
+  });
+
   let orientacao = "";
   if (isDraft) {
     orientacao = `Equipamento cadastrado internamente em RASCUNHO (oculto no catálogo do site para inclusão de imagens, tags e revisão técnica). Quando o cliente perguntar o valor a você, INFORME com clareza o preço de tabela/referência de R$ ${priceNum.toFixed(2)}, explicando que as condições comerciais finais (descontos, parcelamento, frete) são fechadas via cotação oficial no WhatsApp com nossos consultores técnicos.`;
@@ -243,6 +272,13 @@ function mapDbRowToHermesProduct(row) {
     orientacao = `No site público o produto é exibido como "Sob Consulta" e o botão de compra direta fica bloqueado para orçamento. Porém, quando você (Hermes) for perguntado sobre o valor pelo cliente, INFORME com clareza o preço de tabela/referência de R$ ${priceNum.toFixed(2)}, explicando que as condições comerciais finais (descontos, parcelamento, frete) são fechadas via cotação oficial no WhatsApp com nossos consultores.`;
   } else {
     orientacao = `Equipamento sob consulta personalizada com a equipe de consultores técnicos da Athena. Solicite que o cliente entre em contato para cotação sob medida.`;
+  }
+
+  if (mappedVariants.length > 0) {
+    const varLines = mappedVariants.map(v => 
+      `   • ${v.name} | SKU: ${v.sku || 'N/A'} | Preço: ${v.precoFormatado} | Estoque: ${v.estoqueQuantidade !== null ? v.estoqueQuantidade + ' un' : 'Consulte'}`
+    ).join('\n');
+    orientacao += `\n\n📌 ATENÇÃO (EQUIPAMENTO COM VARIAÇÕES): Este produto possui ${mappedVariants.length} opções/variações cadastradas (ex: cores, medidas ou voltagens):\n${varLines}\nAo conversar com o cliente, informe com clareza as opções disponíveis e confirme qual especificação exata ele necessita.`;
   }
 
   return {
@@ -268,6 +304,8 @@ function mapDbRowToHermesProduct(row) {
     sku: row.sku || row.omieCode || null,
     omieCodigoProduto: row.omieCodigoProduto ? String(row.omieCodigoProduto) : null,
     omieCode: row.omieCode || null,
+    variants: mappedVariants,
+    hasVariants: mappedVariants.length > 0,
     url: `https://athenaconsultoria.com.br/produto/${row.slug || row.id}`,
     source: "postgres_local_cache"
   };
@@ -708,7 +746,7 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
   const cleanId = String(identifier).trim();
 
   let findRes = await pool.query(`
-    SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku 
+    SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku, COALESCE(variants, '[]'::jsonb) as "variants"
     FROM products 
     WHERE id = $1::text 
        OR slug = $1::text 
@@ -716,6 +754,7 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
        OR CAST(omie_product_id AS TEXT) = $1::text 
        OR LOWER(COALESCE(omie_code, '')) = LOWER($1::text) 
        OR LOWER(COALESCE(sku, '')) = LOWER($1::text)
+       OR (variants IS NOT NULL AND variants::text ILIKE '%' || $1::text || '%')
     LIMIT 1
   `, [cleanId]);
 
@@ -724,9 +763,9 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
     const skuCandidate = extractSkuFromTitle(cleanId);
     const searchTerm = skuCandidate || cleanId;
     findRes = await pool.query(`
-      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku 
+      SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku, COALESCE(variants, '[]'::jsonb) as "variants" 
       FROM products 
-      WHERE name ILIKE $1::text OR omie_code ILIKE $1::text OR sku ILIKE $1::text
+      WHERE name ILIKE $1::text OR omie_code ILIKE $1::text OR sku ILIKE $1::text OR (variants IS NOT NULL AND variants::text ILIKE $1::text)
       LIMIT 1
     `, [`%${searchTerm}%`]);
   }
@@ -747,7 +786,7 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
 
     if (omieItem && omieItem.codigo_produto) {
       const saved = await upsertOmieProductToLocal(pool, omieItem);
-      findRes = await pool.query(`SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku FROM products WHERE id = $1 LIMIT 1`, [saved.id]);
+      findRes = await pool.query(`SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku, COALESCE(variants, '[]'::jsonb) as "variants" FROM products WHERE id = $1 LIMIT 1`, [saved.id]);
     } else {
       // 2. Não existe no Omie nem no banco local: cria como novo rascunho (draft)
       const name = updateData.name || updateData.descricao || `Produto ${cleanId}`;
@@ -783,11 +822,48 @@ async function updateProductByHermes(pool, identifier, updateData = {}) {
           omie_last_sync = CURRENT_TIMESTAMP
       `, [newId, name, slug, initPrice, initStock, initNegotiable, initStatus, initSku]);
 
-      findRes = await pool.query(`SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku FROM products WHERE id = $1 LIMIT 1`, [newId]);
+      findRes = await pool.query(`SELECT id, name, slug, price, preco_venda, estoque_quantidade, price_negotiable, status, in_stock, omie_codigo_produto, omie_code, sku, COALESCE(variants, '[]'::jsonb) as "variants" FROM products WHERE id = $1 LIMIT 1`, [newId]);
     }
   }
 
   const existing = findRes.rows[0];
+  const existingVariants = Array.isArray(existing.variants) ? [...existing.variants] : [];
+
+  // Se o identificador bater com uma variação específica
+  const targetVarIndex = existingVariants.findIndex(v => {
+    if (!v) return false;
+    const vSku = String(v.sku || '').trim().toLowerCase();
+    const vId = String(v.id || '').trim().toLowerCase();
+    const vOmie = String(v.omieCode || '').trim().toLowerCase();
+    const target = cleanId.toLowerCase();
+    const explicitSku = String(updateData.variantSku || updateData.variantId || '').trim().toLowerCase();
+    return vSku === target || vId === target || vOmie === target || (explicitSku && (vSku === explicitSku || vId === explicitSku));
+  });
+
+  if (targetVarIndex !== -1) {
+    const updatedVar = { ...existingVariants[targetVarIndex] };
+    if (updateData.precoVenda != null) updatedVar.price = Number(updateData.precoVenda);
+    else if (updateData.price != null) updatedVar.price = Number(updateData.price);
+    
+    if (updateData.estoqueQuantidade != null) updatedVar.stockQty = Number(updateData.estoqueQuantidade);
+    else if (updateData.stock != null) updatedVar.stockQty = Number(updateData.stock);
+
+    existingVariants[targetVarIndex] = updatedVar;
+
+    await pool.query(`
+      UPDATE products 
+      SET variants = $1::jsonb, omie_last_sync = CURRENT_TIMESTAMP
+      WHERE id = $2::text
+    `, [JSON.stringify(existingVariants), existing.id]);
+
+    console.log(`[updateProductByHermes] ✅ Variação "${updatedVar.name}" (SKU: ${updatedVar.sku}) do produto "${existing.name}" atualizada!`);
+    return {
+      success: true,
+      message: `Variação "${updatedVar.name}" do produto "${existing.name}" atualizada com sucesso!`,
+      productId: existing.id,
+      variant: updatedVar
+    };
+  }
 
   const newPrice = updateData.precoVenda != null 
     ? Number(updateData.precoVenda) 

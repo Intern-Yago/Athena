@@ -8,6 +8,35 @@ const DB_NAME = 'AthenaAutomotivaDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'catalog_store';
 
+export const CURRENT_CATALOG_VERSION = 'v2_2026_09_29_sanitized';
+
+/**
+ * Checks if client local cache is outdated and flushes obsolete category/product data.
+ */
+export function checkAndInvalidateCatalogCache() {
+  if (typeof window === 'undefined') return;
+  try {
+    const savedVersion = localStorage.getItem('athena_catalog_version');
+    if (savedVersion !== CURRENT_CATALOG_VERSION) {
+      console.log(`[Athena Storage] Novo catálogo detectado (${savedVersion || 'nenhum'} -> ${CURRENT_CATALOG_VERSION}). Limpando dados obsoletos do cache local...`);
+      localStorage.removeItem('athena_categories');
+      localStorage.removeItem('athena_products');
+      localStorage.removeItem('athena_brands');
+      localStorage.setItem('athena_catalog_version', CURRENT_CATALOG_VERSION);
+      safeStorageRemove('athena_categories');
+      safeStorageRemove('athena_products');
+      safeStorageRemove('athena_brands');
+    }
+  } catch (e) {
+    console.warn('[Athena Storage] Falha ao verificar versão de cache:', e);
+  }
+}
+
+// Auto-execute immediately upon module evaluation in the browser
+if (typeof window !== 'undefined') {
+  checkAndInvalidateCatalogCache();
+}
+
 function getIndexedDB() {
   return new Promise((resolve) => {
     if (typeof window === 'undefined' || !window.indexedDB) {

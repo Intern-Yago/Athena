@@ -45,6 +45,7 @@ migrate_to_supabase.cjs
 scripts/merge_and_sync_all_products.js
 scripts/merge_and_sync_all_products.cjs
 scripts/*.json
+backend/scripts/*.json
 
 # 6. Python Bytecode & Virtual Environments
 __pycache__/

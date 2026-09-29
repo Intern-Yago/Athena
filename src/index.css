@@ -66,6 +66,26 @@
   }
 }
 
+@keyframes drawerSlideLeft {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes backdropFade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .animate-dropdown {
   animation: fastFadeIn 0.18s cubic-bezier(0, 0, 0.2, 1) forwards;
   will-change: transform, opacity;
@@ -74,6 +94,32 @@
 .animate-slide-right {
   animation: slideInRight 0.28s cubic-bezier(0, 0, 0.2, 1) forwards;
   will-change: transform, opacity;
+}
+
+.animate-drawer-slide-left {
+  animation: drawerSlideLeft 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes drawerSlideRight {
+  0% {
+    transform: translate3d(100%, 0, 0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+.animate-drawer-slide-right {
+  animation: drawerSlideRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-backdrop-fade {
+  animation: backdropFade 0.22s ease-out forwards;
+  will-change: opacity;
 }
 
 /* Typography Headings */

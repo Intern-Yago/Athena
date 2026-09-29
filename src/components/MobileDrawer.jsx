@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Layers, Tag, PackageCheck, Info, ChevronDown, ChevronRight, 
   PhoneCall, Lock, Grid, User, LogOut, ShoppingCart, 
-  Package, Gift, Users, ShieldCheck, RefreshCw, Shield, Store
+  Package, Gift, Users, ShieldCheck, RefreshCw, Shield, Store, FolderTree
 } from 'lucide-react';
 
 export default function MobileDrawer({ 
@@ -13,6 +13,7 @@ export default function MobileDrawer({
   onSelectAdminTab,
   categories = [], 
   brands = [], 
+  departments = [],
   products = [], 
   onNavigate,
   currentUser,
@@ -23,6 +24,7 @@ export default function MobileDrawer({
 
   const safeCategories = categories || [];
   const safeBrands = brands || [];
+  const safeDepartments = departments || [];
   const safeProducts = products || [];
 
   const isStaff = currentUser && ['admin', 'vendedor', 'editor', 'edicao'].includes(currentUser.role);
@@ -172,6 +174,26 @@ export default function MobileDrawer({
                   activeAdminTab === 'products' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-200 text-slate-700'
                 }`}>
                   {safeProducts.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectAdminTab('departments')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                  activeAdminTab === 'departments'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <FolderTree className="w-4 h-4 shrink-0" />
+                  <span>Macro-Categorias</span>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                  activeAdminTab === 'departments' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {safeDepartments.length}
                 </span>
               </button>
 

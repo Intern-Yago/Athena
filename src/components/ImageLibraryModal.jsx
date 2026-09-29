@@ -139,6 +139,7 @@ export default function ImageLibraryModal({
 
   // Mapa de registro global de uso: token (minúsculo) -> { brands: Set(nomes), products: Set(nomes), categories: Set(nomes), banners: Set(nomes) }
   const mediaUsageRegistry = useMemo(() => {
+    if (!isOpen) return new Map();
     const registry = new Map();
 
     const registerToken = (token, type, name) => {
@@ -194,24 +195,26 @@ export default function ImageLibraryModal({
     });
 
     return registry;
-  }, [products, brands, categories, banners]);
+  }, [isOpen, products, brands, categories, banners]);
 
   // Pre-tokenized sets for instant O(1) membership checks without repeated string parsing
   const currentImagesTokensSet = useMemo(() => {
+    if (!isOpen) return new Set();
     const set = new Set();
     (currentImages || []).forEach(url => {
       extractMediaTokens(url).forEach(t => set.add(t));
     });
     return set;
-  }, [currentImages]);
+  }, [isOpen, currentImages]);
 
   const currentCoverTokensSet = useMemo(() => {
+    if (!isOpen) return new Set();
     const set = new Set();
     if (currentCover) {
       extractMediaTokens(currentCover).forEach(t => set.add(t));
     }
     return set;
-  }, [currentCover]);
+  }, [isOpen, currentCover]);
 
   // Consulta o uso detalhado de um item do R2
   const getItemUsage = useCallback((item) => {
@@ -538,16 +541,20 @@ export default function ImageLibraryModal({
 
   // Pre-compute item usage in a single fast O(N) pass
   const itemsUsageMap = useMemo(() => {
+    if (!isOpen) return new Map();
     const map = new Map();
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       map.set(item.key, getItemUsage(item));
     }
     return map;
-  }, [items, getItemUsage]);
+  }, [isOpen, items, getItemUsage]);
 
   // Aggregate tab counts in one single pass from the pre-computed map
   const { countInUse, countBrands, countBanners, countUnused, countCurrentProduct } = useMemo(() => {
+    if (!isOpen) {
+      return { countInUse: 0, countBrands: 0, countBanners: 0, countUnused: 0, countCurrentProduct: 0 };
+    }
     let inUse = 0;
     let brandsC = 0;
     let bannersC = 0;
@@ -569,10 +576,11 @@ export default function ImageLibraryModal({
       countUnused: unused,
       countCurrentProduct: currProd
     };
-  }, [items, itemsUsageMap]);
+  }, [isOpen, items, itemsUsageMap]);
 
   // Filter items according to usageFilter using the pre-computed map
   const displayedItems = useMemo(() => {
+    if (!isOpen) return [];
     if (usageFilter === 'all') return items;
     return items.filter(item => {
       const usage = itemsUsageMap.get(item.key);
@@ -584,7 +592,7 @@ export default function ImageLibraryModal({
       if (usageFilter === 'current_product') return usage.isCurrentProduct;
       return true;
     });
-  }, [items, usageFilter, itemsUsageMap]);
+  }, [isOpen, items, usageFilter, itemsUsageMap]);
 
   const handleSelectAllUnused = () => {
     const unusedItems = items.filter(i => !(itemsUsageMap.get(i.key)?.isUsed));

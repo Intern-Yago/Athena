@@ -21,29 +21,8 @@ import {
   Search,
   Loader2
 } from 'lucide-react';
-import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
-
-export function getPasswordValidation(password) {
-  const pwd = String(password || '');
-  const minLength = pwd.length >= 8;
-  const hasUpper = /[A-Z]/.test(pwd);
-  const hasLower = /[a-z]/.test(pwd);
-  const hasNumber = /[0-9]/.test(pwd);
-  const hasSpecial = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/.test(pwd);
-  
-  const score = [minLength, hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
-  const isValid = minLength && hasUpper && hasLower && hasNumber && hasSpecial;
-
-  return {
-    minLength,
-    hasUpper,
-    hasLower,
-    hasNumber,
-    hasSpecial,
-    score,
-    isValid
-  };
-}
+import { formatCpfCnpj, fetchCnpjData, formatPhone, getPasswordValidation } from '../utils/documentUtils';
+export { getPasswordValidation };
 
 function PasswordStrengthIndicator({ password }) {
   if (!password) return null;

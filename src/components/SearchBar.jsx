@@ -441,7 +441,7 @@ export default function SearchBar({
   // 5. SIDEBAR VARIANT
   if (variant === 'sidebar') {
     return (
-      <div ref={containerRef} className={`relative z-30 ${className}`}>
+      <div ref={containerRef} className={`relative z-0 ${className}`}>
         <div className="relative w-full">
           <input
             type="text"

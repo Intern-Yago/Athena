@@ -15,6 +15,7 @@ export default function Header({
   brandsCount,
   categories,
   brands,
+  departments,
   products,
   currentUser,
   onLogout,
@@ -276,6 +277,7 @@ export default function Header({
         onNavigate={onNavigate}
         categories={categories}
         brands={brands}
+        departments={departments}
         products={products}
         currentUser={currentUser}
         onLogout={onLogout}

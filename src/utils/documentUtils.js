@@ -150,3 +150,25 @@ export async function fetchCnpjData(taxId) {
     throw err;
   }
 }
+
+export function getPasswordValidation(password) {
+  const pwd = String(password || '');
+  const minLength = pwd.length >= 8;
+  const hasUpper = /[A-Z]/.test(pwd);
+  const hasLower = /[a-z]/.test(pwd);
+  const hasNumber = /[0-9]/.test(pwd);
+  const hasSpecial = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/.test(pwd);
+  
+  const score = [minLength, hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
+  const isValid = minLength && hasUpper && hasLower && hasNumber && hasSpecial;
+
+  return {
+    minLength,
+    hasUpper,
+    hasLower,
+    hasNumber,
+    hasSpecial,
+    score,
+    isValid
+  };
+}

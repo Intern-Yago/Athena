@@ -137,6 +137,43 @@ async function findMatchingAthenaProduct(pool, { codigoProduto, codigoSku, descr
     if (res.rows.length > 0) return { product: res.rows[0], matchType: `desc_model_${model}` };
   }
 
+  // 6. Match por SKU ou Omie ID dentro do array de variações (variants JSONB)
+  if (rawSku || (omieId && !isNaN(omieId) && omieId > 0)) {
+    try {
+      const resVariants = await pool.query(
+        `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
+         WHERE variants IS NOT NULL AND jsonb_array_length(variants) > 0`
+      );
+      for (const row of resVariants.rows) {
+        const vars = Array.isArray(row.variants) ? row.variants : [];
+        for (let i = 0; i < vars.length; i++) {
+          const v = vars[i];
+          if (!v) continue;
+          const vSku = String(v.sku || '').trim().toLowerCase();
+          const vOmie = String(v.omieCode || '').trim().toLowerCase();
+          const vOmieId = v.omieProductId ? Number(v.omieProductId) : (v.omieCode && /^\d+$/.test(v.omieCode) ? Number(v.omieCode) : null);
+
+          const targetSku = rawSku.toLowerCase();
+          const targetId = omieId;
+
+          const skuMatch = targetSku && (vSku === targetSku || vOmie === targetSku || normalizeKey(vSku) === normCod);
+          const idMatch = targetId && vOmieId === targetId;
+
+          if (skuMatch || idMatch) {
+            return {
+              product: row,
+              matchType: 'variant_match',
+              matchedVariantIndex: i,
+              matchedVariant: v
+            };
+          }
+        }
+      }
+    } catch (varErr) {
+      console.warn(`[Omie Webhook] Erro ao buscar correspondência em variações: ${varErr.message}`);
+    }
+  }
+
   return null;
 }
 
@@ -190,6 +227,49 @@ async function processOmieProductWebhook(pool, body) {
 
     if (matchResult && matchResult.product) {
       const existing = matchResult.product;
+
+      if (matchResult.matchType === 'variant_match') {
+        const variants = Array.isArray(existing.variants) ? [...existing.variants] : [];
+        const idx = matchResult.matchedVariantIndex;
+        if (idx >= 0 && idx < variants.length) {
+          const updatedVar = { ...variants[idx] };
+          if (finalPreco > 0) updatedVar.price = finalPreco;
+          updatedVar.stockQty = finalEstoque;
+          if (codigoProduto) {
+            updatedVar.omieProductId = Number(codigoProduto);
+            updatedVar.omieCode = updatedVar.omieCode || String(codigoProduto);
+          }
+          if (codigoSku && !SKU_STOP_WORDS.has(String(codigoSku).toUpperCase())) {
+            updatedVar.sku = updatedVar.sku || codigoSku;
+          }
+          variants[idx] = updatedVar;
+
+          const hasAnyStock = variants.some(v => (Number(v.stockQty) || 0) > 0);
+
+          await pool.query(`
+            UPDATE products
+            SET 
+              variants = $1::jsonb,
+              in_stock = CASE WHEN $2 THEN true ELSE in_stock END,
+              omie_last_sync = CURRENT_TIMESTAMP
+            WHERE id = $3::text
+          `, [JSON.stringify(variants), hasAnyStock, existing.id]);
+
+          console.log(`[OMIE WEBHOOK] ✅ Variação "${updatedVar.name}" (SKU: ${updatedVar.sku}) do produto "${existing.name}" (ID: ${existing.id}) atualizada via webhook! Preço: R$ ${finalPreco} | Estoque: ${finalEstoque}`);
+          return {
+            processed: true,
+            action: "variant_updated",
+            matchType: "variant_match",
+            productId: existing.id,
+            name: existing.name,
+            variantName: updatedVar.name,
+            variantSku: updatedVar.sku,
+            precoVenda: finalPreco,
+            estoqueQuantidade: finalEstoque
+          };
+        }
+      }
+
       const cleanSku = (codigoSku && !SKU_STOP_WORDS.has(String(codigoSku).toUpperCase())) ? codigoSku : (existing.sku || '');
 
       await pool.query(`

@@ -522,14 +522,25 @@ async function initDb() {
       }
 
       await pool.query(`
+        CREATE TABLE IF NOT EXISTS departments (
+          id VARCHAR(100) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          short_name VARCHAR(100),
+          icon VARCHAR(100),
+          "order" INT DEFAULT 0
+        );
+
         CREATE TABLE IF NOT EXISTS categories (
           id VARCHAR(100) PRIMARY KEY,
           name VARCHAR(255) NOT NULL,
           slug VARCHAR(255),
           description TEXT,
           icon VARCHAR(100),
-          "order" INT DEFAULT 0
+          "order" INT DEFAULT 0,
+          department_id VARCHAR(100)
         );
+
+        ALTER TABLE categories ADD COLUMN IF NOT EXISTS department_id VARCHAR(100);
 
         CREATE TABLE IF NOT EXISTS brands (
           id VARCHAR(100) PRIMARY KEY,
@@ -6326,7 +6337,7 @@ app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) =
 app.get('/api/categories', async (req, res) => {
   if (pool) {
     try {
-      const result = await pool.query('SELECT id, name, slug, description, icon, "order" FROM categories ORDER BY "order" ASC, name ASC');
+      const result = await pool.query('SELECT id, name, slug, description, icon, "order", department_id AS "departmentId" FROM categories ORDER BY "order" ASC, name ASC');
       return res.json(result.rows);
     } catch (e) {
       console.error(e);
@@ -6344,7 +6355,7 @@ app.get('/api/categories/:identifier', async (req, res) => {
   if (pool) {
     try {
       const result = await pool.query(
-        'SELECT id, name, slug, description, icon, "order" FROM categories WHERE id = $1 OR slug = $1 LIMIT 1',
+        'SELECT id, name, slug, description, icon, "order", department_id AS "departmentId" FROM categories WHERE id = $1 OR slug = $1 LIMIT 1',
         [cleanId]
       );
       if (result.rows.length > 0) {
@@ -6366,8 +6377,8 @@ app.post('/api/categories', authenticateToken, async (req, res) => {
   if (pool) {
     try {
       await pool.query(
-        'INSERT INTO categories (id, name, slug, description, icon, "order") VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET name=$2, slug=$3, description=$4, icon=$5, "order"=$6',
-        [newCat.id, newCat.name, newCat.slug || '', newCat.description || '', newCat.icon || 'Layers', newCat.order || 0]
+        'INSERT INTO categories (id, name, slug, description, icon, "order", department_id) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET name=$2, slug=$3, description=$4, icon=$5, "order"=$6, department_id=$7',
+        [newCat.id, newCat.name, newCat.slug || '', newCat.description || '', newCat.icon || 'Layers', newCat.order || 0, newCat.departmentId || null]
       );
       return res.status(201).json(newCat);
     } catch (e) {
@@ -6422,8 +6433,8 @@ app.put('/api/categories/:id', authenticateToken, async (req, res) => {
   if (pool) {
     try {
       await pool.query(
-        'UPDATE categories SET name=$1, slug=$2, description=$3, icon=$4, "order"=$5 WHERE id=$6',
-        [updatedCat.name, updatedCat.slug || '', updatedCat.description || '', updatedCat.icon || 'Layers', updatedCat.order || 0, req.params.id]
+        'UPDATE categories SET name=$1, slug=$2, description=$3, icon=$4, "order"=$5, department_id=$6 WHERE id=$7',
+        [updatedCat.name, updatedCat.slug || '', updatedCat.description || '', updatedCat.icon || 'Layers', updatedCat.order || 0, updatedCat.departmentId || null, req.params.id]
       );
       return res.json(updatedCat);
     } catch (e) {
@@ -6452,6 +6463,103 @@ app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
   const db = readDbJson();
   db.categories = (db.categories || []).filter((c) => c.id !== req.params.id);
   writeDbJson(db);
+  res.json({ success: true, id: req.params.id });
+});
+
+// 1.5 DEPARTMENTS / MACRO-CATEGORIES
+app.get('/api/departments', async (req, res) => {
+  if (pool) {
+    try {
+      const result = await pool.query('SELECT id, name, short_name AS "shortName", icon, "order" FROM departments ORDER BY "order" ASC, name ASC');
+      return res.json(result.rows);
+    } catch (e) {
+      console.error('Erro ao buscar departamentos no PostgreSQL:', e.message);
+    }
+  }
+  const db = readDbJson();
+  res.json(db.departments || []);
+});
+
+app.post('/api/departments', authenticateToken, async (req, res) => {
+  const newDept = {
+    id: req.body.id || `dept_${Date.now()}`,
+    name: (req.body.name || '').trim(),
+    shortName: (req.body.shortName || req.body.name || '').trim(),
+    icon: req.body.icon || 'Layers',
+    order: req.body.order || 0
+  };
+
+  if (pool) {
+    try {
+      await pool.query(
+        'INSERT INTO departments (id, name, short_name, icon, "order") VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET name=$2, short_name=$3, icon=$4, "order"=$5',
+        [newDept.id, newDept.name, newDept.shortName, newDept.icon, newDept.order]
+      );
+      return res.status(201).json(newDept);
+    } catch (e) {
+      console.error('Erro ao criar departamento no PostgreSQL:', e.message);
+    }
+  }
+
+  const db = readDbJson();
+  if (!Array.isArray(db.departments)) db.departments = [];
+  db.departments.push(newDept);
+  writeDbJson(db);
+  res.status(201).json(newDept);
+});
+
+app.put('/api/departments/:id', authenticateToken, async (req, res) => {
+  const updatedDept = {
+    id: req.params.id,
+    name: (req.body.name || '').trim(),
+    shortName: (req.body.shortName || req.body.name || '').trim(),
+    icon: req.body.icon || 'Layers',
+    order: req.body.order !== undefined ? req.body.order : 0
+  };
+
+  if (pool) {
+    try {
+      await pool.query(
+        'UPDATE departments SET name=$1, short_name=$2, icon=$3, "order"=$4 WHERE id=$5',
+        [updatedDept.name, updatedDept.shortName, updatedDept.icon, updatedDept.order, req.params.id]
+      );
+      return res.json(updatedDept);
+    } catch (e) {
+      console.error('Erro ao atualizar departamento no PostgreSQL:', e.message);
+    }
+  }
+
+  const db = readDbJson();
+  if (!Array.isArray(db.departments)) db.departments = [];
+  const idx = db.departments.findIndex(d => d.id === req.params.id);
+  if (idx !== -1) {
+    db.departments[idx] = { ...db.departments[idx], ...updatedDept };
+    writeDbJson(db);
+    return res.json(db.departments[idx]);
+  }
+  res.status(404).json({ error: 'Departamento não encontrado.' });
+});
+
+app.delete('/api/departments/:id', authenticateToken, async (req, res) => {
+  if (pool) {
+    try {
+      // Set department_id = NULL on any categories that belonged to this department
+      await pool.query('UPDATE categories SET department_id = NULL WHERE department_id = $1', [req.params.id]);
+      await pool.query('DELETE FROM departments WHERE id = $1', [req.params.id]);
+      return res.json({ success: true, id: req.params.id });
+    } catch (e) {
+      console.error('Erro ao deletar departamento no PostgreSQL:', e.message);
+    }
+  }
+
+  const db = readDbJson();
+  if (Array.isArray(db.departments)) {
+    db.departments = db.departments.filter(d => d.id !== req.params.id);
+    if (Array.isArray(db.categories)) {
+      db.categories = db.categories.map(c => c.departmentId === req.params.id ? { ...c, departmentId: null } : c);
+    }
+    writeDbJson(db);
+  }
   res.json({ success: true, id: req.params.id });
 });
 
@@ -7273,7 +7381,7 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Athena API Backend rodando na porta ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Athena API Backend rodando em http://0.0.0.0:${PORT}`);
   console.log(`Swagger API Docs protegida em: http://localhost:${PORT}/api-docs`);
 });
