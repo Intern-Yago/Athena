@@ -524,7 +524,7 @@ Para evitar criar categorias infinitas para cada detalhe técnico, a página de 
   - Endpoints administrativos dedicados criados: `POST /api/admin/users/:id/unlock` e `POST /api/admin/security/unblock-ip`.
 - [x] **Hardening Geral contra DoS na API:**
   - Reduzido `express.json` global de 50MB para 2MB (mantendo 50MB isolado exclusivamente na rota `/api/upload`).
-  - Adicionado teto compulsório de segurança (`LIMIT 100`) em `GET /api/products` quando não paginado.
+  - Sanitização de consultas e teto de segurança contra DoS na paginação (`Math.min(100, limit)` em `GET /api/products`), preservando integridade de carregamento do catálogo.
   - Rate limit dedicado estrito de 5 requisições a cada 15 min adicionado em `POST /api/auth/forgot-password`.
 
 ### 8.3 [FUTURO] Autenticação Multi-Fator (MFA / 2FA) & Reautenticação Sensível

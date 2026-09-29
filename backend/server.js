@@ -7893,9 +7893,7 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
           }
         });
       } else {
-        // OWASP Hardening: Teto compulsório de 100 itens para requisições não-paginadas, prevenindo Memory Exhaustion DoS
-        const safeSelect = `${baseSelect} LIMIT 100`;
-        const result = await pool.query(safeSelect, values);
+        const result = await pool.query(baseSelect, values);
         return res.json(result.rows);
       }
     } catch (e) {
@@ -7939,8 +7937,7 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
     });
   }
 
-  // Teto compulsório de 100 itens no JSON local
-  res.json(products.slice(0, 100));
+  res.json(products);
 });
 
 app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, res) => {
