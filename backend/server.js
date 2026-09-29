@@ -762,12 +762,14 @@ async function initDb() {
           ip VARCHAR(64) PRIMARY KEY,
           failed_attempts INTEGER DEFAULT 0,
           is_blocked BOOLEAN DEFAULT FALSE,
+          locked_until TIMESTAMP DEFAULT NULL,
           blocked_at TIMESTAMP DEFAULT NULL,
           blocked_reason VARCHAR(255) DEFAULT NULL,
           unblocked_by VARCHAR(100) DEFAULT NULL,
           unblocked_at TIMESTAMP DEFAULT NULL,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE security_ip_blocklist ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP DEFAULT NULL;
       `);
 
       // Create Email Verifications Table
@@ -2506,7 +2508,7 @@ async function verifyCloudflareTurnstile(token, clientIp) {
 async function getIpSecurityRecord(ip) {
   // IPs internos, privados ou de loopback (Render internal router, localhost, Docker) NUNCA são bloqueados
   if (isPrivateOrInternalIp(ip)) {
-    return { failedAttempts: 0, isBlocked: false, blockedAt: null };
+    return { failedAttempts: 0, isBlocked: false, lockedUntil: null, blockedAt: null };
   }
 
   let mem = ipSecurityTracker.get(ip);
@@ -2514,12 +2516,13 @@ async function getIpSecurityRecord(ip) {
 
   if (pool) {
     try {
-      const res = await pool.query('SELECT ip, failed_attempts, is_blocked, blocked_at FROM security_ip_blocklist WHERE ip = $1', [ip]);
+      const res = await pool.query('SELECT ip, failed_attempts, is_blocked, locked_until, blocked_at FROM security_ip_blocklist WHERE ip = $1', [ip]);
       if (res.rows.length > 0) {
         const row = res.rows[0];
         mem = {
           failedAttempts: row.failed_attempts || 0,
           isBlocked: Boolean(row.is_blocked),
+          lockedUntil: row.locked_until,
           blockedAt: row.blocked_at
         };
         ipSecurityTracker.set(ip, mem);
@@ -2530,7 +2533,7 @@ async function getIpSecurityRecord(ip) {
     }
   }
 
-  mem = { failedAttempts: 0, isBlocked: false, blockedAt: null };
+  mem = { failedAttempts: 0, isBlocked: false, lockedUntil: null, blockedAt: null };
   ipSecurityTracker.set(ip, mem);
   return mem;
 }
@@ -2538,13 +2541,19 @@ async function getIpSecurityRecord(ip) {
 async function recordFailedIpAttempt(ip, reason = 'Tentativas repetidas de login incorretas') {
   // IPs internos, privados ou de loopback (Render internal router, localhost, Docker) NUNCA são bloqueados
   if (isPrivateOrInternalIp(ip)) {
-    return { failedAttempts: 0, isBlocked: false, blockedAt: null };
+    return { failedAttempts: 0, isBlocked: false, lockedUntil: null, blockedAt: null };
   }
 
   const rec = await getIpSecurityRecord(ip);
   rec.failedAttempts = (rec.failedAttempts || 0) + 1;
-  if (rec.failedAttempts >= 8) {
+  if (rec.failedAttempts === 7) {
+    // 7ª falha: Pausa de segurança de 24 horas
+    rec.lockedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    rec.blockedAt = new Date();
+  } else if (rec.failedAttempts >= 8) {
+    // 8ª falha em diante: Bloqueio total e permanente
     rec.isBlocked = true;
+    rec.lockedUntil = null;
     rec.blockedAt = new Date();
   }
   ipSecurityTracker.set(ip, rec);
@@ -2552,16 +2561,17 @@ async function recordFailedIpAttempt(ip, reason = 'Tentativas repetidas de login
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO security_ip_blocklist (ip, failed_attempts, is_blocked, blocked_at, blocked_reason, updated_at)
-        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+        INSERT INTO security_ip_blocklist (ip, failed_attempts, is_blocked, locked_until, blocked_at, blocked_reason, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
         ON CONFLICT (ip)
         DO UPDATE SET 
           failed_attempts = $2, 
-          is_blocked = $3, 
-          blocked_at = CASE WHEN $3 = true THEN COALESCE(security_ip_blocklist.blocked_at, CURRENT_TIMESTAMP) ELSE security_ip_blocklist.blocked_at END,
-          blocked_reason = $5,
+          is_blocked = CASE WHEN $3 = true THEN true ELSE security_ip_blocklist.is_blocked END, 
+          locked_until = $4,
+          blocked_at = CASE WHEN $3 = true OR $4 IS NOT NULL THEN COALESCE(security_ip_blocklist.blocked_at, CURRENT_TIMESTAMP) ELSE security_ip_blocklist.blocked_at END,
+          blocked_reason = $6,
           updated_at = CURRENT_TIMESTAMP
-      `, [ip, rec.failedAttempts, rec.isBlocked, rec.blockedAt, reason]);
+      `, [ip, rec.failedAttempts, rec.isBlocked, rec.lockedUntil, rec.blockedAt, reason]);
     } catch (e) {
       console.warn('Erro ao persistir falha de IP no PostgreSQL:', e.message);
     }
@@ -2649,8 +2659,10 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
       }
     }
 
-    // 1. CHECAGEM PRÉVIA: O IP ESTÁ BLOQUEADO?
+    // 1. CHECAGEM PRÉVIA: O IP ESTÁ BLOQUEADO OU EM PAUSA DE 24H?
     const ipRecord = await getIpSecurityRecord(clientIp);
+    const isIpCooldown = ipRecord.lockedUntil && new Date(ipRecord.lockedUntil) > new Date();
+
     if (ipRecord.isBlocked) {
       logSecurityEvent({
         event: 'LOGIN_ATTEMPT',
@@ -2658,12 +2670,30 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
         ip: clientIp,
         userAgent: req.headers['user-agent'],
         outcome: 'BLOCKED',
-        reason: 'Endereço IP na blocklist de segurança'
+        reason: 'Endereço IP na blocklist permanente de segurança (8+ falhas)'
       });
       return res.status(403).json({
-        error: 'Este endereço IP foi bloqueado por segurança devido a excesso de tentativas incorretas. Entre em contato com o suporte da Athena.',
+        error: 'Este endereço IP foi bloqueado permanentemente por segurança devido a 8 tentativas incorretas. Entre em contato com a administração da Athena para liberação.',
         isIpBlocked: true,
-        isLocked: true
+        isLocked: true,
+        isPermanent: true
+      });
+    }
+
+    if (isIpCooldown) {
+      logSecurityEvent({
+        event: 'LOGIN_ATTEMPT',
+        email: inputEmail,
+        ip: clientIp,
+        userAgent: req.headers['user-agent'],
+        outcome: 'BLOCKED',
+        reason: 'Endereço IP em pausa temporária de segurança de 24 horas (7 falhas)'
+      });
+      return res.status(403).json({
+        error: 'Acesso suspenso temporariamente por 24 horas por motivos de segurança após 7 tentativas incorretas.',
+        isIpBlocked: true,
+        isLocked: true,
+        isCooldown: true
       });
     }
 
@@ -2718,12 +2748,12 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
 
     // 3. CHECAGEM PRÉVIA: A CONTA ESTÁ BLOQUEADA OU EM PAUSA DE SEGURANÇA (24H)?
     if (foundUser) {
-      const isCooldownActive = foundUser.lockedUntil && new Date(foundUser.lockedUntil) > new Date();
-      if (foundUser.isLocked || isCooldownActive) {
-        // Armazena no cache de memória local para aliviar o banco nas próximas requisições
+      const isUserCooldown = foundUser.lockedUntil && new Date(foundUser.lockedUntil) > new Date();
+
+      if (foundUser.isLocked) {
         lockedAccountsMemory.set(inputEmail, {
-          lockedUntil: foundUser.lockedUntil,
-          isLocked: foundUser.isLocked
+          lockedUntil: null,
+          isLocked: true
         });
         logSecurityEvent({
           event: 'LOGIN_ATTEMPT',
@@ -2732,13 +2762,35 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
           ip: clientIp,
           userAgent: req.headers['user-agent'],
           outcome: 'BLOCKED',
-          reason: foundUser.isLocked ? 'Conta travada por bloqueio de administrador' : 'Conta em pausa de segurança temporária (24 horas)'
+          reason: 'Conta travada com bloqueio permanente (8+ falhas)'
         });
         return res.status(403).json({
-          error: 'Conta temporariamente bloqueada por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso.',
+          error: 'Esta conta foi bloqueada por motivos de segurança após 8 tentativas incorretas. Entre em contato com a administração da Athena para liberação.',
           isAccountLocked: true,
           isLocked: true,
-          attemptsLeft: 0
+          isPermanent: true
+        });
+      }
+
+      if (isUserCooldown) {
+        lockedAccountsMemory.set(inputEmail, {
+          lockedUntil: foundUser.lockedUntil,
+          isLocked: false
+        });
+        logSecurityEvent({
+          event: 'LOGIN_ATTEMPT',
+          userId: foundUser.id,
+          email: inputEmail,
+          ip: clientIp,
+          userAgent: req.headers['user-agent'],
+          outcome: 'BLOCKED',
+          reason: 'Conta em pausa temporária de segurança de 24 horas (7 falhas)'
+        });
+        return res.status(403).json({
+          error: 'Acesso suspenso temporariamente por 24 horas por motivos de segurança após 7 tentativas incorretas.',
+          isAccountLocked: true,
+          isLocked: true,
+          isCooldown: true
         });
       }
     }
@@ -2760,8 +2812,7 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
         });
         return res.status(400).json({
           error: 'Por favor, complete a verificação de segurança (CAPTCHA) para continuar.',
-          requiresCaptcha: true,
-          attemptsLeft: Math.max(1, 7 - currentFailures)
+          requiresCaptcha: true
         });
       }
 
@@ -2778,8 +2829,7 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
         });
         return res.status(400).json({
           error: turnstileVerification.error || 'Verificação de segurança falhou. Tente novamente.',
-          requiresCaptcha: true,
-          attemptsLeft: Math.max(1, 7 - currentFailures)
+          requiresCaptcha: true
         });
       }
     }
@@ -2966,8 +3016,8 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
       }
     }
 
-    // Se atingiu 7 falhas (pausa de 24h) ou 8+ falhas (bloqueio total) ou IP bloqueado:
-    if (isNowCooldown || isNowLocked || updatedUserFailures >= 7 || updatedIp.isBlocked) {
+    // 1. Se atingiu 8+ falhas (Bloqueio Total e Permanente do Usuário ou IP):
+    if (isNowLocked || updatedIp.isBlocked || updatedUserFailures >= 8 || updatedIp.failedAttempts >= 8) {
       logSecurityEvent({
         event: 'ACCOUNT_LOCKOUT',
         userId: foundUser?.id,
@@ -2975,21 +3025,44 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
         ip: clientIp,
         userAgent: req.headers['user-agent'],
         outcome: 'BLOCKED',
-        reason: isNowLocked ? 'Bloqueio total de conta (8+ falhas)' : 'Pausa de segurança de 24 horas acionada (7 falhas)',
+        reason: 'Bloqueio total e permanente acionado (8+ falhas)',
         details: { failedAttempts: updatedUserFailures, isIpBlocked: Boolean(updatedIp.isBlocked) }
       });
 
       return res.status(403).json({
-        error: 'Conta temporariamente bloqueada por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso.',
+        error: 'Acesso bloqueado por segurança após 8 tentativas incorretas. Entre em contato com a administração da Athena para liberação.',
         isLocked: true,
+        isPermanent: true,
         isAccountLocked: Boolean(foundUser),
-        isIpBlocked: Boolean(updatedIp.isBlocked),
-        attemptsLeft: 0
+        isIpBlocked: Boolean(updatedIp.isBlocked)
       });
     }
 
-    const nextRequiresCaptcha = updatedUserFailures >= 5;
-    const remainingAttempts = Math.max(1, 7 - updatedUserFailures);
+    // 2. Se atingiu 7 falhas (Pausa de Segurança de 24 Horas):
+    if (isNowCooldown || updatedUserFailures === 7 || updatedIp.failedAttempts === 7 || updatedIp.lockedUntil) {
+      logSecurityEvent({
+        event: 'ACCOUNT_COOLDOWN',
+        userId: foundUser?.id,
+        email: inputEmail,
+        ip: clientIp,
+        userAgent: req.headers['user-agent'],
+        outcome: 'BLOCKED',
+        reason: 'Pausa temporária de segurança de 24 horas acionada (7 falhas)',
+        details: { failedAttempts: updatedUserFailures, isIpBlocked: false }
+      });
+
+      return res.status(403).json({
+        error: 'Acesso temporariamente suspenso por 24 horas por motivos de segurança após 7 tentativas incorretas.',
+        isLocked: true,
+        isCooldown: true,
+        isAccountLocked: Boolean(foundUser),
+        isIpBlocked: Boolean(updatedIp.lockedUntil)
+      });
+    }
+
+    // 3. Falhas normais (Tentativas 1 a 6): Sem dar pistas ou countdown ao atacante
+    const currentFailuresCount = Math.max(updatedUserFailures, updatedIp.failedAttempts || 0);
+    const nextRequiresCaptcha = currentFailuresCount >= 5;
 
     logSecurityEvent({
       event: 'LOGIN_ATTEMPT',
@@ -2999,17 +3072,12 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
       userAgent: req.headers['user-agent'],
       outcome: 'FAILURE',
       reason: 'Credenciais incorretas',
-      details: { failedAttempts: updatedUserFailures, requiresCaptcha: nextRequiresCaptcha }
+      details: { requiresCaptcha: nextRequiresCaptcha }
     });
 
     return res.status(401).json({
       error: 'E-mail ou senha incorretos.',
-      failedAttempts: updatedUserFailures,
-      requiresCaptcha: nextRequiresCaptcha,
-      attemptsLeft: remainingAttempts,
-      message: nextRequiresCaptcha 
-        ? `Tentativa ${updatedUserFailures} de 7. Por segurança, o CAPTCHA foi ativado.`
-        : `Tentativa ${updatedUserFailures} de 7.`
+      requiresCaptcha: nextRequiresCaptcha
     });
   } catch (err) {
     console.error('Erro inesperado no login:', err);

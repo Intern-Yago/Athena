@@ -612,11 +612,6 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
                     <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
                     <span>Validação de Segurança Athena</span>
                   </div>
-                  {attemptsLeft !== null && (
-                    <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold border border-rose-200">
-                      Restam {attemptsLeft} tentativas
-                    </span>
-                  )}
                 </div>
                 <p className="text-[11px] text-amber-800 leading-tight">
                   Após tentativas repetidas incorretas, confirme a verificação inteligente da Cloudflare abaixo para continuar.
@@ -632,8 +627,8 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
                   <Lock className="w-4 h-4 text-rose-600 shrink-0" />
                   <span>Acesso Bloqueado por Segurança</span>
                 </div>
-                <p className="text-xs text-rose-700 leading-relaxed">
-                  Conta temporariamente bloqueada por motivos de segurança após repetidas tentativas. Entre em contato com nosso time de suporte para solucionar seu caso e liberar seu acesso seguro.
+                <p className="text-xs text-rose-700 leading-relaxed font-medium">
+                  {errorMsg || 'Conta ou endereço IP suspenso por motivos de segurança após repetidas tentativas. Entre em contato com a administração da Athena.'}
                 </p>
                 <div className="pt-2 border-t border-rose-200 flex flex-col sm:flex-row gap-2">
                   <a
