@@ -52,21 +52,34 @@ export function getVideoEmbedInfo(url) {
     trimmed = iframeSrcMatch[1].trim();
   }
 
-  // 1. Instagram: reel, post (p), or tv
-  const instaMatch = trimmed.match(/(?:instagram\.com|instagr\.am)\/(?:reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
+  // 1. Instagram: reel, reels, post (p), or tv (supports username in path, e.g. instagram.com/user/reel/CODE)
+  const instaMatch = trimmed.match(/(?:instagram\.com|instagr\.am)\/(?:[^\/\s?#]+\/)?(?:reel|reels|p|tv)\/([a-zA-Z0-9_-]+)/i);
   if (instaMatch && instaMatch[1]) {
     const code = instaMatch[1];
-    const isReel = trimmed.includes('/reel/');
+    const isReel = /reel/i.test(trimmed);
     return {
       type: 'instagram',
-      platform: 'Instagram',
+      platform: isReel ? 'Instagram Reels' : 'Instagram',
       embedUrl: `https://www.instagram.com/${isReel ? 'reel' : 'p'}/${code}/embed/`,
       isVertical: true,
-      originalUrl: trimmed
+      originalUrl: trimmed.startsWith('http') ? trimmed : `https://www.instagram.com/reel/${code}/`
     };
   }
 
-  // 2. YouTube Shorts
+  // 2. TikTok: @user/video/ID, /v/ID, /embed/v2/ID, or data-video-id="ID"
+  const tiktokMatch = trimmed.match(/(?:tiktok\.com\/(?:@[^\/\s?#]+\/video|v|embed\/v2)\/|data-video-id=["']?)([0-9]{15,25})/i);
+  if (tiktokMatch && tiktokMatch[1]) {
+    const videoId = tiktokMatch[1];
+    return {
+      type: 'tiktok',
+      platform: 'TikTok',
+      embedUrl: `https://www.tiktok.com/embed/v2/${videoId}`,
+      isVertical: true,
+      originalUrl: trimmed.startsWith('http') ? trimmed : `https://www.tiktok.com/video/${videoId}`
+    };
+  }
+
+  // 3. YouTube Shorts
   const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/i);
   if (shortsMatch && shortsMatch[1]) {
     return {
@@ -74,11 +87,11 @@ export function getVideoEmbedInfo(url) {
       platform: 'YouTube Shorts',
       embedUrl: `https://www.youtube.com/embed/${shortsMatch[1]}`,
       isVertical: true,
-      originalUrl: trimmed
+      originalUrl: trimmed.startsWith('http') ? trimmed : `https://www.youtube.com/shorts/${shortsMatch[1]}`
     };
   }
 
-  // 3. YouTube Standard (watch?v=, youtu.be, embed/)
+  // 4. YouTube Standard (watch?v=, youtu.be, embed/)
   const ytMatch = trimmed.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
   if (ytMatch && ytMatch[1]) {
     return {
@@ -86,11 +99,11 @@ export function getVideoEmbedInfo(url) {
       platform: 'YouTube',
       embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}`,
       isVertical: false,
-      originalUrl: trimmed
+      originalUrl: trimmed.startsWith('http') ? trimmed : `https://www.youtube.com/watch?v=${ytMatch[1]}`
     };
   }
 
-  // 4. Direct embed url fallback
+  // 5. Direct YouTube embed url fallback
   if (trimmed.startsWith('https://www.youtube.com/embed/')) {
     return {
       type: 'youtube',
@@ -1247,7 +1260,9 @@ export default function ProductDetailPage({
 
                   <div className={
                     videoInfo.type === 'instagram'
-                      ? "w-full max-w-[420px] mx-auto min-h-[580px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white"
+                      ? "w-full max-w-[420px] mx-auto min-h-[580px] h-[640px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white"
+                      : videoInfo.type === 'tiktok'
+                      ? "w-full max-w-[360px] mx-auto min-h-[580px] h-[600px] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-black"
                       : videoInfo.isVertical
                       ? "w-full max-w-[360px] mx-auto aspect-[9/16] rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-black"
                       : "aspect-video w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-950"
@@ -1255,11 +1270,12 @@ export default function ProductDetailPage({
                     <iframe
                       src={videoInfo.embedUrl}
                       title={`Vídeo - ${product.name}`}
-                      className={`w-full h-full ${videoInfo.type === 'instagram' ? 'min-h-[560px]' : ''}`}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      className={`w-full h-full ${videoInfo.type === 'instagram' ? 'min-h-[560px]' : videoInfo.type === 'tiktok' ? 'min-h-[580px]' : ''}`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       frameBorder="0"
                       scrolling="no"
+                      allowTransparency="true"
                     />
                   </div>
                 </div>

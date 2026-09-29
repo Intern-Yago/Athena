@@ -8090,11 +8090,11 @@ export default function AdminPanel({
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div>
                           <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                            <Film className="w-4 h-4 text-red-600" />
-                            Vídeo do Equipamento (YouTube / Demonstração)
+                            <Film className="w-4 h-4 text-amber-500" />
+                            Vídeo do Equipamento (YouTube, Instagram Reels ou TikTok)
                           </h4>
                           <p className="text-[11px] text-slate-500">
-                            Cole o código <strong>&lt;iframe&gt;...&lt;/iframe&gt;</strong> copiado do YouTube ou o link direto do vídeo.
+                            Cole o link do <strong>YouTube</strong> (vídeo ou Shorts), <strong>Instagram</strong> (Reel ou Post) ou <strong>TikTok</strong>, ou código iframe embed.
                           </p>
                         </div>
                       </div>
@@ -8102,7 +8102,7 @@ export default function AdminPanel({
                       <div className="relative">
                         <input
                           type="text"
-                          placeholder="Cole o link do YouTube, YouTube Shorts ou Instagram (Reel/Post)..."
+                          placeholder="Cole o link do YouTube, Instagram (Reel/Post) ou TikTok..."
                           value={productForm.videoUrl || ''}
                           onChange={(e) => setProductForm({ ...productForm, videoUrl: e.target.value })}
                           className="form-input text-xs !pl-10 font-mono text-slate-700"
@@ -8132,6 +8132,8 @@ export default function AdminPanel({
                             <div className={
                               videoInfo.type === 'instagram'
                                 ? "w-full max-w-[380px] mx-auto min-h-[520px] rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-white"
+                                : videoInfo.type === 'tiktok'
+                                ? "w-full max-w-[340px] mx-auto min-h-[520px] h-[560px] rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-black"
                                 : videoInfo.isVertical
                                 ? "w-full max-w-[320px] mx-auto aspect-[9/16] rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-black"
                                 : "aspect-video w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950"
@@ -8139,11 +8141,12 @@ export default function AdminPanel({
                               <iframe
                                 src={videoInfo.embedUrl}
                                 title="Prévia do Vídeo Demonstrativo"
-                                className={`w-full h-full ${videoInfo.type === 'instagram' ? 'min-h-[500px]' : ''}`}
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                className={`w-full h-full ${videoInfo.type === 'instagram' ? 'min-h-[500px]' : videoInfo.type === 'tiktok' ? 'min-h-[520px]' : ''}`}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                 allowFullScreen
                                 frameBorder="0"
                                 scrolling="no"
+                                allowTransparency="true"
                               />
                             </div>
                           </div>
