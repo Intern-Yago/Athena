@@ -2570,7 +2570,14 @@ async function recordFailedIpAttempt(ip, reason = 'Tentativas repetidas de login
 }
 
 async function resetIpAttempts(ip) {
+  if (isInfrastructureOrPrivateIp(ip)) return;
   const rec = await getIpSecurityRecord(ip);
+  // POLÍTICA ESTRITA ANTI-ENGENHARIA SOCIAL:
+  // Se o IP já atingiu 8 falhas e foi bloqueado, NENHUM login ou requisição web pode desbloqueá-lo!
+  // O desbloqueio deve ser feito EXCLUSIVAMENTE via acesso direto ao banco de dados PostgreSQL.
+  if (rec.isBlocked) {
+    return;
+  }
   rec.failedAttempts = 0;
   ipSecurityTracker.set(ip, rec);
 
@@ -2579,7 +2586,7 @@ async function resetIpAttempts(ip) {
       await pool.query(`
         UPDATE security_ip_blocklist 
         SET failed_attempts = 0, updated_at = CURRENT_TIMESTAMP
-        WHERE ip = $1
+        WHERE ip = $1 AND is_blocked = false
       `, [ip]);
     } catch (e) {}
   }
@@ -6839,28 +6846,21 @@ app.get('/api/admin/security/blocked-ips', authenticateToken, requireAdmin, asyn
 });
 
 // Suporte / Admin: Desbloquear IP bloqueado
+// POLÍTICA ESTRITA ANTI-ENGENHARIA SOCIAL:
+// Desbloqueio de IPs bloqueados é proibido via web/API para impedir ataques de persuasão/engenharia social contra atendentes ou administradores.
+// O desbloqueio de um IP com 8 erros consecutivos só pode ser executado diretamente no banco de dados PostgreSQL.
 app.post('/api/admin/security/unblock-ip', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { ip } = req.body;
-    if (!ip) return res.status(400).json({ error: 'Endereço IP é obrigatório.' });
-    await unblockIpRecord(ip, req.user?.name || 'Administrador');
-
-    logSecurityEvent({
-      event: 'ADMIN_UNBLOCK_IP',
-      userId: req.user?.id,
-      ip,
-      userAgent: req.headers['user-agent'],
-      outcome: 'SUCCESS',
-      details: {
-        adminId: req.user?.id,
-        adminName: req.user?.name || 'Administrador'
-      }
-    });
-
-    return res.json({ success: true, message: `IP ${ip} desbloqueado com sucesso!` });
-  } catch (e) {
-    return res.status(500).json({ error: 'Erro ao desbloquear IP.' });
-  }
+  logSecurityEvent({
+    event: 'ADMIN_UNBLOCK_IP_REJECTED',
+    userId: req.user?.id,
+    ip: req.body?.ip,
+    userAgent: req.headers['user-agent'],
+    outcome: 'BLOCKED',
+    reason: 'Tentativa de desbloqueio de IP via API rejeitada por política estrita anti-engenharia social'
+  });
+  return res.status(403).json({
+    error: 'Por política estrita de segurança contra engenharia social, o desbloqueio de IPs bloqueados é desativado via painel/API e requer execução direta no banco de dados PostgreSQL.'
+  });
 });
 
 // Suporte / Admin: Reenviar E-mail com Código de Redefinição de Senha
