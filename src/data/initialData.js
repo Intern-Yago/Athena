@@ -33,10 +33,10 @@ export const INITIAL_CATEGORIES = [
   },
   {
     "id": "cat_ferramentas",
-    "name": "Ferramentas & Armários",
+    "name": "Ferramentas Manuais & Especiais",
     "slug": "ferramentas",
     "order": 5,
-    "description": "Armários modulares, bancadas de trabalho, chaves de impacto, trocadoras de fluido e ferramentas especiais.",
+    "description": "Jogos de soquetes, chaves de aperto, alicates, esmerilhadeiras e ferramentas universais de alta durabilidade.",
     "icon": "Wrench"
   }
 ];
