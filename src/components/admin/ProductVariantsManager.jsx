@@ -93,7 +93,16 @@ export default function ProductVariantsManager({
   };
 
   const handleSaveVariantModal = (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+    if (e) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    }
+
+    if (isUploadingVariantImage) {
+      showNotification('Aguarde o envio da foto da variação para a nuvem terminar antes de salvar.', 'warning');
+      return;
+    }
+
     if (!variantModalForm.name.trim()) {
       showNotification('Preencha o Nome da Opção (ex: Vermelho, 7 Gavetas, 220V).', 'error');
       return;
@@ -131,7 +140,7 @@ export default function ProductVariantsManager({
     setIsVariantModalOpen(false);
     setEditingVariantIndex(null);
     showNotification(
-      editingVariantIndex !== null ? 'Variação atualizada com sucesso!' : 'Variação adicionada!', 
+      editingVariantIndex !== null ? 'Variação atualizada com sucesso!' : 'Variação adicionada com sucesso!', 
       'success'
     );
   };
@@ -196,6 +205,50 @@ export default function ProductVariantsManager({
     });
   };
 
+  const compressVariantImageFile = (file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) => {
+    return new Promise((resolve) => {
+      if (!file || !file.type.startsWith('image/')) {
+        return resolve(null);
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth || height > maxHeight) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          try {
+            const dataUrl = canvas.toDataURL('image/webp', quality);
+            resolve(dataUrl);
+          } catch (err) {
+            try {
+              resolve(canvas.toDataURL('image/jpeg', quality));
+            } catch (err2) {
+              resolve(e.target.result);
+            }
+          }
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleVariantImageFileUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) {
       showNotification('Selecione uma imagem válida para a variação.', 'error');
@@ -203,39 +256,44 @@ export default function ProductVariantsManager({
     }
 
     setIsUploadingVariantImage(true);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64Data = e.target.result;
+    showNotification('Otimizando imagem da variação...', 'info');
+
+    try {
+      const base64Data = await compressVariantImageFile(file);
+      if (!base64Data) {
+        showNotification('Erro ao processar imagem.', 'error');
+        setIsUploadingVariantImage(false);
+        return;
+      }
+
       setVariantModalForm((prev) => ({ ...prev, image: base64Data }));
       showNotification('Enviando foto da variação para a nuvem...', 'info');
 
-      try {
-        const cleanName = (variantModalForm.name || 'variacao').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
-        const headers = getAuthHeaders ? getAuthHeaders() : { 'Content-Type': 'application/json' };
-        const res = await fetch(`${apiBaseUrl || '/api'}/upload`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            file: base64Data,
-            folder: 'athena_variacoes',
-            filename: `var-${cleanName}-${Date.now().toString(36)}`
-          })
-        });
+      const cleanName = (variantModalForm.name || 'variacao').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
+      const headers = getAuthHeaders ? getAuthHeaders() : { 'Content-Type': 'application/json' };
+      const res = await fetch(`${apiBaseUrl || '/api'}/upload`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          file: base64Data,
+          folder: 'athena_variacoes',
+          filename: `var-${cleanName}-${Date.now().toString(36)}`
+        })
+      });
 
-        if (res.ok) {
-          const data = await res.json();
-          setVariantModalForm((prev) => ({ ...prev, image: data.url }));
-          showNotification('Foto da variação salva na nuvem R2!', 'success');
-        } else {
-          showNotification('Foto salva localmente na variação.', 'info');
-        }
-      } catch (err) {
-        showNotification('Foto da variação salva localmente.', 'info');
-      } finally {
-        setIsUploadingVariantImage(false);
+      if (res.ok) {
+        const data = await res.json();
+        setVariantModalForm((prev) => ({ ...prev, image: data.url }));
+        showNotification('Foto da variação salva na nuvem R2!', 'success');
+      } else {
+        showNotification('Foto salva localmente na variação.', 'info');
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Erro no envio da foto da variação:', err);
+      showNotification('Foto da variação salva localmente.', 'info');
+    } finally {
+      setIsUploadingVariantImage(false);
+    }
   };
 
   const handleDropVariantImage = (e) => {
@@ -573,7 +631,16 @@ export default function ProductVariantsManager({
             </div>
 
             {/* Modal Form Body */}
-            <form onSubmit={handleSaveVariantModal} className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+            <div 
+              className="p-6 space-y-5 overflow-y-auto max-h-[75vh]"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSaveVariantModal(e);
+                }
+              }}
+            >
               {/* 1. Nome da Opção */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
@@ -981,14 +1048,16 @@ export default function ProductVariantsManager({
                 </button>
 
                 <button
-                  type="submit"
-                  className="btn-gold text-xs font-bold py-2.5 px-6 rounded-xl shadow-xs cursor-pointer flex items-center gap-2"
+                  type="button"
+                  onClick={handleSaveVariantModal}
+                  disabled={isUploadingVariantImage}
+                  className="btn-gold text-xs font-bold py-2.5 px-6 rounded-xl shadow-xs cursor-pointer flex items-center gap-2 disabled:opacity-50"
                 >
                   <Check className="w-4 h-4 stroke-[3]" />
-                  <span>{editingVariantIndex !== null ? 'Salvar Variação' : 'Adicionar Variação'}</span>
+                  <span>{isUploadingVariantImage ? 'Enviando foto...' : editingVariantIndex !== null ? 'Salvar Variação' : 'Adicionar Variação'}</span>
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

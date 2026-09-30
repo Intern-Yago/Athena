@@ -561,11 +561,11 @@ const forgotPasswordLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 app.use(cors());
 
-// OWASP DoS Protection: High payload limit strictly for media upload endpoint, bounded 2MB globally
+// OWASP DoS Protection: High payload limit strictly for media upload endpoint, 10MB globally for products with variants
 app.use('/api/upload', express.json({ limit: '50mb' }));
 app.use('/api/upload', express.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ limit: '2mb', extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Ultra-fast Healthcheck & Pre-Warming Endpoints (Sub-5ms response, wakes up cold Render containers)
 app.get('/api/ping', (req, res) => {
