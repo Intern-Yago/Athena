@@ -2467,7 +2467,11 @@ const ipSecurityTracker = new Map(); // ip -> { failedAttempts: number, isBlocke
 const lockedAccountsMemory = new Map(); // lowercase_email -> { lockedUntil: Date, isLocked: boolean }
 
 async function verifyCloudflareTurnstile(token, clientIp) {
-  const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || '0x4AAAAAAFJUksP_3AaeuNPMh-vcX_RFSKI';
+  const secretKey = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+  if (!secretKey) {
+    console.warn('⚠️ [Turnstile] CLOUDFLARE_TURNSTILE_SECRET_KEY não configurada no ambiente.');
+    return { success: process.env.NODE_ENV !== 'production' };
+  }
   if (!token || typeof token !== 'string') {
     return { success: false, error: 'Token do Cloudflare Turnstile não fornecido.' };
   }
