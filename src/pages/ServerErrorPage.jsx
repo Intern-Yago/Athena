@@ -1,36 +1,63 @@
 import React from 'react';
-import { RefreshCw, Home, AlertTriangle, MessageCircle, ShieldAlert } from 'lucide-react';
+import { RefreshCw, Home, AlertTriangle, MessageCircle, ShieldAlert, Sparkles } from 'lucide-react';
 
 export default function ServerErrorPage({ onNavigate, onRetry, errorDetails }) {
+  const isChunkError = /failed to fetch dynamically imported module|loading chunk|importing a module script failed/i.test(
+    String(errorDetails || '')
+  );
+
   return (
     <div className="min-h-[70vh] flex items-center justify-center py-16 px-4">
-      <div className="max-w-xl w-full text-center space-y-6 bg-white p-8 sm:p-12 rounded-3xl border border-red-200 shadow-xl relative overflow-hidden">
+      <div className={`max-w-xl w-full text-center space-y-6 bg-white p-8 sm:p-12 rounded-3xl border shadow-xl relative overflow-hidden ${
+        isChunkError ? 'border-amber-200' : 'border-red-200'
+      }`}>
         
-        {/* Ambient Top Red Glow */}
-        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 bg-red-400/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Ambient Top Glow */}
+        <div className={`absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-64 rounded-full blur-3xl pointer-events-none ${
+          isChunkError ? 'bg-amber-400/10' : 'bg-red-400/10'
+        }`} />
 
-        {/* 500 Visual Badge */}
+        {/* Visual Badge */}
         <div className="space-y-2 relative">
-          <div className="w-20 h-20 mx-auto rounded-3xl bg-red-50 border border-red-200 flex items-center justify-center shadow-xs">
-            <span className="text-3xl font-extrabold text-red-600">500</span>
+          <div className={`w-20 h-20 mx-auto rounded-3xl border flex items-center justify-center shadow-xs ${
+            isChunkError ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-red-50 border-red-200 text-red-600'
+          }`}>
+            {isChunkError ? (
+              <Sparkles className="w-10 h-10 text-amber-500 animate-pulse" />
+            ) : (
+              <span className="text-3xl font-extrabold text-red-600">500</span>
+            )}
           </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 text-xs font-bold border border-red-200">
-            <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
-            <span>Erro Interno no Servidor</span>
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+            isChunkError ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'
+          }`}>
+            {isChunkError ? (
+              <>
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>Nova Versão Disponível</span>
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
+                <span>Erro Interno no Servidor</span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Text Content */}
         <div className="space-y-2">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Instabilidade Temporária
+            {isChunkError ? 'Atualização da Plataforma' : 'Instabilidade Temporária'}
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed max-w-md mx-auto">
-            Não se preocupe! Nossos serviços já registraram o ocorrido. O banco de dados local continuará atendendo enquanto reestabelecemos a conexão.
+            {isChunkError
+              ? 'Uma nova versão do catálogo foi disponibilizada pelo servidor. Clique abaixo para atualizar a página e acessar todos os recursos mais recentes.'
+              : 'Não se preocupe! Nossos serviços já registraram o ocorrido. O banco de dados local continuará atendendo enquanto reestabelecemos a conexão.'}
           </p>
         </div>
 
-        {errorDetails && (
+        {errorDetails && !isChunkError && (
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-left max-h-32 overflow-y-auto">
             <p className="text-[11px] font-mono text-slate-500 break-all">{String(errorDetails)}</p>
           </div>
@@ -46,7 +73,7 @@ export default function ServerErrorPage({ onNavigate, onRetry, errorDetails }) {
             className="btn-gold w-full sm:w-auto px-6 py-3 text-xs font-bold flex items-center justify-center gap-2 shadow-md"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Tentar Novamente</span>
+            <span>{isChunkError ? 'Atualizar Agora' : 'Tentar Novamente'}</span>
           </button>
 
           <button

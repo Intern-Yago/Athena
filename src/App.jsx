@@ -3,17 +3,19 @@ import Header from './components/Header';
 import HeroSlim from './components/HeroSlim';
 import HomeBannerCarousel from './components/HomeBannerCarousel';
 import Catalog from './components/Catalog';
-// Lazy-loaded pages and heavy panels for blazing-fast initial load & code-splitting
-const AdminPanel = React.lazy(() => import('./components/AdminPanel'));
-const ProductDetailPage = React.lazy(() => import('./pages/ProductDetailPage'));
-const CategoryPage = React.lazy(() => import('./pages/CategoryPage'));
-const BrandPage = React.lazy(() => import('./pages/BrandPage'));
-const AboutPage = React.lazy(() => import('./pages/AboutPage'));
-const LoginPage = React.lazy(() => import('./pages/LoginPage'));
-const CustomerAccountPage = React.lazy(() => import('./pages/CustomerAccountPage'));
-const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
-const ServerErrorPage = React.lazy(() => import('./pages/ServerErrorPage'));
-const LegalPage = React.lazy(() => import('./pages/LegalPage'));
+import ServerErrorPage from './pages/ServerErrorPage';
+import { lazyWithRetry } from './utils/lazyWithRetry';
+
+// Lazy-loaded pages and heavy panels with auto-retry on new deployments
+const AdminPanel = lazyWithRetry(() => import('./components/AdminPanel'));
+const ProductDetailPage = lazyWithRetry(() => import('./pages/ProductDetailPage'));
+const CategoryPage = lazyWithRetry(() => import('./pages/CategoryPage'));
+const BrandPage = lazyWithRetry(() => import('./pages/BrandPage'));
+const AboutPage = lazyWithRetry(() => import('./pages/AboutPage'));
+const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'));
+const CustomerAccountPage = lazyWithRetry(() => import('./pages/CustomerAccountPage'));
+const NotFoundPage = lazyWithRetry(() => import('./pages/NotFoundPage'));
+const LegalPage = lazyWithRetry(() => import('./pages/LegalPage'));
 
 import Footer from './components/Footer';
 import Toast from './components/Toast';
@@ -201,6 +203,12 @@ export default function App() {
     if (actionCallback) actionCallback();
     return false;
   };
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.removeItem('chunk_reload_retry');
+    } catch (e) {}
+  }, []);
 
   useEffect(() => {
     if (isComparisonModalOpen) {

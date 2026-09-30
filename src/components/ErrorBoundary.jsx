@@ -13,6 +13,19 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('Athena Error Boundary capturou um erro:', error, errorInfo);
+
+    const errorMessage = error?.message || String(error);
+    const isChunkError = /failed to fetch dynamically imported module|loading chunk|importing a module script failed/i.test(errorMessage);
+
+    if (isChunkError) {
+      const reloadKey = 'eb_chunk_reload';
+      const lastReload = sessionStorage.getItem(reloadKey);
+      const now = Date.now();
+      if (!lastReload || now - parseInt(lastReload, 10) > 15000) {
+        sessionStorage.setItem(reloadKey, String(now));
+        window.location.reload();
+      }
+    }
   }
 
   handleRetry = () => {
