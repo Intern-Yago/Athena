@@ -43,11 +43,20 @@ export const INITIAL_CATEGORIES = [
 
 export const INITIAL_BRANDS = [
   {
+    "id": "brand_1788282718425",
+    "name": "Athena",
+    "slug": "athena",
+    "order": 1,
+    "description": "Soluções proprietárias Athena em engenharia e inteligência automotiva: pacotes anuais de atualização de banco de dados para alinhadores 3D e liberação de acesso Security Gateway (SGW).",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_marcas/logo-athena.webp",
+    "websiteUrl": "https://www.athenaconsultoria.com.br"
+  },
+  {
     "id": "brand_starkx",
     "name": "Stärkx",
     "slug": "starkx",
-    "order": 1,
-    "description": "Especialista em equipamentos eletrônicos, testadores de bateria, videoscópios, diagnóstico avançado e TPMS.",
+    "order": 2,
+    "description": "Engenharia avançada em diagnóstico eletrônico: testadores digitais de condutância para baterias com emissão de laudo, câmeras de inspeção endoscópica, analisadores de fluido de freio e TPMS.",
     "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/starkx-5e830ec912b7.webp",
     "websiteUrl": "https://www.starkx.com.br"
   },
@@ -55,37 +64,82 @@ export const INITIAL_BRANDS = [
     "id": "brand_mahovi",
     "name": "Mahovi",
     "slug": "mahovi",
-    "order": 2,
-    "description": "Líder em elevadores automotivos, alinhadores 3D, desmontadoras de pneus e equipamentos pesados de centro automotivo.",
+    "order": 3,
+    "description": "Uma das maiores fabricantes de elevadores hidráulicos de 2 e 4 colunas, alinhadores 3D computadorizados, desmontadoras com braço Run-Flat e maquinário pesado para auto centers e concessionárias.",
     "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/mahovi-d2fca4c6358b.webp",
     "websiteUrl": "https://www.mahovi.com.br"
   },
   {
     "id": "brand_delta",
     "name": "Delta Ferramentas",
-    "slug": "delta",
-    "order": 3,
-    "description": "Referência nacional em ferramentas especiais de injeção, elétrica, motor, arrefecimento e suspensão.",
-    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/delta-47d4582fff78.webp",
-    "websiteUrl": "https://www.deltaferramentasautomotivas.com.br"
-  },
-  {
-    "id": "brand_wolfcar",
-    "name": "Wolfcar",
-    "slug": "wolfcar",
+    "slug": "delta-ferramentas",
     "order": 4,
-    "description": "Soluções modulares para organização de oficinas, armários reforçados, bancadas industriais e painéis de ferramentas.",
-    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/wolfcar-63a7bd61556f.webp",
-    "websiteUrl": "https://wolfcardiagnosticos.com.br"
+    "description": "Referência nacional no desenvolvimento e fabricação de ferramentas especiais para injeção eletrônica, extração de conectores elétricos, sistemas de arrefecimento, motor e suspensão.",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/delta-47d4582fff78.webp",
+    "websiteUrl": "https://www.deltaferramentas.com"
   },
   {
     "id": "brand_sigmatools",
     "name": "Sigma Tools",
     "slug": "sigma-tools",
     "order": 5,
-    "description": "Máquinas e ferramentas pneumáticas, chaves de impacto a bateria e equipamentos para estética e reparação.",
-    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/sigma-tools-7ceda13e30aa.webp",
+    "description": "Líder e referência em ferramentas pneumáticas, chaves de impacto Brushless a bateria, soquetes de alta precisão em Cromo-Vanádio e linha completa para estética e detalhamento automotivo.",
+    "logo": "https://www.sigmatools.com.br/site/wp-content/uploads/2020/01/logo-sgt-home-03.png",
     "websiteUrl": "https://www.sigmatools.com.br"
+  },
+  {
+    "id": "brand_wolfcar",
+    "name": "Wolfcar",
+    "slug": "wolfcar",
+    "order": 6,
+    "description": "Padrão premium em mobiliário modular e organização de oficinas: armários industriais reforçados, bancadas pesadas, painéis de ferramentas e carrinhos com Realidade Aumentada (AR).",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/wolfcar-63a7bd61556f.webp",
+    "websiteUrl": "https://wolfcardiagnosticos.com.br"
+  },
+  {
+    "id": "brand_1790613109980",
+    "name": "E-Wolf",
+    "slug": "e-wolf",
+    "order": 7,
+    "description": "Pioneira em infraestrutura de mobilidade elétrica: conectores e plugues Tipo 2 e GB/T, cabos reforçados para carregamento de veículos elétricos e híbridos, e quadros de proteção dedicados.",
+    "logo": "https://ewolf.com.br/cdn/shop/files/logo-site.png?v=1768334838&width=150",
+    "websiteUrl": "https://ewolf.com.br"
+  },
+  {
+    "id": "brand_1789587409948",
+    "name": "Lapek",
+    "slug": "lapek",
+    "order": 8,
+    "description": "Especialista em soluções para lubrificação e borracharia: macacos hidráulicos de alta tonelagem, válvulas profissionais sem câmara, bombas de abastecimento, engraxadeiras manuais e pneumáticas.",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_marcas/logo-lapek-98bdc9e25828.webp",
+    "websiteUrl": "https://www.lapek.com.br"
+  },
+  {
+    "id": "brand_1790613841037",
+    "name": "Planatc",
+    "slug": "planatc",
+    "order": 9,
+    "description": "Tradicional fabricante brasileira de equipamentos para oficina: máquinas de limpeza e teste de bicos injetores por ultrassom, manômetros de combustível, sangradores de freio e ferramentas eletrônicas.",
+    "logo": "https://www.planatc.com.br/config/imagens_conteudo/padrao/logo.png",
+    "websiteUrl": "https://www.planatc.com.br"
+  },
+  {
+    "id": "brand_1789665068798",
+    "name": "GT Eagle",
+    "slug": "gt-eagle",
+    "order": 10,
+    "description": "Equipamentos de alta tecnologia para descarbonização e regeneração térmica e química de filtros de partículas Diesel (DPF), catalisadores SCR e sistemas de pós-tratamento de emissões.",
+    "logo": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_marcas/logo-gt-eagle-faa6a3cb2624.webp",
+    "websiteUrl": ""
+  },
+  {
+    "id": "brand_1790019814846",
+    "name": "EAATA Brasil",
+    "slug": "eaata-brasil",
+    "order": 11,
+    "description": "Tecnologia europeia de diagnóstico automotivo guiado por Inteligência Artificial, scanners com mapeamento de topologia de rede CAN, programação de chaves IMMO e clonagem de centrais ECU.",
+    "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsEnT9pIj8TWEV8vGczLXYEBPrf2D5h_E5IkOqSdbflg&s=10",
+    "websiteUrl": "https://br.eaata.pro"
   }
 ];
 
