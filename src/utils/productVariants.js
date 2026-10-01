@@ -243,6 +243,12 @@ export function getVariantGalleryImages(product, selectedVariant) {
   // Lista única e deduplicada de fotos do pai, preservando a imagem principal como primeira
   const parentImages = Array.from(new Set([parentMainImage, ...parentGalleryImages].filter(Boolean)));
 
+  // Foto da primeira variação que possui imagem válida (usada como capa provisória caso o pai não tenha nenhuma foto)
+  const firstVariantWithPhoto = Array.isArray(product.variants)
+    ? product.variants.find(v => v && isValidImageUrl(v.image))
+    : null;
+  const fallbackCoverImage = firstVariantWithPhoto ? firstVariantWithPhoto.image.trim() : '';
+
   const variantImage = typeof selectedVariant?.image === 'string' ? selectedVariant.image.trim() : '';
 
   // Se houver uma variação selecionada
@@ -250,29 +256,39 @@ export function getVariantGalleryImages(product, selectedVariant) {
     if (variantImage) {
       // Variação POSSUI foto própria
       if (parentImages.length > 0) {
-        // B.4 & B.5 (variação COM foto própria):
-        // Foco inicial para a foto da variação (index 0) + foto(s) do pai
+        // B.4 & B.5 (variação COM foto própria e pai COM fotos registradas):
+        // Foco inicial para a foto da variação (index 0) + foto(s) do produto pai
         const otherParentImages = parentImages.filter(img => img !== variantImage);
         return [variantImage, ...otherParentImages];
       } else {
-        // B.1: Produto Principal NÃO tem foto, mas AS VARIAÇÕES têm fotos próprias:
-        // Cada variação exibe estritamente a sua foto. O mini demonstrativo exibe sempre apenas 1 foto.
+        // B.1 (variação COM foto própria e pai SEM fotos registradas):
+        // Cada variação exibe estritamente a SUA PRÓPRIA FOTO (1 foto).
+        // NUNCA replica fotos de variações irmãs!
         return [variantImage];
       }
     } else {
       // Variação NÃO POSSUI foto própria
       if (parentImages.length > 0) {
-        // B.3 & B.5 (variação SEM foto própria):
-        // Herda a imagem principal do produto pai, e no mini demonstrativo aparece somente uma foto
+        // B.3 & B.5: Herda a imagem principal do produto pai (1 foto)
         const inheritedMainImage = parentMainImage || parentImages[0];
         return inheritedMainImage ? [inheritedMainImage] : [];
+      } else if (fallbackCoverImage) {
+        // O produto principal não tem foto, mas uma variação (a 1ª) tem foto:
+        // Nesse caso, a capa (foto da 1ª variação) aparece para a variação sem foto também (1 foto)
+        return [fallbackCoverImage];
       } else {
-        // B.2: Sem imagem no pai e sem imagem na variação
+        // B.2: Sem imagem em lugar nenhum
         return [];
       }
     }
   }
 
-  // Produto SEM variações (Grupo A) ou sem variação ativa
-  return parentImages;
+  // Produto SEM variações selecionadas ou exibição geral
+  if (parentImages.length > 0) {
+    return parentImages;
+  }
+  if (fallbackCoverImage) {
+    return [fallbackCoverImage];
+  }
+  return [];
 }

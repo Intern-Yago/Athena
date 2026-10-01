@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, X, Box, Eye, Sparkles, ImageOff } from 'lucide-react';
 import Product3DViewer from './Product3DViewer';
 import { getVariantGalleryImages } from '../utils/productVariants';
@@ -374,10 +375,10 @@ export default function ProductImageGallery({ product, selectedVariant, images: 
         </div>
       )}
 
-      {/* FULL SCREEN EXPANDED PHOTO LIGHTBOX MODAL */}
-      {isLightboxOpen && (
+      {/* FULL SCREEN EXPANDED PHOTO LIGHTBOX MODAL (Portaled to document.body to prevent any stacking context clipping) */}
+      {isLightboxOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[99999] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-6 animate-in fade-in duration-200 select-none cursor-pointer"
+          className="fixed inset-0 z-[999999] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-6 animate-in fade-in duration-200 select-none cursor-pointer"
           onClick={() => setIsLightboxOpen(false)}
         >
           {/* Top Header of Lightbox */}
@@ -465,7 +466,8 @@ export default function ProductImageGallery({ product, selectedVariant, images: 
               ))}
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

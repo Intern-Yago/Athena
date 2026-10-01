@@ -900,7 +900,7 @@ export default function ProductDetailPage({
               {renderProductTitleBlock(true)}
             </div>
 
-            <ProductImageGallery product={effectiveProduct || product} selectedVariant={selectedVariant} />
+            <ProductImageGallery product={product} selectedVariant={selectedVariant} />
 
             {/* Trust Badges */}
             <div className="grid grid-cols-2 gap-3">
