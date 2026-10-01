@@ -589,7 +589,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-athena-origin-secret', 'x-requested-with', 'Accept']
+  optionsSuccessStatus: 200
 }));
 
 app.use('/api/', apiLimiter);
