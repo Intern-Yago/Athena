@@ -558,8 +558,41 @@ const forgotPasswordLimiter = rateLimit({
   message: { error: 'Muitas solicitações de recuperação de senha deste endereço. Por segurança, aguarde 15 minutos antes de tentar novamente.' }
 });
 
+const ALLOWED_CORS_ORIGINS = [
+  'https://www.athenaconsultoria.com.br',
+  'https://athenaconsultoria.com.br',
+  'https://athena-backend-hu1m.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:5173'
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Requisições sem cabeçalho Origin (mobile apps, curl, webhooks servidor-a-servidor como Asaas e Omie)
+    if (!origin) return callback(null, true);
+
+    // Valida se o domínio que está chamando a API é da Athena, do Render ou do ambiente local
+    const isAllowed = ALLOWED_CORS_ORIGINS.includes(origin) ||
+      /^https?:\/\/(.*\.)?athenaconsultoria\.com\.br(:\d+)?$/.test(origin) ||
+      /^https?:\/\/(.*\.)?onrender\.com(:\d+)?$/.test(origin) ||
+      /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+      /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+
+    if (isAllowed) {
+      return callback(null, true);
+    }
+
+    // Se for um site clonado ou domínio de terceiro não autorizado, recusa o cabeçalho CORS
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-athena-origin-secret', 'x-requested-with', 'Accept']
+}));
+
 app.use('/api/', apiLimiter);
-app.use(cors());
 
 // OWASP DoS Protection: High payload limit strictly for media upload endpoint, 10MB globally for products with variants
 app.use('/api/upload', express.json({ limit: '50mb' }));
