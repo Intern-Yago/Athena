@@ -2355,6 +2355,25 @@ app.post('/api/upload/delete', authenticateToken, async (req, res) => {
             )
           `, [url, filename]);
           cleanedProductsCount += (updateRes.rowCount || 0);
+
+          // Desvincula imagens de variações de produtos que usavam esta imagem
+          await pool.query(`
+            UPDATE products
+            SET variants = (
+              SELECT jsonb_agg(
+                CASE 
+                  WHEN elem->>'image' = $1 OR ($2 != '' AND elem->>'image' LIKE '%' || $2) 
+                  THEN jsonb_set(elem, '{image}', '""'::jsonb)
+                  ELSE elem
+                END
+              )
+              FROM jsonb_array_elements(COALESCE(variants, '[]'::jsonb)) AS elem
+            )
+            WHERE jsonb_typeof(variants) = 'array' AND EXISTS (
+              SELECT 1 FROM jsonb_array_elements(variants) elem 
+              WHERE elem->>'image' = $1 OR ($2 != '' AND elem->>'image' LIKE '%' || $2)
+            )
+          `, [url, filename]).catch(() => {});
         }
       } catch (dbErr) {
         console.warn('Aviso ao desvincular imagens de produtos/marcas no PG:', dbErr.message);
@@ -2381,6 +2400,14 @@ app.post('/api/upload/delete', authenticateToken, async (req, res) => {
       if (matchesAnyDeleted(prod.image)) {
         prod.image = (Array.isArray(prod.images) && prod.images[0]) || '';
         changed = true;
+      }
+      if (Array.isArray(prod.variants)) {
+        prod.variants.forEach(v => {
+          if (v && matchesAnyDeleted(v.image)) {
+            v.image = '';
+            changed = true;
+          }
+        });
       }
       if (changed) {
         cleanedProductsCount++;

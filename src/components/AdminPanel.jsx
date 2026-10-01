@@ -7430,83 +7430,170 @@ export default function AdminPanel({
         )}
 
         {/* POINTS ADJUSTMENT MODAL */}
-        {pointsModalUser && (
-          <div className="modal-backdrop" onClick={() => setPointsModalUser(null)}>
-            <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700">
-                    <Coins className="w-5 h-5" />
+        {pointsModalUser && (() => {
+          const currentPts = Number(pointsModalUser.aPoints || 0);
+          const adjNum = Number(pointsAdjustment);
+          const hasValidAdj = pointsAdjustment !== '' && !isNaN(adjNum);
+          const projectedPts = hasValidAdj ? Math.max(0, currentPts + adjNum) : currentPts;
+          const isCrediting = hasValidAdj && adjNum > 0;
+          const isDebiting = hasValidAdj && adjNum < 0;
+
+          return (
+            <div className="modal-backdrop p-4 sm:p-6" onClick={() => setPointsModalUser(null)}>
+              <div 
+                className="modal-content max-w-lg p-6 sm:p-7 bg-white border border-slate-200 rounded-3xl shadow-2xl relative space-y-5 animate-dropdown" 
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white shadow-md shadow-amber-500/25">
+                      <Coins className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-slate-900 text-base">Ajustar Saldo de A-Points</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-semibold text-slate-800">{pointsModalUser.name}</span>
+                        <span className="text-xs text-slate-300">•</span>
+                        <span className="text-xs text-slate-500 font-mono">{pointsModalUser.email}</span>
+                      </div>
+                    </div>
                   </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setPointsModalUser(null)} 
+                    className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSavePointsAdjustment} className="space-y-4">
+                  {/* Balance Status & Simulation Card */}
+                  <div className="p-4 bg-gradient-to-br from-slate-50 to-amber-50/40 rounded-2xl border border-amber-200/60 shadow-sm">
+                    <div className="grid grid-cols-2 gap-3 items-center">
+                      <div>
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Saldo Atual
+                        </span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-black text-slate-900">{currentPts.toLocaleString('pt-BR')}</span>
+                          <span className="text-xs font-bold text-amber-700">pts</span>
+                        </div>
+                      </div>
+
+                      <div className="border-l border-amber-200/60 pl-3">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Saldo Projetado
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-baseline gap-1">
+                            <span className={`text-2xl font-black ${
+                              isCrediting ? 'text-emerald-600' : isDebiting ? 'text-rose-600' : 'text-slate-900'
+                            }`}>
+                              {projectedPts.toLocaleString('pt-BR')}
+                            </span>
+                            <span className="text-xs font-bold text-amber-700">pts</span>
+                          </div>
+                          {hasValidAdj && adjNum !== 0 && (
+                            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded-md ${
+                              isCrediting ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                            }`}>
+                              {adjNum > 0 ? `+${adjNum}` : `${adjNum}`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Points Input & Quick Presets */}
                   <div>
-                    <h4 className="font-bold text-slate-900 text-sm">Ajustar Saldo de A-Points</h4>
-                    <p className="text-[11px] text-slate-500 truncate max-w-[240px]">{pointsModalUser.name} ({pointsModalUser.email})</p>
+                    <label className="text-xs font-bold text-slate-800 block mb-1.5">
+                      Quantidade de Pontos *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="1"
+                        required
+                        placeholder="Ex: 100 (para creditar) ou -50 (para estornar)"
+                        value={pointsAdjustment}
+                        onChange={(e) => setPointsAdjustment(e.target.value)}
+                        className="form-input text-sm font-bold font-mono pl-3 pr-10 py-2.5 rounded-xl border-slate-300 focus:border-amber-500 focus:ring-amber-500/20"
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-amber-600 uppercase pointer-events-none">
+                        pts
+                      </div>
+                    </div>
+
+                    {/* Quick Preset Buttons */}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      <span className="text-[11px] font-semibold text-slate-400 mr-1">Atalhos:</span>
+                      {[50, 100, 250, 500].map((val) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setPointsAdjustment(String(val))}
+                          className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          +{val}
+                        </button>
+                      ))}
+                      {[-50, -100].map((val) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setPointsAdjustment(String(val))}
+                          className="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"
+                        >
+                          {val}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[11px] text-slate-500 block mt-1.5 leading-relaxed">
+                      💡 Use valor positivo para creditar pontos ou negativo com sinal de menos (<code className="bg-slate-100 px-1 py-0.5 rounded text-rose-600 font-bold">-</code>) para estornar/debitar.
+                    </span>
                   </div>
-                </div>
-                <button type="button" onClick={() => setPointsModalUser(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                  <X className="w-4 h-4" />
-                </button>
+
+                  {/* Reason Input */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 block mb-1.5">
+                      Motivo do Ajuste *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Bonificação de boas-vindas, compensação de pedido, suporte"
+                      value={pointsReason}
+                      onChange={(e) => setPointsReason(e.target.value)}
+                      className="form-input text-xs py-2.5 rounded-xl border-slate-300 focus:border-amber-500 focus:ring-amber-500/20"
+                    />
+                  </div>
+
+                  {/* Modal Footer Buttons */}
+                  <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setPointsModalUser(null)}
+                      className="btn-secondary text-xs px-4 py-2.5 rounded-xl font-semibold cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingPoints || !pointsAdjustment}
+                      className="btn-gold text-xs font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-md"
+                    >
+                      {isSavingPoints ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      <span>Confirmar Ajuste</span>
+                    </button>
+                  </div>
+                </form>
               </div>
-
-              <form onSubmit={handleSavePointsAdjustment} className="pt-3 space-y-3">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex items-center justify-between">
-                  <span className="text-slate-600 font-medium">Saldo Atual do Usuário:</span>
-                  <span className="font-black text-amber-900 text-sm">{Number(pointsModalUser.aPoints || 0)} pts</span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Quantidade de Pontos *
-                  </label>
-                  <input
-                    type="number"
-                    step="1"
-                    required
-                    placeholder="Ex: 100 (para creditar) ou -50 (para debitar)"
-                    value={pointsAdjustment}
-                    onChange={(e) => setPointsAdjustment(e.target.value)}
-                    className="form-input text-xs font-mono"
-                  />
-                  <span className="text-[10px] text-slate-500 block mt-0.5">
-                    Digite um valor positivo para bonificar ou negativo para estornar pontos.
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Motivo do Ajuste *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Bonificação de boas-vindas, suporte, compensação de pedido"
-                    value={pointsReason}
-                    onChange={(e) => setPointsReason(e.target.value)}
-                    className="form-input text-xs"
-                  />
-                </div>
-
-                <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setPointsModalUser(null)}
-                    className="btn-secondary text-xs"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSavingPoints || !pointsAdjustment}
-                    className="btn-gold text-xs font-bold py-2 px-4 flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-                  >
-                    {isSavingPoints ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                    <span>Confirmar Ajuste</span>
-                  </button>
-                </div>
-              </form>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TEMPORARY PASSWORD DISPLAY MODAL FOR SUPPORT AGENTS */}
         {tempPasswordModal && (
@@ -11618,7 +11705,19 @@ export default function AdminPanel({
             setIsSelectingVariantMedia(false);
           }}
           isStandalone={!isProductModalOpen && !isSelectingBannerMedia && !isSelectingBrandMedia && !isSelectingVariantMedia}
-          products={products}
+          products={(() => {
+            if (!isProductModalOpen || !productForm) return products;
+            const currentProdId = productForm.id || editingProduct?.id;
+            const list = Array.isArray(products) ? [...products] : [];
+            if (currentProdId) {
+              const existingIdx = list.findIndex(p => p.id === currentProdId);
+              if (existingIdx >= 0) {
+                list[existingIdx] = { ...list[existingIdx], ...productForm };
+                return list;
+              }
+            }
+            return [...list, productForm];
+          })()}
           brands={brands}
           categories={categories}
           banners={banners}
@@ -11631,7 +11730,11 @@ export default function AdminPanel({
                   ? (isSelectingBannerMedia === 'desktop'
                       ? (bannerForm.desktopImage ? [bannerForm.desktopImage] : [])
                       : (bannerForm.mobileImage ? [bannerForm.mobileImage] : []))
-                  : (isProductModalOpen ? (Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])) : []))
+                  : (isProductModalOpen ? [
+                      ...(Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])),
+                      ...(Array.isArray(productForm.variants) ? productForm.variants.map(v => v?.image).filter(Boolean) : []),
+                      ...(variantModalForm?.image ? [variantModalForm.image] : [])
+                    ] : []))
           }
           currentCover={
             isSelectingVariantMedia
@@ -11706,13 +11809,17 @@ export default function AdminPanel({
               setProductForm((prev) => {
                 const current = Array.isArray(prev.images) ? prev.images : [];
                 const updated = current.filter(u => u !== url);
+                const updatedVariants = Array.isArray(prev.variants)
+                  ? prev.variants.map(v => (v && v.image === url) ? { ...v, image: '' } : v)
+                  : prev.variants;
                 return {
                   ...prev,
                   image: prev.image === url ? (updated[0] || '') : prev.image,
-                  images: updated
+                  images: updated,
+                  variants: updatedVariants
                 };
               });
-              showNotification('Foto removida da galeria do equipamento.', 'info');
+              showNotification('Foto removida do equipamento e de suas variações.', 'info');
             } : undefined))
           }
           onSetAsCover={

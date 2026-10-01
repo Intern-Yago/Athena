@@ -57,6 +57,8 @@ export default function CustomerDetailModal({
   const [sendingReset, setSendingReset] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [tempPasswordResult, setTempPasswordResult] = useState(null);
+  const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
+  const [magicLinkResult, setMagicLinkResult] = useState(null);
 
   const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'https://athena-backend-hu1m.onrender.com/api';
 
@@ -71,6 +73,7 @@ export default function CustomerDetailModal({
     if (!isOpen || !customer?.id) {
       setHistoryData(null);
       setTempPasswordResult(null);
+      setMagicLinkResult(null);
       return;
     }
 
@@ -244,9 +247,6 @@ export default function CustomerDetailModal({
   const isCustomerLocked = Boolean(user.isLocked || user.is_locked);
   const isCustomerInCooldown = Boolean(user.lockedUntil && new Date(user.lockedUntil) > new Date());
   const isSecurityHold = isCustomerLocked || isCustomerInCooldown;
-
-  const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
-  const [magicLinkResult, setMagicLinkResult] = useState(null);
 
   const handleGenerateMagicLink = async () => {
     if (!user?.id) return;

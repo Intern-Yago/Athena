@@ -160,10 +160,30 @@ export default function ImageLibraryModal({
       tokens.forEach(t => registerToken(t, type, name));
     };
 
-    // Indexa produtos
+    // Indexa produtos (Capa, Galeria e Variações)
     (products || []).forEach(prod => {
+      if (!prod) return;
+      // 1. Capa e galeria de fotos do produto principal
       const allUrls = [prod.image, ...(Array.isArray(prod.images) ? prod.images : [])].filter(Boolean);
       allUrls.forEach(url => registerUrl(url, 'product', prod.name));
+
+      // 2. Fotos de variações específicas (Cores, Modelos, etc.)
+      if (Array.isArray(prod.variants)) {
+        prod.variants.forEach(v => {
+          if (!v) return;
+          const variantUrls = [
+            v.image,
+            ...(Array.isArray(v.images) ? v.images : [])
+          ].filter(Boolean);
+
+          const variantLabel = v.name ? `${prod.name} (Opção: ${v.name})` : prod.name;
+          variantUrls.forEach(url => {
+            if (typeof url === 'string' && url.trim() !== '') {
+              registerUrl(url.trim(), 'product', variantLabel);
+            }
+          });
+        });
+      }
     });
 
     // Indexa marcas (logotipos oficiais da prop brands + INITIAL_BRANDS)
@@ -268,6 +288,26 @@ export default function ImageLibraryModal({
     if (isBannerFolder) {
       if (matchedBanners.size === 0) {
         matchedBanners.add('Banner da Home');
+      }
+    }
+
+    // 🛡️ BLINDAGEM DE VARIAÇÕES: Se a imagem está na pasta 'athena_variacoes' ou 'variacoes' ou nome inicia com 'var-'
+    const isVariantFolder = itemFolderLower === 'athena_variacoes' || itemFolderLower === 'variacoes' || itemKeyLower.includes('variacoes/') || itemUrlLower.includes('/athena_variacoes/') || itemFilenameLower.startsWith('var-');
+    if (isVariantFolder) {
+      if (matchedProducts.size === 0) {
+        // Tenta associar vasculhando as variações de todos os produtos
+        (products || []).forEach(prod => {
+          if (Array.isArray(prod?.variants)) {
+            prod.variants.forEach(v => {
+              if (v && v.image && isMediaMatch(item, v.image)) {
+                matchedProducts.add(`${prod.name} (${v.name || 'Opção'})`);
+              }
+            });
+          }
+        });
+        if (matchedProducts.size === 0) {
+          matchedProducts.add('Variação de Equipamento');
+        }
       }
     }
 

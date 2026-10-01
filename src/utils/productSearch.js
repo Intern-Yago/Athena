@@ -223,6 +223,9 @@ export const getProductSearchProfile = (prod, categories, brands) => {
   const customTabsContent = Array.isArray(prod.customTabs)
     ? prod.customTabs.map((t) => `${t.title || ''} ${t.content || ''}`).join(' ')
     : '';
+  const variantsContent = Array.isArray(prod.variants)
+    ? prod.variants.map((v) => `${v?.name || ''} ${v?.sku || ''} ${v?.omieCode || ''}`).join(' ')
+    : '';
   const tagsList = Array.isArray(prod.tags)
     ? prod.tags
     : (typeof prod.tags === 'string' ? prod.tags.split(/[,;\s]+/).map(t => t.trim().replace(/^#/, '')).filter(Boolean) : []);
@@ -235,6 +238,7 @@ export const getProductSearchProfile = (prod, categories, brands) => {
   const specWords = extractWords(specsContent);
   const descWords = extractWords(`${prod.description || ''} ${customTabsContent}`);
   const tagWords = extractWords(tagsContent);
+  const variantWords = extractWords(variantsContent);
 
   const compounds = new Set([
     ...extractCompoundCodes(prod.name),
@@ -242,7 +246,8 @@ export const getProductSearchProfile = (prod, categories, brands) => {
     ...extractCompoundCodes(prod.omieCode || ''),
     ...extractCompoundCodes(specsContent),
     ...extractCompoundCodes(customTabsContent),
-    ...extractCompoundCodes(prod.description || '')
+    ...extractCompoundCodes(prod.description || ''),
+    ...extractCompoundCodes(variantsContent)
   ]);
 
   const fullText = [
@@ -255,7 +260,8 @@ export const getProductSearchProfile = (prod, categories, brands) => {
     catName,
     specsContent,
     prod.description,
-    customTabsContent
+    customTabsContent,
+    variantsContent
   ]
     .filter(Boolean)
     .join(' ');
@@ -279,13 +285,14 @@ export const getProductSearchProfile = (prod, categories, brands) => {
   const brandWordsSet = new Set(brandWords);
   const catWordsSet = new Set(catWords);
   const specWordsSet = new Set(specWords);
-  const descWordsSet = new Set(descWords);
+  const descWordsSet = new Set([...descWords, ...variantWords]);
   const compoundsSet = new Set(compoundsList);
   const compoundsCleanSet = new Set(compoundsList.map((c) => cleanAlphanumeric(c)));
   const allWordsSet = new Set([
     ...nameWords,
     ...skuWords,
     ...tagWords,
+    ...variantWords,
     ...brandWords,
     ...catWords,
     ...specWords,
@@ -727,8 +734,11 @@ export const getProductSuggestionProfile = (p, brandsMap, categoriesMap) => {
   const catName = (categoriesMap instanceof Map ? categoriesMap.get(p.categoryId)?.name : null) || p.categoryName || 'Geral';
   const catNorm = normalizeSearchText(catName);
 
-  const descNorm = normalizeSearchText(p.description || '');
-  const descClean = cleanAlphanumeric(p.description || '');
+  const variantsContent = Array.isArray(p.variants)
+    ? p.variants.map(v => `${v?.name || ''} ${v?.sku || ''} ${v?.omieCode || ''}`).join(' ')
+    : '';
+  const descNorm = normalizeSearchText(`${p.description || ''} ${tabsContent} ${variantsContent}`);
+  const descClean = cleanAlphanumeric(`${p.description || ''} ${tabsContent} ${variantsContent}`);
 
   cached = {
     pNorm,

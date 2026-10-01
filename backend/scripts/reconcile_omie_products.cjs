@@ -66,6 +66,11 @@ async function fetchAllOmieProducts() {
     const batch = data.produto_servico_cadastro || [];
     allOmie.push(...batch);
     page++;
+
+    // Delay de segurança anti-bloqueio de Rate Limit da Omie (limite estrito de 4 req/segundo)
+    if (page <= totalPages) {
+      await new Promise(r => setTimeout(r, 300));
+    }
   }
 
   console.log(`✅ Total de produtos carregados do Omie: ${allOmie.length}`);
@@ -225,14 +230,25 @@ async function reconcileProducts(options = { isDryRun: true }) {
     console.log(`💾 Aplicando ${updatesToApply.length} vínculos no Banco de Dados...`);
 
     if (pool) {
-      for (const item of updatesToApply) {
-        await pool.query(`
-          UPDATE products 
-          SET omie_product_id = $1, omie_code = $2, omie_last_sync = CURRENT_TIMESTAMP
-          WHERE id = $3
-        `, [item.omieId, item.omieCode, item.athenaId]);
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        for (const item of updatesToApply) {
+          await client.query(`
+            UPDATE products 
+            SET omie_product_id = $1, omie_code = $2, omie_last_sync = CURRENT_TIMESTAMP
+            WHERE id = $3
+          `, [item.omieId, item.omieCode, item.athenaId]);
+        }
+        await client.query('COMMIT');
+        console.log(`✅ Vínculos salvos com sucesso no PostgreSQL!`);
+      } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('❌ Erro na transação do PostgreSQL:', err.message);
+        throw err;
+      } finally {
+        client.release();
       }
-      console.log(`✅ Vínculos salvos com sucesso no PostgreSQL!`);
     }
 
     if (dbJson && dbJson.products) {

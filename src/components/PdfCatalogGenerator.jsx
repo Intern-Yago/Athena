@@ -28,15 +28,13 @@ function getOptimizedPdfImage(url) {
   return clean;
 }
 
-export default function PdfCatalogGenerator({ products, categories, brands, isOpen, onClose }) {
+export default function PdfCatalogGenerator({ products = [], categories = [], brands = [], isOpen, onClose }) {
   const [selectedCatIds, setSelectedCatIds] = useState([]);
   const [selectedBrandIds, setSelectedBrandIds] = useState([]);
   const [showPrices, setShowPrices] = useState(true);
   const [onlyFeatured, setOnlyFeatured] = useState(false);
   const [maxProducts, setMaxProducts] = useState(40); // 40 is fast and prevents browser lockup
   const [isGenerating, setIsGenerating] = useState(false);
-
-  if (!isOpen) return null;
 
   // 1. Compute available brands with published product counts
   const availableBrands = useMemo(() => {
@@ -81,6 +79,7 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
 
   // 3. Auto-prune any selected categories that are no longer valid for the newly selected brand(s)
   useEffect(() => {
+    if (!isOpen) return;
     if (selectedCatIds.length > 0) {
       const validCatIds = new Set(availableCategories.map(c => c.id));
       const pruned = selectedCatIds.filter(id => validCatIds.has(id));
@@ -88,7 +87,7 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
         setSelectedCatIds(pruned);
       }
     }
-  }, [availableCategories, selectedCatIds]);
+  }, [isOpen, availableCategories, selectedCatIds]);
 
   const toggleBrand = (id) => {
     if (selectedBrandIds.includes(id)) {
@@ -464,6 +463,8 @@ export default function PdfCatalogGenerator({ products, categories, brands, isOp
       .filter(Boolean)
       .join(', ');
   }, [selectedBrandIds, brands]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="modal-backdrop p-3 sm:p-6" onClick={onClose}>
