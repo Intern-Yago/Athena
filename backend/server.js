@@ -424,18 +424,23 @@ const ATHENA_ORIGIN_SECRET = process.env.ATHENA_ORIGIN_SECRET;
 if (ATHENA_ORIGIN_SECRET) {
   app.use((req, res, next) => {
     // Permite health checks internos do Render (para não falhar o deploy ou monitoramento)
-    if (req.path === '/api/health' || req.path === '/api/ping' || req.headers['user-agent']?.includes('Render/')) {
+    if (req.path === '/api/health' || req.path === '/api/ping' || req.path === '/health' || req.headers['user-agent']?.includes('Render/')) {
       return next();
     }
 
     const incomingSecret = req.headers['x-athena-origin-secret'];
     if (!incomingSecret || incomingSecret !== ATHENA_ORIGIN_SECRET) {
+      const realIp = getClientIp(req);
       logSecurityEvent({
         event: 'ORIGIN_BYPASS_BLOCKED',
-        ip: req.socket?.remoteAddress || 'unknown',
+        ip: realIp,
         userAgent: req.headers['user-agent'],
         outcome: 'BLOCKED',
-        reason: 'Tentativa de acesso direto ao Origin (onrender.com) sem passar pelo proxy da Cloudflare'
+        reason: 'Tentativa de acesso direto ao Origin (onrender.com) sem passar pelo proxy da Cloudflare',
+        details: {
+          path: req.originalUrl || req.path,
+          method: req.method
+        }
       });
       return res.status(403).json({
         error: 'Acesso direto à origem proibido. Todas as requisições devem transitar pela borda autorizada da Cloudflare.'
