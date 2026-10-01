@@ -332,8 +332,9 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                 </p>
                 <ul className="list-disc list-inside space-y-1.5 text-xs sm:text-sm text-slate-400 pl-2">
                   <li><strong>Omie ERP:</strong> Sistema de gestão onde as vendas são consolidadas e notas fiscais são emitidas e transmitidas ao Fisco.</li>
-                  <li><strong>Asaas Gestão Financeira:</strong> Instituição de pagamento que opera as liquidações via PIX, Boletos e Cartão.</li>
+                  <li><strong>Asaas Gestão Financeira:</strong> Instituição de pagamento que opera as liquidações via PIX, Boletos e Cartão com certificação PCI-DSS.</li>
                   <li><strong>Transportadoras Rodoviárias Parceiras:</strong> Para a realização do frete interestadual e entrega das máquinas.</li>
+                  <li><strong>Microsoft Clarity (Telemetria & Usabilidade):</strong> Parceiro tecnológico de telemetria comportamental e gravação anônima de sessão utilizado para aprimoramento contínuo da experiência de compra, diagnóstico de erros de interface e prevenção de fraudes. Todos os campos sensíveis (senhas e dados financeiros) são estritamente mascarados antes da transmissão. Saiba mais na <a href="https://privacy.microsoft.com/pt-br/privacystatement" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">Declaração de Privacidade da Microsoft</a>.</li>
                   <li><strong>Autoridades Públicas e Tributárias:</strong> Quando exigido por lei ou ordem judicial.</li>
                 </ul>
               </section>
@@ -473,15 +474,18 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-sky-400 text-sm flex items-center gap-2">
                         <Info className="w-4 h-4" />
-                        3. Cookies de Desempenho & Análise Anônima
+                        3. Cookies de Desempenho, Análise & Telemetria (Microsoft Clarity)
                       </span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-sky-500/10 text-sky-400 border border-sky-500/20 uppercase">
                         Opcional
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      Coletam métricas agregadas e completamente anônimas sobre quais páginas de elevadores ou scanners possuem maior engajamento, permitindo que a nossa equipe otimize a velocidade e os recursos técnicos da plataforma.
+                      Utilizados para mensurar como os visitantes interagem com o catálogo, gerar mapas de calor e permitir reprodução visual anônima de sessão via Microsoft Clarity. Essa telemetria nos ajuda a detectar botões com erros de clique, lentidão em páginas de maquinário e prevenir fraudes cadastrais, sem nunca gravar ou armazenar dados pessoais bancários ou senhas.
                     </p>
+                    <div className="text-[11px] font-mono text-slate-500 bg-slate-900 p-2 rounded-lg border border-slate-800">
+                      Exemplos de cookies de telemetria: <code>_clck</code>, <code>_clsk</code>, <code>CLID</code>, <code>ANONCHK</code>
+                    </div>
                   </div>
                 </div>
               </section>

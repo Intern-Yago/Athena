@@ -3,6 +3,12 @@ import { ShieldCheck, Cookie, SlidersHorizontal, Check, X, Lock, ExternalLink } 
 
 const STORAGE_KEY = 'athena_cookie_consent_v1';
 
+function applyClarityConsent(isGranted) {
+  if (typeof window !== 'undefined' && typeof window.clarity === 'function') {
+    window.clarity('consent', Boolean(isGranted));
+  }
+}
+
 export default function CookieConsentBanner({ onNavigate }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +29,7 @@ export default function CookieConsentBanner({ onNavigate }) {
       } else {
         const parsed = JSON.parse(savedConsent);
         setPreferences(prev => ({ ...prev, ...parsed }));
+        applyClarityConsent(parsed.analytics !== false);
       }
     } catch (e) {
       setIsVisible(true);
@@ -49,6 +56,7 @@ export default function CookieConsentBanner({ onNavigate }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     } catch (e) {}
     setPreferences(dataToSave);
+    applyClarityConsent(prefs.analytics);
     setIsVisible(false);
     setIsModalOpen(false);
   };
@@ -200,7 +208,7 @@ export default function CookieConsentBanner({ onNavigate }) {
               <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-white text-sm">
-                    Estatísticas & Otimização
+                    Estatísticas, Usabilidade & Antifraude (Clarity)
                   </span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -213,7 +221,7 @@ export default function CookieConsentBanner({ onNavigate }) {
                   </label>
                 </div>
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  Coleta métricas agregadas anônimas para avaliarmos velocidade de carregamento e produtos mais acessados, sem identificar o usuário pessoalmente.
+                  Utilizamos ferramentas como Microsoft Clarity para compreender a navegação, gerar mapas de calor, identificar eventuais erros técnicos na loja e prevenir fraudes, sempre de forma anônima e com dados confidenciais (senhas e dados de pagamento) rigorosamente mascarados.
                 </p>
               </div>
 
