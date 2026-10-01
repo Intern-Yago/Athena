@@ -617,6 +617,59 @@ app.get('/api/health', (req, res) => {
 });
 
 // -------------------------------------------------------------
+// HONEYPOT TRAP SYSTEM FOR BOT & SCANNER MITIGATION (OWASP A05:2021)
+// -------------------------------------------------------------
+const HONEYPOT_PATHS = [
+  '/.env',
+  '/.git',
+  '/.git/config',
+  '/.aws/credentials',
+  '/wp-login.php',
+  '/wp-admin',
+  '/xmlrpc.php',
+  '/phpmyadmin',
+  '/pma',
+  '/admin.php',
+  '/config.json',
+  '/boaform/admin/formLogin',
+  '/actuator/gateway/routes',
+  '/api/.env'
+];
+
+app.use((req, res, next) => {
+  const pathLower = req.path.toLowerCase();
+  const isHoneypot = HONEYPOT_PATHS.some(p => pathLower === p || pathLower.startsWith(p + '/'));
+
+  if (isHoneypot) {
+    const clientIp = getClientIp(req);
+    const userAgent = req.headers['user-agent'] || 'Desconhecido';
+
+    logSecurityEvent({
+      event: 'HONEYPOT_TRAP_TRIGGERED',
+      ip: clientIp,
+      userAgent,
+      outcome: 'BLOCKED',
+      reason: `Bot tentou explorar rota-armadilha: ${req.originalUrl}`
+    });
+
+    // Registra IP em quarentena no tracker em memória
+    ipSecurityTracker.set(clientIp, {
+      failedAttempts: 99,
+      isBlocked: true,
+      blockedAt: new Date()
+    });
+
+    // Envia alerta assíncrono para o administrador com proteção anti-flood (cooldown 1h)
+    sendHoneypotAlertEmail(clientIp, req.originalUrl, userAgent);
+
+    // Resposta 404 neutra
+    return res.status(404).send('Not Found');
+  }
+
+  next();
+});
+
+// -------------------------------------------------------------
 // SECURE PROTECTED SWAGGER DOCUMENTATION SETUP (/api-docs)
 // -------------------------------------------------------------
 const SWAGGER_USER = process.env.SWAGGER_USER || 'admin';
@@ -1475,6 +1528,132 @@ async function sendGenericNotificationEmail({ to, subject, htmlContent, replyTo 
     html: htmlContent,
     replyTo
   });
+}
+
+// Map de controle de cooldown para alertas (evita rajadas e estouro de cota SMTP)
+const alertCooldownMap = new Map(); // key -> timestamp
+
+function isAlertInCooldown(key, cooldownMinutes = 60) {
+  const lastSent = alertCooldownMap.get(key);
+  if (lastSent && (Date.now() - lastSent) < cooldownMinutes * 60 * 1000) {
+    return true;
+  }
+  alertCooldownMap.set(key, Date.now());
+  return false;
+}
+
+async function sendHoneypotAlertEmail(clientIp, targetPath, userAgent) {
+  const cooldownKey = `honeypot_${clientIp}`;
+  if (isAlertInCooldown(cooldownKey, 60)) {
+    return; // Já alertou este IP na última hora, silencia para não floodar
+  }
+
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br';
+    const htmlContent = buildAthenaEmailHtml({
+      maxWidth: 580,
+      badgeText: '🛡️ Honeypot Ativado • Bot Bloqueado',
+      badgeBg: '#fef2f2',
+      badgeColor: '#b91c1c',
+      badgeBorder: '#fecaca',
+      title: 'Tentativa de Escaneamento Bloqueada',
+      subtitle: 'Um bot ou scanner automatizado tentou acessar uma rota-armadilha e foi bloqueado preventivamente.',
+      bodyHtml: `
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600; width: 140px;">Endereço IP:</td>
+              <td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-weight: bold;">${clientIp}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Rota Explorada:</td>
+              <td style="padding: 6px 0; color: #dc2626; font-family: monospace; font-weight: bold;">${targetPath}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Data e Hora:</td>
+              <td style="padding: 6px 0; color: #0f172a;">${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">User-Agent:</td>
+              <td style="padding: 6px 0; color: #334155; font-size: 11px; word-break: break-all;">${userAgent}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Ação do Sistema:</td>
+              <td style="padding: 6px 0; color: #15803d; font-weight: bold;">IP Quarentenado • Resposta 404 Fornecida</td>
+            </tr>
+          </table>
+        </div>
+        <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
+          💡 <em>Não é necessária nenhuma ação manual no momento. O sistema registrou o log e mitigou o escaneamento na borda.</em>
+        </p>
+      `
+    });
+
+    await sendDispatchedEmail({
+      to: adminEmail,
+      subject: `🚨 [Segurança Athena] Honeypot Bloqueou IP ${clientIp} em "${targetPath}"`,
+      html: htmlContent
+    });
+  } catch (err) {
+    console.error('[Honeypot Alert] Falha ao enviar e-mail de alerta:', err.message);
+  }
+}
+
+async function sendCriticalErrorAlertEmail(err, req, clientIp) {
+  const routeKey = `error_${req.method}_${req.path}`;
+  if (isAlertInCooldown(routeKey, 10)) {
+    return; // Silencia se o mesmo erro disparar em menos de 10 minutos
+  }
+
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br';
+    const errStack = (err.stack || err.message || 'Sem stack trace disponível').substring(0, 1500);
+
+    const htmlContent = buildAthenaEmailHtml({
+      maxWidth: 620,
+      badgeText: '🚨 Erro Crítico 500 Detectado',
+      badgeBg: '#fef2f2',
+      badgeColor: '#b91c1c',
+      badgeBorder: '#fecaca',
+      title: 'Exceção Não Tratada na API',
+      subtitle: 'O sistema capturou uma falha interna na API durante uma requisição de usuário.',
+      bodyHtml: `
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600; width: 140px;">Endpoint / Rota:</td>
+              <td style="padding: 6px 0; color: #0f172a; font-family: monospace; font-weight: bold;">${req.method} ${req.originalUrl}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Mensagem de Erro:</td>
+              <td style="padding: 6px 0; color: #dc2626; font-weight: bold;">${err.message || 'Erro sem mensagem'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Data e Hora:</td>
+              <td style="padding: 6px 0; color: #0f172a;">${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; font-weight: 600;">IP de Origem:</td>
+              <td style="padding: 6px 0; color: #0f172a; font-family: monospace;">${clientIp}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <span style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; display: block; margin-bottom: 6px;">Stack Trace (Trecho):</span>
+          <pre style="background-color: #0f172a; color: #e2e8f0; padding: 14px; border-radius: 10px; font-size: 11px; overflow-x: auto; white-space: pre-wrap; font-family: monospace;">${errStack}</pre>
+        </div>
+      `
+    });
+
+    await sendDispatchedEmail({
+      to: adminEmail,
+      subject: `🚨 [Alerta API Athena] Erro 500 em ${req.method} ${req.path}: ${err.message}`,
+      html: htmlContent
+    });
+  } catch (alertErr) {
+    console.error('[Critical Error Alert] Falha ao enviar e-mail de alerta:', alertErr.message);
+  }
 }
 
 // -------------------------------------------------------------
@@ -8537,6 +8716,26 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
       });
     }
   }
+});
+
+// -------------------------------------------------------------
+// CENTRALIZED GLOBAL ERROR HANDLER & CRITICAL FAILURE ALERTING
+// -------------------------------------------------------------
+app.use((err, req, res, next) => {
+  const statusCode = err.status || err.statusCode || 500;
+  const clientIp = getClientIp(req);
+
+  console.error(`[CRITICAL_API_ERROR] ${req.method} ${req.originalUrl} - Status ${statusCode}:`, err);
+
+  if (statusCode >= 500) {
+    sendCriticalErrorAlertEmail(err, req, clientIp);
+  }
+
+  return res.status(statusCode).json({
+    error: statusCode >= 500 
+      ? 'Ocorreu um erro interno nos nossos servidores. Nossos sistemas registraram o ocorrido e o suporte técnico já foi notificado.' 
+      : (err.message || 'Erro ao processar requisição.')
+  });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
