@@ -77,4 +77,6 @@ logs/
 *.coverage
 .nyc_output/
 catalogos/
-*.timestamp-*.mjs
+*.timestamp-*.mjs
+rel.txt
+
