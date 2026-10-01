@@ -763,8 +763,9 @@ export default function AdminPanel({
     }
   };
 
-  const handleManualLinkOmie = async (productId) => {
-    const omieId = omieManualLinks[productId];
+  const handleManualLinkOmie = async (productId, variantId = null) => {
+    const key = variantId ? `${productId}_${variantId}` : productId;
+    const omieId = omieManualLinks[key] || omieManualLinks[productId];
     if (!omieId) {
       showNotification('Informe o código ou ID do Omie para vincular.', 'error');
       return;
@@ -773,11 +774,16 @@ export default function AdminPanel({
       const res = await fetch(`${API_BASE_URL}/admin/omie/link-product`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ athenaProductId: productId, omieProductId: omieId })
+        body: JSON.stringify({ 
+          athenaProductId: productId, 
+          variantId: variantId || undefined,
+          omieProductId: omieId,
+          omieCode: omieId
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao vincular produto.');
-      showNotification('Produto vinculado ao Omie com sucesso!', 'success');
+      showNotification(data.message || 'Item vinculado ao Omie com sucesso!', 'success');
       fetchOmieSyncStatus();
     } catch (err) {
       showNotification(err.message, 'error');
@@ -6717,43 +6723,96 @@ export default function AdminPanel({
                       {(omieSyncStatus?.unlinkedProducts || [])
                         .filter(p => !omieSearchFilter || p.name.toLowerCase().includes(omieSearchFilter.toLowerCase()) || p.id.toLowerCase().includes(omieSearchFilter.toLowerCase()))
                         .slice(0, 15)
-                        .map((prod) => (
-                          <tr key={prod.id} className="hover:bg-slate-50 transition-colors">
-                            <td 
-                              onClick={() => canEditContent && openEditProductModal(prod)}
-                              className={`py-2.5 px-3 font-bold text-slate-900 max-w-xs truncate transition-colors ${
-                                canEditContent ? 'cursor-pointer hover:text-amber-600' : ''
-                              }`}
-                              title={canEditContent ? "Clique para editar este equipamento" : undefined}
-                            >
-                              {prod.name}
-                            </td>
-                            <td className="py-2.5 px-3 font-medium text-slate-500">
-                              {brands.find(b => b.id === prod.brandId)?.name || prod.brandId || '-'}
-                            </td>
-                            <td className="py-2.5 px-3 font-mono text-[11px] text-slate-400 truncate max-w-[140px]">
-                              {prod.id}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <input
-                                type="text"
-                                placeholder="ID do Omie (ex: 11876...)"
-                                value={omieManualLinks[prod.id] || ''}
-                                onChange={(e) => setOmieManualLinks({ ...omieManualLinks, [prod.id]: e.target.value })}
-                                className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white w-40 font-mono"
-                              />
-                            </td>
-                            <td className="py-2.5 px-3 text-right">
-                              <button
-                                type="button"
-                                onClick={() => handleManualLinkOmie(prod.id)}
-                                className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-colors cursor-pointer"
-                              >
-                                Vincular
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        .map((prod) => {
+                          const hasVars = Array.isArray(prod.variants) && prod.variants.length > 0;
+                          return (
+                            <React.Fragment key={prod.id}>
+                              <tr className="hover:bg-slate-50 transition-colors">
+                                <td 
+                                  onClick={() => canEditContent && openEditProductModal(prod)}
+                                  className={`py-2.5 px-3 font-bold text-slate-900 max-w-xs transition-colors ${
+                                    canEditContent ? 'cursor-pointer hover:text-amber-600' : ''
+                                  }`}
+                                  title={canEditContent ? "Clique para editar este equipamento" : undefined}
+                                >
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="truncate">{prod.name}</span>
+                                    {hasVars && (
+                                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                                        {prod.variants.length} opções
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3 font-medium text-slate-500">
+                                  {brands.find(b => b.id === prod.brandId)?.name || prod.brandId || '-'}
+                                </td>
+                                <td className="py-2.5 px-3 font-mono text-[11px] text-slate-400 truncate max-w-[140px]">
+                                  {prod.sku || prod.id}
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <input
+                                    type="text"
+                                    placeholder={hasVars ? "Vínculo pai (opcional)" : "ID/Código Omie"}
+                                    value={omieManualLinks[prod.id] || ''}
+                                    onChange={(e) => setOmieManualLinks({ ...omieManualLinks, [prod.id]: e.target.value })}
+                                    className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white w-40 font-mono"
+                                  />
+                                </td>
+                                <td className="py-2.5 px-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleManualLinkOmie(prod.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-colors cursor-pointer"
+                                  >
+                                    Vincular
+                                  </button>
+                                </td>
+                              </tr>
+                              {hasVars && prod.variants.map((v, vIdx) => {
+                                const varKey = `${prod.id}_${v.id}`;
+                                const isVarLinked = Boolean(v.omieProductId || v.omieCode);
+                                return (
+                                  <tr key={v.id || vIdx} className="bg-slate-50/70 border-b border-slate-100/80">
+                                    <td className="py-1.5 px-3 pl-8 text-slate-600 font-medium">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-slate-400">↳</span>
+                                        <span>{v.name}</span>
+                                        {isVarLinked && (
+                                          <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold text-[9px]">
+                                            Vinculado ({v.omieCode})
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="py-1.5 px-3 text-slate-400 text-[11px]">Variação</td>
+                                    <td className="py-1.5 px-3 font-mono text-[11px] text-slate-500">
+                                      {v.sku || '-'}
+                                    </td>
+                                    <td className="py-1.5 px-3">
+                                      <input
+                                        type="text"
+                                        placeholder="Cód Omie da variação"
+                                        value={omieManualLinks[varKey] !== undefined ? omieManualLinks[varKey] : (v.omieCode || '')}
+                                        onChange={(e) => setOmieManualLinks({ ...omieManualLinks, [varKey]: e.target.value })}
+                                        className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-white focus:bg-white w-40 font-mono"
+                                      />
+                                    </td>
+                                    <td className="py-1.5 px-3 text-right">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleManualLinkOmie(prod.id, v.id)}
+                                        className="px-2 py-1 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-900 font-bold text-[11px] transition-colors cursor-pointer"
+                                      >
+                                        Vincular Opção
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
                     </tbody>
                   </table>
                   {(!omieSyncStatus?.unlinkedProducts || omieSyncStatus.unlinkedProducts.length === 0) && (

@@ -127,7 +127,11 @@ async function reconcileProducts(options = { isDryRun: true }) {
         CREATE INDEX IF NOT EXISTS idx_products_omie_code ON public.products(omie_code);
       `);
 
-      const res = await pool.query('SELECT id, name, slug, brand_id, omie_product_id, omie_code FROM products ORDER BY name ASC');
+      const res = await pool.query(`
+        SELECT id, name, slug, brand_id, omie_product_id, omie_code, sku, COALESCE(variants, '[]'::jsonb) as variants 
+        FROM products 
+        ORDER BY name ASC
+      `);
       athenaProducts = res.rows;
     } catch (e) {
       console.warn('⚠️ Não foi possível conectar ao Postgres, usando athena-db.json:', e.message);
@@ -153,6 +157,9 @@ async function reconcileProducts(options = { isDryRun: true }) {
     matchedCount: 0,
     alreadyLinked: 0,
     newlyMatched: 0,
+    linkedViaVariantsCount: 0,
+    totalVariantsCount: 0,
+    matchedVariantsCount: 0,
     unmatchedCount: 0,
     matches: [],
     unmatched: []
@@ -161,22 +168,92 @@ async function reconcileProducts(options = { isDryRun: true }) {
   const updatesToApply = [];
 
   for (const ap of athenaProducts) {
-    if (ap.omie_product_id || ap.omieProductId) {
+    const isAlreadyLinked = Boolean(ap.omie_product_id || ap.omieProductId);
+    if (isAlreadyLinked) {
       results.alreadyLinked++;
     }
 
+    // --- 1. AVALIAÇÃO DE VARIAÇÕES ---
+    const rawVariants = Array.isArray(ap.variants) 
+      ? ap.variants 
+      : (typeof ap.variants === 'string' ? JSON.parse(ap.variants || '[]') : []);
+    const variants = rawVariants.map(v => ({ ...v }));
+    let variantsModified = false;
+    let variantsMatchedThisProduct = 0;
+
+    if (variants.length > 0) {
+      results.totalVariantsCount += variants.length;
+
+      for (let i = 0; i < variants.length; i++) {
+        const v = variants[i];
+        if (!v) continue;
+
+        const vSku = normalizeKey(v.sku);
+        const vOmie = normalizeKey(v.omieCode);
+        const vKeys = [...new Set([
+          vSku,
+          vOmie,
+          ...extractModelKeys(v.name),
+          ...extractModelKeys(`${ap.name} ${v.name}`),
+          ...extractModelKeys(v.sku)
+        ])].filter(k => k && k.length >= 3);
+
+        let vTarget = null;
+        let vMatchType = null;
+
+        // Busca por código direto da variação
+        for (const k of vKeys) {
+          if (omieByCode.has(k)) {
+            vTarget = omieByCode.get(k);
+            vMatchType = 'EXACT_CODE';
+            break;
+          }
+        }
+
+        // Busca por modelo na descrição do Omie
+        if (!vTarget) {
+          for (const k of vKeys) {
+            if (omieByModel.has(k)) {
+              vTarget = omieByModel.get(k);
+              vMatchType = 'MODEL_IN_DESC';
+              break;
+            }
+          }
+        }
+
+        if (vTarget) {
+          v.omieProductId = Number(vTarget.codigo_produto);
+          v.omieCode = vTarget.codigo || String(vTarget.codigo_produto);
+          if (vTarget.quantidade_estoque != null) {
+            v.stockQty = Number(vTarget.quantidade_estoque);
+          }
+          if (vTarget.valor_unitario != null && Number(vTarget.valor_unitario) > 0) {
+            v.price = Number(vTarget.valor_unitario);
+          }
+          variants[i] = v;
+          variantsModified = true;
+          variantsMatchedThisProduct++;
+          results.matchedVariantsCount++;
+        } else if (v.omieProductId || v.omieCode) {
+          variantsMatchedThisProduct++;
+        }
+      }
+    }
+
+    // --- 2. AVALIAÇÃO DO PRODUTO PRINCIPAL (PAI) ---
+    const skuKey = normalizeKey(ap.sku);
     const idKeys = extractModelKeys(ap.id);
     const nameKeys = extractModelKeys(ap.name);
-    // Também extrai sufixo do ID: ex prod_mahovi_mah-1008 -> MAH1008
     const rawIdModel = normalizeKey(ap.id.replace(/^prod_[a-z]+_/i, ''));
     if (rawIdModel.length >= 3) idKeys.push(rawIdModel);
+    if (skuKey && skuKey.length >= 3) idKeys.push(skuKey);
 
     const allKeys = [...new Set([...idKeys, ...nameKeys])];
 
     let target = null;
     let matchType = null;
 
-    // 1. Busca por código direto
+    // Busca por código direto do pai
     for (const k of allKeys) {
       if (omieByCode.has(k)) {
         target = omieByCode.get(k);
@@ -185,7 +262,7 @@ async function reconcileProducts(options = { isDryRun: true }) {
       }
     }
 
-    // 2. Busca por modelo na descrição do Omie
+    // Busca por modelo na descrição do Omie
     if (!target) {
       for (const k of allKeys) {
         if (omieByModel.has(k)) {
@@ -196,26 +273,43 @@ async function reconcileProducts(options = { isDryRun: true }) {
       }
     }
 
-    if (target) {
+    const hasLinkedVariants = variantsMatchedThisProduct > 0;
+    const isMatched = Boolean(target || hasLinkedVariants);
+
+    if (isMatched) {
       results.matchedCount++;
-      results.newlyMatched++;
+      if (!isAlreadyLinked) results.newlyMatched++;
+      if (!target && hasLinkedVariants) results.linkedViaVariantsCount++;
+
+      const finalOmieId = target ? target.codigo_produto : (ap.omie_product_id || ap.omieProductId || null);
+      const finalOmieCode = target ? target.codigo : (ap.omie_code || ap.omieCode || (variants.length > 0 ? variants.find(v => v.omieCode)?.omieCode : ''));
+      const hasAnyStock = variants.length > 0 ? variants.some(v => (Number(v.stockQty) || 0) > 0) : null;
+
       const matchObj = {
         athenaId: ap.id,
         athenaName: ap.name,
-        omieId: target.codigo_produto,
-        omieCode: target.codigo,
-        omieName: target.descricao,
-        matchType,
-        confidence: matchType === 'EXACT_CODE' ? '100%' : '95%'
+        omieId: finalOmieId,
+        omieCode: finalOmieCode,
+        omieName: target ? target.descricao : `Vinculado via ${variantsMatchedThisProduct}/${variants.length} variações`,
+        matchType: target ? matchType : 'LINKED_VIA_VARIANTS',
+        variants: variantsModified ? variants : null,
+        hasAnyStock,
+        variantsMatchedCount: variantsMatchedThisProduct,
+        totalVariants: variants.length,
+        confidence: target ? (matchType === 'EXACT_CODE' ? '100%' : '95%') : '90% (Variações)'
       };
+
       results.matches.push(matchObj);
-      updatesToApply.push(matchObj);
+      if (target || variantsModified) {
+        updatesToApply.push(matchObj);
+      }
     } else {
       results.unmatchedCount++;
       results.unmatched.push({
         athenaId: ap.id,
         athenaName: ap.name,
-        brandId: ap.brand_id || ap.brandId
+        brandId: ap.brand_id || ap.brandId,
+        variantsCount: variants.length
       });
     }
   }
@@ -223,7 +317,10 @@ async function reconcileProducts(options = { isDryRun: true }) {
   const matchPercent = ((results.matchedCount / results.total) * 100).toFixed(1);
   console.log(`📊 RESULTADO DA CORRESPONDÊNCIA:`);
   console.log(`   - Total de Produtos no Site: ${results.total}`);
-  console.log(`   - Correspondidos com Sucesso: ${results.matchedCount} (${matchPercent}%)`);
+  console.log(`   - Total de Variações Encontradas: ${results.totalVariantsCount}`);
+  console.log(`   - Variações Correspondidas: ${results.matchedVariantsCount}`);
+  console.log(`   - Produtos Correspondidos (Pai ou Variações): ${results.matchedCount} (${matchPercent}%)`);
+  console.log(`   - Produtos Vinculados via Variações: ${results.linkedViaVariantsCount}`);
   console.log(`   - Não Correspondidos / Exceções: ${results.unmatchedCount}\n`);
 
   if (!isDryRun && updatesToApply.length > 0) {
@@ -236,12 +333,23 @@ async function reconcileProducts(options = { isDryRun: true }) {
         for (const item of updatesToApply) {
           await client.query(`
             UPDATE products 
-            SET omie_product_id = $1, omie_code = $2, omie_last_sync = CURRENT_TIMESTAMP
-            WHERE id = $3
-          `, [item.omieId, item.omieCode, item.athenaId]);
+            SET 
+              omie_product_id = COALESCE($1, omie_product_id), 
+              omie_code = COALESCE(NULLIF($2, ''), omie_code),
+              variants = CASE WHEN $3::jsonb IS NOT NULL THEN $3::jsonb ELSE variants END,
+              in_stock = CASE WHEN $4::boolean IS NOT NULL THEN $4::boolean ELSE in_stock END,
+              omie_last_sync = CURRENT_TIMESTAMP
+            WHERE id = $5
+          `, [
+            item.omieId, 
+            item.omieCode || '', 
+            item.variants ? JSON.stringify(item.variants) : null, 
+            item.hasAnyStock, 
+            item.athenaId
+          ]);
         }
         await client.query('COMMIT');
-        console.log(`✅ Vínculos salvos com sucesso no PostgreSQL!`);
+        console.log(`✅ Vínculos e variações salvos com sucesso no PostgreSQL!`);
       } catch (err) {
         await client.query('ROLLBACK');
         console.error('❌ Erro na transação do PostgreSQL:', err.message);
@@ -255,13 +363,15 @@ async function reconcileProducts(options = { isDryRun: true }) {
       for (const item of updatesToApply) {
         const p = dbJson.products.find(x => x.id === item.athenaId);
         if (p) {
-          p.omieProductId = item.omieId;
-          p.omieCode = item.omieCode;
+          if (item.omieId) p.omieProductId = item.omieId;
+          if (item.omieCode) p.omieCode = item.omieCode;
+          if (item.variants) p.variants = item.variants;
+          if (item.hasAnyStock !== null) p.inStock = item.hasAnyStock;
           p.omieLastSync = new Date().toISOString();
         }
       }
       fs.writeFileSync(dbJsonPath, JSON.stringify(dbJson, null, 2));
-      console.log(`✅ Vínculos salvos com sucesso no athena-db.json!`);
+      console.log(`✅ Vínculos e variações salvos com sucesso no athena-db.json!`);
     }
   } else if (isDryRun) {
     console.log(`ℹ️ Modo simulação (--dry-run). Nenhuma alteração foi gravada.`);

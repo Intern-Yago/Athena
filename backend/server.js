@@ -6476,30 +6476,57 @@ app.get('/api/admin/omie/sync-status', authenticateToken, requireAdmin, async (r
   try {
     let totalProducts = 0;
     let linkedProducts = 0;
+    let linkedViaVariants = 0;
     let unlinkedProducts = [];
 
     if (pool) {
       const totRes = await pool.query('SELECT COUNT(*) FROM products');
       totalProducts = parseInt(totRes.rows[0].count, 10);
 
+      // Produtos com omie_product_id direto no pai
       const linkRes = await pool.query('SELECT COUNT(*) FROM products WHERE omie_product_id IS NOT NULL');
       linkedProducts = parseInt(linkRes.rows[0].count, 10);
 
+      // Produtos que não têm omie_product_id no pai, mas têm variações conectadas
+      const linkVarRes = await pool.query(`
+        SELECT COUNT(*) FROM products 
+        WHERE omie_product_id IS NULL
+          AND variants IS NOT NULL 
+          AND jsonb_typeof(variants) = 'array'
+          AND EXISTS (
+            SELECT 1 FROM jsonb_array_elements(variants) elem 
+            WHERE (elem->>'omieProductId') IS NOT NULL OR (elem->>'omieCode') IS NOT NULL
+          )
+      `);
+      linkedViaVariants = parseInt(linkVarRes.rows[0].count, 10);
+
+      // Produtos pendentes (sem vínculo nem no pai nem nas variações)
       const unRes = await pool.query(`
-        SELECT id, name, brand_id as "brandId", price::float
+        SELECT id, name, sku, brand_id as "brandId", price::float, COALESCE(variants, '[]'::jsonb) as "variants"
         FROM products 
         WHERE omie_product_id IS NULL
+          AND (
+            variants IS NULL 
+            OR jsonb_typeof(variants) != 'array' 
+            OR NOT EXISTS (
+              SELECT 1 FROM jsonb_array_elements(variants) elem 
+              WHERE (elem->>'omieProductId') IS NOT NULL OR (elem->>'omieCode') IS NOT NULL
+            )
+          )
         ORDER BY name ASC
         LIMIT 50
       `);
       unlinkedProducts = unRes.rows;
     }
 
+    const effectiveLinked = linkedProducts + linkedViaVariants;
     return res.json({
       totalProducts,
-      linkedProducts,
-      unlinkedCount: Math.max(0, totalProducts - linkedProducts),
-      matchPercentage: totalProducts > 0 ? ((linkedProducts / totalProducts) * 100).toFixed(1) : 0,
+      linkedProducts: effectiveLinked,
+      linkedDirectly: linkedProducts,
+      linkedViaVariants,
+      unlinkedCount: Math.max(0, totalProducts - effectiveLinked),
+      matchPercentage: totalProducts > 0 ? ((effectiveLinked / totalProducts) * 100).toFixed(1) : 0,
       unlinkedProducts
     });
   } catch (err) {
@@ -6523,15 +6550,38 @@ app.post('/api/admin/omie/reconcile', authenticateToken, requireAdmin, async (re
   }
 });
 
-// Vínculo manual individual de produto
+// Vínculo manual individual de produto (ou variação específica)
 app.post('/api/admin/omie/link-product', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { athenaProductId, omieProductId, omieCode } = req.body;
+    const { athenaProductId, variantId, omieProductId, omieCode } = req.body;
     if (!athenaProductId || !omieProductId) {
       return res.status(400).json({ error: 'IDs de produto Athena e Omie são obrigatórios.' });
     }
 
     if (pool) {
+      if (variantId) {
+        // Vínculo de variação específica
+        const findRes = await pool.query('SELECT variants FROM products WHERE id = $1', [athenaProductId]);
+        if (findRes.rows.length > 0) {
+          const variants = Array.isArray(findRes.rows[0].variants) ? findRes.rows[0].variants : [];
+          const idx = variants.findIndex(v => v.id === variantId);
+          if (idx !== -1) {
+            variants[idx] = {
+              ...variants[idx],
+              omieProductId: Number(omieProductId),
+              omieCode: omieCode || String(omieProductId)
+            };
+            await pool.query(`
+              UPDATE products
+              SET variants = $1::jsonb, omie_last_sync = CURRENT_TIMESTAMP
+              WHERE id = $2
+            `, [JSON.stringify(variants), athenaProductId]);
+            return res.json({ success: true, message: `Variação "${variants[idx].name}" vinculada com sucesso ao Omie!` });
+          }
+        }
+      }
+
+      // Vínculo no produto pai
       await pool.query(`
         UPDATE products
         SET omie_product_id = $1, omie_code = $2, omie_last_sync = CURRENT_TIMESTAMP
