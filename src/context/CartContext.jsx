@@ -69,7 +69,7 @@ export function CartProvider({ children, showNotification, brands = [], categori
     const cartItemId = selectedVariant ? `cart_${product.id}_${selectedVariant.id}` : `cart_${product.id}`;
 
     // Image with fallback: if variant has custom image, use it; otherwise use product image
-    const effectiveImage = selectedVariant?.image || product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200';
+    const effectiveImage = selectedVariant?.image || product.image || (Array.isArray(product.images) && product.images[0]) || '';
 
     setCartItems(prev => {
       const existingIdx = prev.findIndex(item => item.id === cartItemId || (item.productId === product.id && item.variantId === (selectedVariant?.id || null)));
@@ -182,7 +182,7 @@ export function CartProvider({ children, showNotification, brands = [], categori
 
     const brandObj = brands.find(b => b.id === product.brandId);
     const catObj = categories.find(c => c.id === product.categoryId);
-    const effectiveImage = selectedVariant?.image || product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200';
+    const effectiveImage = selectedVariant?.image || product.image || (Array.isArray(product.images) && product.images[0]) || '';
 
     setCheckoutTarget({
       items: [{

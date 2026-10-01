@@ -417,9 +417,19 @@ export default function ProductVariantsManager({
                         ) : (
                           <Package className="w-4 h-4 text-slate-300" />
                         )}
-                        {!v.image && (
+                        {v.image && !productForm.image && (productForm.variants || []).find(item => item?.image)?.id === v.id && (
+                          <span className="absolute top-0 inset-x-0 bg-amber-500 text-[7px] text-slate-950 font-black text-center leading-tight py-0.2" title="Esta foto é exibida no demonstrativo e capa da vitrine">
+                            Capa
+                          </span>
+                        )}
+                        {!v.image && displayPhoto && (
                           <span className="absolute bottom-0 inset-x-0 bg-slate-900/80 text-[8px] text-slate-200 font-bold text-center leading-tight py-0.5">
                             Herda
+                          </span>
+                        )}
+                        {!v.image && !displayPhoto && (
+                          <span className="absolute bottom-0 inset-x-0 bg-amber-900/90 text-[8px] text-amber-200 font-bold text-center leading-tight py-0.5">
+                            Sem foto
                           </span>
                         )}
                       </div>

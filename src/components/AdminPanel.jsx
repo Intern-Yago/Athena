@@ -95,7 +95,7 @@ import { safeStorageSet, saveSession } from '../utils/storage';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
 import { isProductPublished } from '../utils/imageUrl';
-import { isProductQuoteOnly, getVariantAvailability, getVariantStockNumber } from '../utils/productVariants';
+import { isProductQuoteOnly, getVariantAvailability, getVariantStockNumber, hasProductValidImages, validateProductImagePublishStatus } from '../utils/productVariants';
 import ProductVariantsManager from './admin/ProductVariantsManager';
 import ClientsManagementTab from './admin/ClientsManagementTab';
 import { MACRO_DEPARTMENTS, getDepartmentByCategoryId, getDepartmentById } from '../data/departmentsData';
@@ -3123,6 +3123,16 @@ export default function AdminPanel({
         );
         return;
       }
+
+      // Regra de Negócio: Proteção contra Rascunho Órfão (Bloqueia publicação sem fotos válidas)
+      const imgValidation = validateProductImagePublishStatus(product);
+      if (!imgValidation.canPublish) {
+        showNotification(
+          imgValidation.message.replace(' O produto foi salvo como rascunho.', ''),
+          'warning'
+        );
+        return;
+      }
     }
 
     const newStatus = product.status === 'published' ? 'draft' : 'published';
@@ -3716,6 +3726,34 @@ export default function AdminPanel({
       : 0;
     const inStock = stockQty > 0 || productForm.inStock === true;
 
+    const cleanedImages = Array.isArray(productForm.images)
+      ? productForm.images.filter(img => typeof img === 'string' && img.trim() !== '')
+      : [];
+    const cleanedMainImage = (productForm.image || cleanedImages[0] || '').trim();
+
+    const cleanedVariants = Array.isArray(productForm.variants)
+      ? productForm.variants.filter(v => v && (v.name || '').trim() !== '')
+      : [];
+
+    let finalStatus = productForm.status || 'published';
+    let orphanDraftWarning = null;
+
+    const candidateProduct = {
+      ...productForm,
+      image: cleanedMainImage,
+      images: cleanedImages,
+      variants: cleanedVariants
+    };
+
+    // Regra de Negócio: Proteção contra Rascunho Órfão
+    // Se um produto (com ou sem variações) for salvo sem nenhuma imagem válida em toda a sua estrutura,
+    // o sistema impede a publicação direta e o salva automaticamente como rascunho, alertando o usuário.
+    const imgValidation = validateProductImagePublishStatus(candidateProduct);
+    if (finalStatus === 'published' && !imgValidation.canPublish) {
+      finalStatus = 'draft';
+      orphanDraftWarning = imgValidation.message;
+    }
+
     const finalProduct = {
       ...productForm,
       sku: finalSku,
@@ -3725,7 +3763,7 @@ export default function AdminPanel({
       inStock: inStock,
       description: finalDescription,
       slug: finalSlug,
-      status: productForm.status || 'published',
+      status: finalStatus,
       price: parseFloat(productForm.price) || 0,
       aPoints: productForm.aPoints !== '' && !isNaN(productForm.aPoints) && Number(productForm.aPoints) > 0 ? parseInt(productForm.aPoints, 10) : null,
       badge: (productForm.badge || '').trim(),
@@ -3738,9 +3776,7 @@ export default function AdminPanel({
       attachments: productForm.attachments || [],
       videoUrl: (productForm.videoUrl || '').trim(),
       customTabs: (productForm.customTabs || []).filter(t => t.title && t.title.trim() !== ''),
-      variants: Array.isArray(productForm.variants)
-        ? productForm.variants.filter(v => v && (v.name || '').trim() !== '')
-        : [],
+      variants: cleanedVariants,
       model3d: (productForm.model3d && (productForm.model3d.glb || productForm.model3d.usdz)) ? {
         glb: (productForm.model3d.glb || '').trim(),
         usdz: (productForm.model3d.usdz || '').trim(),
@@ -3752,19 +3788,27 @@ export default function AdminPanel({
           depth: productForm.model3d.dimensions?.depth !== '' && !isNaN(productForm.model3d.dimensions?.depth) ? parseFloat(productForm.model3d.dimensions.depth) : 1.0
         }
       } : null,
-      image: productForm.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80',
+      image: cleanedMainImage,
+      images: cleanedImages,
       altText: productForm.altText || productForm.name
     };
 
     if (editingProduct) {
       onUpdateProduct(finalProduct);
-      showNotification(`Produto "${finalProduct.name}" atualizado!`, 'success');
     } else {
       onAddProduct({
         ...finalProduct,
         id: `prod_${Date.now()}`
       });
-      showNotification(`Produto "${finalProduct.name}" cadastrado!`, 'success');
+    }
+
+    if (orphanDraftWarning) {
+      showNotification(orphanDraftWarning, 'warning');
+    } else {
+      showNotification(
+        editingProduct ? `Produto "${finalProduct.name}" atualizado!` : `Produto "${finalProduct.name}" cadastrado!`, 
+        'success'
+      );
     }
 
     initialProductFormRef.current = null;
@@ -4809,14 +4853,45 @@ export default function AdminPanel({
                                       <GripVertical className="w-4 h-4" />
                                     </div>
                                   )}
-                                  <img 
-                                    src={prod.image} 
-                                    alt={prod.altText || prod.name}
-                                    loading="lazy"
-                                    onClick={() => setPreviewingImage(prod.image)}
-                                    className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-200 shrink-0 p-1 cursor-pointer hover:border-amber-400 hover:scale-105 transition-transform" 
-                                    title="Clique para expandir a foto"
-                                  />
+                                  {(() => {
+                                    const firstVariantWithImg = Array.isArray(prod.variants)
+                                      ? prod.variants.find(v => v && typeof v.image === 'string' && v.image.trim() !== '')
+                                      : null;
+                                    const tableImg = prod.image || (Array.isArray(prod.images) && prod.images[0]) || firstVariantWithImg?.image || '';
+                                    const isInheritedFromVariant = !prod.image && !(Array.isArray(prod.images) && prod.images[0]) && !!firstVariantWithImg?.image;
+
+                                    if (tableImg) {
+                                      return (
+                                        <div className="relative group shrink-0">
+                                          <img 
+                                            src={tableImg} 
+                                            alt={prod.altText || prod.name}
+                                            loading="lazy"
+                                            onClick={() => setPreviewingImage(tableImg)}
+                                            className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-200 shrink-0 p-1 cursor-pointer hover:border-amber-400 hover:scale-105 transition-transform" 
+                                            title={isInheritedFromVariant ? `Demonstrativo da 1ª variação (${firstVariantWithImg.name}) • Clique para expandir` : "Clique para expandir a foto"}
+                                          />
+                                          {isInheritedFromVariant && (
+                                            <span 
+                                              className="absolute -top-1 -right-1 px-1 py-0.2 rounded bg-amber-500 text-slate-950 font-black text-[7px] uppercase tracking-wider shadow-xs pointer-events-none"
+                                              title="Demonstrativo usando foto da 1ª variação"
+                                            >
+                                              1ª Var
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div 
+                                        className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0 text-slate-300"
+                                        title="Sem foto cadastrada"
+                                      >
+                                        <Package className="w-5 h-5" />
+                                      </div>
+                                    );
+                                  })()}
                                   <div>
                                     <span 
                                       onClick={() => canEditContent && openEditProductModal(prod)}
@@ -7836,7 +7911,57 @@ export default function AdminPanel({
                           new Set([productForm.image, ...(productForm.images || [])].filter(Boolean))
                         );
 
-                        if (allImages.length === 0 && uploadingImages.length === 0) return null;
+                        const firstVariantWithPhoto = (productForm.variants || []).find(
+                          (v) => v && typeof v.image === 'string' && v.image.trim() !== ''
+                        );
+
+                        if (allImages.length === 0 && uploadingImages.length === 0) {
+                          if (firstVariantWithPhoto) {
+                            return (
+                              <div className="space-y-2 pt-2 border-t border-slate-100">
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
+                                  <span className="flex items-center gap-1.5 text-amber-800">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                    Demonstrativo da Vitrine (Foto da 1ª Variação):
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    Produto principal sem foto própria • Demonstrativo ativo
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-3.5 p-3.5 bg-amber-50/70 border border-amber-200/90 rounded-2xl">
+                                  <div 
+                                    onClick={() => setPreviewingImage(firstVariantWithPhoto.image)}
+                                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-white border border-amber-300 relative cursor-pointer group shrink-0 shadow-xs"
+                                    title="Clique para expandir a foto"
+                                  >
+                                    <img
+                                      src={firstVariantWithPhoto.image}
+                                      alt={firstVariantWithPhoto.name}
+                                      className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
+                                    />
+                                    <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black text-[8px] uppercase tracking-wider shadow-xs">
+                                      1ª Variação
+                                    </span>
+                                  </div>
+
+                                  <div className="text-xs space-y-1">
+                                    <div className="font-bold text-slate-800 flex items-center gap-2">
+                                      <span>{firstVariantWithPhoto.name}</span>
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                                        Foto Ativa no Demonstrativo
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                                      Como o produto pai não possui foto própria cadastrada, a vitrine pública e a listagem exibem a foto desta primeira variação como capa demonstrativa. Para definir uma capa geral exclusiva para o produto pai, envie uma foto acima.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }
 
                         const totalCount = allImages.length + uploadingImages.length;
 
@@ -9684,7 +9809,7 @@ export default function AdminPanel({
                                     category: cName,
                                     sku: p.sku || '',
                                     slug: p.slug || '',
-                                    image: p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=100'
+                                    image: p.image || (p.images && p.images[0]) || (Array.isArray(p.variants) && p.variants.find(v => v.image)?.image) || ''
                                   };
                                 })}
                               value=""
@@ -9722,11 +9847,15 @@ export default function AdminPanel({
                                     >
                                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                         <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 p-0.5 overflow-hidden shrink-0 flex items-center justify-center">
-                                          <img
-                                            src={linkedProd.image || (linkedProd.images && linkedProd.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=100'}
-                                            alt={linkedProd.name}
-                                            className="w-full h-full object-contain"
-                                          />
+                                          {(linkedProd.image || (linkedProd.images && linkedProd.images[0]) || (Array.isArray(linkedProd.variants) && linkedProd.variants.find(v => v.image)?.image)) ? (
+                                            <img
+                                              src={linkedProd.image || (linkedProd.images && linkedProd.images[0]) || (Array.isArray(linkedProd.variants) && linkedProd.variants.find(v => v.image)?.image)}
+                                              alt={linkedProd.name}
+                                              className="w-full h-full object-contain"
+                                            />
+                                          ) : (
+                                            <Package className="w-4 h-4 text-slate-300" />
+                                          )}
                                         </div>
                                         <div className="min-w-0 flex-1">
                                           <span className="font-bold text-slate-900 block truncate">
@@ -9885,8 +10014,12 @@ export default function AdminPanel({
                 <button
                   type="button"
                   onClick={() => {
+                    const firstVariantWithPhoto = (productForm.variants || []).find(
+                      (v) => v && typeof v.image === 'string' && v.image.trim() !== ''
+                    );
                     const draftPayload = {
                       ...productForm,
+                      image: productForm.image || firstVariantWithPhoto?.image || '',
                       id: productForm.id || editingProduct?.id || 'preview',
                       isDraftPreview: true
                     };

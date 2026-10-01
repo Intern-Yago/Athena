@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ArrowLeftRight, CheckCircle2, MessageCircle, Eye, Tag, Trash2, Info } from 'lucide-react';
+import { X, ArrowLeftRight, CheckCircle2, MessageCircle, Eye, Tag, Trash2, Info, Package } from 'lucide-react';
 
 export default function ProductComparisonModal({
   isOpen,
@@ -101,13 +101,17 @@ export default function ProductComparisonModal({
 
                   {/* Product Image */}
                   <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-white border border-slate-200 flex items-center justify-center p-2">
-                    <img
-                      src={prod.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'}
-                      alt={prod.name}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-contain"
-                    />
+                    {(prod.image || (prod.images && prod.images[0]) || (Array.isArray(prod.variants) && prod.variants.find(v => v.image)?.image)) ? (
+                      <img
+                        src={prod.image || (prod.images && prod.images[0]) || (Array.isArray(prod.variants) && prod.variants.find(v => v.image)?.image)}
+                        alt={prod.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <Package className="w-10 h-10 text-slate-300" />
+                    )}
                     {prod.badge && (
                       <span className="absolute top-2 left-2 bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2 py-0.5 rounded-md shadow-xs">
                         {prod.badge}

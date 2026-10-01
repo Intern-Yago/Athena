@@ -136,3 +136,143 @@ export function isVariantVisibleInCatalog(variant, product) {
   const avail = getVariantAvailability(variant, product);
   return avail.canBuy;
 }
+
+/**
+ * Verifica se uma string de URL é uma imagem válida (não nula, não vazia).
+ */
+export function isValidImageUrl(url) {
+  return typeof url === 'string' && url.trim().length > 0;
+}
+
+/**
+ * Verifica se um produto possui pelo menos uma imagem válida em toda a sua estrutura
+ * (foto principal, fotos da galeria ou fotos específicas de variações).
+ */
+export function hasProductValidImages(product) {
+  if (!product || typeof product !== 'object') return false;
+
+  // 1. Imagem principal
+  if (isValidImageUrl(product.image)) return true;
+
+  // 2. Galeria de imagens adicionais do produto principal
+  if (Array.isArray(product.images) && product.images.some(isValidImageUrl)) return true;
+
+  // 3. Imagens específicas das variações
+  if (Array.isArray(product.variants) && product.variants.some(v => v && isValidImageUrl(v.image))) return true;
+
+  return false;
+}
+
+/**
+ * Validação de regras de negócio para publicação de produto baseada em imagens.
+ * 
+ * Diretriz Principal: Proteção contra Rascunho Órfão
+ * Se um produto (com ou sem variações) for salvo/publicado sem nenhuma imagem válida
+ * em toda a sua estrutura, o sistema impede a publicação direta e o salva automaticamente
+ * como rascunho, alertando o usuário.
+ */
+export function validateProductImagePublishStatus(product) {
+  const hasVariants = Array.isArray(product?.variants) && product.variants.some(v => v && (v.name || '').trim() !== '');
+  const hasImages = hasProductValidImages(product);
+
+  if (hasImages) {
+    return {
+      canPublish: true,
+      hasImages: true,
+      hasVariants,
+      reason: 'ok',
+      message: null
+    };
+  }
+
+  // Cenário sem imagens válidas na estrutura
+  if (hasVariants) {
+    // Grupo B.2: O Produto Principal NÃO tem foto e NENHUMA variação tem foto
+    return {
+      canPublish: false,
+      hasImages: false,
+      hasVariants: true,
+      reason: 'no_images_with_variants',
+      message: 'Atenção: É obrigatório cadastrar pelo menos uma imagem na estrutura do produto ou nas variações para publicar. O produto foi salvo como rascunho.'
+    };
+  }
+
+  // Grupo A.2: Produto SEM variações e sem foto
+  return {
+    canPublish: false,
+    hasImages: false,
+    hasVariants: false,
+    reason: 'no_images_simple',
+    message: 'Atenção: A imagem é obrigatória para a publicação. O produto foi salvo como rascunho.'
+  };
+}
+
+/**
+ * Gestão Inteligente de Imagens: Por Variação e Herança Híbrida.
+ * 
+ * Mapeamento Completo de Cenários:
+ * - Grupo A (Produto SEM Variações):
+ *   A.1: Produto com foto -> Publica e salva normalmente com a foto cadastrada.
+ *   A.2: Produto sem foto -> Impede publicação, salva como rascunho.
+ * 
+ * - Grupo B (Produto COM Variações):
+ *   B.1: O Produto Principal NÃO tem foto, mas AS VARIAÇÕES têm fotos próprias:
+ *        Permite publicar. Cada variação exibe estritamente a sua foto ao ser clicada/selecionada.
+ *        O mini demonstrativo exibe sempre apenas uma foto (a da variação ativa).
+ *   B.2: O Produto Principal NÃO tem foto e NENHUMA variação tem foto:
+ *        Salva automaticamente como rascunho.
+ *   B.3: O Produto Principal TEM foto e as Variações NENHUMA tem foto:
+ *        Todas as variações herdam visualmente a foto do produto principal na exibição.
+ *   B.4: O Produto Principal TEM foto e TODAS AS VARIAÇÕES também têm fotos:
+ *        Exibe miniaturas combinadas (foto do pai + foto da variação selecionada),
+ *        dando o foco inicial para a foto da variação (index 0).
+ *   B.5: Cenário Misto (O Produto Principal TEM foto, algumas variações têm foto própria e OUTRAS NÃO TÊM):
+ *        - Para as variações que POSSUEM foto: exibe a foto da variação + foto do pai, foco na variação.
+ *        - Para a variação que NÃO POSSUI foto: essa variação em específico herda a imagem principal
+ *          do produto pai, e no mini demonstrativo vai aparecer somente uma foto (apenas a principal herdada),
+ *          sem inventar fotos nem duplicar miniaturas.
+ */
+export function getVariantGalleryImages(product, selectedVariant) {
+  if (!product) return [];
+
+  const parentMainImage = typeof product.image === 'string' ? product.image.trim() : '';
+  const parentGalleryImages = Array.isArray(product.images)
+    ? product.images.filter(isValidImageUrl).map(img => img.trim())
+    : [];
+
+  // Lista única e deduplicada de fotos do pai, preservando a imagem principal como primeira
+  const parentImages = Array.from(new Set([parentMainImage, ...parentGalleryImages].filter(Boolean)));
+
+  const variantImage = typeof selectedVariant?.image === 'string' ? selectedVariant.image.trim() : '';
+
+  // Se houver uma variação selecionada
+  if (selectedVariant) {
+    if (variantImage) {
+      // Variação POSSUI foto própria
+      if (parentImages.length > 0) {
+        // B.4 & B.5 (variação COM foto própria):
+        // Foco inicial para a foto da variação (index 0) + foto(s) do pai
+        const otherParentImages = parentImages.filter(img => img !== variantImage);
+        return [variantImage, ...otherParentImages];
+      } else {
+        // B.1: Produto Principal NÃO tem foto, mas AS VARIAÇÕES têm fotos próprias:
+        // Cada variação exibe estritamente a sua foto. O mini demonstrativo exibe sempre apenas 1 foto.
+        return [variantImage];
+      }
+    } else {
+      // Variação NÃO POSSUI foto própria
+      if (parentImages.length > 0) {
+        // B.3 & B.5 (variação SEM foto própria):
+        // Herda a imagem principal do produto pai, e no mini demonstrativo aparece somente uma foto
+        const inheritedMainImage = parentMainImage || parentImages[0];
+        return inheritedMainImage ? [inheritedMainImage] : [];
+      } else {
+        // B.2: Sem imagem no pai e sem imagem na variação
+        return [];
+      }
+    }
+  }
+
+  // Produto SEM variações (Grupo A) ou sem variação ativa
+  return parentImages;
+}

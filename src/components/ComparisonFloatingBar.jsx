@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeftRight, X, Sparkles, Trash2, Eye } from 'lucide-react';
+import { ArrowLeftRight, X, Sparkles, Trash2, Eye, Package } from 'lucide-react';
 
 export default function ComparisonFloatingBar({
   comparisonList,
@@ -27,11 +27,17 @@ export default function ComparisonFloatingBar({
                 key={prod.id}
                 className="relative group w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-slate-800 border border-slate-700 shrink-0"
               >
-                <img
-                  src={prod.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200&auto=format&fit=crop&q=80'}
-                  alt={prod.name}
-                  className="w-full h-full object-cover"
-                />
+                {(prod.image || (prod.images && prod.images[0]) || (Array.isArray(prod.variants) && prod.variants.find(v => v.image)?.image)) ? (
+                  <img
+                    src={prod.image || (prod.images && prod.images[0]) || (Array.isArray(prod.variants) && prod.variants.find(v => v.image)?.image)}
+                    alt={prod.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-500">
+                    <Package className="w-5 h-5" />
+                  </div>
+                )}
                 <button
                   onClick={() => onRemoveItem(prod.id)}
                   className="absolute inset-0 bg-red-600/85 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"

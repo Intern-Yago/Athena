@@ -8106,6 +8106,14 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
   return res.status(404).json({ error: 'Equipamento não encontrado.' });
 });
 
+function hasAnyValidProductImage(product) {
+  if (!product || typeof product !== 'object') return false;
+  if (product.image && typeof product.image === 'string' && product.image.trim() !== '') return true;
+  if (Array.isArray(product.images) && product.images.some(img => typeof img === 'string' && img.trim() !== '')) return true;
+  if (Array.isArray(product.variants) && product.variants.some(v => v && typeof v.image === 'string' && v.image.trim() !== '')) return true;
+  return false;
+}
+
 app.post('/api/products', authenticateToken, async (req, res) => {
   const rawSku = (req.body.sku || '').trim();
   const autoSku = extractSkuFromTitle(req.body.name);
@@ -8115,9 +8123,15 @@ app.post('/api/products', authenticateToken, async (req, res) => {
     : (req.body.estoqueQuantidade != null ? Math.max(0, parseInt(req.body.estoqueQuantidade, 10)) : 0);
   const inStock = stockQty > 0 || req.body.inStock !== false;
 
+  let finalStatus = req.body.status || 'published';
+  if (finalStatus === 'published' && !hasAnyValidProductImage(req.body)) {
+    finalStatus = 'draft';
+  }
+
   const newProduct = { 
     id: req.body.id || `prod_${Date.now()}`, 
     ...req.body,
+    status: finalStatus,
     sku: finalSku,
     omieCode: finalSku,
     stock: stockQty,
@@ -8230,9 +8244,15 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
     : (req.body.estoqueQuantidade != null ? Math.max(0, parseInt(req.body.estoqueQuantidade, 10)) : 0);
   const inStock = stockQty > 0 || req.body.inStock !== false;
 
+  let finalStatus = req.body.status || 'published';
+  if (finalStatus === 'published' && !hasAnyValidProductImage(req.body)) {
+    finalStatus = 'draft';
+  }
+
   const updatedProduct = { 
     id: req.params.id, 
     ...req.body,
+    status: finalStatus,
     sku: finalSku,
     omieCode: finalSku,
     stock: stockQty,

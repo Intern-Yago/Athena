@@ -974,11 +974,15 @@ export default function RichTextEditor({
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 p-0.5 overflow-hidden shrink-0 flex items-center justify-center">
-                          <img
-                            src={prod.image || (prod.images && prod.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200'}
-                            alt={prod.name}
-                            className="w-full h-full object-contain"
-                          />
+                          {(prod.image || (prod.images && prod.images[0]) || (Array.isArray(prod.variants) && prod.variants.find(v => v.image)?.image)) ? (
+                            <img
+                              src={prod.image || (prod.images && prod.images[0]) || (Array.isArray(prod.variants) && prod.variants.find(v => v.image)?.image)}
+                              alt={prod.name}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <Package className="w-4 h-4 text-slate-300" />
+                          )}
                         </div>
                         <div className="min-w-0">
                           <span className="text-xs font-bold text-slate-900 group-hover:text-amber-950 block truncate">

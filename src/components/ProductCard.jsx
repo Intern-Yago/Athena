@@ -26,6 +26,11 @@ export default function ProductCard({
     : [];
   const hasVariants = variants.length > 0;
 
+  // Imagem base do card: foto principal do produto ou primeira variação com foto (Cenário B.1)
+  const fallbackVariantImage = variants.find(v => v.image && typeof v.image === 'string' && v.image.trim() !== '')?.image || '';
+  const baseCardImage = (product.image || (Array.isArray(product.images) && product.images[0]) || fallbackVariantImage || '').trim();
+  const currentCardImage = activePreviewImage || baseCardImage;
+
   // Regra de Negocio Athena:
   // Se o orcamento estiver ATIVO (priceNegotiable !== false), NAO mostra o valor do produto (fica Sob Consulta) e direciona para orcamento.
   // Se o orcamento estiver DESATIVADO (!priceNegotiable) e tiver preco (> 0), mostra o valor e joga para comprar no site.
@@ -71,28 +76,20 @@ export default function ProductCard({
           className="relative w-full md:w-80 h-64 md:h-auto bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4 cursor-pointer shrink-0 border-b md:border-b-0 md:border-r border-slate-200/80 overflow-hidden"
           onClick={() => onSelectProduct(product)}
         >
-          <img 
-            src={activePreviewImage || product.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
-            alt={product.altText || product.name}
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full max-h-56 object-contain group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => {
-              const retries = Number(e.target.dataset.retried || 0);
-              if (retries < 2) {
-                e.target.dataset.retried = String(retries + 1);
-                const src = product.image || '';
-                if (src && !src.includes('unsplash.com')) {
-                  const sep = src.includes('?') ? '&' : '?';
-                  setTimeout(() => {
-                    e.target.src = `${src.split('?retry=')[0]}${sep}retry=${Date.now()}`;
-                  }, 400);
-                  return;
-                }
-              }
-              e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
-            }}
-          />
+          {currentCardImage ? (
+            <img 
+              src={currentCardImage} 
+              alt={product.altText || product.name}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full max-h-56 object-contain group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center text-slate-300 select-none">
+              <Package className="w-12 h-12 stroke-[1.5]" />
+              <span className="text-[10px] text-slate-400 font-semibold mt-1">Sem foto cadastrada</span>
+            </div>
+          )}
 
           {/* Badges Overlay */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 pointer-events-none">
@@ -166,7 +163,10 @@ export default function ProductCard({
                           {variants.slice(0, 5).map(v => (
                             <span
                               key={v.id}
-                              onMouseEnter={() => v.image && setActivePreviewImage(v.image)}
+                              onMouseEnter={() => {
+                                const preview = v.image || product.image;
+                                if (preview) setActivePreviewImage(preview);
+                              }}
                               onMouseLeave={() => setActivePreviewImage(null)}
                               className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-2xs inline-block transition-transform hover:scale-125 cursor-pointer"
                               style={{ backgroundColor: v.colorHex || '#ccc' }}
@@ -322,28 +322,20 @@ export default function ProductCard({
         className="relative h-64 sm:h-72 w-full bg-gradient-to-b from-slate-50 to-slate-100/70 flex items-center justify-center p-4 cursor-pointer overflow-hidden border-b border-slate-100" 
         onClick={() => onSelectProduct(product)}
       >
-        <img 
-          src={activePreviewImage || product.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
-          alt={product.altText || product.name}
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-          onError={(e) => {
-            const retries = Number(e.target.dataset.retried || 0);
-            if (retries < 2) {
-              e.target.dataset.retried = String(retries + 1);
-              const src = product.image || '';
-              if (src && !src.includes('unsplash.com')) {
-                const sep = src.includes('?') ? '&' : '?';
-                setTimeout(() => {
-                  e.target.src = `${src.split('?retry=')[0]}${sep}retry=${Date.now()}`;
-                }, 400);
-                return;
-              }
-            }
-            e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
-          }}
-        />
+        {currentCardImage ? (
+          <img 
+            src={currentCardImage} 
+            alt={product.altText || product.name}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-slate-300 select-none">
+            <Package className="w-14 h-14 stroke-[1.5]" />
+            <span className="text-[10px] text-slate-400 font-semibold mt-1.5">Sem foto cadastrada</span>
+          </div>
+        )}
 
         {/* Top Badges (Category & Custom Badges) */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none z-10">
@@ -447,7 +439,10 @@ export default function ProductCard({
                     {variants.slice(0, 6).map(v => (
                       <span
                         key={v.id}
-                        onMouseEnter={() => v.image && setActivePreviewImage(v.image)}
+                        onMouseEnter={() => {
+                          const preview = v.image || product.image;
+                          if (preview) setActivePreviewImage(preview);
+                        }}
                         onMouseLeave={() => setActivePreviewImage(null)}
                         className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-2xs inline-block transition-transform hover:scale-125 cursor-pointer"
                         style={{ backgroundColor: v.colorHex || '#ccc' }}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, X, ArrowRight } from 'lucide-react';
+import { Search, X, ArrowRight, Package } from 'lucide-react';
 import { getSearchSuggestions, findUniqueDirectMatch } from '../utils/productSearch';
 
 /**
@@ -226,14 +226,15 @@ export default function SearchBar({
               >
                 {/* Miniatura do Equipamento */}
                 <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-200/80 p-1 shrink-0 flex items-center justify-center overflow-hidden">
-                  <img
-                    src={prod.image || (prod.images && prod.images[0]) || '/logo.jpg'}
-                    alt={prod.name}
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=100&auto=format&fit=crop&q=80';
-                    }}
-                  />
+                  {(prod.image || (prod.images && prod.images[0]) || (Array.isArray(prod.variants) && prod.variants.find(v => v.image)?.image)) ? (
+                    <img
+                      src={prod.image || (prod.images && prod.images[0]) || (Array.isArray(prod.variants) && prod.variants.find(v => v.image)?.image)}
+                      alt={prod.name}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <Package className="w-5 h-5 text-slate-300" />
+                  )}
                 </div>
 
                 {/* Título e Marca */}

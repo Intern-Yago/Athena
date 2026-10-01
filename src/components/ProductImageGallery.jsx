@@ -1,14 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, X, Box, Eye, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, X, Box, Eye, Sparkles, ImageOff } from 'lucide-react';
 import Product3DViewer from './Product3DViewer';
+import { getVariantGalleryImages } from '../utils/productVariants';
 
-export default function ProductImageGallery({ product }) {
+export default function ProductImageGallery({ product, selectedVariant, images: propImages }) {
   const hasModel3d = Boolean(
     (product?.model3d && (product.model3d.glb || product.model3d.gltf)) || 
     product?.modelGlb || 
     product?.model3dUrl || 
     (product?.status === 'draft' && product?.slug?.includes('3d'))
   );
+
+  const hasVariants = Array.isArray(product?.variants) && product.variants.some(v => v && (v.name || '').trim() !== '');
 
   // Default to 2D photo gallery first so all customers see high-res product photos immediately.
   // 3D & AR is activated when the customer clicks the 3D button or thumbnail.
@@ -17,17 +20,23 @@ export default function ProductImageGallery({ product }) {
     : 'photos';
 
   const [mediaMode, setMediaMode] = useState(initialMode); // 'photos' | '3d'
-  // Collect all images (primary product.image + optional product.images array)
-  const rawImages = [
-    product?.image,
-    ...(Array.isArray(product?.images) ? product.images : [])
-  ].filter(Boolean);
 
-  // Remove duplicates while preserving order
-  const imageList = Array.from(new Set(rawImages));
-
-  const fallbackImage = 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80';
-  const displayImages = imageList.length > 0 ? imageList : [fallbackImage];
+  // Regra de Negócio: Gestão Inteligente de Imagens (Herança Híbrida & Zero Imagem Default)
+  const displayImages = useMemo(() => {
+    if (Array.isArray(propImages) && propImages.length > 0) {
+      return propImages.filter(img => typeof img === 'string' && img.trim() !== '');
+    }
+    const activeVariant = selectedVariant !== undefined ? selectedVariant : product?.selectedVariant;
+    const computed = getVariantGalleryImages(product, activeVariant);
+    if (computed && computed.length > 0) {
+      return computed;
+    }
+    const rawImages = [
+      product?.image,
+      ...(Array.isArray(product?.images) ? product.images : [])
+    ].filter(img => typeof img === 'string' && img.trim() !== '');
+    return Array.from(new Set(rawImages));
+  }, [product, selectedVariant, propImages]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoomState, setZoomState] = useState({ show: false, x: 50, y: 50 });
@@ -36,7 +45,8 @@ export default function ProductImageGallery({ product }) {
 
   const containerRef = useRef(null);
 
-  // Reset index and mediaMode if product changes
+  // Reset index e mediaMode se o produto ou a variação selecionada mudar
+  // Foco inicial sempre para a foto da variação (index 0)
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.hash.includes('ar-view')) {
       setMediaMode('3d');
@@ -45,7 +55,7 @@ export default function ProductImageGallery({ product }) {
     }
     setCurrentIndex(0);
     setZoomLevel(2.5);
-  }, [product?.id, product?.slug]);
+  }, [product?.id, product?.slug, selectedVariant?.id, selectedVariant?.image]);
 
   // Lock background scroll and handle ESC/arrow keys when lightbox is open
   useEffect(() => {
@@ -119,7 +129,8 @@ export default function ProductImageGallery({ product }) {
     setZoomState((prev) => ({ ...prev, show: false }));
   };
 
-  const currentImageUrl = displayImages[currentIndex] || fallbackImage;
+  const currentImageUrl = displayImages[currentIndex] || displayImages[0] || '';
+  const hasImages = displayImages.length > 0 && Boolean(currentImageUrl);
 
   return (
     <div className="space-y-3 select-none">
@@ -169,6 +180,17 @@ export default function ProductImageGallery({ product }) {
       {/* Conditionally Render 3D Viewer or Photo Gallery */}
       {mediaMode === '3d' ? (
         <Product3DViewer product={product} />
+      ) : !hasImages ? (
+        /* Zero Imagem Default: Estado elegante quando não há nenhuma imagem cadastrada */
+        <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200/90 shadow-2xs aspect-square relative flex flex-col items-center justify-center text-center select-none">
+          <div className="w-16 h-16 rounded-2xl bg-slate-200/70 flex items-center justify-center text-slate-400 mb-2">
+            <ImageOff className="w-8 h-8" />
+          </div>
+          <p className="text-xs font-bold text-slate-700">Sem imagem cadastrada</p>
+          <p className="text-[11px] text-slate-400 max-w-[220px] mt-1">
+            Nenhuma foto disponível para esta opção ou equipamento.
+          </p>
+        </div>
       ) : (
         /* Main Image Viewport with Hover Zoom Lens + Click to Expand */
         <div 
@@ -184,9 +206,6 @@ export default function ProductImageGallery({ product }) {
             alt={product?.name || 'Equipamento Athena'} 
             decoding="async"
             className="w-full h-full object-cover rounded-2xl transition-opacity duration-300"
-            onError={(e) => {
-              e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
-            }}
           />
 
           {/* Badge Overlay */}
@@ -310,8 +329,8 @@ export default function ProductImageGallery({ product }) {
         </div>
       )}
 
-      {/* Thumbnails Row (Shown when multiple images exist or has 3D model) */}
-      {(displayImages.length > 1 || hasModel3d) && (
+      {/* Mini Demonstrativo (Thumbnails Row) */}
+      {displayImages.length > 0 && (hasVariants || displayImages.length > 1 || hasModel3d) && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           {hasModel3d && (
             <button
@@ -338,9 +357,10 @@ export default function ProductImageGallery({ product }) {
               }}
               className={`relative w-16 h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 bg-white shadow-xs cursor-pointer ${
                 mediaMode === 'photos' && currentIndex === idx
-                  ? 'border-amber-500 scale-105 shadow-md'
+                  ? 'border-amber-500 scale-105 shadow-md ring-2 ring-amber-500/20'
                   : 'border-slate-200 hover:border-amber-300 opacity-70 hover:opacity-100'
               }`}
+              title={`Foto ${idx + 1}${idx === 0 && selectedVariant?.image ? ' (Opção Selecionada)' : ''}`}
             >
               <img 
                 src={imgUrl} 
@@ -348,9 +368,6 @@ export default function ProductImageGallery({ product }) {
                 loading="lazy"
                 decoding="async"
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = fallbackImage;
-                }}
               />
             </button>
           ))}

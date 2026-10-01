@@ -1,6 +1,6 @@
 import React from 'react';
 import FormattedDescription from './FormattedDescription';
-import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles, Play, ExternalLink, CreditCard } from 'lucide-react';
+import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles, Play, ExternalLink, CreditCard, Package } from 'lucide-react';
 import { calculatePaymentGateways, getBestInstallmentText, formatBRL } from '../utils/installmentCalculator';
 import { useCart } from '../context/CartContext';
 
@@ -65,14 +65,18 @@ export default function ProductModal({
           {/* Left Image View */}
           <div className="relative bg-slate-50 p-6 flex flex-col justify-between items-center border-b md:border-b-0 md:border-r border-slate-200">
             <div className="w-full aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-white flex items-center justify-center shadow-sm">
-              <img 
-                src={product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
-                alt={product.name}
-                className="w-full h-full object-contain p-2"
-                onError={(e) => {
-                  e.target.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80';
-                }}
-              />
+              {(product.image || (product.images && product.images[0]) || (Array.isArray(product.variants) && product.variants.find(v => v.image)?.image)) ? (
+                <img 
+                  src={product.image || (product.images && product.images[0]) || (Array.isArray(product.variants) && product.variants.find(v => v.image)?.image)} 
+                  alt={product.name}
+                  className="w-full h-full object-contain p-2"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-slate-300 p-4 select-none">
+                  <Package className="w-12 h-12 stroke-[1.5]" />
+                  <span className="text-[10px] text-slate-400 font-semibold mt-1">Sem foto cadastrada</span>
+                </div>
+              )}
             </div>
 
             {/* Quality Badges */}

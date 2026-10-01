@@ -39,7 +39,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { isProductQuoteOnly, getVariantAvailability, isVariantActiveForSale } from '../utils/productVariants';
+import { isProductQuoteOnly, getVariantAvailability, isVariantActiveForSale, getVariantGalleryImages } from '../utils/productVariants';
 
 export function getVideoEmbedInfo(url) {
   if (!url || typeof url !== 'string') return null;
@@ -371,17 +371,20 @@ export default function ProductDetailPage({
     ? Number(selectedVariant.price)
     : Number(product?.price || 0);
 
-  // Smart Image Fallback: if variant has custom image, prioritize it in the gallery; otherwise use product image
-  const effectiveProduct = (selectedVariant?.image)
-    ? {
-        ...product,
-        image: selectedVariant.image,
-        images: [
-          selectedVariant.image,
-          ...(Array.isArray(product?.images) ? product.images.filter(img => img !== selectedVariant.image) : [])
-        ]
-      }
-    : product;
+  // Regras de Negócio: Gestão Inteligente de Imagens (Por Variação e Herança Híbrida)
+  const galleryImages = useMemo(() => {
+    return getVariantGalleryImages(product, selectedVariant);
+  }, [product, selectedVariant]);
+
+  const effectiveImage = galleryImages[0] || (product?.image || '');
+  const effectiveProduct = useMemo(() => {
+    return {
+      ...product,
+      image: effectiveImage,
+      images: galleryImages,
+      selectedVariant
+    };
+  }, [product, effectiveImage, galleryImages, selectedVariant]);
 
   const isAdminUser = Boolean(currentUser && (currentUser.role === 'admin' || currentUser.isAdmin));
   const canAccessDraft = isPreviewMode || isAdminUser;
@@ -897,7 +900,7 @@ export default function ProductDetailPage({
               {renderProductTitleBlock(true)}
             </div>
 
-            <ProductImageGallery product={effectiveProduct || product} />
+            <ProductImageGallery product={effectiveProduct || product} selectedVariant={selectedVariant} />
 
             {/* Trust Badges */}
             <div className="grid grid-cols-2 gap-3">
@@ -1425,11 +1428,15 @@ export default function ProductDetailPage({
                               >
                                 <div className="flex items-start gap-3">
                                   <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 p-1 overflow-hidden shrink-0 flex items-center justify-center">
-                                    <img
-                                      src={cProd.image || (cProd.images && cProd.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=200'}
-                                      alt={cProd.name}
-                                      className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-                                    />
+                                    {(cProd.image || (cProd.images && cProd.images[0]) || (Array.isArray(cProd.variants) && cProd.variants.find(v => v.image)?.image)) ? (
+                                      <img
+                                        src={cProd.image || (cProd.images && cProd.images[0]) || (Array.isArray(cProd.variants) && cProd.variants.find(v => v.image)?.image)}
+                                        alt={cProd.name}
+                                        className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                                      />
+                                    ) : (
+                                      <Package className="w-6 h-6 text-slate-300" />
+                                    )}
                                   </div>
 
                                   <div className="min-w-0 flex-1">
@@ -1583,12 +1590,16 @@ export default function ProductDetailPage({
                   >
                     <div>
                       {/* Compact Image */}
-                      <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
-                        <img 
-                          src={relProduct.image || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&auto=format&fit=crop&q=80'} 
-                          alt={relProduct.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
+                      <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden flex items-center justify-center">
+                        {(relProduct.image || (relProduct.images && relProduct.images[0]) || (Array.isArray(relProduct.variants) && relProduct.variants.find(v => v.image)?.image)) ? (
+                          <img 
+                            src={relProduct.image || (relProduct.images && relProduct.images[0]) || (Array.isArray(relProduct.variants) && relProduct.variants.find(v => v.image)?.image)} 
+                            alt={relProduct.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <Package className="w-8 h-8 text-slate-300" />
+                        )}
                         {relCat && (
                           <span className="absolute top-1.5 right-1.5 bg-white/95 text-slate-800 text-[8px] font-bold px-1.5 py-0.5 rounded shadow-xs truncate max-w-[80px]">
                             {relCat.name}

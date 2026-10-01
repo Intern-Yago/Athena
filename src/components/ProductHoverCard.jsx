@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Eye, ExternalLink, Sparkles, Check, ArrowRight } from 'lucide-react';
+import { Eye, ExternalLink, Sparkles, Check, ArrowRight, Package } from 'lucide-react';
 
 export default function ProductHoverCard({
   product,
@@ -86,11 +86,15 @@ export default function ProductHoverCard({
           {/* Card Header with Image & Title */}
           <div className="flex gap-3 items-start">
             <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 p-1">
-              <img
-                src={product.image || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=400&auto=format&fit=crop&q=80'}
-                alt={product.name}
-                className="w-full h-full object-contain"
-              />
+              {(product.image || (product.images && product.images[0]) || (Array.isArray(product.variants) && product.variants.find(v => v.image)?.image)) ? (
+                <img
+                  src={product.image || (product.images && product.images[0]) || (Array.isArray(product.variants) && product.variants.find(v => v.image)?.image)}
+                  alt={product.name}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <Package className="w-6 h-6 text-slate-300" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md inline-block mb-1">
