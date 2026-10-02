@@ -2425,7 +2425,7 @@ async function sendTestNotificationEmail({ targetEmail, testType = 'general' }) 
 // -------------------------------------------------------------
 // CLOUDFLARE R2 / CLOUDINARY UPLOAD ENDPOINT (AUTO-WEBP)
 // -------------------------------------------------------------
-app.post('/api/upload', authenticateToken, async (req, res) => {
+app.post('/api/upload', authenticateToken, requireStaff, async (req, res) => {
   try {
     const { file, folder, filename } = req.body;
     if (!file) {
@@ -2473,7 +2473,7 @@ app.post('/api/upload', authenticateToken, async (req, res) => {
 });
 
 // Endpoint para listar a biblioteca de imagens do Cloudflare R2 com paginação infinita e busca
-app.get('/api/upload/library', authenticateToken, async (req, res) => {
+app.get('/api/upload/library', authenticateToken, requireStaff, async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 36;
@@ -2490,7 +2490,7 @@ app.get('/api/upload/library', authenticateToken, async (req, res) => {
 
 // Endpoint para excluir imagem do Cloudflare R2
 // Endpoint para excluir imagem (ou lote de imagens) do Cloudflare R2
-app.post('/api/upload/delete', authenticateToken, async (req, res) => {
+app.post('/api/upload/delete', authenticateToken, requireStaff, async (req, res) => {
   try {
     const rawUrls = req.body.urls || (req.body.url ? [req.body.url] : []);
     const urls = Array.isArray(rawUrls) ? rawUrls.filter(Boolean) : [];
@@ -3615,8 +3615,8 @@ app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) =>
       });
     }
 
-    // Generate 6-digit code
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate cryptographically secure 6-digit code (CSPRNG)
+    const resetCode = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes TTL
     const resetId = `reset_${Date.now()}`;
 
@@ -3659,6 +3659,8 @@ app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) =>
 });
 
 // Reset Password - Verify Code and Set New Password
+const passwordResetAttempts = new Map(); // email -> { failedCount: number, lockedUntil: Date }
+
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
@@ -3673,6 +3675,22 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
     const inputEmail = email.trim().toLowerCase();
     const inputCode = code.trim();
+
+    // Checagem anti-força bruta: 5 erros bloqueiam a tentativa por 15 minutos
+    const lockInfo = passwordResetAttempts.get(inputEmail);
+    if (lockInfo && lockInfo.lockedUntil && new Date(lockInfo.lockedUntil) > new Date()) {
+      const waitMinutes = Math.ceil((new Date(lockInfo.lockedUntil) - Date.now()) / (60 * 1000));
+      logSecurityEvent({
+        event: 'PASSWORD_RESET_LOCKED',
+        email: inputEmail,
+        ip: getClientIp(req),
+        userAgent: req.headers['user-agent'],
+        outcome: 'BLOCKED',
+        reason: 'Tentativa de redefinição de senha com conta em cooldown anti-força bruta'
+      });
+      return res.status(429).json({ error: `Muitas tentativas incorretas. Por segurança, tente novamente em ${waitMinutes} minutos.` });
+    }
+
     let validReset = null;
 
     if (pool) {
@@ -3701,16 +3719,46 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
 
     if (!validReset) {
+      const currentFailed = (lockInfo?.failedCount || 0) + 1;
+      if (currentFailed >= 5) {
+        passwordResetAttempts.set(inputEmail, {
+          failedCount: currentFailed,
+          lockedUntil: new Date(Date.now() + 15 * 60 * 1000)
+        });
+        if (pool) {
+          try {
+            await pool.query('UPDATE password_resets SET used = TRUE WHERE email = $1', [inputEmail]);
+          } catch (e) {}
+        }
+        logSecurityEvent({
+          event: 'PASSWORD_RESET_BRUTEFORCE_BLOCKED',
+          email: inputEmail,
+          ip: getClientIp(req),
+          userAgent: req.headers['user-agent'],
+          outcome: 'BLOCKED',
+          reason: '5 tentativas consecutivas incorretas de código de recuperação: token invalidado'
+        });
+        return res.status(429).json({ error: 'Limite de 5 tentativas incorretas excedido. O código foi cancelado por segurança. Solicite um novo código.' });
+      } else {
+        passwordResetAttempts.set(inputEmail, {
+          failedCount: currentFailed,
+          lockedUntil: null
+        });
+      }
+
       logSecurityEvent({
         event: 'PASSWORD_RESET_SUBMIT',
         email: inputEmail,
         ip: getClientIp(req),
         userAgent: req.headers['user-agent'],
         outcome: 'FAILURE',
-        reason: 'Código inválido ou expirado'
+        reason: `Código inválido ou expirado (Tentativa ${currentFailed}/5)`
       });
-      return res.status(400).json({ error: 'Código inválido ou expirado. Solicite um novo código de recuperação.' });
+      return res.status(400).json({ error: `Código inválido ou expirado (${currentFailed}/5 tentativas). Solicite um novo código se necessário.` });
     }
+
+    // Sucesso: limpa tracker de falhas
+    passwordResetAttempts.delete(inputEmail);
 
     // Update password hash
     const newHash = bcrypt.hashSync(newPassword, 10);
@@ -4159,16 +4207,31 @@ app.post('/api/customer/orders', async (req, res) => {
       return res.status(400).json({ error: 'Lista de equipamentos/itens obrigatória.' });
     }
 
+    // Se houver sessão JWT ativa, vincula com segurança à conta do usuário autenticado para evitar spoofing
+    let safeUserId = userId || null;
+    let safeEmail = userEmail || '';
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded?.id) {
+          safeUserId = decoded.id;
+          safeEmail = decoded.email || safeEmail;
+        }
+      } catch (e) {}
+    }
+
     const orderId = `athena_ped_${Date.now().toString().slice(-6)}`;
     const newOrder = {
       id: orderId,
-      userId: userId || null,
-      userEmail: userEmail || '',
+      userId: safeUserId,
+      userEmail: safeEmail,
       userName: userName || 'Cliente',
       items,
-      totalAmount: totalAmount || 0,
-      total_amount: totalAmount || 0,
-      status: 'em_analise',
+      totalAmount: Math.max(0, Number(totalAmount) || 0),
+      total_amount: Math.max(0, Number(totalAmount) || 0),
+      status: 'em_analise', // Sempre em análise; status faturado apenas via pagamento aprovado
       notes: notes || '',
       createdAt: new Date().toISOString(),
       created_at: new Date().toISOString()
@@ -4745,11 +4808,66 @@ app.post('/api/payments/charge', async (req, res) => {
     }
 
     // ---------------------------------------------------------
-    // B. COUPON EVALUATION & DISCOUNT CALCULATION
+    // B. SERVER-SIDE PRICE VALIDATION & COUPON EVALUATION
     // ---------------------------------------------------------
+    const parsedValue = Number(value);
+    if (isNaN(parsedValue) || parsedValue < 0) {
+      return res.status(400).json({ error: 'Valor da transação inválido.' });
+    }
+
+    // Validação de integridade de preços dos produtos contra o banco de dados
+    if (Array.isArray(items) && items.length > 0) {
+      const productIds = items.map(i => i.id || i.productId).filter(Boolean);
+      if (productIds.length > 0) {
+        let dbProducts = [];
+        if (pool) {
+          try {
+            const pRes = await pool.query('SELECT id, price, variants FROM products WHERE id = ANY($1::varchar[])', [productIds]);
+            dbProducts = pRes.rows || [];
+          } catch (e) {}
+        }
+        if (dbProducts.length === 0) {
+          dbProducts = (db.products || []).filter(p => productIds.includes(p.id));
+        }
+
+        let expectedSubtotal = 0;
+        let hasCatalogPrice = false;
+        for (const item of items) {
+          const pId = item.id || item.productId;
+          const dbProd = dbProducts.find(p => p.id === pId);
+          const qty = Math.max(1, parseInt(item.quantity || 1, 10));
+          if (dbProd && Number(dbProd.price) > 0) {
+            hasCatalogPrice = true;
+            let unitPrice = Number(dbProd.price);
+            if (item.variantSku && Array.isArray(dbProd.variants)) {
+              const v = dbProd.variants.find(va => va.sku === item.variantSku);
+              if (v && Number(v.price) > 0) unitPrice = Number(v.price);
+            }
+            expectedSubtotal += unitPrice * qty;
+          }
+        }
+
+        // Se produtos oficiais possuem preço fixado no catálogo, o valor enviado não pode ser adulterado
+        if (hasCatalogPrice && expectedSubtotal > 0 && !couponCode) {
+          const minAcceptable = expectedSubtotal * 0.70; // Margem para descontos de método (PIX à vista)
+          if (parsedValue < minAcceptable) {
+            logSecurityEvent({
+              event: 'PRICE_TAMPERING_BLOCKED',
+              email: cleanEmail,
+              ip: getClientIp(req),
+              userAgent: req.headers['user-agent'],
+              outcome: 'BLOCKED',
+              reason: `Tentativa de adulteração de preço: enviado R$ ${parsedValue}, catálogo exige mínimo R$ ${minAcceptable}`
+            });
+            return res.status(400).json({ error: 'O valor da cobrança foi modificado e não confere com os preços oficiais do catálogo.' });
+          }
+        }
+      }
+    }
+
     let appliedCoupon = null;
     let discountAmount = 0;
-    let finalPayable = Number(value);
+    let finalPayable = parsedValue;
 
     if (couponCode && couponCode.trim()) {
       const cleanCouponCode = couponCode.trim().toUpperCase().replace(/\s+/g, '');
@@ -4761,7 +4879,7 @@ app.post('/api/payments/charge', async (req, res) => {
       }
 
       if (foundCoupon) {
-        const evalRes = evaluateCoupon(foundCoupon, items.length > 0 ? items : [{ price: Number(value), quantity: 1 }], cleanEmail, cleanDoc);
+        const evalRes = evaluateCoupon(foundCoupon, items.length > 0 ? items : [{ price: parsedValue, quantity: 1 }], cleanEmail, cleanDoc);
         if (evalRes.valid) {
           appliedCoupon = foundCoupon;
           discountAmount = evalRes.discountAmount;
@@ -4776,6 +4894,18 @@ app.post('/api/payments/charge', async (req, res) => {
     // C. FREE ORDER (100% OFF / CORTESIA)
     // ---------------------------------------------------------
     if (finalPayable === 0) {
+      if (!appliedCoupon || discountAmount <= 0) {
+        logSecurityEvent({
+          event: 'FREE_ORDER_TAMPERING_BLOCKED',
+          email: cleanEmail,
+          ip: getClientIp(req),
+          userAgent: req.headers['user-agent'],
+          outcome: 'BLOCKED',
+          reason: 'Tentativa de criar pedido gratuito (R$ 0,00) sem cupom de desconto de 100%'
+        });
+        return res.status(400).json({ error: 'Pedidos com valor zerado são restritos exclusivamente a cupons oficiais de 100% de desconto.' });
+      }
+
       // Record Free Order directly
       const freeOrderRecord = {
         id: orderId,
@@ -5035,8 +5165,17 @@ app.get('/api/payments/charge/:id/status', async (req, res) => {
 app.post('/api/payments/webhook', async (req, res) => {
   try {
     const asaasToken = req.headers['asaas-access-token'];
-    if (ASAAS_WEBHOOK_SECRET && asaasToken && asaasToken !== ASAAS_WEBHOOK_SECRET) {
-      return res.status(401).json({ error: 'Webhook token inválido.' });
+    if (ASAAS_WEBHOOK_SECRET) {
+      if (!asaasToken || asaasToken !== ASAAS_WEBHOOK_SECRET) {
+        logSecurityEvent({
+          event: 'WEBHOOK_UNAUTHORIZED',
+          ip: getClientIp(req),
+          userAgent: req.headers['user-agent'],
+          outcome: 'BLOCKED',
+          reason: 'Tentativa de disparo no webhook Asaas com token ausente ou inválido'
+        });
+        return res.status(401).json({ error: 'Webhook token ausente ou inválido.' });
+      }
     }
 
     const { event, payment } = req.body;
@@ -7574,9 +7713,23 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: 'Permissão negada para atualizar este perfil.' });
   }
 
+  let existingUser = null;
+  let userIdx = -1;
   const db = readDbJson();
-  const userIdx = (db.users || []).findIndex(u => u.id === userId);
-  const existingUser = userIdx !== -1 ? db.users[userIdx] : null;
+
+  if (pool) {
+    try {
+      const uRes = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role FROM users WHERE id = $1', [userId]);
+      if (uRes.rows && uRes.rows.length > 0) {
+        existingUser = uRes.rows[0];
+      }
+    } catch (e) {}
+  }
+
+  userIdx = (db.users || []).findIndex(u => u.id === userId);
+  if (!existingUser && userIdx !== -1) {
+    existingUser = db.users[userIdx];
+  }
 
   // OWASP Hardening: Sessões geradas via Magic Link não têm autorização para alterar senhas ou privilégios
   if (req.user?.isMagicLinkSession && (newPassword || (email && email.toLowerCase().trim() !== (existingUser?.email || '').toLowerCase().trim()) || role)) {
@@ -7594,20 +7747,32 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
     });
   }
 
-  if (currentPassword && existingUser && !checkPassword(currentPassword, existingUser.passwordHash || existingUser.password_hash)) {
-    return res.status(400).json({ error: 'Senha atual incorreta.' });
+  // Se o usuário estiver alterando a senha e não for admin, a senha atual é OBRIGATÓRIA e validada
+  if (newPassword && req.user.role !== 'admin') {
+    if (!currentPassword) {
+      return res.status(400).json({ error: 'A senha atual é obrigatória para definir uma nova senha.' });
+    }
+    const currentHash = existingUser?.passwordHash || existingUser?.password_hash;
+    if (!currentHash || !checkPassword(currentPassword, currentHash)) {
+      return res.status(400).json({ error: 'Senha atual incorreta.' });
+    }
+  } else if (currentPassword) {
+    const currentHash = existingUser?.passwordHash || existingUser?.password_hash;
+    if (currentHash && !checkPassword(currentPassword, currentHash)) {
+      return res.status(400).json({ error: 'Senha atual incorreta.' });
+    }
   }
 
   const updatedName = name ? name.trim() : (existingUser?.name || 'Usuário');
   const updatedEmail = email ? email.trim().toLowerCase() : (existingUser?.email || '');
   const updatedPassword = newPassword ? bcrypt.hashSync(newPassword, 10) : (existingUser?.passwordHash || existingUser?.password_hash);
   
-  // Non-admins cannot elevate their own role
-  const updatedRole = (req.user.role === 'admin' && role) ? role : (existingUser?.role || 'vendedor');
+  // Usuários não-administradores NÃO podem alterar o próprio cargo (padrão seguro: cliente)
+  const updatedRole = (req.user.role === 'admin' && role) ? role : (existingUser?.role || 'cliente');
 
-  if (existingUser) {
+  if (userIdx !== -1) {
     db.users[userIdx] = {
-      ...existingUser,
+      ...db.users[userIdx],
       name: updatedName,
       email: updatedEmail,
       passwordHash: updatedPassword,
@@ -7694,7 +7859,7 @@ app.get('/api/categories/:identifier', async (req, res) => {
   return res.status(404).json({ error: 'Categoria não encontrada.' });
 });
 
-app.post('/api/categories', authenticateToken, async (req, res) => {
+app.post('/api/categories', authenticateToken, requireStaff, async (req, res) => {
   const newCat = { id: req.body.id || `cat_${Date.now()}`, ...req.body };
   if (pool) {
     try {
@@ -7713,7 +7878,7 @@ app.post('/api/categories', authenticateToken, async (req, res) => {
   res.status(201).json(newCat);
 });
 
-app.put('/api/categories/reorder', authenticateToken, async (req, res) => {
+app.put('/api/categories/reorder', authenticateToken, requireStaff, async (req, res) => {
   const { categories: orderedCats } = req.body;
   if (!Array.isArray(orderedCats)) {
     return res.status(400).json({ error: 'Array de categorias obrigatório.' });
@@ -7750,7 +7915,7 @@ app.put('/api/categories/reorder', authenticateToken, async (req, res) => {
   res.json({ success: true, count: orderedCats.length });
 });
 
-app.put('/api/categories/:id', authenticateToken, async (req, res) => {
+app.put('/api/categories/:id', authenticateToken, requireStaff, async (req, res) => {
   const updatedCat = { id: req.params.id, ...req.body };
   if (pool) {
     try {
@@ -7773,7 +7938,7 @@ app.put('/api/categories/:id', authenticateToken, async (req, res) => {
   res.status(404).json({ error: 'Categoria não encontrada' });
 });
 
-app.delete('/api/categories/:id', authenticateToken, async (req, res) => {
+app.delete('/api/categories/:id', authenticateToken, requireStaff, async (req, res) => {
   if (pool) {
     try {
       await pool.query('DELETE FROM categories WHERE id = $1', [req.params.id]);
@@ -7802,7 +7967,7 @@ app.get('/api/departments', async (req, res) => {
   res.json(db.departments || []);
 });
 
-app.post('/api/departments', authenticateToken, async (req, res) => {
+app.post('/api/departments', authenticateToken, requireStaff, async (req, res) => {
   const newDept = {
     id: req.body.id || `dept_${Date.now()}`,
     name: (req.body.name || '').trim(),
@@ -7830,7 +7995,7 @@ app.post('/api/departments', authenticateToken, async (req, res) => {
   res.status(201).json(newDept);
 });
 
-app.put('/api/departments/:id', authenticateToken, async (req, res) => {
+app.put('/api/departments/:id', authenticateToken, requireStaff, async (req, res) => {
   const updatedDept = {
     id: req.params.id,
     name: (req.body.name || '').trim(),
@@ -7862,7 +8027,7 @@ app.put('/api/departments/:id', authenticateToken, async (req, res) => {
   res.status(404).json({ error: 'Departamento não encontrado.' });
 });
 
-app.delete('/api/departments/:id', authenticateToken, async (req, res) => {
+app.delete('/api/departments/:id', authenticateToken, requireStaff, async (req, res) => {
   if (pool) {
     try {
       // Set department_id = NULL on any categories that belonged to this department
@@ -7924,7 +8089,7 @@ app.get('/api/brands/:identifier', async (req, res) => {
   return res.status(404).json({ error: 'Marca não encontrada.' });
 });
 
-app.post('/api/brands', authenticateToken, async (req, res) => {
+app.post('/api/brands', authenticateToken, requireStaff, async (req, res) => {
   const newBrand = { id: req.body.id || `brand_${Date.now()}`, ...req.body };
   if (pool) {
     try {
@@ -7943,7 +8108,7 @@ app.post('/api/brands', authenticateToken, async (req, res) => {
   res.status(201).json(newBrand);
 });
 
-app.put('/api/brands/reorder', authenticateToken, async (req, res) => {
+app.put('/api/brands/reorder', authenticateToken, requireStaff, async (req, res) => {
   const { brands: orderedBrands } = req.body;
   if (!Array.isArray(orderedBrands)) {
     return res.status(400).json({ error: 'Array de marcas obrigatório.' });
@@ -7980,7 +8145,7 @@ app.put('/api/brands/reorder', authenticateToken, async (req, res) => {
   res.json({ success: true, count: orderedBrands.length });
 });
 
-app.put('/api/brands/:id', authenticateToken, async (req, res) => {
+app.put('/api/brands/:id', authenticateToken, requireStaff, async (req, res) => {
   const updatedBrand = { id: req.params.id, ...req.body };
   if (pool) {
     try {
@@ -8003,7 +8168,7 @@ app.put('/api/brands/:id', authenticateToken, async (req, res) => {
   res.status(404).json({ error: 'Marca não encontrada' });
 });
 
-app.delete('/api/brands/:id', authenticateToken, async (req, res) => {
+app.delete('/api/brands/:id', authenticateToken, requireStaff, async (req, res) => {
   if (pool) {
     try {
       await pool.query('DELETE FROM brands WHERE id = $1', [req.params.id]);
@@ -8039,7 +8204,7 @@ app.get('/api/banners', async (req, res) => {
   res.json(filtered);
 });
 
-app.post('/api/banners', authenticateToken, async (req, res) => {
+app.post('/api/banners', authenticateToken, requireStaff, async (req, res) => {
   const newBanner = {
     id: req.body.id || `bnr_${Date.now()}`,
     title: req.body.title || 'Banner Athena',
@@ -8075,7 +8240,7 @@ app.post('/api/banners', authenticateToken, async (req, res) => {
   res.status(201).json(newBanner);
 });
 
-app.put('/api/banners/reorder', authenticateToken, async (req, res) => {
+app.put('/api/banners/reorder', authenticateToken, requireStaff, async (req, res) => {
   const { banners: orderedBanners } = req.body;
   if (!Array.isArray(orderedBanners)) {
     return res.status(400).json({ error: 'Array de banners obrigatório.' });
@@ -8113,7 +8278,7 @@ app.put('/api/banners/reorder', authenticateToken, async (req, res) => {
   res.json({ success: true, count: orderedBanners.length });
 });
 
-app.put('/api/banners/:id', authenticateToken, async (req, res) => {
+app.put('/api/banners/:id', authenticateToken, requireStaff, async (req, res) => {
   const updatedBanner = {
     id: req.params.id,
     title: req.body.title || 'Banner Athena',
@@ -8151,7 +8316,7 @@ app.put('/api/banners/:id', authenticateToken, async (req, res) => {
   res.status(404).json({ error: 'Banner não encontrado.' });
 });
 
-app.delete('/api/banners/:id', authenticateToken, async (req, res) => {
+app.delete('/api/banners/:id', authenticateToken, requireStaff, async (req, res) => {
   if (pool) {
     try {
       await pool.query('DELETE FROM home_banners WHERE id = $1', [req.params.id]);
@@ -8408,7 +8573,7 @@ function hasAnyValidProductImage(product) {
   return false;
 }
 
-app.post('/api/products', authenticateToken, async (req, res) => {
+app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
   const rawSku = (req.body.sku || '').trim();
   const autoSku = extractSkuFromTitle(req.body.name);
   const finalSku = rawSku || autoSku || (req.body.omieCode || '').trim() || null;
@@ -8507,7 +8672,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
   res.status(201).json(newProduct);
 });
 
-app.put('/api/products/reorder', authenticateToken, async (req, res) => {
+app.put('/api/products/reorder', authenticateToken, requireStaff, async (req, res) => {
   const { products: orderedProducts } = req.body;
   if (!Array.isArray(orderedProducts)) {
     return res.status(400).json({ error: 'Array de produtos obrigatório.' });
@@ -8529,7 +8694,7 @@ app.put('/api/products/reorder', authenticateToken, async (req, res) => {
   res.json({ success: true, count: orderedProducts.length });
 });
 
-app.put('/api/products/:id', authenticateToken, async (req, res) => {
+app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) => {
   const rawSku = (req.body.sku || '').trim();
   const autoSku = extractSkuFromTitle(req.body.name);
   const finalSku = rawSku || autoSku || (req.body.omieCode || '').trim() || null;
@@ -8622,7 +8787,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
   res.status(404).json({ error: 'Produto não encontrado' });
 });
 
-app.delete('/api/products/:id', authenticateToken, async (req, res) => {
+app.delete('/api/products/:id', authenticateToken, requireStaff, async (req, res) => {
   const productId = req.params.id;
   let productToDelete = null;
 
