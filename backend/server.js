@@ -414,42 +414,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// -------------------------------------------------------------
-// ORIGIN ISOLATION & DIRECT-TO-ORIGIN BYPASS HARDENING
-// -------------------------------------------------------------
-// Quando a variável ATHENA_ORIGIN_SECRET estiver configurada no Render, qualquer requisição
-// direta ao endpoint *.onrender.com sem passar pela Cloudflare (onde a Transform Rule injeta este cabeçalho)
-// é sumariamente rejeitada com HTTP 403 Forbidden.
-const ATHENA_ORIGIN_SECRET = process.env.ATHENA_ORIGIN_SECRET;
-if (ATHENA_ORIGIN_SECRET) {
-  app.use((req, res, next) => {
-    // Permite health checks internos do Render (para não falhar o deploy ou monitoramento)
-    if (req.path === '/api/health' || req.path === '/api/ping' || req.path === '/health' || req.headers['user-agent']?.includes('Render/')) {
-      return next();
-    }
-
-    const incomingSecret = req.headers['x-athena-origin-secret'];
-    if (!incomingSecret || incomingSecret !== ATHENA_ORIGIN_SECRET) {
-      const realIp = getClientIp(req);
-      logSecurityEvent({
-        event: 'ORIGIN_BYPASS_BLOCKED',
-        ip: realIp,
-        userAgent: req.headers['user-agent'],
-        outcome: 'BLOCKED',
-        reason: 'Tentativa de acesso direto ao Origin (onrender.com) sem passar pelo proxy da Cloudflare',
-        details: {
-          path: req.originalUrl || req.path,
-          method: req.method
-        }
-      });
-      return res.status(403).json({
-        error: 'Acesso direto à origem proibido. Todas as requisições devem transitar pela borda autorizada da Cloudflare.'
-      });
-    }
-    next();
-  });
-}
-
 // Helper: Determina se um IP pertence à infraestrutura interna (Render/Docker RFC 1918) ou aos proxies da Cloudflare
 function isInfrastructureOrPrivateIp(ip) {
   if (!ip || typeof ip !== 'string') return true;
@@ -517,6 +481,108 @@ function getClientIp(req) {
   return typeof ip === 'string' ? ip.trim() : '127.0.0.1';
 }
 
+// -------------------------------------------------------------
+// CORS (CROSS-ORIGIN RESOURCE SHARING) HARDENING
+// -------------------------------------------------------------
+const ALLOWED_CORS_ORIGINS = [
+  'https://www.athenaconsultoria.com.br',
+  'https://athenaconsultoria.com.br',
+  'https://athena-backend-hu1m.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:5173'
+];
+
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  return ALLOWED_CORS_ORIGINS.includes(origin) ||
+    /^https?:\/\/(.*\.)?athenaconsultoria\.com\.br(:\d+)?$/.test(origin) ||
+    /^https?:\/\/(.*\.)?onrender\.com(:\d+)?$/.test(origin) ||
+    /^https?:\/\/(.*\.)?vercel\.app(:\d+)?$/.test(origin) ||
+    /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+    /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+}
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Requisições sem cabeçalho Origin (mobile apps, curl, webhooks servidor-a-servidor como Asaas e Omie)
+    if (!origin) return callback(null, true);
+
+    if (isOriginAllowed(origin)) {
+      return callback(null, true);
+    }
+
+    // Se for um site clonado ou domínio de terceiro não autorizado, recusa o cabeçalho CORS
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  optionsSuccessStatus: 200
+}));
+
+app.options('*', cors());
+
+// -------------------------------------------------------------
+// ORIGIN ISOLATION & DIRECT-TO-ORIGIN BYPASS HARDENING
+// -------------------------------------------------------------
+// Quando a variável ATHENA_ORIGIN_SECRET estiver configurada no Render:
+// - Requisições da Cloudflare (com segredo de borda) são aceitas.
+// - Requisições com Origin ou Referer legítimos da Athena são aceitas.
+// - Preflights OPTIONS, healthchecks e webhooks de pagamento são permitidos.
+// - Varreduras diretas ou scrapers sem relação com a aplicação são bloqueados com HTTP 403 (com headers CORS preservados).
+const ATHENA_ORIGIN_SECRET = process.env.ATHENA_ORIGIN_SECRET;
+if (ATHENA_ORIGIN_SECRET) {
+  app.use((req, res, next) => {
+    // Preflight OPTIONS nunca é barrado
+    if (req.method === 'OPTIONS') {
+      return next();
+    }
+
+    // Permite health checks internos do Render, ping e Webhooks legítimos de pagamento
+    if (
+      req.path === '/api/health' || 
+      req.path === '/api/ping' || 
+      req.path === '/health' || 
+      req.path.startsWith('/api/payments/webhook') ||
+      req.headers['user-agent']?.includes('Render/')
+    ) {
+      return next();
+    }
+
+    const incomingSecret = req.headers['x-athena-origin-secret'];
+    const origin = req.headers['origin'];
+    const referer = req.headers['referer'];
+
+    const isAthenaReferer = referer && (
+      referer.startsWith('https://www.athenaconsultoria.com.br') ||
+      referer.startsWith('https://athenaconsultoria.com.br')
+    );
+
+    if ((incomingSecret && incomingSecret === ATHENA_ORIGIN_SECRET) || isOriginAllowed(origin) || isAthenaReferer) {
+      return next();
+    }
+
+    const realIp = getClientIp(req);
+    logSecurityEvent({
+      event: 'ORIGIN_BYPASS_BLOCKED',
+      ip: realIp,
+      userAgent: req.headers['user-agent'],
+      outcome: 'BLOCKED',
+      reason: 'Tentativa de acesso direto ao Origin (onrender.com) sem passar pelo proxy ou origem autorizada',
+      details: {
+        path: req.originalUrl || req.path,
+        method: req.method,
+        origin: origin || null
+      }
+    });
+    return res.status(403).json({
+      error: 'Acesso direto à origem proibido. Todas as requisições devem transitar pela borda autorizada da Cloudflare ou domínios oficiais.'
+    });
+  });
+}
+
+
 // General API Rate Limiter against DoS Flooding Attacks
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -562,40 +628,6 @@ const forgotPasswordLimiter = rateLimit({
   validate: { xForwardedForHeader: false },
   message: { error: 'Muitas solicitações de recuperação de senha deste endereço. Por segurança, aguarde 15 minutos antes de tentar novamente.' }
 });
-
-const ALLOWED_CORS_ORIGINS = [
-  'https://www.athenaconsultoria.com.br',
-  'https://athenaconsultoria.com.br',
-  'https://athena-backend-hu1m.onrender.com',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:5173'
-];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    // Requisições sem cabeçalho Origin (mobile apps, curl, webhooks servidor-a-servidor como Asaas e Omie)
-    if (!origin) return callback(null, true);
-
-    // Valida se o domínio que está chamando a API é da Athena, do Render ou do ambiente local
-    const isAllowed = ALLOWED_CORS_ORIGINS.includes(origin) ||
-      /^https?:\/\/(.*\.)?athenaconsultoria\.com\.br(:\d+)?$/.test(origin) ||
-      /^https?:\/\/(.*\.)?onrender\.com(:\d+)?$/.test(origin) ||
-      /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
-      /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
-
-    if (isAllowed) {
-      return callback(null, true);
-    }
-
-    // Se for um site clonado ou domínio de terceiro não autorizado, recusa o cabeçalho CORS
-    return callback(null, false);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  optionsSuccessStatus: 200
-}));
 
 app.use('/api/', apiLimiter);
 
