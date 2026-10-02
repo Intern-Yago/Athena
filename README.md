@@ -167,6 +167,40 @@ O Frontend estará disponível em `http://localhost:5173` e a API do Backend em 
 
 ---
 
+## Testes Automatizados e Unitários
+
+O projeto possui uma suíte completa de testes unitários e de integração nativa utilizando o **Node.js Test Runner** (`node:test` e `node:assert/strict`), sem dependências pesadas externas e com execução em milissegundos.
+
+### Executar a suíte de testes:
+```bash
+npm test
+```
+
+### Executar com relatório de cobertura de código (Code Coverage):
+```bash
+npm run test:coverage
+```
+
+### Cobertura da Suíte de Testes:
+1. **Segurança & RBAC (`tests/unit/auth-roles.test.js`)**:
+   - Isolamento de permissões administrativas (`requireAdmin`) e operacionais (`requireStaff`).
+   - Mitigação de escalada de privilégios via links emergenciais (`isMagicLinkSession`).
+2. **Isolamento de Origem & CORS (`tests/unit/cors-and-network.test.js`)**:
+   - Validação de origens autorizadas (`www.athenaconsultoria.com.br`, Vercel previews, localhost).
+   - Bloqueio estrito de domínios invasores e sites clonados.
+   - Detecção de redes privadas RFC 1918 e proxies canônicos Cloudflare.
+3. **Regras de Negócio & Cupons (`tests/unit/coupon-evaluator.test.js`)**:
+   - Cálculo de descontos percentuais e fixos com teto de desconto (`maxDiscount`).
+   - Regra estrita de valor mínimo de gateway (R$ 5,00) e pedidos promocionais 100% OFF.
+   - Validação de limite global de uso, limite por cliente e cupons com e-mail exclusivo.
+4. **Política de Senhas Fortes (`tests/unit/password-validator.test.js`)**:
+   - Validação OWASP ASVS (mínimo 8 caracteres, maiúsculas, minúsculas, números e caracteres especiais).
+5. **Normalização Frontend (`tests/unit/frontend-utils.test.js`)**:
+   - Reescruta de URLs de imagem legadas para o CDN canônico Cloudflare R2 (`images.athenaconsultoria.com.br`).
+   - Normalização de modelos 3D (.glb) e validação de visibilidade de catálogo.
+
+---
+
 ## Suporte Comercial & Contato
 
 - **Empresa**: Athena Soluções Automotivas

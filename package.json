@@ -9,8 +9,9 @@
     "dev": "npx --yes concurrently -n \"FRONTEND,BACKEND\" -c \"cyan.bold,yellow.bold\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "start": "npm run dev",
     "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/unit/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage tests/unit/*.test.js"
   },
   "dependencies": {
     "lucide-react": "^0.453.0",

@@ -8940,7 +8940,21 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Athena API Backend rodando em http://0.0.0.0:${PORT}`);
-  console.log(`Swagger API Docs protegida em: http://localhost:${PORT}/api-docs`);
-});
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Athena API Backend rodando em http://0.0.0.0:${PORT}`);
+    console.log(`Swagger API Docs protegida em: http://localhost:${PORT}/api-docs`);
+  });
+}
+
+module.exports = {
+  app,
+  validatePasswordStandard,
+  evaluateCoupon,
+  isOriginAllowed,
+  requireAdmin,
+  requireStaff,
+  getClientIp,
+  isInfrastructureOrPrivateIp
+};
+
