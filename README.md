@@ -89,15 +89,43 @@ athena/
 
 ---
 
+## Arquitetura de Segurança, Auditoria & Telemetria (OWASP & LGPD)
+
+A plataforma Athena adota o princípio de **Defesa em Profundidade**, separando com clareza a segurança de infraestrutura (server-side, inviolável) da telemetria de experiência do usuário (client-side, consentida):
+
+### 1. Segurança Server-Side (Invasores, Scanners e Bots)
+- **Borda & Proteção DDoS (Cloudflare Edge):** WAF ativo, filtragem de reputação de IP e mitigação de ataques em massa antes do tráfego tocar a infraestrutura da aplicação.
+- **Isolamento de Origem (`ATHENA_ORIGIN_SECRET`):** O backend no Render exige um cabeçalho estático criptográfico injetado exclusivamente pela Cloudflare. Qualquer tentativa direta de acesso ao endpoint `*.onrender.com` é sumariamente rejeitada com **HTTP 403 Forbidden**.
+- **Quarentena de IP & Banimento Progressivo:**
+  - 1ª a 6ª falha de autenticação: incremento do contador de tentativas.
+  - 7ª falha consecutiva: IP em quarentena preventiva por 24 horas (`HTTP 403`).
+  - 8ª falha consecutiva ou acionamento de **Honeypot Trap** (`/.env`, `/wp-admin`, etc.): banimento definitivo persistido na tabela `security_ip_blocklist` do PostgreSQL.
+  - **Política Anti-Engenharia Social:** O desbloqueio é bloqueado via API/painel web e requer intervenção administrativa direta no banco de dados.
+- **Auditoria Forense Estruturada (OWASP A09:2021):** O servidor emite logs JSON padronizados com o identificador `[SECURITY_AUDIT]` nos logs do Render, capturando IP real (`X-Forwarded-For`), rota, método e motivo. **Essa auditoria opera 100% no servidor e independe de cookies ou de ações do atacante no navegador.**
+
+### 2. Telemetria Comportamental & Antifraude Visual (Microsoft Clarity)
+- **Finalidade:** Mapas de calor (heatmaps), detecção de sinais de frustração (*rage clicks*, *dead clicks*) e auditoria visual de fraudes comerciais no checkout (compras com cartões clonados ou preenchimento robótico de formulários).
+- **Conformidade LGPD & Modo Cookieless:**
+  - Integração dinâmica através do banner [`CookieConsentBanner.jsx`](src/components/CookieConsentBanner.jsx) conectado à API `window.clarity('consent', true/false)`.
+  - Caso o visitante recuse cookies analíticos, o Clarity opera em modo estritamente *cookieless* em memória, sem persistir identificadores no dispositivo.
+  - **Mascaramento Rigoroso de Dados:** Senhas, e-mails sensíveis e campos de faturamento bancário são automaticamente mascarados e nunca transmitidos nem gravados.
+
+---
+
 ## Variáveis de Ambiente (Environment Variables)
 
 ### Backend (Render / Produção)
 | Variável | Descrição |
 | :--- | :--- |
-| `DATABASE_URL` | URL de conexão do PostgreSQL (ex: `postgresql://user:pass@host/dbname`) |
+| `DATABASE_URL` | URL de conexão do PostgreSQL (Supabase / Render) |
+| `ATHENA_ORIGIN_SECRET` | Token secreto compartilhado entre Cloudflare Transform Rule e Render |
+| `CLOUDFLARE_TURNSTILE_SECRET_KEY` | Chave secreta de validação de CAPTCHA server-side |
 | `CLOUDINARY_CLOUD_NAME` | Nome da conta Cloudinary (`y0p1s8mx`) |
 | `CLOUDINARY_API_KEY` | Chave de API do Cloudinary |
 | `CLOUDINARY_API_SECRET` | Chave secreta do Cloudinary |
+| `R2_ACCESS_KEY_ID` | Chave de acesso do Cloudflare R2 (Object Storage) |
+| `R2_SECRET_ACCESS_KEY` | Segredo do Cloudflare R2 |
+| `R2_BUCKET_NAME` | Nome do bucket R2 para imagens e mídias |
 
 ### Frontend (Vercel / Produção)
 | Variável | Descrição |
