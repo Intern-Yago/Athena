@@ -61,3 +61,24 @@ jobs:
           echo " Frontend and Backend production builds verified!        "
           echo " Deployment to Render & Vercel is APPROVED.              "
           echo "=========================================================="
+
+      - name: Trigger Render Deploy (Gated Deployment)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Triggering Render deployment via verified Deploy Hook..."
+            response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "$RENDER_DEPLOY_HOOK")
+            http_code=$(echo "$response" | grep "HTTP_STATUS" | cut -d':' -f2)
+            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+              echo "✅ Render deployment successfully triggered! HTTP $http_code"
+            else
+              echo "❌ Render deploy hook returned HTTP $http_code"
+              echo "$response"
+              exit 1
+            fi
+          else
+            echo "ℹ️ Secret RENDER_DEPLOY_HOOK não configurada. Para que o GitHub Actions acione o deploy apenas após os testes passarem, configure o segredo no GitHub."
+          fi
+
