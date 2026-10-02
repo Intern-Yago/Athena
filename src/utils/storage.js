@@ -8,7 +8,7 @@ const DB_NAME = 'AthenaAutomotivaDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'catalog_store';
 
-export const CURRENT_CATALOG_VERSION = 'v2_2026_09_29_sanitized';
+export const CURRENT_CATALOG_VERSION = 'v4_2026_10_02_quote_strict';
 
 /**
  * Checks if client local cache is outdated and flushes obsolete category/product data.
@@ -26,6 +26,15 @@ export function checkAndInvalidateCatalogCache() {
       safeStorageRemove('athena_categories');
       safeStorageRemove('athena_products');
       safeStorageRemove('athena_brands');
+
+      // Limpeza profunda assíncrona do IndexedDB para garantir que nenhum snapshot antigo permaneça
+      getIndexedDB().then((db) => {
+        if (!db) return;
+        try {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          tx.objectStore(STORE_NAME).clear();
+        } catch (e) {}
+      }).catch(() => {});
     }
   } catch (e) {
     console.warn('[Athena Storage] Falha ao verificar versão de cache:', e);

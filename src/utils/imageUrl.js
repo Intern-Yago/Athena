@@ -24,8 +24,19 @@ export function normalizeProduct(p) {
       glb: normalizeImageUrl(parsedModel3d.glb)
     };
   }
+  // Regra de Ouro Athena:
+  // Se priceNegotiable ou price_negotiable for true, o produto é Sob Consulta.
+  // Somente é liberado para venda direta online se explicitamente marcado como false (preço visível liberado).
+  const isNegotiable = Boolean(
+    p.priceNegotiable === true ||
+    p.price_negotiable === true ||
+    (p.priceNegotiable !== false && p.price_negotiable !== false)
+  );
+
   return {
     ...p,
+    priceNegotiable: isNegotiable,
+    price_negotiable: isNegotiable,
     model3d: parsedModel3d,
     image: normalizeImageUrl(p.image),
     images: Array.isArray(p.images) ? p.images.map(normalizeImageUrl) : p.images

@@ -15,7 +15,7 @@ const fs = require('fs');
 const dotenv = require('../node_modules/dotenv');
 
 // Carrega .env da raiz do projeto
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+dotenv.config({ path: path.join(__dirname, '../.env') });
 const { Pool } = require('../node_modules/pg');
 
 const OMIE_APP_KEY = process.env.OMIE_APP_KEY;

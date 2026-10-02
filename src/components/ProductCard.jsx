@@ -32,16 +32,20 @@ export default function ProductCard({
   const currentCardImage = activePreviewImage || baseCardImage;
 
   // Regra de Negocio Athena:
-  // Se o orcamento estiver ATIVO (priceNegotiable !== false), NAO mostra o valor do produto (fica Sob Consulta) e direciona para orcamento.
-  // Se o orcamento estiver DESATIVADO (!priceNegotiable) e tiver preco (> 0), mostra o valor e joga para comprar no site.
+  // Se o orcamento estiver ATIVO (priceNegotiable !== false ou price_negotiable !== false), NAO mostra o valor do produto (fica Sob Consulta) e direciona para orcamento.
+  // Se o orcamento estiver DESATIVADO e tiver preco (> 0), mostra o valor e joga para comprar no site.
   const hasPrice = Number(product.price) > 0;
-  const isQuoteOnly = Boolean(product.priceNegotiable !== false);
+  const isQuoteOnly = Boolean(
+    product.priceNegotiable === true ||
+    product.price_negotiable === true ||
+    (product.priceNegotiable !== false && product.price_negotiable !== false)
+  );
   const canBuyOnline = hasPrice && !isQuoteOnly;
 
   const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
-  const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
-    canBuyOnline ? formatBRL(product.price) : 'Sob Consulta'
-  );
+  const pixCustomerPrice = canBuyOnline 
+    ? (paymentGateways?.pix?.formattedCustomerAmount || formatBRL(product.price))
+    : 'Sob Consulta';
 
   const earnedPoints = (product.aPoints && Number(product.aPoints) > 0) 
     ? Number(product.aPoints) 

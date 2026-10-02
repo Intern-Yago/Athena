@@ -54,4 +54,26 @@ describe('Frontend Utils: Image & Product Normalization (imageUrl.js)', () => {
     assert.strictEqual(isProductPublished({ status: 'oculto' }), false);
     assert.strictEqual(isProductPublished(null), false);
   });
+
+  it('should strictly normalize priceNegotiable to ensure Sob Consulta safety', () => {
+    // Both undefined -> Sob Consulta (true)
+    const p1 = normalizeProduct({ id: 'p1', name: 'Teste' });
+    assert.strictEqual(p1.priceNegotiable, true);
+    assert.strictEqual(p1.price_negotiable, true);
+
+    // price_negotiable from Postgres (true) but priceNegotiable missing -> true
+    const p2 = normalizeProduct({ id: 'p2', name: 'Teste', price_negotiable: true });
+    assert.strictEqual(p2.priceNegotiable, true);
+    assert.strictEqual(p2.price_negotiable, true);
+
+    // Explicitly false in both -> false (authorized for online buy)
+    const p3 = normalizeProduct({ id: 'p3', name: 'Teste', priceNegotiable: false, price_negotiable: false });
+    assert.strictEqual(p3.priceNegotiable, false);
+    assert.strictEqual(p3.price_negotiable, false);
+
+    // Conflict where one is true -> true (safe quote-only fallback)
+    const p4 = normalizeProduct({ id: 'p4', name: 'Teste', priceNegotiable: false, price_negotiable: true });
+    assert.strictEqual(p4.priceNegotiable, true);
+    assert.strictEqual(p4.price_negotiable, true);
+  });
 });

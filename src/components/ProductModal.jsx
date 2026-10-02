@@ -21,13 +21,17 @@ export default function ProductModal({
   const brand = propBrand || (brands && brands.find(b => b.id === product.brandId));
 
   const hasPrice = Number(product.price) > 0;
-  const isQuoteOnly = Boolean(product.priceNegotiable !== false);
+  const isQuoteOnly = Boolean(
+    product.priceNegotiable === true ||
+    product.price_negotiable === true ||
+    (product.priceNegotiable !== false && product.price_negotiable !== false)
+  );
   const canBuyOnline = hasPrice && !isQuoteOnly;
 
   const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
-  const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
-    canBuyOnline ? formatBRL(product.price) : 'Sob Consulta'
-  );
+  const pixCustomerPrice = canBuyOnline 
+    ? (paymentGateways?.pix?.formattedCustomerAmount || formatBRL(product.price))
+    : 'Sob Consulta';
 
   const formattedPrice = canBuyOnline 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)

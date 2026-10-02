@@ -19,7 +19,12 @@
 export function isProductQuoteOnly(product) {
   if (!product) return true;
   const baseHasPrice = Number(product.price) > 0;
-  return Boolean(product.priceNegotiable !== false || !baseHasPrice);
+  const isNegotiable = Boolean(
+    product.priceNegotiable === true ||
+    product.price_negotiable === true ||
+    (product.priceNegotiable !== false && product.price_negotiable !== false)
+  );
+  return Boolean(isNegotiable || !baseHasPrice);
 }
 
 export function getVariantStockNumber(variant) {
