@@ -552,18 +552,19 @@ export default function ProductDetailPage({
   // Smart Related / Recommended Products Algorithm:
   // 1. Manually pinned recommendations (recommendedProductIds) are mandatory and appear first
   // 2. Remaining slots up to 5 are filled automatically (same category, then same brand)
+  // NOTE: Related products MUST ALWAYS be published, even if the viewer is an admin.
   const pinnedRecommended = (Array.isArray(product?.recommendedProductIds) ? product.recommendedProductIds : [])
-    .map(id => products.find(p => p.id === id && p.id !== product?.id && (canAccessDraft || isProductPublished(p))))
+    .map(id => products.find(p => p.id === id && p.id !== product?.id && isProductPublished(p)))
     .filter(Boolean);
 
   const pinnedIds = new Set(pinnedRecommended.map(p => p.id));
 
   const sameCategoryProducts = products.filter(
-    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.categoryId === product.categoryId && (canAccessDraft || isProductPublished(p))
+    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.categoryId === product.categoryId && isProductPublished(p)
   );
 
   const sameBrandProducts = products.filter(
-    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.brandId === product.brandId && p.categoryId !== product.categoryId && (canAccessDraft || isProductPublished(p))
+    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.brandId === product.brandId && p.categoryId !== product.categoryId && isProductPublished(p)
   );
 
   const relatedProducts = [
@@ -580,12 +581,12 @@ export default function ProductDetailPage({
   const linkMatches = textContent.match(/\/produto\/([a-zA-Z0-9_-]+)/g) || [];
   const linkedSlugs = linkMatches.map(m => m.replace('/produto/', ''));
   const linkedProductIds = products
-    .filter(p => (canAccessDraft || isProductPublished(p)) && (linkedSlugs.includes(p.slug) || linkedSlugs.includes(p.id)))
+    .filter(p => isProductPublished(p) && (linkedSlugs.includes(p.slug) || linkedSlugs.includes(p.id)))
     .map(p => p.id);
 
   // Inbound references (products in catalog that mark this equipment as compatible)
   const incomingProductIds = products
-    .filter(p => (canAccessDraft || isProductPublished(p)) && p.id !== product?.id && (
+    .filter(p => isProductPublished(p) && p.id !== product?.id && (
       (Array.isArray(p.compatibleProductIds) && p.compatibleProductIds.includes(product?.id)) ||
       (product?.slug && Array.isArray(p.customTabs) && p.customTabs.some(t => t.content && t.content.includes(product.slug)))
     ))
@@ -594,7 +595,7 @@ export default function ProductDetailPage({
   const allCompatProductIds = Array.from(new Set([...directCompatIds, ...linkedProductIds, ...incomingProductIds]));
   const compatibleProductsList = allCompatProductIds
     .map(id => products.find(p => p.id === id && p.id !== product?.id))
-    .filter(p => Boolean(p) && (canAccessDraft || isProductPublished(p)));
+    .filter(p => Boolean(p) && isProductPublished(p));
 
   const hasCompatibles = compatibleProductsList.length > 0;
 

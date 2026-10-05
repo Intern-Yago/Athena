@@ -183,33 +183,101 @@ flowchart LR
 
 ---
 
-## 🕶️ 3. [BACKLOG / FUTURO] Visualização 3D Interativa & Realidade Aumentada (WebAR)
+## 🕶️ 3. [BACKLOG / AR INDUSTRIAL] Athena Industrial AR Engine (Motor Próprio WebXR para Equipamentos Automotivos)
 
-### 📌 Contexto & Objetivo
-- Permitir que proprietários de oficinas e concessionárias visualizem equipamentos (elevadores, bancadas modulares, carrinhos de ferramentas) em **escala real (1:1)** no espaço físico da sua oficina usando a câmera do celular (iOS e Android), sem precisar instalar aplicativos.
-- No computador (desktop), exibir visualizador 3D 360° interativo com botão/QR Code para abrir no celular.
+### 📌 Visão do Produto & Proposta de Valor B2B
+- **Superar o "Gimmick" / 3D Brinquedo:** Equipamentos como elevadores automotivos de 4T, alinhadores 3D e desmontadoras de pneus são investimentos industriais de R$ 15.000 a R$ 60.000. O AR da Athena não deve ser apenas uma animação solta, mas uma **ferramenta de viabilidade técnica e fechamento de vendas**.
+- **A Pergunta Crítica do Cliente:** Responder diretamente à maior dúvida do dono de oficina: *"Esse equipamento realmente cabe no meu box com a folga necessária para trabalhar?"*.
+- **Controle Total da Experiência:** Substituir a dependência do Google Scene Viewer (que frequentemente oscila, afunda o modelo no piso e perde a escala) por um motor próprio baseado em **Three.js + WebXR Hit Test API**, desenhado especificamente para chão de oficina mecânica.
 
-### 📱 Tecnologias & Formatos Recomendados
-- **Biblioteca Web:** `<model-viewer>` do Google (leve, nativa para navegadores mobile).
-- **Formatos de Arquivo:**
-  - Android: `.glb` (carregado via Scene Viewer nativo).
-  - iOS (iPhone/iPad): `.usdz` ou `.glb` com conversão/fallback via Quick Look.
-- **Armazenamento:** Arquivos 3D hospedados no Cloudflare R2 ou Cloudinary CDN.
+---
 
-### 🛠️ Métodos para Obtenção dos Modelos 3D (Sem custos abusivos)
-1. **Modelos CAD dos Fabricantes:** Solicitar arquivos `.step` ou `.obj` às montadoras parceiras (Wolfcar, Engecass, Sigma Tools, Marcon) e converter para `.glb` no Blender.
-2. **Fotogrametria no Galpão / Oficina:** Usar o celular com apps como *Polycam*, *Luma AI* ou *Kiri Engine* girando em volta do produto físico montado para gerar a malha com texturas reais.
-3. **IAs Image-to-3D:** Ferramentas gratuitas/freemium como Tripo3D, Rodin ou Meshy (exportação `.glb`).
-4. **Modeladores Freelancers:** Para chaparias retas de oficinas (muito barato, R$ 80 - R$ 150 por peça).
+### 🧠 Princípios de Interação & Física Controlada (Anti-Frustração)
 
-### 📐 Calibração de Escala
-- Para projeção fiel no chão (AR 1:1), a altura/largura da malha deve corresponder a 1 unidade = 1 metro.
-- Script ou atributo `scale` no `<model-viewer>` com base nas medidas da ficha técnica.
+```mermaid
+flowchart TD
+  A["1. Câmera aponta para o piso da oficina"] --> B["2. Retículo animado detecta plano do chão a 60 FPS"]
+  B --> C["3. Toque na tela: Equipamento nasce travado em Y=0 na escala 1:1 real"]
+  C --> D["4. 1 Dedo: Desliza o equipamento restrito ao plano do chão (sem flutuar)"]
+  C --> E["5. 2 Dedos: Rotaciona o equipamento em torno do próprio eixo central"]
+  C --> F["6. Pinça: Escala real 1:1 travada (impede redução ou aumento acidental)"]
+```
+
+1. **Escala Métrica 1:1 Bloqueada por Padrão:**
+   - 1 unidade 3D = rigorosamente 1 metro físico.
+   - Previne que o usuário acidentalmente reduza o elevador para 20cm ou aumente para o tamanho de um prédio.
+2. **Âncora de Chão Estrita ($Y=0$):**
+   - O equipamento nunca atravessa o concreto e nunca levita no ar.
+   - O ponto pivô $(0,0,0)$ de todos os modelos é calibrado na face inferior das sapatas/rodas.
+3. **Área Ocupada & Zona de Segurança (Clearance Zone):**
+   - **Footprint Real:** Marcação sutil quadriculada no piso com a largura e comprimento exatos da máquina.
+   - **Área de Circulação / Segurança:** Perímetro demarcado (+80cm a +1,2m) ao redor das colunas e braços para o mecânico manobrar carrinhos de ferramentas e transitar com segurança.
+   - **Cota de Pé-Direito Mínimo:** Alerta visual na coluna mostrando a altura mínima de teto recomendada pelo fabricante com veículo elevado.
+   - **Alternador de Visualização:** Botão `[ 📏 Ocultar/Exibir Linhas de Medidas ]` para permitir fotos limpas e realistas do equipamento montado no box da oficina.
+
+---
+
+### ⚡ Pipeline de Carregamento Progressivo (LOD) & CDN Inteligente
+
+Elimina completamente a barreira de baixar arquivos gigantescos de 50MB a 100MB em conexões 4G instáveis de oficinas mecânicas:
+
+```
+cdn.athena.com.br/ar/{SKU_OU_SLUG}/
+        ├── manifest.json       (Metadados, dimensões reais, clearance zone, hotspots)
+        ├── lod_low.glb         (Wireframe / Low-Poly < 500 KB - carrega em ~100ms)
+        ├── lod_medium.glb      (Malha com sombras e cores sólidas ~2MB)
+        ├── lod_high.glb        (Geometria detalhada com parafusos, mangueiras e soldas)
+        ├── textures_pbr/       (Texturas KTX2 / Basis Universal de alta fidelidade)
+        └── model_apple.usdz    (Arquivo otimizado com footprint para Quick Look iOS)
+```
+
+#### Fases de Carregamento em Tempo Real:
+1. **Fase 1 (Instantânea ~50ms):** Retículo de piso ativo + projeção da caixa de medidas e área de segurança no chão.
+2. **Fase 2 (100–300ms):** Renderização imediata do modelo *low-poly* (~300 a 800 KB). O usuário já interage, posiciona e rotaciona.
+3. **Fase 3 (Background stream):** Injeção de materiais PBR de alta fidelidade (reflexos metálicos, pintura eletrostática e adesivos).
+4. **Monitor de Performance Dinâmico (FPS Guard):**
+   - $\text{FPS} \ge 50$: Eleva o modelo para o nível máximo de detalhes.
+   - $30 \le \text{FPS} < 50$: Mantém LOD intermediário estável.
+   - $\text{FPS} < 30$: Rebaixa sombras e texturas dinamicamente para preservar fluidez de 60 FPS no tracking da câmera.
+
+---
+
+### 📱 Estratégia Multiplataforma (Android WebXR vs. iOS Quick Look)
+- **Android (Chrome/Edge/Samsung Internet):**
+  - Execução 100% nativa em **Three.js + WebXR Device API**.
+  - O usuário permanece dentro da página da Athena sem abrir apps de terceiros.
+  - Interface customizada com botões flutuantes: *"📸 Tirar Foto"*, *"📏 Medidas"* e *"💬 Falar com Consultor"*.
+- **iOS (iPhone/iPad - Safari):**
+  - Como o Safari restringe o WebXR pleno sem flags experimentais, o pipeline gera automaticamente o `.usdz` equivalente.
+  - Abertura suave via **Apple Quick Look (com sensor LiDAR em iPhones Pro)**, que oferece ancoragem de solo milimétrica e sombras de contato ultra-realistas.
+
+---
+
+### 📝 Checklist de Implementação da Engine AR Industrial
+
+- [ ] **3.1 Arquitetura do Módulo Core (`src/ar-engine/`):**
+  - Implementar gerenciador de sessão WebXR com fallbacks inteligentes e controle de ciclo de vida (`WebXRSession.js`).
+  - Desenvolver o retículo de ancoragem no chão com interpolação de matrizes para eliminar vibrações de tracking (`HitTestReticle.js`).
+- [ ] **3.2 Sistema de Gestos & Ancoragem 1:1:**
+  - Travar transformações no plano $Y=0$ com rotação de 2 dedos e bloqueio de escala acidental (`FloorPlacementController.js`).
+- [ ] **3.3 Camada de Medidas Técnicas & Área de Segurança:**
+  - Criar shaders/wireframes leves para projeção de piso: footprint da máquina, zona de segurança para o operador e cota vertical de teto.
+  - Adicionar controle de visibilidade na UI para alternar entre "Modo Técnico (com cotas)" e "Modo Realista (foto limpa)".
+- [ ] **3.4 Script de Pipeline de Otimização e LOD (`scripts/optimize-ar-models.cjs`):**
+  - Script CLI com `@gltf-transform/core`, `draco3d` e compressão de textura para converter GLBs brutos em `lod_low`, `lod_medium`, `lod_high` e gerar `manifest.json`.
+- [ ] **3.5 Integração com Cloudflare R2:**
+  - Estruturação dos manifests e modelos no bucket R2 com headers CORS e cache agressivo de borda (`Cache-Control: public, max-age=31536000, immutable`).
+- [ ] **3.6 Componente Declarativo para o Catálogo:**
+  - Criar `<AthenaIndustrialAR product={product} />` integrado na aba 3D/AR de `ProductDetailPage.jsx`.
 
 ---
 
 ## 📌 4. Outras Melhorias & Tarefas Futuras do Backlog
 
+- [ ] **Carteira Digital & Cashback Athena (Evolução do A-Points):**
+  - Transformar o programa de fidelidade em saldo direto de Cashback em R$ (ex: 1% a 2% das vendas faturadas no Omie).
+  - Exibir selo/badge dinâmico nos cards do catálogo: *"⚡ Ganhe R$ 180 de Cashback nesta compra"*.
+  - Permitir simulação e aplicação do saldo em carteira diretamente no carrinho (`CartDrawer.jsx`) e no pedido WhatsApp.
 - [ ] **Sincronização Bidirecional via Webhooks do Omie:** Receber atualizações de estoque e preço do Omie em tempo real via webhook HTTP.
 - [ ] **Cálculo de Frete Automatizado:** Integração com Melhor Envio / Correios / Transportadoras para cotação em tempo real na página do produto.
 - [ ] **Exportação de Relatórios de Vendas / Cotações:** Download de orçamentos e pedidos em PDF para envio formal a oficinas e concessionárias.

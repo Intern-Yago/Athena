@@ -1154,7 +1154,7 @@ export default function App() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
               {categories
                 .filter((cat) => (publicProducts || []).some((p) => p.categoryId === cat.id))
                 .map((cat) => {
@@ -1163,26 +1163,28 @@ export default function App() {
                   <div 
                     key={cat.id} 
                     onClick={() => navigateTo(`categoria/${cat.slug || cat.id}`)}
-                    className="card p-6 bg-white border-slate-200 hover:border-amber-400 cursor-pointer flex flex-col justify-between space-y-4 group shadow-xs hover:shadow-md transition-all"
+                    className="card p-5 bg-white border border-slate-200/90 hover:border-amber-400 cursor-pointer flex flex-col justify-between space-y-3 group shadow-2xs hover:shadow-md transition-all rounded-2xl"
                   >
-                    <div className="space-y-3">
-                      <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
-                        <Layers className="w-6 h-6" />
+                    <div className="space-y-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                        <Layers className="w-5 h-5" />
                       </div>
-                      <h3 className="text-lg font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
+                      <h3 className="text-base font-bold text-slate-900 group-hover:text-amber-600 transition-colors line-clamp-2 leading-snug">
                         {cat.name}
                       </h3>
-                      <p className="text-xs text-slate-600 leading-relaxed">
-                        {cat.description}
-                      </p>
+                      {cat.description ? (
+                        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                          {cat.description}
+                        </p>
+                      ) : null}
                     </div>
 
-                    <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-xs">
-                      <span className="font-bold text-amber-700">
-                        {catProducts.length} equipamento(s)
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="font-bold text-amber-800 text-[11px]">
+                        {catProducts.length} {catProducts.length === 1 ? 'equipamento' : 'equipamentos'}
                       </span>
-                      <span className="text-slate-500 group-hover:text-slate-900 flex items-center gap-1 font-bold">
-                        Ver página <ArrowRight className="w-3.5 h-3.5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+                      <span className="text-slate-500 group-hover:text-slate-900 flex items-center gap-1 font-bold text-[11px]">
+                        Ver página <ArrowRight className="w-3.5 h-3.5 text-amber-600 group-hover:translate-x-0.5 transition-transform" />
                       </span>
                     </div>
                   </div>
@@ -1255,7 +1257,7 @@ export default function App() {
     }
 
     if (currentRoute === 'about' || currentRoute === 'sobre') {
-      return <AboutPage />;
+      return <AboutPage onNavigate={navigateTo} brands={brands} />;
     }
 
     if (currentRoute === 'termos-de-uso' || currentRoute === 'termos' || currentRoute === 'terms') {

@@ -62,8 +62,8 @@ export default function Catalog({
 
     for (let i = 0; i < (products || []).length; i++) {
       const prod = products[i];
-      // In the catalog, ONLY published products are visible; drafts remain hidden
-      if (!isProductPublished(prod) && !isAdmin) continue;
+      // In the catalog, ONLY published products are visible; drafts remain strictly in the Admin Panel
+      if (!isProductPublished(prod)) continue;
 
       const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prod.categoryId);
       if (!matchesCategory) continue;

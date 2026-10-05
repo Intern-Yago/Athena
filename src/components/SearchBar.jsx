@@ -207,6 +207,7 @@ export default function SearchBar({
         <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
           {suggestions.map((item, index) => {
             const prod = item.product;
+            const isHighlighted = selectedIndex === index;
             const isQuoteOnly = Boolean(
               prod.priceNegotiable === true ||
               prod.price_negotiable === true ||
