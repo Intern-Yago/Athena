@@ -26,6 +26,9 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
 
       - name: Install Frontend & Root Dependencies
         run: npm ci
