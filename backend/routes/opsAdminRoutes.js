@@ -26,7 +26,7 @@ const router = express.Router();
 // -------------------------------------------------------------
 // 0. LISTAGEM GERAL DE PEDIDOS COM MÉTRICAS (PAINEL ADMIN)
 // -------------------------------------------------------------
-router.get('/orders', async (req, res) => {
+router.get(['/', '/orders', '/ops/orders'], async (req, res) => {
   try {
     const ordersRes = await query(`
       SELECT 
@@ -122,7 +122,7 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-router.get('/orders/:id', async (req, res) => {
+router.get(['/orders/:id', '/ops/orders/:id', '/:id([0-9a-fA-F-]{10,}|[0-9]+)'], async (req, res) => {
   try {
     const { id } = req.params;
     const orderRes = await query('SELECT * FROM orders WHERE id = $1 OR order_number = $1 LIMIT 1', [id]);
@@ -150,7 +150,7 @@ router.get('/orders/:id', async (req, res) => {
 // -------------------------------------------------------------
 // 1. KANBAN OPERACIONAL UNIFICADO
 // -------------------------------------------------------------
-router.get('/kanban', async (req, res) => {
+router.get(['/kanban', '/fulfillment/kanban', '/ops/kanban'], async (req, res) => {
   try {
     // 1. Remessas Físicas
     const shipmentsQuery = await query(`
@@ -228,7 +228,7 @@ router.get('/kanban', async (req, res) => {
 // -------------------------------------------------------------
 // 2. ROMANEIO DE SEPARAÇÃO (PICKING LIST)
 // -------------------------------------------------------------
-router.get('/picking-list/:orderId', async (req, res) => {
+router.get(['/picking-list/:orderId', '/fulfillment/picking-list/:orderId'], async (req, res) => {
   try {
     const { orderId } = req.params;
     const staffId = req.user?.id || 'staff';
@@ -280,7 +280,7 @@ router.get('/picking-list/:orderId', async (req, res) => {
 // -------------------------------------------------------------
 // 3. CONFERÊNCIA FÍSICA OBRIGATÓRIA (TRAVA DE SEGURANÇA)
 // -------------------------------------------------------------
-router.post('/conference', async (req, res) => {
+router.post(['/conference', '/fulfillment/conference'], async (req, res) => {
   try {
     const { shipmentId, notes } = req.body;
     if (!shipmentId) {
@@ -311,7 +311,7 @@ router.post('/conference', async (req, res) => {
 // -------------------------------------------------------------
 // 4. DESPACHO DA REMESSA (TRANSPORTADORA & RASTREIO)
 // -------------------------------------------------------------
-router.post('/dispatch', async (req, res) => {
+router.post(['/dispatch', '/fulfillment/dispatch'], async (req, res) => {
   try {
     const { shipmentId, carrier, trackingCode, trackingUrl } = req.body;
     if (!shipmentId || !carrier) {
@@ -342,7 +342,7 @@ router.post('/dispatch', async (req, res) => {
 // -------------------------------------------------------------
 // 5. CONFIRMAÇÃO DE ENTREGA (FINALIZAÇÃO LOGÍSTICA)
 // -------------------------------------------------------------
-router.post('/delivered', async (req, res) => {
+router.post(['/delivered', '/fulfillment/delivered'], async (req, res) => {
   try {
     const { shipmentId, notes } = req.body;
     if (!shipmentId) {
@@ -364,7 +364,7 @@ router.post('/delivered', async (req, res) => {
 // -------------------------------------------------------------
 // 6. ATIVAÇÕES DIGITAIS: REGISTRO DE TENTATIVA DE CONTATO
 // -------------------------------------------------------------
-router.post('/activations/attempt', async (req, res) => {
+router.post(['/attempt', '/activations/attempt', '/activations/activations/attempt'], async (req, res) => {
   try {
     const { activationId, method, result, notes } = req.body;
     if (!activationId || !method || !result) {
@@ -395,7 +395,7 @@ router.post('/activations/attempt', async (req, res) => {
 // -------------------------------------------------------------
 // 7. ATIVAÇÕES DIGITAIS: INICIAR SESSÃO REMOTA
 // -------------------------------------------------------------
-router.post('/activations/start-session', async (req, res) => {
+router.post(['/start-session', '/activations/start-session', '/activations/activations/start-session'], async (req, res) => {
   try {
     const { activationId, remoteTool, sessionCode } = req.body;
     if (!activationId || !remoteTool) {
@@ -425,7 +425,7 @@ router.post('/activations/start-session', async (req, res) => {
 // -------------------------------------------------------------
 // 8. ATIVAÇÕES DIGITAIS: CONCLUSÃO DA ATIVAÇÃO (LICENÇA/CHAVE)
 // -------------------------------------------------------------
-router.post('/activations/complete', async (req, res) => {
+router.post(['/complete', '/activations/complete', '/activations/activations/complete'], async (req, res) => {
   try {
     const { activationId, licenseKey, machineId, notes } = req.body;
     if (!activationId) {

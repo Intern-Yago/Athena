@@ -91,7 +91,7 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
     if (!attemptModalActivation) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/activations/activations/attempt`, {
+      const res = await fetch(`${API_BASE_URL}/admin/activations/attempt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +121,7 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
     if (!sessionModalActivation) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/activations/activations/start-session`, {
+      const res = await fetch(`${API_BASE_URL}/admin/activations/start-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,7 +150,7 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
     if (!completeModalActivation) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/activations/activations/complete`, {
+      const res = await fetch(`${API_BASE_URL}/admin/activations/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

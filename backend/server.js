@@ -974,6 +974,7 @@ app.get('/api/openapi.json', (req, res) => {
 // =============================================================
 app.use('/api/internal/ops', opsRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/admin', authenticateToken, requireStaff, opsAdminRoutes);
 app.use('/api/admin/ops', authenticateToken, requireStaff, opsAdminRoutes);
 app.use('/api/admin/orders', authenticateToken, requireStaff, opsAdminRoutes);
 app.use('/api/admin/fulfillment', authenticateToken, requireStaff, opsAdminRoutes);
