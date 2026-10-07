@@ -130,7 +130,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-3 duration-300">
-          <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-slate-900 border border-amber-500/40 text-amber-300 text-xs font-bold shadow-2xl backdrop-blur-md">
+          <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-slate-900 border border-amber-500/50 text-amber-300 text-xs font-bold shadow-2xl backdrop-blur-md">
             <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
             <span>{toastMessage}</span>
           </div>
@@ -141,18 +141,18 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
         
         {/* Breadcrumb & Top Bar */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap text-xs text-slate-400">
+          <div className="flex items-center justify-between gap-4 flex-wrap text-xs text-slate-700">
             <div className="flex items-center gap-2 font-semibold">
               <button 
                 onClick={() => onNavigate && onNavigate('catalog')}
-                className="hover:text-amber-400 transition-colors cursor-pointer"
+                className="hover:text-amber-700 transition-colors cursor-pointer"
               >
                 Início
               </button>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-              <span className="text-slate-300">Governança & Jurídico</span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-              <span className="text-amber-400 font-bold">
+              <ChevronRight className="w-3.5 h-3.5 text-slate-700" />
+              <span className="text-slate-700">Governança & Jurídico</span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-700" />
+              <span className="text-amber-700 font-bold">
                 {activeTab === 'terms' && 'Termos de Uso & Fidelidade'}
                 {activeTab === 'privacy' && 'Política de Privacidade (LGPD)'}
                 {activeTab === 'cookies' && 'Diretrizes de Cookies'}
@@ -163,7 +163,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrint}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 shadow-2xs transition-colors text-xs font-medium cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 shadow-2xs transition-colors text-xs font-medium cursor-pointer"
                 title="Imprimir ou salvar em PDF"
               >
                 <Printer className="w-3.5 h-3.5" />
@@ -172,7 +172,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
 
               <button
                 onClick={handleCopyPageLink}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 shadow-2xs transition-colors text-xs font-medium cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 shadow-2xs transition-colors text-xs font-medium cursor-pointer"
                 title="Copiar link permanente desta seção"
               >
                 {copiedLink ? (
@@ -196,15 +196,15 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
             
             <div className="relative z-10 space-y-4">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-extrabold tracking-wide">
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-700 text-xs font-extrabold tracking-wide">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
                   Conformidade Legal & LGPD (Lei 13.709/2018)
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700/80 text-slate-300 text-xs font-medium">
-                  <Building2 className="w-3 h-3 text-slate-400" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-300 text-slate-800 text-xs font-semibold">
+                  <Building2 className="w-3 h-3 text-slate-700" />
                   Athena Soluções Automotivas
                 </span>
-                <span className="text-[11px] text-slate-500 hidden sm:inline">
+                <span className="text-[11px] text-slate-700 hidden sm:inline">
                   • Versão Oficial 2.4 (Revisada em Outubro de 2026)
                 </span>
               </div>
@@ -213,7 +213,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
                   Portal Jurídico, Privacidade & Governança
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-3xl leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-700 mt-2 max-w-3xl leading-relaxed">
                   Transparência total em conformidade com as diretrizes do Código de Defesa do Consumidor (Lei nº 8.078/1990) e da Lei Geral de Proteção de Dados (Lei nº 13.709/2018). Conheça as condições contratuais, regras de entrega técnica de maquinário industrial, faturamento seguro via Omie ERP e o regulamento do programa de fidelidade A-Points.
                 </p>
               </div>
@@ -224,15 +224,15 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                   <CreditCard className="w-4 h-4 text-emerald-400 shrink-0" />
                   <div className="text-[11px] leading-tight">
                     <span className="font-bold text-slate-900 block">Gateway Asaas</span>
-                    <span className="text-slate-400 text-[10px]">PCI-DSS Nível 1</span>
+                    <span className="text-slate-700 text-[10px]">PCI-DSS Nível 1</span>
                   </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-amber-400 shrink-0" />
+                  <FileText className="w-4 h-4 text-amber-700 shrink-0" />
                   <div className="text-[11px] leading-tight">
                     <span className="font-bold text-slate-900 block">Omie ERP</span>
-                    <span className="text-slate-400 text-[10px]">NFe Integrada SEFAZ</span>
+                    <span className="text-slate-700 text-[10px]">NFe Integrada SEFAZ</span>
                   </div>
                 </div>
 
@@ -240,15 +240,15 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                   <Truck className="w-4 h-4 text-sky-400 shrink-0" />
                   <div className="text-[11px] leading-tight">
                     <span className="font-bold text-slate-900 block">Logística Pesada</span>
-                    <span className="text-slate-400 text-[10px]">Carga com Seguro</span>
+                    <span className="text-slate-700 text-[10px]">Carga com Seguro</span>
                   </div>
                 </div>
 
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber-400 shrink-0" />
+                  <Award className="w-4 h-4 text-amber-700 shrink-0" />
                   <div className="text-[11px] leading-tight">
                     <span className="font-bold text-slate-900 block">A-Points</span>
-                    <span className="text-slate-400 text-[10px]">R$ 50 = 1 Ponto</span>
+                    <span className="text-slate-700 text-[10px]">R$ 50 = 1 Ponto</span>
                   </div>
                 </div>
               </div>
@@ -269,7 +269,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'terms'
                   ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <FileText className="w-4 h-4" />
@@ -284,7 +284,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'privacy'
                   ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <Lock className="w-4 h-4" />
@@ -299,7 +299,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'cookies'
                   ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <Cookie className="w-4 h-4" />
@@ -309,7 +309,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
 
           {/* Quick Search in Document */}
           <div className="relative min-w-[240px]">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-slate-700 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
@@ -320,7 +320,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 text-xs cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-700 hover:text-slate-900 text-xs cursor-pointer"
               >
                 ✕
               </button>
@@ -341,37 +341,37 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               <div className="border-b border-slate-200 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
-                    <FileText className="w-6 h-6 text-amber-400" />
+                    <FileText className="w-6 h-6 text-amber-700" />
                     Termos e Condições Gerais de Uso
                   </h2>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-700 mt-1">
                     Regulamento de aquisição de maquinário industrial, faturamento ERP Omie, responsabilidade de descarregamento técnico e programa oficial A-Points.
                   </p>
                 </div>
 
-                <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-400 font-medium">
-                  Documento ID: <span className="text-amber-400 font-mono font-bold">TCU-ATHENA-2026</span>
+                <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-700 font-medium">
+                  Documento ID: <span className="text-amber-700 font-mono font-bold">TCU-ATHENA-2026</span>
                 </div>
               </div>
 
               {/* TL;DR Executive Summary Callout */}
               <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs sm:text-sm text-slate-800 space-y-2.5">
-                <div className="flex items-center gap-2 font-black text-amber-400 text-sm">
+                <div className="flex items-center gap-2 font-black text-amber-700 text-sm">
                   <Info className="w-4 h-4 shrink-0" />
                   <span>Em Resumo (Visão Rápida dos Termos)</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                     <span className="font-bold text-slate-900 block mb-1">1. Faturamento & NF</span>
-                    <p className="text-slate-400">100% dos pedidos são faturados via ERP Omie com emissão obrigatória de Nota Fiscal Eletrônica (NFe).</p>
+                    <p className="text-slate-700">100% dos pedidos são faturados via ERP Omie com emissão obrigatória de Nota Fiscal Eletrônica (NFe).</p>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                     <span className="font-bold text-slate-900 block mb-1">2. Entrega de Pesados</span>
-                    <p className="text-slate-400">Elevadores e alinhadores exigem empilhadeira ou munk providenciado pelo comprador no local.</p>
+                    <p className="text-slate-700">Elevadores e alinhadores exigem empilhadeira ou munk providenciado pelo comprador no local.</p>
                   </div>
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                     <span className="font-bold text-slate-900 block mb-1">3. A-Points Fidelidade</span>
-                    <p className="text-slate-400">R$ 50 quitados = 1 A-Point válido por 12 meses. Resgate no portal sem valor monetário em dinheiro.</p>
+                    <p className="text-slate-700">R$ 50 quitados = 1 A-Point válido por 12 meses. Resgate no portal sem valor monetário em dinheiro.</p>
                   </div>
                 </div>
               </div>
@@ -380,14 +380,14 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Identificação Empresa Razão Social CNPJ Arniqueira Brasília') && (
                 <section className="space-y-3 pt-2">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">1</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">1</span>
                     Identificação da Empresa & Escopo de Atuação
                   </h3>
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs sm:text-sm">
-                    <p className="text-slate-300">
-                      O catálogo virtual, a plataforma comercial e todos os serviços correlatos são de titularidade da <strong className="text-slate-900">ATHENA SOLUÇÕES AUTOMOTIVAS</strong> (ATHENA TECNOLOGIA E COMÉRCIO DE EQUIPAMENTOS AUTOMOTIVOS LTDA), com sede em Brasília - DF, localizada na <span className="text-amber-400 font-medium">ST SHA Arniqueira / Colônia Agrícola Vereda da Cruz Chácara 517, Loja 05, CEP 71996-413</span>.
+                    <p className="text-slate-700">
+                      O catálogo virtual, a plataforma comercial e todos os serviços correlatos são de titularidade da <strong className="text-slate-900">ATHENA SOLUÇÕES AUTOMOTIVAS</strong> (ATHENA TECNOLOGIA E COMÉRCIO DE EQUIPAMENTOS AUTOMOTIVOS LTDA), com sede em Brasília - DF, localizada na <span className="text-amber-700 font-medium">ST SHA Arniqueira / Colônia Agrícola Vereda da Cruz Chácara 517, Loja 05, CEP 71996-413</span>.
                     </p>
-                    <p className="text-slate-400">
+                    <p className="text-slate-700">
                       A Athena é distribuidora autorizada e especialista no fornecimento de equipamentos pesados e de precisão técnica para oficinas mecânicas, centros de estética automotiva, auto centers, concessionárias e indústrias, tais como elevadores hidráulicos de 2 e 4 colunas, elevadores pantográficos tesoura, alinhadores 3D computadorizados, scanners de diagnóstico automotivo multimarcas, desmontadoras, balanceadoras de rodas e ferramentas pneumáticas/bateria.
                     </p>
                   </div>
@@ -398,10 +398,10 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Processamento Pedidos Faturamento Omie ERP Asaas SEFAZ Sob Consulta') && (
                 <section className="space-y-3">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">2</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">2</span>
                     Processamento de Pedidos, Faturamento B2B/B2C & Cotações Sob Consulta
                   </h3>
-                  <div className="space-y-3 text-xs sm:text-sm text-slate-300">
+                  <div className="space-y-3 text-xs sm:text-sm text-slate-700">
                     <p>
                       As aquisições podem ser efetuadas via catálogo virtual ou mediante atendimento consultivo de nossos engenheiros e consultores técnicos de vendas:
                     </p>
@@ -410,7 +410,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                         <div>
                           <strong className="text-slate-900 block">Integração Omie ERP & SEFAZ:</strong>
-                          <span className="text-slate-400">Todo pedido validado é sincronizado em tempo real com o Omie ERP, garantindo apuração fiscal idônea e geração da Nota Fiscal Eletrônica (NFe) autorizada pela SEFAZ.</span>
+                          <span className="text-slate-700">Todo pedido validado é sincronizado em tempo real com o Omie ERP, garantindo apuração fiscal idônea e geração da Nota Fiscal Eletrônica (NFe) autorizada pela SEFAZ.</span>
                         </div>
                       </li>
 
@@ -418,7 +418,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                         <div>
                           <strong className="text-slate-900 block">Segurança Financeira com Asaas:</strong>
-                          <span className="text-slate-400">Cobranças via PIX instantâneo, Boletos Registrados e Cartão de Crédito são liquidadas no ambiente seguro do gateway homologado Asaas com certificação PCI-DSS. A Athena não armazena dados confidenciais de cartão.</span>
+                          <span className="text-slate-700">Cobranças via PIX instantâneo, Boletos Registrados e Cartão de Crédito são liquidadas no ambiente seguro do gateway homologado Asaas com certificação PCI-DSS. A Athena não armazena dados confidenciais de cartão.</span>
                         </div>
                       </li>
 
@@ -426,7 +426,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                         <div>
                           <strong className="text-slate-900 block">Itens com Preço Sob Consulta:</strong>
-                          <span className="text-slate-400">Determinadas máquinas de grande porte, scanners especializados ou lotes industriais são classificados como "Sob Consulta". Nesses casos, o envio do pedido no catálogo formaliza uma solicitação de proposta personalizada, confirmada junto ao comprador antes de qualquer cobrança ou faturamento.</span>
+                          <span className="text-slate-700">Determinadas máquinas de grande porte, scanners especializados ou lotes industriais são classificados como "Sob Consulta". Nesses casos, o envio do pedido no catálogo formaliza uma solicitação de proposta personalizada, confirmada junto ao comprador antes de qualquer cobrança ou faturamento.</span>
                         </div>
                       </li>
                     </ul>
@@ -438,19 +438,19 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Logística Frete Cargas Pesadas Elevador Alinhador Empilhadeira Munk Descarregamento') && (
                 <section className="space-y-3">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">3</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">3</span>
                     Logística Especializada & Descarregamento Técnico de Cargas Pesadas
                   </h3>
                   
-                  <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-slate-200 text-xs sm:text-sm space-y-3">
-                    <div className="flex items-center gap-2 font-bold text-amber-400">
+                  <div className="p-5 rounded-2xl bg-amber-50/90 border border-amber-300 text-slate-800 text-xs sm:text-sm space-y-3">
+                    <div className="flex items-center gap-2 font-bold text-amber-700">
                       <Truck className="w-5 h-5 shrink-0" />
                       <span>Condição Obrigatória para Equipamentos Pesados (Elevadores, Rampas e Alinhadores)</span>
                     </div>
                     <p className="leading-relaxed">
                       Devido às especificações industriais e ao peso bruto elevado (geralmente entre <strong>600 kg e 1.400 kg</strong>), as transportadoras rodoviárias parceiras realizam o transporte interestadual com seguro de carga até o endereço do comprador, <strong>não realizando o descarregamento manual da carroceria</strong>.
                     </p>
-                    <div className="p-3.5 rounded-xl bg-slate-950/90 border border-amber-500/20 text-xs text-amber-200/90">
+                    <div className="p-3.5 rounded-xl bg-amber-100/90 border border-amber-300 text-xs text-amber-950 font-medium">
                       <strong>Responsabilidade do Comprador:</strong> O cliente declara plena ciência de que é de sua exclusiva responsabilidade providenciar recursos mecânicos apropriados (como empilhadeira, guincho tipo munk ou equipe técnica de apoio) no momento exato da chegada da transportadora para a retirada segura dos volumes pesados.
                     </div>
                   </div>
@@ -461,44 +461,44 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('A-Points Programa Fidelidade Pontos Reais Resgate Validade Comprovante') && (
                 <section className="space-y-4 pt-2">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">4</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">4</span>
                     Regulamento Oficial do Programa de Fidelidade A-Points
                   </h3>
                   
                   <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2 text-amber-400 font-extrabold text-sm">
+                      <div className="flex items-center gap-2 text-amber-700 font-extrabold text-sm">
                         <Award className="w-4 h-4" />
                         <span>Mecânica de Acúmulo, Validade & Resgate Transparente</span>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 border border-amber-500/20 uppercase">
                         Exclusivo Athena
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-200 space-y-1">
+                      <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
                         <span className="font-bold text-slate-900 block">Conversão Proporcional</span>
-                        <p className="text-slate-400">A cada <strong>R$ 50,00 (cinquenta reais)</strong> efetivamente quitados e faturados em compras de produtos na Athena, o cliente acumula automaticamente <strong>1 (um) A-Point</strong>.</p>
+                        <p className="text-slate-700">A cada <strong>R$ 50,00 (cinquenta reais)</strong> efetivamente quitados e faturados em compras de produtos na Athena, o cliente acumula automaticamente <strong>1 (um) A-Point</strong>.</p>
                       </div>
 
-                      <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-200 space-y-1">
+                      <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
                         <span className="font-bold text-slate-900 block">Validade Padrão</span>
-                        <p className="text-slate-400">Os pontos acumulados têm prazo de validade de <strong>12 (doze) meses corridos</strong> contados da data de emissão da Nota Fiscal do faturamento correspondente.</p>
+                        <p className="text-slate-700">Os pontos acumulados têm prazo de validade de <strong>12 (doze) meses corridos</strong> contados da data de emissão da Nota Fiscal do faturamento correspondente.</p>
                       </div>
 
-                      <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-200 space-y-1">
+                      <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
                         <span className="font-bold text-slate-900 block">Intransferibilidade & Sem Valor Monetário</span>
-                        <p className="text-slate-400">Os A-Points são vinculados ao CPF ou CNPJ cadastrado, não podendo ser comercializados, cedidos, penhorados ou convertidos em moeda corrente em nenhuma hipótese.</p>
+                        <p className="text-slate-700">Os A-Points são vinculados ao CPF ou CNPJ cadastrado, não podendo ser comercializados, cedidos, penhorados ou convertidos em moeda corrente em nenhuma hipótese.</p>
                       </div>
 
-                      <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-200 space-y-1">
+                      <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
                         <span className="font-bold text-slate-900 block">Resgate & Logística de Brindes</span>
-                        <p className="text-slate-400">O resgate é realizado no portal do cliente, gerando comprovante formal por e-mail. Os itens são despachados via logística ou integrados ao próximo pedido faturado.</p>
+                        <p className="text-slate-700">O resgate é realizado no portal do cliente, gerando comprovante formal por e-mail. Os itens são despachados via logística ou integrados ao próximo pedido faturado.</p>
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-slate-900/40 border border-slate-200 text-[11px] text-slate-400">
+                    <div className="p-3 rounded-xl bg-slate-100 border border-slate-300 text-[11px] text-slate-800">
                       <strong>Cancelamentos & Estornos:</strong> Havendo cancelamento, devolução ou chargeback de uma compra que gerou pontuação, o montante equivalente de A-Points será debitado proporcionalmente do saldo da conta do cliente.
                     </div>
                   </div>
@@ -509,17 +509,17 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Garantia Fabricação Suporte Assistência CDC 90 dias Fabricante') && (
                 <section className="space-y-3">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">5</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">5</span>
                     Garantia Legal, Assistência Técnica & Suporte de Fábrica
                   </h3>
-                  <div className="space-y-2 text-xs sm:text-sm text-slate-400">
+                  <div className="space-y-2 text-xs sm:text-sm text-slate-700">
                     <p>
                       Todos os produtos contam com a garantia legal de <strong>90 (noventa) dias</strong> prevista no Art. 26 do Código de Defesa do Consumidor (CDC), somada à garantia contratual oferecida diretamente pelas montadoras e fabricantes parceiros (Launch Tech, Mahle, Sun, Ravaglioli, Fortg, Sigma Tools, EAATA Brasil, entre outros).
                     </p>
                     <p>
                       A garantia cobre estritamente vícios de fabricação em componentes mecânicos, hidráulicos ou eletroeletrônicos. Não estão contemplados sinistros provocados por:
                     </p>
-                    <ul className="list-disc list-inside space-y-1 text-xs text-slate-400 pl-2">
+                    <ul className="list-disc list-inside space-y-1 text-xs text-slate-700 pl-2">
                       <li>Instalação elétrica sem aterramento técnico adequado ou com voltagem/fase incompatível;</li>
                       <li>Sobrecarga de tonelagem acima da capacidade nominal homologada do elevador ou rampa;</li>
                       <li>Uso de óleos hidráulicos ou fluidos contaminados ou fora das normas recomendadas pelo manual;</li>
@@ -533,10 +533,10 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Arrependimento Devoluções CDC Artigo 49 Troca') && (
                 <section className="space-y-3">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">6</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">6</span>
                     Direito de Arrependimento & Procedimento de Devoluções (Art. 49 CDC)
                   </h3>
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs sm:text-sm text-slate-400">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs sm:text-sm text-slate-700">
                     <p>
                       Em conformidade com o Art. 49 do CDC, nas contratações realizadas fora do estabelecimento comercial (via catálogo online ou canais digitais), o consumidor pode exercer o direito de arrependimento em até <strong>7 (sete) dias corridos</strong> após o recebimento físico da mercadoria.
                     </p>
@@ -551,10 +551,10 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Propriedade Intelectual Marcas Registradas Direitos Autorais') && (
                 <section className="space-y-3">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">7</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">7</span>
                     Propriedade Intelectual & Marcas Registradas Homologadas
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-400">
+                  <p className="text-xs sm:text-sm text-slate-700">
                     A identidade visual, logotipo da Athena Soluções Automotivas, código-fonte e arquitetura do portal são protegidos pelas leis de propriedade intelectual. As marcas de parceiros citadas no catálogo (tais como LAUNCH, MAHLE, SUN, RAVAGLIOLI, FORTG, SIGMA TOOLS, EAATA) pertencem exclusivamente aos seus respectivos titulares de registro e são reproduzidas com finalidade estritamente informativa de identificação comercial dos produtos distribuídos.
                   </p>
                 </section>
@@ -564,10 +564,10 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Foro Eleição Brasília Distrito Federal') && (
                 <section className="space-y-3">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">8</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">8</span>
                     Foro de Eleição & Disposições Finais
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-400">
+                  <p className="text-xs sm:text-sm text-slate-700">
                     Para dirimir quaisquer controvérsias decorrentes destes Termos e Condições, as partes elegem o Foro da Circunscrição Judiciária de Brasília, Distrito Federal, com renúncia expressa a qualquer outro, por mais privilegiado que seja ou venha a ser.
                   </p>
                 </section>
@@ -586,22 +586,22 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               <div className="border-b border-slate-200 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
-                    <Lock className="w-6 h-6 text-amber-400" />
+                    <Lock className="w-6 h-6 text-amber-700" />
                     Política de Privacidade & Proteção de Dados (LGPD)
                   </h2>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-700 mt-1">
                     Conformidade integral com a Lei Geral de Proteção de Dados Pessoais (Lei Federal nº 13.709/2018).
                   </p>
                 </div>
 
-                <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-400 font-medium">
+                <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-700 font-medium">
                   Segurança: <span className="text-emerald-400 font-bold">Privacy by Design</span>
                 </div>
               </div>
 
               {/* TL;DR Executive Summary Callout */}
               <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs sm:text-sm text-slate-800 space-y-2.5">
-                <div className="flex items-center gap-2 font-black text-amber-400 text-sm">
+                <div className="flex items-center gap-2 font-black text-amber-700 text-sm">
                   <ShieldCheck className="w-4 h-4 shrink-0" />
                   <span>Compromisso Fundamental com a Privacidade dos Nossos Clientes</span>
                 </div>
@@ -614,7 +614,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Bases Legais Quadro Tratamento Dados Cadastrais Fiscais Contato') && (
                 <section className="space-y-4">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">1</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">1</span>
                     Quadro Transparente de Tratamento de Dados & Finalidades Legais
                   </h3>
                   
@@ -622,15 +622,15 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                     
                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-amber-400 text-sm flex items-center gap-1.5">
+                        <span className="font-bold text-amber-700 text-sm flex items-center gap-1.5">
                           <Building2 className="w-4 h-4" />
                           Dados Cadastrais & Fiscais
                         </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
                           Art. 7º, II e V
                         </span>
                       </div>
-                      <p className="text-slate-400">
+                      <p className="text-slate-700">
                         <strong>Coleta:</strong> Razão Social / Nome completo, CNPJ / CPF, Inscrição Estadual (IE).<br/>
                         <strong>Finalidade:</strong> Emissão de Nota Fiscal Eletrônica perante a SEFAZ, apuração tributária no Omie ERP e elaboração de contratos comerciais de distribuição.
                       </p>
@@ -638,15 +638,15 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
 
                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-amber-400 text-sm flex items-center gap-1.5">
+                        <span className="font-bold text-amber-700 text-sm flex items-center gap-1.5">
                           <Mail className="w-4 h-4" />
                           Dados de Contato & Rastreio
                         </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
                           Art. 7º, V e IX
                         </span>
                       </div>
-                      <p className="text-slate-400">
+                      <p className="text-slate-700">
                         <strong>Coleta:</strong> E-mail corporativo/pessoal, telefone celular e WhatsApp comercial.<br/>
                         <strong>Finalidade:</strong> Envio de comprovantes fiscais (DANFE/XML), código de rastreamento de transporte rodoviário, recuperação de acesso seguro e saldo de A-Points.
                       </p>
@@ -654,15 +654,15 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
 
                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-amber-400 text-sm flex items-center gap-1.5">
+                        <span className="font-bold text-amber-700 text-sm flex items-center gap-1.5">
                           <Truck className="w-4 h-4" />
                           Logística & Endereço de Entrega
                         </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20">
                           Art. 7º, V
                         </span>
                       </div>
-                      <p className="text-slate-400">
+                      <p className="text-slate-700">
                         <strong>Coleta:</strong> CEP, logradouro, número, complemento, bairro, cidade, UF e ponto de referência.<br/>
                         <strong>Finalidade:</strong> Cálculo de frete pesado interestadual, emissão de Conhecimento de Transporte Eletrônico (CT-e) e agendamento da entrega no auto center.
                       </p>
@@ -670,7 +670,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
 
                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-amber-400 text-sm flex items-center gap-1.5">
+                        <span className="font-bold text-amber-700 text-sm flex items-center gap-1.5">
                           <CreditCard className="w-4 h-4" />
                           Transações & Cobranças
                         </span>
@@ -678,7 +678,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                           PCI-DSS Nível 1
                         </span>
                       </div>
-                      <p className="text-slate-400">
+                      <p className="text-slate-700">
                         <strong>Operação:</strong> Dados confidenciais de cartão e liquidação são manipulados de forma isolada e tokenizada no gateway Asaas.<br/>
                         <strong>Garantia de Segurança:</strong> <em>A Athena nunca visualiza nem armazena números de cartões de crédito em seus servidores.</em>
                       </p>
@@ -692,10 +692,10 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Compartilhamento Terceiros Omie Asaas Transportadoras Microsoft Clarity') && (
                 <section className="space-y-3">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">2</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">2</span>
                     Compartilhamento Seguro com Operadores Homologados
                   </h3>
-                  <div className="space-y-2 text-xs sm:text-sm text-slate-400">
+                  <div className="space-y-2 text-xs sm:text-sm text-slate-700">
                     <p>
                       O compartilhamento de dados ocorre unicamente com parceiros estritamente necessários para a prestação do serviço e cumprimento regulatório:
                     </p>
@@ -721,40 +721,40 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {matchesSearch('Direitos Titular Artigo 18 LGPD Acesso Correção Anonimização Eliminação') && (
                 <section className="space-y-4">
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">3</span>
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">3</span>
                     Seus Direitos Fundamentais como Titular de Dados (Art. 18 da LGPD)
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-400">
+                  <p className="text-xs sm:text-sm text-slate-700">
                     Você possui total autonomia sobre as suas informações pessoais. Mediante requerimento formal à nossa equipe de privacidade, você pode exercer gratuitamente:
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
-                    <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-200 flex items-center gap-2.5">
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center gap-2.5 text-slate-800 font-semibold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>Confirmação da existência de tratamento</span>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-200 flex items-center gap-2.5">
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center gap-2.5 text-slate-800 font-semibold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>Acesso simplificado aos seus dados cadastrados</span>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-200 flex items-center gap-2.5">
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center gap-2.5 text-slate-800 font-semibold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>Correção de dados incompletos ou inexatos</span>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-200 flex items-center gap-2.5">
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center gap-2.5 text-slate-800 font-semibold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>Anonimização, bloqueio ou eliminação de excessos</span>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-200 flex items-center gap-2.5">
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center gap-2.5 text-slate-800 font-semibold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>Portabilidade dos dados a outro fornecedor</span>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-200 flex items-center gap-2.5">
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center gap-2.5 text-slate-800 font-semibold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <span>Revogação a qualquer momento do consentimento</span>
                     </div>
@@ -765,10 +765,10 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {/* 4. Canal do DPO (Encarregado de Proteção de Dados) */}
               {matchesSearch('DPO Encarregado Proteção Dados Canal Contato E-mail WhatsApp') && (
                 <section className="space-y-4 pt-2">
-                  <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 border border-amber-500/30 text-xs sm:text-sm space-y-4 shadow-xl">
+                  <div className="p-6 rounded-3xl bg-white border-2 border-amber-300 rounded-3xl text-xs sm:text-sm space-y-4 shadow-sm">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2.5 font-black text-amber-400 text-sm">
-                        <UserCheck className="w-5 h-5 text-amber-400" />
+                      <div className="flex items-center gap-2.5 font-black text-amber-700 text-sm">
+                        <UserCheck className="w-5 h-5 text-amber-700" />
                         <span>Encarregado de Proteção de Dados (DPO) & Canal de Atendimento</span>
                       </div>
                       <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -786,12 +786,12 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                         className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-amber-500/50 transition-all flex items-center justify-between group"
                       >
                         <div className="space-y-0.5">
-                          <span className="text-slate-400 text-[10px] uppercase font-bold block">E-mail do DPO</span>
-                          <span className="text-amber-400 font-mono text-xs font-bold group-hover:underline">
+                          <span className="text-slate-700 text-[10px] uppercase font-bold block">E-mail do DPO</span>
+                          <span className="text-amber-700 font-mono text-xs font-bold group-hover:underline">
                             contato@athenaconsultoria.com.br
                           </span>
                         </div>
-                        <Mail className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors" />
+                        <Mail className="w-4 h-4 text-slate-700 group-hover:text-amber-700 transition-colors" />
                       </a>
 
                       <a 
@@ -801,12 +801,12 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                         className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 hover:border-emerald-500/50 transition-all flex items-center justify-between group"
                       >
                         <div className="space-y-0.5">
-                          <span className="text-slate-400 text-[10px] uppercase font-bold block">WhatsApp Oficial</span>
+                          <span className="text-slate-700 text-[10px] uppercase font-bold block">WhatsApp Oficial</span>
                           <span className="text-emerald-400 font-bold text-xs group-hover:underline">
                             (61) 98348-5671
                           </span>
                         </div>
-                        <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition-colors" />
+                        <ExternalLink className="w-4 h-4 text-slate-700 group-hover:text-emerald-400 transition-colors" />
                       </a>
                     </div>
                   </div>
@@ -826,10 +826,10 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               <div className="border-b border-slate-200 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
-                    <Cookie className="w-6 h-6 text-amber-400" />
+                    <Cookie className="w-6 h-6 text-amber-700" />
                     Diretrizes de Cookies & Gerenciador Ativo
                   </h2>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-slate-700 mt-1">
                     Controle em tempo real os cookies utilizados para autenticação, desempenho de catálogo e telemetria anônima.
                   </p>
                 </div>
@@ -852,7 +852,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                     </div>
                     <div>
                       <h3 className="text-sm font-black text-slate-900">Central de Consentimento de Cookies</h3>
-                      <p className="text-[11px] text-slate-600">Ajuste suas permissões diretamente abaixo e aplique instantaneamente.</p>
+                      <p className="text-[11px] text-slate-700">Ajuste suas permissões diretamente abaixo e aplique instantaneamente.</p>
                     </div>
                   </div>
 
@@ -884,7 +884,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                           Obrigatório
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed">
+                      <p className="text-xs text-slate-700 leading-relaxed">
                         Essenciais para manter sua sessão conectada com segurança, salvar itens adicionados ao carrinho de ferramentas e maquinário e proteger solicitações contra ataques CSRF.
                       </p>
                     </div>
@@ -905,7 +905,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                           Opcional
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed">
+                      <p className="text-xs text-slate-700 leading-relaxed">
                         Memorizam filtros de busca por fabricante (Launch, Mahle, Sigma Tools, etc.), ordenação do catálogo por menor preço e preferências do painel para navegação rápida.
                       </p>
                     </div>
@@ -937,7 +937,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                           Opcional
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed">
+                      <p className="text-xs text-slate-700 leading-relaxed">
                         Mapeiam cliques e páginas com lentidão para aprimorar a usabilidade da loja. <em>Não gravam nem transmitem dados bancários, documentos ou senhas (mascaramento estrito de formulário).</em>
                       </p>
                     </div>
@@ -977,7 +977,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {/* Tabela Técnica Detalhada de Cookies */}
               <div className="space-y-3 pt-2">
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">2</span>
+                  <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">2</span>
                   Inventário Técnico de Cookies Utilizados
                 </h3>
                 
@@ -992,7 +992,7 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
                         <th className="p-3.5">Finalidade</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-600">
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
                       <tr>
                         <td className="p-3.5 font-mono text-amber-700 font-bold">athena_cookie_consent_v1</td>
                         <td className="p-3.5 text-slate-700">Athena</td>
@@ -1036,32 +1036,32 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
               {/* Guia para Gerenciamento no Navegador */}
               <div className="space-y-3 pt-2">
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-xs font-black">3</span>
+                  <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-700 flex items-center justify-center text-xs font-black">3</span>
                   Como Desativar ou Bloquear Cookies no seu Navegador
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-600">
+                <p className="text-xs sm:text-sm text-slate-700">
                   Caso deseje desativar cookies diretamente no seu navegador, siga o caminho de configurações correspondente:
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                     <span className="font-bold text-slate-900 block">Google Chrome</span>
-                    <p className="text-slate-600 text-[11px]">Configurações ➔ Privacidade e Segurança ➔ Cookies de terceiros.</p>
+                    <p className="text-slate-700 text-[11px]">Configurações ➔ Privacidade e Segurança ➔ Cookies de terceiros.</p>
                   </div>
 
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                     <span className="font-bold text-slate-900 block">Microsoft Edge</span>
-                    <p className="text-slate-600 text-[11px]">Configurações ➔ Cookies e permissões de site ➔ Gerenciar cookies.</p>
+                    <p className="text-slate-700 text-[11px]">Configurações ➔ Cookies e permissões de site ➔ Gerenciar cookies.</p>
                   </div>
 
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                     <span className="font-bold text-slate-900 block">Mozilla Firefox</span>
-                    <p className="text-slate-600 text-[11px]">Configurações ➔ Privacidade e Segurança ➔ Cookies e dados de sites.</p>
+                    <p className="text-slate-700 text-[11px]">Configurações ➔ Privacidade e Segurança ➔ Cookies e dados de sites.</p>
                   </div>
 
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                     <span className="font-bold text-slate-900 block">Apple Safari</span>
-                    <p className="text-slate-600 text-[11px]">Ajustes / Preferências ➔ Privacidade ➔ Bloquear todos os cookies.</p>
+                    <p className="text-slate-700 text-[11px]">Ajustes / Preferências ➔ Privacidade ➔ Bloquear todos os cookies.</p>
                   </div>
                 </div>
               </div>
@@ -1072,14 +1072,14 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
         </div>
 
         {/* Footer Support Banner */}
-        <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+        <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 shrink-0">
               <Scale className="w-5 h-5" />
             </div>
             <div>
               <span className="font-bold text-slate-900 block text-sm">Dúvidas Jurídicas ou Comerciais?</span>
-              <span className="text-slate-600">Nossa assessoria técnica e jurídica está à disposição de sua empresa.</span>
+              <span className="text-slate-700">Nossa assessoria técnica e jurídica está à disposição de sua empresa.</span>
             </div>
           </div>
 
