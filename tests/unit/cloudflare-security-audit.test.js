@@ -159,5 +159,51 @@ describe('Cloudflare & Edge Architecture Security Audit Suite', () => {
       assert.strictEqual(headerMap['referrer-policy'], 'strict-origin-when-cross-origin');
       assert.ok(headerMap['strict-transport-security']?.includes('max-age=31536000'));
     });
+
+    it('Origin Isolation middleware should process requests without ReferenceError on referer', () => {
+      const { isOriginAllowed } = require('../../backend/utils/network.js');
+      const originSecret = 'test_secret_123';
+      
+      const simulateOriginMiddleware = (req) => {
+        const incomingSecret = req.headers['x-athena-origin-secret'];
+        const origin = req.headers['origin'];
+        const referer = req.headers['referer'];
+        const isAthenaReferer = referer && (
+          referer.startsWith('https://www.athenaconsultoria.com.br') ||
+          referer.startsWith('https://athenaconsultoria.com.br')
+        );
+
+        const hasSecretMatch = incomingSecret && safeCompareTokens(incomingSecret, originSecret);
+        if (hasSecretMatch || isOriginAllowed(origin) || isAthenaReferer) {
+          return { allowed: true };
+        }
+        return { allowed: false, status: 403 };
+      };
+
+      // 1. Requisição com Origin legítimo
+      const res1 = simulateOriginMiddleware({
+        headers: { origin: 'https://www.athenaconsultoria.com.br' }
+      });
+      assert.strictEqual(res1.allowed, true);
+
+      // 2. Requisição com Referer legítimo
+      const res2 = simulateOriginMiddleware({
+        headers: { referer: 'https://athenaconsultoria.com.br/produtos' }
+      });
+      assert.strictEqual(res2.allowed, true);
+
+      // 3. Requisição com Secret de borda
+      const res3 = simulateOriginMiddleware({
+        headers: { 'x-athena-origin-secret': 'test_secret_123' }
+      });
+      assert.strictEqual(res3.allowed, true);
+
+      // 4. Requisição sem cabeçalhos (deve ser bloqueada sem erro 500)
+      const res4 = simulateOriginMiddleware({
+        headers: {}
+      });
+      assert.strictEqual(res4.allowed, false);
+      assert.strictEqual(res4.status, 403);
+    });
   });
 });

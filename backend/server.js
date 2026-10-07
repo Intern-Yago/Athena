@@ -505,6 +505,7 @@ if (ATHENA_ORIGIN_SECRET) {
 
     const incomingSecret = req.headers['x-athena-origin-secret'];
     const origin = req.headers['origin'];
+    const referer = req.headers['referer'];
     const isAthenaReferer = referer && (
       referer.startsWith('https://www.athenaconsultoria.com.br') ||
       referer.startsWith('https://athenaconsultoria.com.br')
