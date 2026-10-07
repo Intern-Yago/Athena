@@ -27,6 +27,10 @@ const {
 } = require('./services/hermesProductService');
 const { processOmieProductWebhook } = require('./services/omieWebhookService');
 const { syncProductToOmie, extractSkuFromTitle } = require('./services/omieProductSyncService');
+const opsRoutes = require('./routes/opsRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
+const opsAdminRoutes = require('./routes/opsAdminRoutes');
+const customerOrderRoutes = require('./routes/customerOrderRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -963,6 +967,15 @@ app.get('/api/openapi.json', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.json(swaggerDocument);
 });
+
+// =============================================================
+// ATHENA OS v2.1 — OPERATIONS, WEBHOOKS & LOGISTICS ROUTERS
+// =============================================================
+app.use('/api/internal/ops', opsRoutes);
+app.use('/api/webhooks', webhookRoutes);
+app.use('/api/admin/fulfillment', authenticateToken, requireStaff, opsAdminRoutes);
+app.use('/api/admin/activations', authenticateToken, requireStaff, opsAdminRoutes);
+app.use('/api/customer/orders-v2', authenticateToken, customerOrderRoutes);
 
 // -------------------------------------------------------------
 // POSTGRESQL POOL SETUP & USERS TABLE (IPV4 COMPLIANT POOLER)
@@ -5428,78 +5441,9 @@ app.get('/api/payments/charge/:id/status', async (req, res) => {
   }
 });
 
-// 3. Asaas Webhook Endpoint
-app.post('/api/payments/webhook', async (req, res) => {
-  try {
-    const asaasToken = req.headers['asaas-access-token'];
-    if (ASAAS_WEBHOOK_SECRET) {
-      if (!asaasToken || asaasToken !== ASAAS_WEBHOOK_SECRET) {
-        logSecurityEvent({
-          event: 'WEBHOOK_UNAUTHORIZED',
-          ip: getClientIp(req),
-          userAgent: req.headers['user-agent'],
-          outcome: 'BLOCKED',
-          reason: 'Tentativa de disparo no webhook Asaas com token ausente ou inválido'
-        });
-        return res.status(401).json({ error: 'Webhook token ausente ou inválido.' });
-      }
-    }
-
-    const { event, payment } = req.body;
-    console.log(`[Asaas Webhook] Evento: ${event} | Pagamento: ${payment?.id} | Status: ${payment?.status}`);
-
-    if (payment && payment.externalReference) {
-      const orderId = payment.externalReference;
-      let newStatus = 'em_analise';
-
-      if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
-        newStatus = 'faturado';
-
-        // Automatically credit A-Points for this confirmed order
-        let orderForPoints = null;
-        if (pool) {
-          try {
-            const oRes = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
-            if (oRes.rows.length > 0) orderForPoints = oRes.rows[0];
-          } catch (e) {}
-        }
-        if (!orderForPoints) {
-          const dbCheck = readDbJson();
-          orderForPoints = (dbCheck.orders || []).find(o => o.id === orderId);
-        }
-        if (orderForPoints) {
-          await creditCustomerAPoints({
-            orderId,
-            orderTotal: orderForPoints.total_amount || orderForPoints.totalAmount || payment.value || 0,
-            customerEmail: orderForPoints.user_email || orderForPoints.userEmail || '',
-            customerName: orderForPoints.user_name || orderForPoints.userName || '',
-            customerCpfCnpj: orderForPoints.customer_document || '',
-            source: 'site_asaas'
-          });
-        }
-      } else if (event === 'PAYMENT_OVERDUE') {
-        newStatus = 'expirado';
-      }
-
-      if (pool) {
-        try {
-          await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2', [newStatus, orderId]);
-        } catch (e) {}
-      }
-
-      const db = readDbJson();
-      const oIdx = (db.orders || []).findIndex(o => o.id === orderId);
-      if (oIdx !== -1) {
-        db.orders[oIdx].status = newStatus;
-        writeDbJson(db);
-      }
-    }
-
-    return res.json({ received: true });
-  } catch (err) {
-    console.error('Erro no processamento de webhook Asaas:', err);
-    return res.status(500).json({ error: 'Erro no webhook.' });
-  }
+// 3. Asaas Webhook Endpoint (Delegado para o processador resiliente do Athena OS v2.1)
+app.post('/api/payments/webhook', (req, res) => {
+  return webhookRoutes.handleAsaasWebhook(req, res);
 });
 
 // -------------------------------------------------------------

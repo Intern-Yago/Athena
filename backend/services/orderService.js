@@ -252,7 +252,19 @@ async function createOrder({
  * 4. Roteia itens fisicos para Shipment ('pending') e digitais para Ativacao ('awaiting_activation')
  * 5. Registra evento na Timeline
  */
-async function confirmPayment(orderId, paymentMetadata = {}) {
+async function confirmPayment(orderIdOrParams, paymentMetadata = {}) {
+  let orderId = orderIdOrParams;
+  let paymentMeta = paymentMetadata;
+  if (orderIdOrParams && typeof orderIdOrParams === 'object') {
+    orderId = orderIdOrParams.orderId;
+    paymentMeta = {
+      paymentId: orderIdOrParams.asaasPaymentId || orderIdOrParams.paymentId,
+      paidAmount: orderIdOrParams.paidAmount,
+      paymentMethod: orderIdOrParams.paymentMethod,
+      ...orderIdOrParams
+    };
+  }
+
   if (!orderId) throw new Error('orderId é obrigatório para confirmar pagamento.');
 
   return await withTransaction(async (client) => {
@@ -282,7 +294,7 @@ async function confirmPayment(orderId, paymentMetadata = {}) {
       SET payment_status = 'paid', status = 'processing', paid_at = NOW(),
           asaas_payment_id = COALESCE($1, asaas_payment_id), updated_at = NOW()
       WHERE id = $2
-    `, [paymentMetadata.paymentId || null, order.id]);
+    `, [paymentMeta.paymentId || null, order.id]);
 
     // 3. Consolida as reservas de estoque (baixa contabil definitiva)
     await confirmReservation(order.id);

@@ -222,7 +222,7 @@ async function dispatchShipment({
     ]);
 
     console.log(`[SHIPMENT DISPATCHED] Remessa #${shipmentId} despachada via ${carrier} (${trackingCode})`);
-    return { success: true, status: 'shipped', trackingCode };
+    return { success: true, status: 'shipped', trackingCode, tracking_code: trackingCode };
   });
 }
 

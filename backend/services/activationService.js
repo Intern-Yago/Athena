@@ -103,6 +103,8 @@ async function recordContactAttempt({
     return {
       success: true,
       attemptId: attemptRes.rows[0].id,
+      method,
+      result,
       status: 'contacted'
     };
   });
@@ -143,10 +145,16 @@ async function completeActivation({
   activationId,
   licenseKey = null,
   technicianId,
+  staffId,
   technicianName = 'Suporte Técnico',
-  notes = null
+  staffName,
+  notes = null,
+  note = null
 }) {
-  if (!activationId || !technicianId) throw new Error('activationId e technicianId são obrigatórios.');
+  const techId = technicianId || staffId;
+  const techName = staffName || technicianName || 'Suporte Técnico';
+  const finalNotes = notes || note || null;
+  if (!activationId || !techId) throw new Error('activationId e technicianId são obrigatórios.');
 
   return await withTransaction(async (client) => {
     // 1. Marca ativacao como concluida
@@ -159,7 +167,7 @@ async function completeActivation({
           notes = COALESCE($3, notes)
       WHERE id = $4
       RETURNING id, order_id, order_item_id, software_name
-    `, [licenseKey, technicianId, notes, activationId]);
+    `, [licenseKey, techId, finalNotes, activationId]);
 
     if (actRes.rows.length === 0) throw new Error(`Ativação ${activationId} não encontrada.`);
     const act = actRes.rows[0];
@@ -195,7 +203,7 @@ async function completeActivation({
     ]);
 
     console.log(`[ACTIVATION COMPLETED] Licença #${act.software_name} ativada com sucesso por ${technicianName}`);
-    return { success: true, status: 'activated', softwareName: act.software_name };
+    return { success: true, status: 'activated', softwareName: act.software_name, license_key: licenseKey };
   });
 }
 
@@ -231,8 +239,10 @@ async function getActivationsByOrder(orderId) {
 
 module.exports = {
   createActivationQueues,
+  createInitialActivation: createActivationQueues,
   recordContactAttempt,
   startActivating,
+  startRemoteSession: startActivating,
   completeActivation,
   getActivationsByOrder
 };
