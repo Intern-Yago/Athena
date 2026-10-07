@@ -403,10 +403,12 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Anti-Fingerprinting & Server Obfuscation (Prevents OSINT & Port Banner Grabbing: Nmap, Shodan, WhatWeb)
+// Active Cyber Deception & Technology Camouflage (MITRE D3FEND Decoy Pattern / OWASP A05:2021)
 app.use((req, res, next) => {
-  res.removeHeader('X-Powered-By');
-  res.setHeader('Server', 'Athena-Gateway');
+  res.setHeader('X-Powered-By', 'PHP/8.3.14');
+  res.setHeader('Server', 'Apache/2.4.58 (Ubuntu)');
+  res.setHeader('X-Pingback', 'https://www.athenaconsultoria.com.br/xmlrpc.php');
+  res.setHeader('Link', '<https://www.athenaconsultoria.com.br/wp-json/>; rel="https://api.w.org/"');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -498,8 +500,8 @@ function isOriginAllowed(origin) {
   if (!origin) return false;
   return ALLOWED_CORS_ORIGINS.includes(origin) ||
     /^https?:\/\/(.*\.)?athenaconsultoria\.com\.br(:\d+)?$/.test(origin) ||
-    /^https?:\/\/(.*\.)?onrender\.com(:\d+)?$/.test(origin) ||
-    /^https?:\/\/(.*\.)?vercel\.app(:\d+)?$/.test(origin) ||
+    /^https?:\/\/athena-[a-zA-Z0-9-]+\.onrender\.com(:\d+)?$/.test(origin) ||
+    /^https?:\/\/athena-[a-zA-Z0-9-]+\.vercel\.app(:\d+)?$/.test(origin) ||
     /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
     /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
 }
@@ -654,16 +656,251 @@ app.get('/api/health', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// HONEYPOT TRAP SYSTEM FOR BOT & SCANNER MITIGATION (OWASP A05:2021)
+// SITEMAP ROUTE FOR SEARCH ENGINES & CRAWLERS (/sitemap.xml)
 // -------------------------------------------------------------
+app.get('/sitemap.xml', (req, res) => {
+  const sitemapPath = path.join(__dirname, '..', 'public', 'sitemap.xml');
+  if (fs.existsSync(sitemapPath)) {
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    return res.sendFile(sitemapPath);
+  }
+  return res.status(404).send('Sitemap not found');
+});
+
+// -------------------------------------------------------------
+// ACTIVE CYBER DECEPTION & HONEYPOT TRAP SYSTEM (OWASP A05:2021 & MITRE D3FEND)
+// -------------------------------------------------------------
+function renderWpLoginHtml(attemptedUser = '', errorMessage = '') {
+  const safeUser = String(attemptedUser || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <title>Acessar &lsaquo; Athena Soluções Automotivas &mdash; WordPress</title>
+  <meta name='robots' content='max-image-preview:large, noindex, noarchive' />
+  <style>
+    body.login { background: #f0f0f1; color: #3c434a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; font-size: 13px; line-height: 1.4em; min-height: 100vh; margin: 0; display: flex; align-items: center; justify-content: center; }
+    #login { width: 320px; padding: 20px; }
+    .login h1 { text-align: center; margin-bottom: 24px; }
+    .login h1 a { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="%232271b1"/><path fill="%23fff" d="M11 50a39 39 0 0 0 63 31L42 21A39 39 0 0 0 11 50zm73 9A39 39 0 0 0 68 14l20 54zM50 11a39 39 0 0 0-21 6l28 72 13-39c2-6 3-11 3-15 0-9-7-14-15-14zm-14 36c2 0 3-2 3-5 0-2-1-3-3-3-2 0-3 1-3 3s1 5 3 5z"/></svg>'); background-size: 84px 84px; background-position: center top; background-repeat: no-repeat; color: transparent; height: 84px; width: 84px; text-decoration: none; display: inline-block; }
+    .login form { background: #fff; border: 1px solid #c3c4c7; box-shadow: 0 1px 3px rgba(0,0,0,.04); padding: 26px 24px 34px; border-radius: 4px; }
+    .login label { font-size: 14px; line-height: 1.5; color: #3c434a; margin-bottom: 3px; display: block; }
+    .login .input { font-size: 15px; width: 100%; padding: 6px 10px; margin: 2px 0 16px; border: 1px solid #8c8f94; border-radius: 4px; box-sizing: border-box; outline: 0; }
+    .login .input:focus { border-color: #2271b1; box-shadow: 0 0 0 1px #2271b1; }
+    .login .button-primary { background: #2271b1; border-color: #2271b1; color: #fff; padding: 0 14px; font-size: 13px; font-weight: 500; min-height: 34px; border-radius: 3px; cursor: pointer; float: right; border-width: 1px; border-style: solid; }
+    .login .button-primary:hover { background: #135e96; border-color: #135e96; }
+    #login_error { border-left: 4px solid #d63638; background: #fff; box-shadow: 0 1px 1px 0 rgba(0,0,0,.04); margin-bottom: 20px; padding: 12px; font-size: 13px; line-height: 1.5; border-radius: 2px; }
+    .login #backtoblog, .login #nav { font-size: 13px; padding: 0 24px; margin: 16px 0 0; text-align: left; }
+    .login #backtoblog a, .login #nav a { color: #50575e; text-decoration: none; }
+    .login #backtoblog a:hover, .login #nav a:hover { color: #135e96; }
+    .forgetmenot { float: left; font-weight: 400; font-size: 12px; margin-top: 4px; }
+    .forgetmenot input { margin-right: 4px; }
+  </style>
+</head>
+<body class="login js login-action-login wp-core-ui">
+  <div id="login">
+    <h1><a href="https://wordpress.org/">Powered by WordPress</a></h1>
+    ${errorMessage ? `<div id="login_error">${errorMessage}</div>` : ''}
+    <form name="loginform" id="loginform" action="/wp-login.php" method="post">
+      <p>
+        <label for="user_login">Nome de usuário ou endereço de e-mail</label>
+        <input type="text" name="log" id="user_login" class="input" value="${safeUser}" size="20" autocapitalize="off" autocomplete="username" required />
+      </p>
+      <p>
+        <label for="user_pass">Senha</label>
+        <input type="password" name="pwd" id="user_pass" class="input" value="" size="20" autocomplete="current-password" required />
+      </p>
+      <p class="forgetmenot"><label for="rememberme"><input name="rememberme" type="checkbox" id="rememberme" value="forever" /> Lembrar-me</label></p>
+      <p class="submit">
+        <input type="submit" name="wp-submit" id="wp-submit" class="button button-primary button-large" value="Acessar" />
+      </p>
+    </form>
+    <p id="nav"><a href="/wp-login.php?action=lostpassword">Perdeu a senha?</a></p>
+    <p id="backtoblog"><a href="/">&larr; Ir para Athena Soluções Automotivas</a></p>
+  </div>
+</body>
+</html>`;
+}
+
+// 1. WordPress REST API Decoy (/wp-json/ e sub-rotas)
+app.get(['/wp-json', '/wp-json/'], (req, res) => {
+  return res.json({
+    name: 'Athena Soluções Automotivas',
+    description: 'Catálogo de Equipamentos Automotivos e Ferramentas Profissionais',
+    url: 'https://www.athenaconsultoria.com.br',
+    home: 'https://www.athenaconsultoria.com.br',
+    namespaces: ['oembed/1.0', 'wp/v2'],
+    authentication: {},
+    routes: {
+      '/': { namespace: '', methods: ['GET'] },
+      '/wp/v2': { namespace: 'wp/v2', methods: ['GET'] },
+      '/oembed/1.0': { namespace: 'oembed/1.0', methods: ['GET'] }
+    }
+  });
+});
+
+app.get('/wp-json/wp/v2/users', async (req, res) => {
+  const clientIp = getClientIp(req);
+  const userAgent = req.headers['user-agent'] || 'Desconhecido';
+  
+  // Tarpit anti-scanner (1.5s delay)
+  await new Promise(r => setTimeout(r, 1500));
+  
+  logSecurityEvent({
+    event: 'HONEYPOT_USER_ENUMERATION_ATTEMPT',
+    ip: clientIp,
+    userAgent,
+    outcome: 'BLOCKED',
+    reason: 'Scanner tentou enumeração de usuários WordPress via /wp-json/wp/v2/users'
+  });
+
+  ipSecurityTracker.set(clientIp, { failedAttempts: 99, isBlocked: true, blockedAt: new Date() });
+  sendHoneypotAlertEmail(clientIp, '/wp-json/wp/v2/users [USER ENUMERATION]', userAgent);
+
+  return res.status(401).json({
+    code: 'rest_cannot_access',
+    message: 'Somente usuários autenticados possuem permissão para listar usuários.',
+    data: { status: 401 }
+  });
+});
+
+// 2. Windows Live Writer Decoy (/wp-includes/wlwmanifest.xml)
+app.get('/wp-includes/wlwmanifest.xml', (req, res) => {
+  res.setHeader('Content-Type', 'text/xml; charset=utf-8');
+  return res.send(`<?xml version="1.0" encoding="utf-8" ?>
+<manifest xmlns="http://schemas.microsoft.com/wlw/manifest/weblog">
+  <weblog>
+    <serviceName>WordPress</serviceName>
+    <homepageLinkText>Ver site</homepageLinkText>
+    <adminLinkText>Painel de administração</adminLinkText>
+    <adminUrl>https://www.athenaconsultoria.com.br/wp-admin/</adminUrl>
+    <postEditingUrl>https://www.athenaconsultoria.com.br/wp-admin/post.php</postEditingUrl>
+  </weblog>
+</manifest>`);
+});
+
+// 3. XML-RPC Decoy (/xmlrpc.php)
+app.get('/xmlrpc.php', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  return res.send('XML-RPC server accepts POST requests only.');
+});
+
+app.post('/xmlrpc.php', async (req, res) => {
+  const clientIp = getClientIp(req);
+  const userAgent = req.headers['user-agent'] || 'Desconhecido';
+
+  // Tarpit anti-brute-force (2.5s delay)
+  await new Promise(r => setTimeout(r, 2500));
+
+  logSecurityEvent({
+    event: 'HONEYPOT_XMLRPC_ATTACK',
+    ip: clientIp,
+    userAgent,
+    outcome: 'BLOCKED',
+    reason: 'Ataque ou probe contra XML-RPC WordPress interceptado pelo Honeypot'
+  });
+
+  ipSecurityTracker.set(clientIp, { failedAttempts: 99, isBlocked: true, blockedAt: new Date() });
+  sendHoneypotAlertEmail(clientIp, '/xmlrpc.php [XML-RPC PROBE/ATTACK]', userAgent);
+
+  res.setHeader('Content-Type', 'text/xml; charset=utf-8');
+  return res.status(405).send(`<?xml version="1.0"?>
+<methodResponse>
+  <fault>
+    <value>
+      <struct>
+        <member>
+          <name>faultCode</name>
+          <value><int>405</int></value>
+        </member>
+        <member>
+          <name>faultString</name>
+          <value><string>XML-RPC server accepts POST requests only.</string></value>
+        </member>
+      </struct>
+    </value>
+  </fault>
+</methodResponse>`);
+});
+
+// 4. WordPress Interactive Login Honeypot (/wp-login.php, /wp-admin, /wp-admin/)
+app.get(['/wp-login.php', '/wp-admin', '/wp-admin/'], (req, res) => {
+  const clientIp = getClientIp(req);
+  const userAgent = req.headers['user-agent'] || 'Desconhecido';
+
+  logSecurityEvent({
+    event: 'HONEYPOT_WP_LOGIN_PROBE',
+    ip: clientIp,
+    userAgent,
+    outcome: 'MONITORED',
+    reason: `Scanner acessou página de login simulada do WordPress: ${req.originalUrl}`
+  });
+
+  sendHoneypotAlertEmail(clientIp, req.originalUrl, userAgent);
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(renderWpLoginHtml());
+});
+
+app.post(['/wp-login.php', '/wp-admin', '/wp-admin/'], async (req, res) => {
+  const clientIp = getClientIp(req);
+  const userAgent = req.headers['user-agent'] || 'Desconhecido';
+  const attemptedUser = req.body.log || req.body.username || req.body.user || '';
+  const attemptedPwd = req.body.pwd || req.body.password || '';
+
+  // Tarpit defensivo ativo: retarda ataques automatizados de força bruta por 2.5 segundos
+  await new Promise(r => setTimeout(r, 2500));
+
+  logSecurityEvent({
+    event: 'HONEYPOT_WP_LOGIN_ATTEMPT',
+    ip: clientIp,
+    userAgent,
+    outcome: 'BLOCKED',
+    reason: `Tentativa de login capturada no WordPress Decoy: usuário "${attemptedUser}"`,
+    details: { attemptedUser, attemptedPwd: attemptedPwd ? '***' : '(vazio)' }
+  });
+
+  // Bloqueio no tracker de memória
+  ipSecurityTracker.set(clientIp, { failedAttempts: 99, isBlocked: true, blockedAt: new Date() });
+
+  // Bloqueio permanente no PostgreSQL se não for tráfego local
+  if (pool && !isInfrastructureOrPrivateIp(clientIp)) {
+    try {
+      await pool.query(`
+        INSERT INTO security_ip_blocklist (ip, failed_attempts, is_blocked, blocked_at, blocked_reason, updated_at)
+        VALUES ($1, 99, true, CURRENT_TIMESTAMP, $2, CURRENT_TIMESTAMP)
+        ON CONFLICT (ip) DO UPDATE SET 
+          failed_attempts = 99,
+          is_blocked = true,
+          blocked_at = CURRENT_TIMESTAMP,
+          blocked_reason = $2,
+          updated_at = CURRENT_TIMESTAMP
+      `, [clientIp, `Honeypot WP-Login: tentou usuário "${attemptedUser}"`]);
+    } catch (e) {
+      console.warn('[Honeypot DB Block] Erro ao gravar IP no blocklist:', e.message);
+    }
+  }
+
+  // Notificação com as credenciais testadas
+  sendHoneypotAlertEmail(clientIp, '/wp-login.php [CREDS HARVESTED]', userAgent, {
+    user: attemptedUser,
+    password: attemptedPwd
+  });
+
+  // Resposta idêntica ao WordPress autêntico (simulando falha de autenticação legítima)
+  const safeUser = String(attemptedUser || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const errorMsg = `<strong>Erro:</strong> O nome de usuário <strong>${safeUser || 'informado'}</strong> não está registrado neste site. Se você não tem certeza do seu nome de usuário, tente seu endereço de e-mail.<br>`;
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.status(200).send(renderWpLoginHtml(attemptedUser, errorMsg));
+});
+
+// 5. Outras rotas críticas de exploração (scanner genérico, .env, .git, etc.)
 const HONEYPOT_PATHS = [
   '/.env',
   '/.git',
   '/.git/config',
   '/.aws/credentials',
-  '/wp-login.php',
-  '/wp-admin',
-  '/xmlrpc.php',
   '/phpmyadmin',
   '/pma',
   '/admin.php',
@@ -689,17 +926,14 @@ app.use((req, res, next) => {
       reason: `Bot tentou explorar rota-armadilha: ${req.originalUrl}`
     });
 
-    // Registra IP em quarentena no tracker em memória
     ipSecurityTracker.set(clientIp, {
       failedAttempts: 99,
       isBlocked: true,
       blockedAt: new Date()
     });
 
-    // Envia alerta assíncrono para o administrador com proteção anti-flood (cooldown 1h)
     sendHoneypotAlertEmail(clientIp, req.originalUrl, userAgent);
 
-    // Resposta 404 neutra
     return res.status(404).send('Not Found');
   }
 
@@ -1161,41 +1395,25 @@ async function initDb() {
           UPDATE brands SET logo = 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/marcas/sigma-tools-7ceda13e30aa.webp' WHERE (id = 'brand_sigmatools' OR slug = 'sigma-tools') AND (logo LIKE '%unsplash%' OR logo = '' OR logo IS NULL);
         `);
       }
+      // Ensure automatic updated_at trigger on products table for dynamic catalog versioning
+      try {
+        await pool.query(`
+          CREATE OR REPLACE FUNCTION set_updated_at_timestamp()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            NEW.updated_at = NOW();
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql;
 
-      const prodCheck = await pool.query('SELECT COUNT(*) FROM products');
-      if (parseInt(prodCheck.rows[0].count, 10) === 0 && fs.existsSync(DB_PATH)) {
-        try {
-          const dbData = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-          if (dbData.products && Array.isArray(dbData.products) && dbData.products.length > 0) {
-            for (const prod of dbData.products) {
-              await pool.query(`
-                INSERT INTO products (id, name, slug, category_id, brand_id, price, price_negotiable, badge, status, image, alt_text, description, specs, attachments, in_stock)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-                ON CONFLICT (id) DO UPDATE SET 
-                  name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6, price_negotiable=$7, badge=$8, status=$9, image=$10, alt_text=$11, description=$12, specs=$13, attachments=$14, in_stock=$15
-              `, [
-                prod.id,
-                prod.name,
-                prod.slug || '',
-                prod.categoryId,
-                prod.brandId,
-                prod.price || 0,
-                prod.priceNegotiable !== undefined ? prod.priceNegotiable : true,
-                prod.badge || '',
-                prod.status || 'published',
-                prod.image || '',
-                prod.altText || '',
-                prod.description || '',
-                JSON.stringify(prod.specs || []),
-                JSON.stringify(prod.attachments || []),
-                prod.inStock !== undefined ? prod.inStock : true
-              ]);
-            }
-            console.log(`Seeded ${dbData.products.length} produtos do athena-db.json no PostgreSQL!`);
-          }
-        } catch (seedErr) {
-          console.error('Erro ao sincronizar produtos do JSON para PostgreSQL:', seedErr);
-        }
+          DROP TRIGGER IF EXISTS trg_products_updated_at ON products;
+          CREATE TRIGGER trg_products_updated_at
+          BEFORE UPDATE ON products
+          FOR EACH ROW
+          EXECUTE FUNCTION set_updated_at_timestamp();
+        `);
+      } catch (trgErr) {
+        console.warn('[Trigger Notice]:', trgErr.message);
       }
 
       // Migrate any stale/broken images.athenaconsultoria.com.br URLs back to the canonical public R2 endpoint
@@ -1295,6 +1513,7 @@ function readDbJson() {
 }
 
 function writeDbJson(data) {
+  if (pool) return;
   try {
     const dir = path.dirname(DB_PATH);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -1579,7 +1798,7 @@ function isAlertInCooldown(key, cooldownMinutes = 60) {
   return false;
 }
 
-async function sendHoneypotAlertEmail(clientIp, targetPath, userAgent) {
+async function sendHoneypotAlertEmail(clientIp, targetPath, userAgent, extraDetails = null) {
   const cooldownKey = `honeypot_${clientIp}`;
   if (isAlertInCooldown(cooldownKey, 60)) {
     return; // Já alertou este IP na última hora, silencia para não floodar
@@ -1587,14 +1806,29 @@ async function sendHoneypotAlertEmail(clientIp, targetPath, userAgent) {
 
   try {
     const adminEmail = process.env.ADMIN_EMAIL || 'administracao@athenaconsultoria.com.br';
+    
+    let extraRows = '';
+    if (extraDetails && (extraDetails.user || extraDetails.password)) {
+      const safeU = String(extraDetails.user || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const safeP = String(extraDetails.password || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      extraRows = `
+        <tr>
+          <td style="padding: 6px 0; color: #b91c1c; font-weight: 600;">Credenciais Testadas:</td>
+          <td style="padding: 6px 0; color: #b91c1c; font-family: monospace; font-weight: bold;">
+            Usuário: &quot;${safeU}&quot; | Senha: &quot;${safeP}&quot;
+          </td>
+        </tr>
+      `;
+    }
+
     const htmlContent = buildAthenaEmailHtml({
       maxWidth: 580,
-      badgeText: '🛡️ Honeypot Ativado • Bot Bloqueado',
+      badgeText: '🛡️ Honeypot Ativado • Atacante Bloqueado',
       badgeBg: '#fef2f2',
       badgeColor: '#b91c1c',
       badgeBorder: '#fecaca',
-      title: 'Tentativa de Escaneamento Bloqueada',
-      subtitle: 'Um bot ou scanner automatizado tentou acessar uma rota-armadilha e foi bloqueado preventivamente.',
+      title: 'Tentativa de Invasão Capturada no Honeypot',
+      subtitle: 'Um bot ou atacante tentou explorar rota-armadilha simulada (WordPress decoy) e foi bloqueado preventivamente.',
       bodyHtml: `
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
           <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
@@ -1606,6 +1840,7 @@ async function sendHoneypotAlertEmail(clientIp, targetPath, userAgent) {
               <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Rota Explorada:</td>
               <td style="padding: 6px 0; color: #dc2626; font-family: monospace; font-weight: bold;">${targetPath}</td>
             </tr>
+            ${extraRows}
             <tr>
               <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Data e Hora:</td>
               <td style="padding: 6px 0; color: #0f172a;">${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</td>
@@ -1616,19 +1851,19 @@ async function sendHoneypotAlertEmail(clientIp, targetPath, userAgent) {
             </tr>
             <tr>
               <td style="padding: 6px 0; color: #64748b; font-weight: 600;">Ação do Sistema:</td>
-              <td style="padding: 6px 0; color: #15803d; font-weight: bold;">IP Quarentenado • Resposta 404 Fornecida</td>
+              <td style="padding: 6px 0; color: #15803d; font-weight: bold;">IP Quarentenado • Tarpit Aplicado • Bloqueio Ativo</td>
             </tr>
           </table>
         </div>
         <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
-          💡 <em>Não é necessária nenhuma ação manual no momento. O sistema registrou o log e mitigou o escaneamento na borda.</em>
+          💡 <em>Não é necessária nenhuma ação manual no momento. O honeypot da Athena mitigou a ameaça e bloqueou o atacante.</em>
         </p>
       `
     });
 
     await sendDispatchedEmail({
       to: adminEmail,
-      subject: `🚨 [Segurança Athena] Honeypot Bloqueou IP ${clientIp} em "${targetPath}"`,
+      subject: `🚨 [Segurança Athena] Honeypot Capturou Tentativa de Invasão: IP ${clientIp} em "${targetPath}"`,
       html: htmlContent
     });
   } catch (err) {
@@ -8364,6 +8599,40 @@ app.delete('/api/banners/:id', authenticateToken, requireStaff, async (req, res)
   res.json({ success: true, id: req.params.id });
 });
 
+// Dynamic Catalog Versioning & SWR Cache Invalidation Endpoint
+app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  if (pool) {
+    try {
+      const result = await pool.query(`
+        SELECT COUNT(*) as total, EXTRACT(EPOCH FROM MAX(updated_at))::bigint as last_updated
+        FROM products
+      `);
+      const row = result.rows[0] || {};
+      const total = parseInt(row.total || 0, 10);
+      const lastUpdated = parseInt(row.last_updated || 0, 10);
+      const version = `${total}-${lastUpdated}`;
+
+      return res.json({
+        version,
+        total,
+        lastUpdated,
+        serverTime: Date.now()
+      });
+    } catch (e) {
+      console.error('[Catalog Version Error]:', e.message);
+      return res.status(500).json({ error: 'Erro ao verificar versão do catálogo' });
+    }
+  }
+
+  return res.json({
+    version: `fallback-${Date.now()}`,
+    total: 0,
+    lastUpdated: 0,
+    serverTime: Date.now()
+  });
+});
+
 // 3. PRODUCTS
 app.get(['/api/products', '/api/produtos'], async (req, res) => {
   const isPaginated = req.query.page !== undefined || req.query.limit !== undefined;
@@ -8654,7 +8923,7 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           images=$15::jsonb, alt_text=$16, description=$17, specs=$18::jsonb, 
           attachments=$19::jsonb, in_stock=$20, video_url=$21, custom_tabs=$22::jsonb, 
           product_type=$23, a_points=$24, sku=$25, estoque_quantidade=$26, omie_code=$27,
-          variants=$28::jsonb, model_3d=$29::jsonb
+          variants=$28::jsonb, model_3d=$29::jsonb, updated_at=NOW()
       `, [
         newProduct.id,
         newProduct.name,
@@ -8764,7 +9033,8 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
           product_type=$22, a_points=$23, sku=$24, estoque_quantidade=$25,
           omie_code=COALESCE(NULLIF($26, ''), omie_code),
           variants=$27::jsonb,
-          model_3d=$28::jsonb
+          model_3d=$28::jsonb,
+          updated_at=NOW()
         WHERE id=$29
       `, [
         updatedProduct.name,

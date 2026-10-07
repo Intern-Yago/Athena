@@ -21,23 +21,20 @@ export function CartProvider({ children, showNotification, brands = [], categori
   }, [cartItems]);
 
   /**
-   * Adds an item to the shopping cart.
+   * Adds an item to the shopping cart or quote list.
    * Supports variations (color, size, model) with smart fallback to parent price and image.
-   * STRICT RULE: Only products with a valid price (not negotiable / not quote-only) can enter the cart.
+   * Dual-mode:
+   * - Products with valid price can be purchased directly via checkout.
+   * - Products Sob Consulta (quote-only) enter the list as quote items for multi-item WhatsApp quote generation.
    */
   const addToCart = (product, quantity = 1, selectedVariant = null) => {
     if (!product) return false;
 
-    // Regra 1: Se o produto principal estiver "Sob Consulta", TODAS as variações ficam sob consulta
-    if (isProductQuoteOnly(product)) {
-      if (showNotification) {
-        showNotification('Este equipamento e suas opções estão sob consulta e devem ser cotados diretamente com nossos consultores.', 'info');
-      }
-      return false;
-    }
+    // Identifica se o item é para cotação (Sob Consulta / sem preço)
+    const isQuoteItem = isProductQuoteOnly(product) || !(Number(product.price) > 0);
 
-    // Regra 2: Se uma variação foi selecionada, valida a disponibilidade para venda
-    if (selectedVariant) {
+    // Se uma variação foi selecionada e o produto pode ser comprado online, valida disponibilidade
+    if (selectedVariant && !isQuoteItem) {
       const avail = getVariantAvailability(selectedVariant, product);
       if (!avail.canBuy) {
         if (showNotification) {
@@ -52,17 +49,11 @@ export function CartProvider({ children, showNotification, brands = [], categori
     }
 
     // Price with fallback: if variant has custom price, use it; otherwise use product base price
-    const effectivePrice = selectedVariant?.price != null && Number(selectedVariant.price) > 0
-      ? Number(selectedVariant.price)
-      : Number(product.price);
-
-    const hasPrice = effectivePrice > 0;
-    if (!hasPrice) {
-      if (showNotification) {
-        showNotification('Este equipamento está sob consulta e deve ser cotado diretamente com nossos consultores.', 'info');
-      }
-      return false;
-    }
+    const effectivePrice = isQuoteItem
+      ? 0
+      : (selectedVariant?.price != null && Number(selectedVariant.price) > 0
+          ? Number(selectedVariant.price)
+          : Number(product.price) || 0);
 
     const brandObj = brands.find(b => b.id === product.brandId);
     const catObj = categories.find(c => c.id === product.categoryId);
@@ -88,6 +79,7 @@ export function CartProvider({ children, showNotification, brands = [], categori
         name: product.name,
         slug: product.slug || product.id,
         price: effectivePrice,
+        isQuote: isQuoteItem,
         image: effectiveImage,
         brandId: product.brandId,
         brandName: brandObj?.name || 'Athena',
@@ -105,32 +97,110 @@ export function CartProvider({ children, showNotification, brands = [], categori
 
     if (showNotification) {
       const variantSuffix = selectedVariant?.name ? ` (${selectedVariant.name})` : '';
-      showNotification(`"${product.name}${variantSuffix}" adicionado ao carrinho!`, 'success');
+      if (isQuoteItem) {
+        showNotification(`"${product.name}${variantSuffix}" adicionado à sua lista de orçamento!`, 'success');
+      } else {
+        showNotification(`"${product.name}${variantSuffix}" adicionado ao carrinho!`, 'success');
+      }
     }
 
     setIsCartOpen(true);
     return true;
   };
 
-  const removeFromCart = (itemIdOrProductId) => {
-    setCartItems(prev => prev.filter(item => item.id !== itemIdOrProductId && item.productId !== itemIdOrProductId));
+  /**
+   * Adds multiple items/variants to the cart in a single batch operation.
+   * Useful for B2B multi-variant matrix orders (e.g. spray guns with multiple nozzle sizes).
+   */
+  const addMultipleToCart = (itemsToAdd = []) => {
+    if (!Array.isArray(itemsToAdd) || itemsToAdd.length === 0) return false;
+
+    const brandMap = new Map((brands || []).map(b => [b.id, b.name]));
+    const catMap = new Map((categories || []).map(c => [c.id, c.name]));
+
+    setCartItems(prev => {
+      let currentItems = [...prev];
+
+      itemsToAdd.forEach(({ product, variant, quantity }) => {
+        if (!product || !quantity || quantity <= 0) return;
+
+        const isQuoteItem = isProductQuoteOnly(product) || !(Number(product.price) > 0);
+        const effectivePrice = isQuoteItem
+          ? 0
+          : (variant?.price != null && Number(variant.price) > 0
+              ? Number(variant.price)
+              : Number(product.price) || 0);
+
+        const cartItemId = variant ? `cart_${product.id}_${variant.id}` : `cart_${product.id}`;
+        const effectiveImage = variant?.image || product.image || (Array.isArray(product.images) && product.images[0]) || '';
+
+        const existingIdx = currentItems.findIndex(
+          item => item.id === cartItemId || (item.productId === product.id && item.variantId === (variant?.id || null))
+        );
+
+        if (existingIdx !== -1) {
+          currentItems[existingIdx] = {
+            ...currentItems[existingIdx],
+            quantity: currentItems[existingIdx].quantity + quantity
+          };
+        } else {
+          currentItems.push({
+            id: cartItemId,
+            productId: product.id,
+            name: product.name,
+            slug: product.slug || product.id,
+            price: effectivePrice,
+            isQuote: isQuoteItem,
+            image: effectiveImage,
+            brandId: product.brandId,
+            brandName: brandMap.get(product.brandId) || 'Athena',
+            categoryId: product.categoryId,
+            categoryName: catMap.get(product.categoryId) || '',
+            variantId: variant?.id || null,
+            variantName: variant?.name || null,
+            variantColorHex: variant?.colorHex || null,
+            sku: variant?.sku || product.sku || product.id,
+            quantity: Math.max(1, quantity)
+          });
+        }
+      });
+
+      return currentItems;
+    });
+
+    const totalQty = itemsToAdd.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
+    if (showNotification) {
+      showNotification(`${totalQty} item(ns) adicionado(s) à sua lista de orçamento!`, 'success');
+    }
+
+    setIsCartOpen(true);
+    return true;
+  };
+
+  const removeFromCart = (targetId) => {
+    setCartItems(prev => prev.filter(item => {
+      if (item.id === targetId) return false;
+      if (!item.variantId && item.productId === targetId) return false;
+      return true;
+    }));
     if (showNotification) {
       showNotification('Item removido do carrinho.', 'info');
     }
   };
 
-  const updateQuantity = (itemIdOrProductId, newQuantity) => {
+  const updateQuantity = (targetId, newQuantity) => {
     if (newQuantity <= 0) {
-      removeFromCart(itemIdOrProductId);
+      removeFromCart(targetId);
       return;
     }
 
     setCartItems(prev =>
-      prev.map(item =>
-        (item.id === itemIdOrProductId || item.productId === itemIdOrProductId)
+      prev.map(item => {
+        const isMatch = item.id === targetId || (!item.variantId && item.productId === targetId);
+        return isMatch
           ? { ...item, quantity: Math.min(99, Math.max(1, newQuantity)) }
-          : item
-      )
+          : item;
+      })
     );
   };
 
@@ -221,8 +291,17 @@ export function CartProvider({ children, showNotification, brands = [], categori
       return;
     }
 
+    const buyableItems = cartItems.filter(item => !item.isQuote && Number(item.price) > 0);
+
+    if (buyableItems.length === 0) {
+      if (showNotification) {
+        showNotification('Os itens selecionados estão sob consulta. Utilize o botão "Solicitar Orçamento no WhatsApp" para falar com nossos consultores.', 'info');
+      }
+      return;
+    }
+
     setCheckoutTarget({
-      items: [...cartItems]
+      items: [...buyableItems]
     });
 
     setIsCartOpen(false);
@@ -235,17 +314,47 @@ export function CartProvider({ children, showNotification, brands = [], categori
   };
 
   const totalItemCount = cartItems.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
-  const subtotal = cartItems.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
+  const quoteItems = cartItems.filter(item => item.isQuote || !(Number(item.price) > 0));
+  const buyableItems = cartItems.filter(item => !item.isQuote && Number(item.price) > 0);
+  const quoteItemCount = quoteItems.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+  const buyableItemCount = buyableItems.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+  const subtotal = buyableItems.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
+
+  /**
+   * Generates formatted WhatsApp URL with all products selected in the cart for a quote.
+   */
+  const getWhatsAppQuoteUrl = () => {
+    if (cartItems.length === 0) return 'https://wa.me/5561983485671';
+    
+    let message = 'Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de fazer um orçamento dos seguintes produtos:\n\n';
+    cartItems.forEach((item, idx) => {
+      const brand = item.brandName ? ` [Marca: ${item.brandName}]` : '';
+      const sku = item.sku ? ` (Cód/SKU: ${item.sku})` : '';
+      const variantDisplay = item.variantName ? ` (${item.variantName})` : '';
+      const priceText = (!item.isQuote && Number(item.price) > 0)
+        ? ` - Ref. Valor: R$ ${(Number(item.price) * (Number(item.quantity) || 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        : ' - Sob Consulta';
+      message += `${idx + 1}. *${item.quantity}x ${item.name}${variantDisplay}*${brand}${sku}${priceText}\n`;
+    });
+
+    message += '\nPoderia me informar valores, condições comerciais, disponibilidade e prazo de entrega?';
+    return `https://wa.me/5561983485671?text=${encodeURIComponent(message)}`;
+  };
 
   return (
     <CartContext.Provider
       value={{
         cartItems,
         totalItemCount,
+        quoteItems,
+        buyableItems,
+        quoteItemCount,
+        buyableItemCount,
         subtotal,
         isCartOpen,
         setIsCartOpen,
         addToCart,
+        addMultipleToCart,
         removeFromCart,
         updateQuantity,
         clearCart,
@@ -256,6 +365,7 @@ export function CartProvider({ children, showNotification, brands = [], categori
         openDirectCheckout,
         openCartCheckout,
         closeCheckout,
+        getWhatsAppQuoteUrl,
         requireVerification
       }}
     >

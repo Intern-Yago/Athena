@@ -8,42 +8,63 @@ const DB_NAME = 'AthenaAutomotivaDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'catalog_store';
 
-export const CURRENT_CATALOG_VERSION = 'v4_2026_10_02_quote_strict';
+export const CATALOG_VERSION_STORAGE_KEY = 'athena_catalog_version';
 
 /**
- * Checks if client local cache is outdated and flushes obsolete category/product data.
+ * Returns currently stored catalog version string (e.g. "1263-1791309768").
  */
-export function checkAndInvalidateCatalogCache() {
-  if (typeof window === 'undefined') return;
+export function getLocalCatalogVersion() {
+  if (typeof window === 'undefined') return null;
   try {
-    const savedVersion = localStorage.getItem('athena_catalog_version');
-    if (savedVersion !== CURRENT_CATALOG_VERSION) {
-      console.log(`[Athena Storage] Novo catálogo detectado (${savedVersion || 'nenhum'} -> ${CURRENT_CATALOG_VERSION}). Limpando dados obsoletos do cache local...`);
-      localStorage.removeItem('athena_categories');
-      localStorage.removeItem('athena_products');
-      localStorage.removeItem('athena_brands');
-      localStorage.setItem('athena_catalog_version', CURRENT_CATALOG_VERSION);
-      safeStorageRemove('athena_categories');
-      safeStorageRemove('athena_products');
-      safeStorageRemove('athena_brands');
-
-      // Limpeza profunda assíncrona do IndexedDB para garantir que nenhum snapshot antigo permaneça
-      getIndexedDB().then((db) => {
-        if (!db) return;
-        try {
-          const tx = db.transaction(STORE_NAME, 'readwrite');
-          tx.objectStore(STORE_NAME).clear();
-        } catch (e) {}
-      }).catch(() => {});
-    }
+    return localStorage.getItem(CATALOG_VERSION_STORAGE_KEY) || null;
   } catch (e) {
-    console.warn('[Athena Storage] Falha ao verificar versão de cache:', e);
+    return null;
   }
 }
 
-// Auto-execute immediately upon module evaluation in the browser
-if (typeof window !== 'undefined') {
-  checkAndInvalidateCatalogCache();
+/**
+ * Persists the latest catalog version string received from backend.
+ */
+export function setLocalCatalogVersion(version) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (version) {
+      localStorage.setItem(CATALOG_VERSION_STORAGE_KEY, String(version));
+    }
+  } catch (e) {}
+}
+
+/**
+ * Clears cached catalog data from localStorage and IndexedDB if needed.
+ */
+export function clearCatalogCache() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('athena_categories');
+    localStorage.removeItem('athena_products');
+    localStorage.removeItem('athena_brands');
+    localStorage.removeItem(CATALOG_VERSION_STORAGE_KEY);
+    safeStorageRemove('athena_categories');
+    safeStorageRemove('athena_products');
+    safeStorageRemove('athena_brands');
+
+    getIndexedDB().then((db) => {
+      if (!db) return;
+      try {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).clear();
+      } catch (e) {}
+    }).catch(() => {});
+  } catch (e) {
+    console.warn('[Athena Storage] Falha ao limpar cache de catálogo:', e);
+  }
+}
+
+/**
+ * Backward-compatible helper for legacy imports.
+ */
+export function checkAndInvalidateCatalogCache() {
+  // SWR revalidation handles dynamic server version checking in App.jsx.
 }
 
 function getIndexedDB() {

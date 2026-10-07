@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Header from './components/Header';
 import HeroSlim from './components/HeroSlim';
 import HomeBannerCarousel from './components/HomeBannerCarousel';
@@ -45,15 +45,11 @@ import {
   touchSession, 
   clearSession, 
   isSessionExpired,
-  checkAndInvalidateCatalogCache
+  getLocalCatalogVersion,
+  setLocalCatalogVersion
 } from './utils/storage';
 
 import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
-
-// Invalidate obsolete catalog caches (e.g. removed 1-product categories)
-if (typeof window !== 'undefined') {
-  checkAndInvalidateCatalogCache();
-}
 
 const REMOTE_API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
 const LOCAL_API_BASE_URL = typeof window !== 'undefined' 
@@ -420,7 +416,69 @@ export default function App() {
     loadFromIndexedDB();
   }, []);
 
-  // Fetch from NestJS / Node backend if available
+  // Dynamic SWR Catalog Revalidation (Background Tab Focus / Visibility Change)
+  const lastRevalidateRef = useRef(Date.now());
+  const revalidateCatalog = useCallback(async () => {
+    const now = Date.now();
+    // Throttle background revalidation to at most once every 20 seconds
+    if (now - lastRevalidateRef.current < 20000) return;
+    lastRevalidateRef.current = now;
+
+    try {
+      const vRes = await fetch(`${activeApiBaseUrl}/catalog/version`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (!vRes.ok) return;
+      const { version: serverVersion } = await vRes.json();
+      const localVersion = getLocalCatalogVersion();
+
+      if (serverVersion && serverVersion !== localVersion) {
+        console.log(`[Athena SWR] Modificação detectada no servidor (${localVersion || 'nenhum'} -> ${serverVersion}). Sincronizando catálogo...`);
+        const pRes = await fetch(`${activeApiBaseUrl}/products`);
+        if (pRes.ok) {
+          const prodData = await pRes.json();
+          const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
+          if (rawProducts.length > 0) {
+            const normProds = rawProducts.map(normalizeProduct);
+            setProducts((prev) => {
+              const merged = [...normProds];
+              if (Array.isArray(prev) && prev.length > 0) {
+                prev.forEach((localProd) => {
+                  if (localProd.status === 'draft' && !merged.some(m => m.id === localProd.id)) {
+                    merged.push(localProd);
+                  }
+                });
+              }
+              safeStorageSet('athena_products', merged);
+              idbSet('athena_products', merged).catch(() => {});
+              return merged;
+            });
+            setLocalCatalogVersion(serverVersion);
+            console.log(`[Athena SWR] Catálogo atualizado em segundo plano com sucesso (versão: ${serverVersion}).`);
+          }
+        }
+      }
+    } catch (e) {
+      // Silently ignore background revalidation network hiccup
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleRevalidate = () => {
+      if (document.visibilityState === 'visible') {
+        revalidateCatalog();
+      }
+    };
+    window.addEventListener('focus', handleRevalidate);
+    document.addEventListener('visibilitychange', handleRevalidate);
+    return () => {
+      window.removeEventListener('focus', handleRevalidate);
+      document.removeEventListener('visibilitychange', handleRevalidate);
+    };
+  }, [revalidateCatalog]);
+
+  // Fetch from NestJS / Node backend if available (SWR Dynamic Sync)
   useEffect(() => {
     let retryTimer = null;
     let isMounted = true;
@@ -446,100 +504,148 @@ export default function App() {
           }
         }
 
+        // 1. Dynamic version check: verify if client catalog is already byte-for-byte in sync with PostgreSQL
+        let serverVersion = null;
+        try {
+          const versionRes = await fetch(`${currentBaseUrl}/catalog/version`, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' },
+            signal: AbortSignal.timeout(3000)
+          });
+          if (versionRes.ok) {
+            const vData = await versionRes.json();
+            serverVersion = vData?.version || null;
+          }
+        } catch (vErr) {
+          console.warn('[Athena SWR] Verificação rápida de versão falhou:', vErr.message);
+        }
+
+        const localVersion = getLocalCatalogVersion();
+        const idbProds = await idbGet('athena_products');
+        const hasCachedProducts = (Array.isArray(idbProds) && idbProds.length > 50) || (Array.isArray(products) && products.length > 50);
+        const isCatalogCurrent = Boolean(serverVersion && localVersion && serverVersion === localVersion && hasCachedProducts);
+
+        // 2. Skip 3.4MB /products payload if exact PostgreSQL snapshot is already cached
         const [prodRes, catRes, brandRes, bannerRes, deptRes] = await Promise.all([
-          fetch(`${currentBaseUrl}/products`),
+          isCatalogCurrent ? Promise.resolve(null) : fetch(`${currentBaseUrl}/products`),
           fetch(`${currentBaseUrl}/categories`),
           fetch(`${currentBaseUrl}/brands`),
           fetch(`${currentBaseUrl}/banners?all=true`).catch(() => ({ ok: false })),
           fetch(`${currentBaseUrl}/departments`).catch(() => ({ ok: false }))
         ]);
 
-        const contentType = prodRes.headers.get('content-type') || '';
-        if (prodRes.ok && contentType.includes('application/json')) {
-          const prodData = await prodRes.json();
-          const catData = await catRes.json();
-          const brandData = await brandRes.json();
+        // 3. Process products if fresh data arrived
+        if (!isCatalogCurrent && prodRes) {
+          const contentType = prodRes.headers.get('content-type') || '';
+          if (prodRes.ok && contentType.includes('application/json')) {
+            const prodData = await prodRes.json();
+            const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
+            const normProds = rawProducts.map(normalizeProduct);
 
-          const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
-          const normProds = rawProducts.map(normalizeProduct);
-          if (isMounted) {
-            setProducts((prev) => {
-              if (normProds.length === 0) {
-                return prev.length > 0 ? prev : INITIAL_PRODUCTS;
+            if (isMounted) {
+              setProducts((prev) => {
+                if (normProds.length === 0) {
+                  return prev.length > 0 ? prev : INITIAL_PRODUCTS;
+                }
+
+                // Backend products are the official source of truth
+                const mergedProds = [...normProds];
+                const localOnlyProds = [];
+
+                // Keep local offline drafts that have not yet synced to backend
+                if (Array.isArray(prev) && prev.length > 0) {
+                  prev.forEach((localProd) => {
+                    const existsInBackend = mergedProds.some(
+                      (bp) => bp.id === localProd.id || (bp.slug && bp.slug === localProd.slug)
+                    );
+                    if (!existsInBackend && localProd.status === 'draft') {
+                      mergedProds.push(localProd);
+                      localOnlyProds.push(localProd);
+                    }
+                  });
+                }
+
+                safeStorageSet('athena_products', mergedProds);
+                idbSet('athena_products', mergedProds).catch(() => {});
+
+                // Auto-sync locally-saved draft products to PostgreSQL if admin session is active
+                const session = getSession();
+                if (session?.token && (session?.user?.role === 'admin' || session?.user?.isAdmin) && localOnlyProds.length > 0) {
+                  localOnlyProds.forEach((lp) => {
+                    if (lp.id && lp.name) {
+                      fetch(`${currentBaseUrl}/products`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${session.token}`
+                        },
+                        body: JSON.stringify(lp)
+                      }).catch(e => console.warn('[Auto-sync product to DB failed]:', e));
+                    }
+                  });
+                }
+
+                return mergedProds;
+              });
+
+              if (serverVersion) {
+                setLocalCatalogVersion(serverVersion);
               }
+              console.log(`[Athena SWR] Catálogo sincronizado com PostgreSQL (versão: ${serverVersion || 'sync'}, ${normProds.length} produtos).`);
+            }
+          } else if (attempt <= 3 && isMounted) {
+            retryTimer = setTimeout(() => fetchBackendData(attempt + 1), 3500);
+            return;
+          }
+        } else if (isCatalogCurrent) {
+          console.log(`[Athena SWR] Catálogo 100% atualizado com PostgreSQL (versão: ${serverVersion}). 3.4MB economizados.`);
+        }
 
-              // Backend products are the official source of truth
-              const mergedProds = [...normProds];
-              const localOnlyProds = [];
-
-              // Keep local offline drafts that have not yet synced to backend
-              if (Array.isArray(prev) && prev.length > 0) {
-                prev.forEach((localProd) => {
-                  const existsInBackend = mergedProds.some(
-                    (bp) => bp.id === localProd.id || (bp.slug && bp.slug === localProd.slug)
-                  );
-                  if (!existsInBackend && localProd.status === 'draft') {
-                    mergedProds.push(localProd);
-                    localOnlyProds.push(localProd);
-                  }
-                });
-              }
-
-              safeStorageSet('athena_products', mergedProds);
-              idbSet('athena_products', mergedProds).catch(() => {});
-
-              // Auto-sync locally-saved draft products to PostgreSQL if admin session is active
-              const session = getSession();
-              if (session?.token && (session?.user?.role === 'admin' || session?.user?.isAdmin) && localOnlyProds.length > 0) {
-                localOnlyProds.forEach((lp) => {
-                  if (lp.id && lp.name) {
-                    fetch(`${currentBaseUrl}/products`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.token}`
-                      },
-                      body: JSON.stringify(lp)
-                    }).catch(e => console.warn('[Auto-sync product to DB failed]:', e));
-                  }
-                });
-              }
-
-              return mergedProds;
-            });
-            if (Array.isArray(catData) && catData.length > 0) {
+        // 4. Update categories, brands, banners, departments
+        if (catRes && catRes.ok) {
+          try {
+            const catData = await catRes.json();
+            if (Array.isArray(catData) && catData.length > 0 && isMounted) {
               setCategories(catData);
               safeStorageSet('athena_categories', catData);
               idbSet('athena_categories', catData).catch(() => {});
             }
-            if (Array.isArray(brandData)) {
+          } catch {}
+        }
+
+        if (brandRes && brandRes.ok) {
+          try {
+            const brandData = await brandRes.json();
+            if (Array.isArray(brandData) && isMounted) {
               const normBrands = brandData.map(normalizeBrand);
               setBrands(normBrands);
               safeStorageSet('athena_brands', normBrands);
               idbSet('athena_brands', normBrands).catch(() => {});
             }
-            setIsBackendConnected(true);
-            setIsLoadingCatalog(false);
-          }
+          } catch {}
+        }
 
-          if (bannerRes && bannerRes.ok) {
+        if (bannerRes && bannerRes.ok && isMounted) {
+          try {
             const bannerData = await bannerRes.json();
-            if (Array.isArray(bannerData) && isMounted) {
+            if (Array.isArray(bannerData)) {
               setBanners(bannerData);
             }
-          }
+          } catch {}
+        }
 
-          if (deptRes && deptRes.ok) {
+        if (deptRes && deptRes.ok && isMounted) {
+          try {
             const deptData = await deptRes.json();
-            if (Array.isArray(deptData) && deptData.length > 0 && isMounted) {
+            if (Array.isArray(deptData) && deptData.length > 0) {
               setDepartments(deptData);
               safeStorageSet('athena_departments', deptData);
             }
-          }
-        } else if (attempt <= 3 && isMounted) {
-          // Render might be waking up from sleep, retry in 3.5 seconds
-          retryTimer = setTimeout(() => fetchBackendData(attempt + 1), 3500);
-        } else if (isMounted) {
+          } catch {}
+        }
+
+        if (isMounted) {
+          setIsBackendConnected(true);
           setIsLoadingCatalog(false);
         }
       } catch (err) {
@@ -616,7 +722,12 @@ export default function App() {
         headers: getAuthHeaders(),
         body: JSON.stringify(newProduct)
       });
-      if (res.ok) setIsBackendConnected(true);
+      if (res.ok) {
+        setIsBackendConnected(true);
+        fetch(`${API_BASE_URL}/catalog/version`).then(r => r.json()).then(d => {
+          if (d?.version) setLocalCatalogVersion(d.version);
+        }).catch(() => {});
+      }
       handleApiUnauthorized(res);
     } catch (e) {
       console.error('Erro backend:', e);
@@ -632,6 +743,7 @@ export default function App() {
     });
 
     try {
+      let mutationSuccess = false;
       const res = await fetch(`${API_BASE_URL}/products/${updatedProduct.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
@@ -643,9 +755,15 @@ export default function App() {
           headers: getAuthHeaders(),
           body: JSON.stringify(updatedProduct)
         });
-        if (createRes.ok) setIsBackendConnected(true);
+        if (createRes.ok) mutationSuccess = true;
       } else if (res.ok) {
+        mutationSuccess = true;
+      }
+      if (mutationSuccess) {
         setIsBackendConnected(true);
+        fetch(`${API_BASE_URL}/catalog/version`).then(r => r.json()).then(d => {
+          if (d?.version) setLocalCatalogVersion(d.version);
+        }).catch(() => {});
       }
       handleApiUnauthorized(res);
     } catch (e) {
@@ -676,6 +794,9 @@ export default function App() {
 
       if (res.ok) {
         setIsBackendConnected(true);
+        fetch(`${API_BASE_URL}/catalog/version`).then(r => r.json()).then(d => {
+          if (d?.version) setLocalCatalogVersion(d.version);
+        }).catch(() => {});
       } else {
         handleApiUnauthorized(res);
         console.error(`Falha ao excluir produto no servidor (status ${res.status}). Revertendo.`);

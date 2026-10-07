@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { stripFormattingTags } from './FormattedDescription';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles } from 'lucide-react';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles, Layers } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { isProductPublished } from '../utils/imageUrl';
 import { isVariantVisibleInCatalog } from '../utils/productVariants';
+import ProductVariantSelectModal from './ProductVariantSelectModal';
 
 export default function ProductCard({ 
   product, 
@@ -19,6 +20,7 @@ export default function ProductCard({
   viewMode = 'grid'
 }) {
   const [activePreviewImage, setActivePreviewImage] = useState(null);
+  const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
   const { addToCart, openDirectCheckout, requireVerification } = useCart();
   
   const variants = Array.isArray(product.variants) 
@@ -138,6 +140,30 @@ export default function ProductCard({
               <span>{isInComparison ? 'Comparando' : 'Comparar'}</span>
             </button>
           )}
+
+          {/* Quick Add to Cart / Quote Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (hasVariants) {
+                setIsVariantModalOpen(true);
+              } else {
+                addToCart(product);
+              }
+            }}
+            className="absolute bottom-3 right-3 z-20 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs shadow-md border border-amber-300/80 flex items-center gap-1.5 transition-all cursor-pointer group/btn"
+            title={hasVariants ? "Escolher Opções e Quantidades" : (canBuyOnline ? "Adicionar ao Carrinho" : "Adicionar à Lista de Orçamento")}
+          >
+            {hasVariants ? (
+              <Layers className="w-3.5 h-3.5 text-slate-950 transition-transform group-hover/btn:scale-110" />
+            ) : (
+              <ShoppingCart className="w-3.5 h-3.5 text-slate-950 transition-transform group-hover/btn:scale-110" />
+            )}
+            <span className="font-extrabold text-[11px]">
+              {hasVariants ? '+ Opções' : (canBuyOnline ? '+ Carrinho' : '+ Orçamento')}
+            </span>
+          </button>
         </div>
 
         {/* Right: Detailed Content Area */}
@@ -272,40 +298,80 @@ export default function ProductCard({
                 <>
                   <button
                     type="button"
-                    onClick={() => addToCart(product)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (hasVariants) {
+                        setIsVariantModalOpen(true);
+                      } else {
+                        addToCart(product);
+                      }
+                    }}
                     className="py-2 px-3 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
-                    title="Adicionar ao Carrinho"
+                    title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar ao Carrinho"}
                   >
-                    <ShoppingCart className="w-3.5 h-3.5 text-amber-700" />
-                    <span>+ Carrinho</span>
+                    {hasVariants ? (
+                      <Layers className="w-3.5 h-3.5 text-amber-700" />
+                    ) : (
+                      <ShoppingCart className="w-3.5 h-3.5 text-amber-700" />
+                    )}
+                    <span>{hasVariants ? '+ Opções' : '+ Carrinho'}</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => openDirectCheckout(product)}
+                    onClick={() => {
+                      if (hasVariants) {
+                        setIsVariantModalOpen(true);
+                      } else {
+                        openDirectCheckout(product);
+                      }
+                    }}
                     className="py-2 px-4 rounded-xl text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-600 shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <CreditCard className="w-3.5 h-3.5" />
-                    <span>Comprar Agora</span>
+                    <span>{hasVariants ? 'Comprar Opção' : 'Comprar Agora'}</span>
                   </button>
                 </>
               ) : (
-                <a
-                  href={`https://wa.me/5561983485671?text=${whatsappText}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => {
-                    if (requireVerification && requireVerification(() => {
-                      window.open(`https://wa.me/5561983485671?text=${whatsappText}`, '_blank');
-                    })) {
-                      e.preventDefault();
-                    }
-                  }}
-                  className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
-                  <span>{hasPrice ? 'Consultar Orçamento' : 'Solicitar Cotação'}</span>
-                </a>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (hasVariants) {
+                        setIsVariantModalOpen(true);
+                      } else {
+                        addToCart(product);
+                      }
+                    }}
+                    className="py-2 px-3 rounded-xl text-xs font-black text-slate-900 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar à lista de orçamento"}
+                  >
+                    {hasVariants ? (
+                      <Layers className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                    ) : (
+                      <ShoppingCart className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                    )}
+                    <span>{hasVariants ? '+ Opções' : '+ Orçamento'}</span>
+                  </button>
+
+                  <a
+                    href={`https://wa.me/5561983485671?text=${whatsappText}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      if (requireVerification && requireVerification(() => {
+                        window.open(`https://wa.me/5561983485671?text=${whatsappText}`, '_blank');
+                      })) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
+                    <span>{hasPrice ? 'Consultar Orçamento' : 'Solicitar Cotação'}</span>
+                  </a>
+                </div>
               )}
             </div>
           </div>
@@ -413,6 +479,30 @@ export default function ProductCard({
             <span>{isInComparison ? 'Comparando' : 'Comparar'}</span>
           </button>
         )}
+
+        {/* Quick Add to Cart / Quote Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (hasVariants) {
+              setIsVariantModalOpen(true);
+            } else {
+              addToCart(product);
+            }
+          }}
+          className="absolute bottom-3 right-3 z-20 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs shadow-md border border-amber-300/80 flex items-center gap-1.5 transition-all cursor-pointer group/btn"
+          title={hasVariants ? "Escolher Opções e Quantidades" : (canBuyOnline ? "Adicionar ao Carrinho" : "Adicionar à Lista de Orçamento")}
+        >
+          {hasVariants ? (
+            <Layers className="w-4 h-4 text-slate-950 transition-transform group-hover/btn:scale-110" />
+          ) : (
+            <ShoppingCart className="w-4 h-4 text-slate-950 transition-transform group-hover/btn:scale-110" />
+          )}
+          <span className="hidden min-[380px]:inline font-extrabold text-[11px]">
+            {hasVariants ? '+ Opções' : (canBuyOnline ? '+ Carrinho' : '+ Orçamento')}
+          </span>
+        </button>
 
         {/* Quick View Hover Prompt */}
         <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none hidden sm:flex">
@@ -533,31 +623,69 @@ export default function ProductCard({
 
               <button
                 type="button"
-                onClick={() => addToCart(product)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasVariants) {
+                    setIsVariantModalOpen(true);
+                  } else {
+                    addToCart(product);
+                  }
+                }}
                 className="col-span-3 py-2.5 px-1 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer"
-                title="Adicionar ao Carrinho"
+                title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar ao Carrinho"}
               >
-                <ShoppingCart className="w-3.5 h-3.5 text-amber-700" />
-                <span className="hidden min-[400px]:inline">+</span>
+                {hasVariants ? (
+                  <Layers className="w-3.5 h-3.5 text-amber-700" />
+                ) : (
+                  <ShoppingCart className="w-3.5 h-3.5 text-amber-700" />
+                )}
+                <span className="hidden min-[400px]:inline">{hasVariants ? 'Opções' : '+'}</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => openDirectCheckout(product)}
+                onClick={() => {
+                  if (hasVariants) {
+                    setIsVariantModalOpen(true);
+                  } else {
+                    openDirectCheckout(product);
+                  }
+                }}
                 className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-600 shadow-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
               >
                 <CreditCard className="w-3.5 h-3.5 shrink-0" />
-                <span>Comprar</span>
+                <span>{hasVariants ? 'Opção' : 'Comprar'}</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-12 gap-1.5">
               <button
                 onClick={() => onSelectProduct(product)}
-                className="btn-secondary text-xs py-2.5 px-2 w-full justify-center font-bold cursor-pointer"
+                className="col-span-4 btn-secondary text-xs py-2.5 px-1.5 w-full justify-center font-bold cursor-pointer truncate"
               >
                 <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
                 <span>Detalhes</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasVariants) {
+                    setIsVariantModalOpen(true);
+                  } else {
+                    addToCart(product);
+                  }
+                }}
+                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-900 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer truncate"
+                title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar à lista de orçamento"}
+              >
+                {hasVariants ? (
+                  <Layers className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                ) : (
+                  <ShoppingCart className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                )}
+                <span className="text-[11px] font-black">{hasVariants ? '+ Opções' : '+ Orçamento'}</span>
               </button>
 
               <a
@@ -571,7 +699,8 @@ export default function ProductCard({
                     e.preventDefault();
                   }
                 }}
-                className="py-2.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs transition-colors bg-emerald-600 hover:bg-emerald-700 text-white truncate"
+                title="Cotar este item no WhatsApp"
               >
                 <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
                 <span>Cotar</span>
@@ -581,6 +710,18 @@ export default function ProductCard({
         </div>
 
       </div>
+
+      {/* Quick Select Modal for Multi-Variant Quotes / Orders */}
+      {hasVariants && isVariantModalOpen && (
+        <ProductVariantSelectModal
+          isOpen={isVariantModalOpen}
+          onClose={() => setIsVariantModalOpen(false)}
+          product={product}
+          brand={brand}
+          category={category}
+          onSelectProduct={onSelectProduct}
+        />
+      )}
     </div>
   );
 }

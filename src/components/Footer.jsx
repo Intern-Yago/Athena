@@ -1,5 +1,5 @@
 import React from 'react';
-import { PhoneCall, Mail, MapPin, Instagram, ExternalLink, ArrowUp, Lock, Youtube } from 'lucide-react';
+import { PhoneCall, Mail, MapPin, Instagram, ExternalLink, ArrowUp, Youtube } from 'lucide-react';
 
 export default function Footer({ setActiveTab, currentUser }) {
   const scrollToTop = () => {
@@ -219,23 +219,6 @@ export default function Footer({ setActiveTab, currentUser }) {
               className="hover:text-amber-400 transition-colors cursor-pointer"
             >
               Cookies
-            </button>
-            <span className="text-slate-600">•</span>
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('athena:open-cookie-preferences'))}
-              className="text-amber-400/90 hover:text-amber-300 font-semibold transition-colors cursor-pointer inline-flex items-center gap-1"
-              title="Ajustar consentimento de cookies"
-            >
-              <span>Preferências de Cookies</span>
-            </button>
-            <span className="text-slate-600">•</span>
-            <button
-              onClick={() => { setActiveTab('admin'); scrollToTop(); }}
-              className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center gap-1 cursor-pointer transition-colors"
-              title="Acesso Restrito à Equipe Athena"
-            >
-              <Lock className="w-3 h-3" />
-              <span>Área da Equipe</span>
             </button>
           </div>
           

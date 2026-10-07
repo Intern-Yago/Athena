@@ -10,7 +10,8 @@ import {
   Sparkles,
   Layers,
   CreditCard,
-  Zap
+  Zap,
+  MessageCircle
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
@@ -18,13 +19,19 @@ export function CartDrawer() {
   const {
     cartItems,
     totalItemCount,
+    quoteItems,
+    buyableItems,
+    quoteItemCount,
+    buyableItemCount,
     subtotal,
     isCartOpen,
     setIsCartOpen,
     removeFromCart,
     updateQuantity,
     clearCart,
-    openCartCheckout
+    openCartCheckout,
+    getWhatsAppQuoteUrl,
+    requireVerification
   } = useCart();
 
   // Lock background scroll when cart drawer is open to eliminate background lag
@@ -167,10 +174,16 @@ export function CartDrawer() {
                       )}
 
                       <div className="flex items-center justify-between gap-2 pt-1">
-                        <span className="font-extrabold text-amber-900 text-xs sm:text-sm">
-                          {formatBRL(itemTotal)}
-                        </span>
-                        {item.quantity > 1 && (
+                        {item.isQuote || !(Number(item.price) > 0) ? (
+                          <span className="font-extrabold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded text-[11px] shadow-2xs">
+                            Sob Consulta
+                          </span>
+                        ) : (
+                          <span className="font-extrabold text-amber-900 text-xs sm:text-sm">
+                            {formatBRL(itemTotal)}
+                          </span>
+                        )}
+                        {!item.isQuote && Number(item.price) > 0 && item.quantity > 1 && (
                           <span className="text-[10px] text-slate-400">
                             ({formatBRL(item.price)} cada)
                           </span>
@@ -179,32 +192,32 @@ export function CartDrawer() {
 
                       {/* Quantity Controls */}
                       <div className="flex items-center justify-between pt-1">
-                        <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                        <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
                           <button
                             type="button"
                             onClick={() => updateQuantity(itemKey, item.quantity - 1)}
-                            className="w-5 h-5 rounded bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 active:scale-90 text-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Diminuir quantidade"
                           >
-                            <Minus className="w-3 h-3" />
+                            <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="font-bold text-xs px-2 text-slate-900 min-w-[20px] text-center">
+                          <span className="font-extrabold text-xs px-2 text-slate-900 min-w-[22px] text-center">
                             {item.quantity}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateQuantity(itemKey, item.quantity + 1)}
-                            className="w-5 h-5 rounded bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 active:scale-90 text-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                             title="Aumentar quantidade"
                           >
-                            <Plus className="w-3 h-3" />
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
                         <button
                           type="button"
                           onClick={() => removeFromCart(itemKey)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 active:scale-90 transition-all cursor-pointer"
                           title="Remover este item"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -222,22 +235,39 @@ export function CartDrawer() {
             <div className="p-4 sm:p-5 pb-16 sm:pb-5 border-t border-slate-200 bg-slate-50 space-y-3.5">
               {/* Totals Breakdown */}
               <div className="space-y-1.5 text-xs">
-                <div className="flex items-center justify-between text-slate-600">
-                  <span>Subtotal ({totalItemCount} {totalItemCount === 1 ? 'item' : 'itens'}):</span>
-                  <span className="font-bold text-slate-900">{formatBRL(subtotal)}</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-600">
-                  <span>Pagamento:</span>
-                  <span className="text-emerald-700 font-bold flex items-center gap-1">
-                    <Zap className="w-3 h-3" /> PIX ou Cartão até 12x
-                  </span>
-                </div>
-                <div className="border-t border-slate-200/80 pt-1.5 flex items-center justify-between">
-                  <span className="font-extrabold text-slate-900 text-sm">Total do Pedido:</span>
-                  <span className="font-black text-base sm:text-lg text-amber-900">
-                    {formatBRL(subtotal)}
-                  </span>
-                </div>
+                {quoteItemCount > 0 && (
+                  <div className="flex items-center justify-between text-slate-700 bg-amber-50/90 border border-amber-200/80 px-2.5 py-1.5 rounded-lg">
+                    <span className="font-semibold text-amber-950">Itens sob consulta:</span>
+                    <span className="font-extrabold text-amber-900 bg-amber-100 px-2 py-0.5 rounded text-[11px]">
+                      {quoteItemCount} {quoteItemCount === 1 ? 'item' : 'itens'}
+                    </span>
+                  </div>
+                )}
+
+                {buyableItemCount > 0 && (
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Subtotal c/ Preço ({buyableItemCount} {buyableItemCount === 1 ? 'item' : 'itens'}):</span>
+                    <span className="font-bold text-slate-900">{formatBRL(subtotal)}</span>
+                  </div>
+                )}
+
+                {buyableItemCount > 0 && (
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Pagamento Online:</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <Zap className="w-3 h-3" /> PIX ou Cartão até 12x
+                    </span>
+                  </div>
+                )}
+
+                {buyableItemCount > 0 && (
+                  <div className="border-t border-slate-200/80 pt-1.5 flex items-center justify-between">
+                    <span className="font-extrabold text-slate-900 text-sm">Total Compra Direta:</span>
+                    <span className="font-black text-base sm:text-lg text-amber-900">
+                      {formatBRL(subtotal)}
+                    </span>
+                  </div>
+                )}
 
                 {subtotal > 0 && (
                   <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-amber-950 font-semibold bg-amber-50/80 px-2.5 py-1.5 rounded-lg border border-amber-200/70">
@@ -259,15 +289,43 @@ export function CartDrawer() {
 
               {/* Action Buttons */}
               <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={openCartCheckout}
-                  className="w-full bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 group"
-                >
-                  <CreditCard className="w-5 h-5 text-slate-950 group-hover:scale-110 transition-transform shrink-0" />
-                  <span className="text-slate-950 font-black tracking-wide">Finalizar Compra Segura</span>
-                  <ArrowRight className="w-5 h-5 text-slate-950 shrink-0" />
-                </button>
+                {/* Botão de Orçamento no WhatsApp: sempre presente quando houver itens sob consulta */}
+                {quoteItemCount > 0 && (
+                  <a
+                    href={getWhatsAppQuoteUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      if (requireVerification && requireVerification(() => {
+                        window.open(getWhatsAppQuoteUrl(), '_blank');
+                      })) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-emerald-500 group"
+                  >
+                    <MessageCircle className="w-5 h-5 fill-current group-hover:scale-110 transition-transform shrink-0" />
+                    <span className="tracking-wide">
+                      {buyableItemCount > 0 ? 'Solicitar Cotação Completa no WhatsApp' : 'Solicitar Orçamento no WhatsApp'}
+                    </span>
+                    <ArrowRight className="w-5 h-5 shrink-0" />
+                  </a>
+                )}
+
+                {/* Botão de Compra Direta Online: quando houver itens com preço */}
+                {buyableItemCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={openCartCheckout}
+                    className="w-full bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 group"
+                  >
+                    <CreditCard className="w-5 h-5 text-slate-950 group-hover:scale-110 transition-transform shrink-0" />
+                    <span className="text-slate-950 font-black tracking-wide">
+                      {quoteItemCount > 0 ? `Comprar ${buyableItemCount} Itens c/ Preço no Site` : 'Finalizar Compra Segura'}
+                    </span>
+                    <ArrowRight className="w-5 h-5 text-slate-950 shrink-0" />
+                  </button>
+                )}
 
                 <button
                   type="button"

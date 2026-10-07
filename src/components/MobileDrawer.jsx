@@ -1,9 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  X, Layers, Tag, PackageCheck, Info, ChevronDown, ChevronRight, 
-  PhoneCall, Lock, Grid, User, LogOut, ShoppingCart, 
-  Package, Gift, Users, ShieldCheck, RefreshCw, Shield, Store, FolderTree
+  X, Layers, Tag, PackageCheck, Info, ChevronDown, ChevronRight, ChevronLeft,
+  PhoneCall, Grid, User, LogOut, Package, Gift, Shield, Store, FolderTree,
+  Sparkles, Disc, Cpu, Droplet, Wrench, Wind, Box, ArrowRight
 } from 'lucide-react';
+import { MACRO_DEPARTMENTS, getCategoriesForDepartment } from '../data/departmentsData';
+import { isProductPublished } from '../utils/imageUrl';
+
+// Map icon strings to Lucide components
+const DEPT_ICONS = {
+  Sparkles,
+  Disc,
+  Layers,
+  Cpu,
+  Droplet,
+  Wrench,
+  Wind,
+  Box
+};
 
 export default function MobileDrawer({ 
   isOpen, 
@@ -19,19 +33,22 @@ export default function MobileDrawer({
   currentUser,
   onLogout
 }) {
-  const [openAccordion, setOpenAccordion] = useState(null); // 'categories', 'brands' or null
+  const [openAccordion, setOpenAccordion] = useState('departments'); // 'departments', 'brands' or null
+  const [selectedDept, setSelectedDept] = useState(null); // Drilldown state for sub-menu
   const [viewMode, setViewMode] = useState(activeTab === 'admin' ? 'admin' : 'store');
 
   const safeCategories = categories || [];
   const safeBrands = brands || [];
-  const safeDepartments = departments || [];
+  const safeDepartments = departments && departments.length > 0 ? departments : MACRO_DEPARTMENTS;
   const safeProducts = products || [];
 
   const isStaff = currentUser && ['admin', 'vendedor', 'editor', 'edicao'].includes(currentUser.role);
-  const isAdminRole = currentUser?.role === 'admin';
 
+  // Reset drilldown when drawer closes
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) {
+      setSelectedDept(null);
+    } else {
       if (activeTab === 'admin') {
         setViewMode('admin');
       } else {
@@ -39,6 +56,34 @@ export default function MobileDrawer({
       }
     }
   }, [isOpen, activeTab]);
+
+  // Compute published product counts
+  const publishedProducts = useMemo(() => {
+    return safeProducts.filter(isProductPublished);
+  }, [safeProducts]);
+
+  const categoryCounts = useMemo(() => {
+    const map = new Map();
+    publishedProducts.forEach(p => {
+      if (p.categoryId) {
+        map.set(p.categoryId, (map.get(p.categoryId) || 0) + 1);
+      }
+    });
+    return map;
+  }, [publishedProducts]);
+
+  // Pre-calculate macro-departments with child categories and equipment counts
+  const departmentsWithData = useMemo(() => {
+    return safeDepartments.map(dept => {
+      const deptCats = getCategoriesForDepartment(dept.id, safeCategories, safeDepartments);
+      const totalCount = deptCats.reduce((acc, cat) => acc + (categoryCounts.get(cat.id) || 0), 0);
+      return {
+        ...dept,
+        categories: deptCats,
+        totalProducts: totalCount
+      };
+    });
+  }, [safeDepartments, safeCategories, categoryCounts]);
 
   if (!isOpen) return null;
 
@@ -68,10 +113,10 @@ export default function MobileDrawer({
       />
 
       {/* Drawer Sidebar Content */}
-      <div className="relative w-full max-w-xs bg-white h-full shadow-2xl z-10 flex flex-col justify-between overflow-y-auto animate-slide-right">
+      <div className="relative w-full max-w-xs bg-white h-full shadow-2xl z-10 flex flex-col justify-between overflow-hidden animate-slide-right">
         
         {/* Top Header inside Drawer */}
-        <div>
+        <div className="shrink-0">
           <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
             <div className="flex items-center gap-2.5">
               <img src="/logo.jpg" alt="Athena Logo" className="w-8 h-8 rounded-lg object-contain bg-slate-950 p-0.5 border border-slate-700" />
@@ -83,7 +128,8 @@ export default function MobileDrawer({
 
             <button 
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 cursor-pointer"
+              className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 cursor-pointer transition-colors"
+              title="Fechar menu"
             >
               <X className="w-5 h-5" />
             </button>
@@ -107,7 +153,10 @@ export default function MobileDrawer({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setViewMode('store')}
+                  onClick={() => {
+                    setViewMode('store');
+                    setSelectedDept(null);
+                  }}
                   className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     viewMode === 'store'
                       ? 'bg-amber-500 text-slate-950 shadow-xs'
@@ -124,7 +173,7 @@ export default function MobileDrawer({
 
         {/* ================= ADMIN VIEW ================= */}
         {viewMode === 'admin' && isStaff ? (
-          <div className="p-4 flex-1 space-y-4">
+          <div className="p-4 flex-1 overflow-y-auto space-y-4">
             
             {/* User Account Mini Card */}
             <div className="p-3 rounded-2xl bg-slate-900 text-white flex items-center justify-between shadow-xs">
@@ -253,292 +302,328 @@ export default function MobileDrawer({
                 <ChevronRight className="w-4 h-4 text-slate-400" />
               </button>
             </div>
-
-            {/* Section 2: Clientes & Fidelidade */}
-            <div className="space-y-1">
-              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-2 py-1">
-                Clientes & Fidelidade
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleSelectAdminTab('clients')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                  activeAdminTab === 'clients'
-                    ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
-                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Users className="w-4 h-4 shrink-0" />
-                  <span>Clientes do Site</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </button>
-
-              {isAdminRole && (
-                <button
-                  type="button"
-                  onClick={() => handleSelectAdminTab('omie')}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                    activeAdminTab === 'omie'
-                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
-                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <RefreshCw className="w-4 h-4 shrink-0" />
-                    <span>Omie ERP & Pontos</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                </button>
-              )}
-            </div>
-
-            {/* Section 3: Administração & Equipe */}
-            <div className="space-y-1">
-              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-2 py-1">
-                Administração & Equipe
-              </div>
-
-              {isAdminRole && (
-                <button
-                  type="button"
-                  onClick={() => handleSelectAdminTab('users')}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                    activeAdminTab === 'users'
-                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
-                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ShieldCheck className="w-4 h-4 shrink-0" />
-                    <span>Equipe & Acessos</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => handleSelectAdminTab('settings')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                  activeAdminTab === 'settings'
-                    ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
-                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Lock className="w-4 h-4 shrink-0" />
-                  <span>Configurações & Senha</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
-              </button>
-            </div>
-
           </div>
         ) : (
-          /* ================= STORE VIEW ================= */
-          <div className="p-5 flex-1 space-y-3">
+          /* ================= STORE VIEW: DRILL-DOWN CONTAINER ================= */
+          <div className="relative flex-1 overflow-hidden">
             
-            {/* User Account / Login Button */}
-            {currentUser ? (
-              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-xl bg-amber-600 text-white flex items-center justify-center text-xs font-black">
-                      {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-black text-slate-900 truncate">Olá, {currentUser.name ? currentUser.name.split(' ')[0] : 'Cliente'}</p>
-                      <p className="text-[10px] text-slate-500 truncate">{currentUser.email}</p>
+            {/* PANEL 1: ROOT STORE NAVIGATION */}
+            <div 
+              className={`absolute inset-0 overflow-y-auto p-4 space-y-3.5 transition-transform duration-300 ease-in-out ${
+                selectedDept ? '-translate-x-full pointer-events-none opacity-0' : 'translate-x-0 opacity-100'
+              }`}
+            >
+              {/* User Account / Login Button */}
+              {currentUser ? (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                        {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-black text-slate-900 truncate">Olá, {currentUser.name ? currentUser.name.split(' ')[0] : 'Cliente'}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{currentUser.email}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-1.5 pt-1">
-                  <button
-                    onClick={() => {
-                      if (currentUser.role === 'admin') {
-                        onNavigate('admin');
-                        setViewMode('admin');
-                      } else {
-                        onNavigate('minha-conta');
-                      }
-                      onClose();
-                    }}
-                    className="py-1.5 px-2.5 rounded-xl bg-amber-600 text-white font-bold text-[11px] flex items-center justify-center gap-1 shadow-xs cursor-pointer"
-                  >
-                    <User className="w-3.5 h-3.5" />
-                    <span>{currentUser.role === 'admin' ? 'Painel Admin' : 'Minha Conta'}</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (onLogout) onLogout();
-                      onClose();
-                    }}
-                    className="py-1.5 px-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-[11px] flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer"
-                  >
-                    <LogOut className="w-3.5 h-3.5 text-red-500" />
-                    <span>Sair</span>
-                  </button>
+                  <div className="grid grid-cols-2 gap-1.5 pt-1">
+                    <button
+                      onClick={() => {
+                        if (currentUser.role === 'admin') {
+                          onNavigate('admin');
+                          setViewMode('admin');
+                        } else {
+                          onNavigate('minha-conta');
+                        }
+                        onClose();
+                      }}
+                      className="py-1.5 px-2.5 rounded-xl bg-amber-600 text-white font-bold text-[11px] flex items-center justify-center gap-1 shadow-xs cursor-pointer"
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span>{currentUser.role === 'admin' ? 'Painel Admin' : 'Minha Conta'}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (onLogout) onLogout();
+                        onClose();
+                      }}
+                      className="py-1.5 px-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-[11px] flex items-center justify-center gap-1 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-red-500" />
+                      <span>Sair</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : (
+              ) : (
+                <button
+                  onClick={() => {
+                    onNavigate('login');
+                    onClose();
+                  }}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <User className="w-4 h-4" />
+                    <span>Entrar ou Criar Conta</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Catálogo Principal */}
               <button
                 onClick={() => {
-                  onNavigate('login');
+                  onNavigate('catalog');
                   onClose();
                 }}
-                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-900 font-bold text-xs border border-slate-200 cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-2.5">
-                  <User className="w-4 h-4" />
-                  <span>Entrar ou Criar Conta</span>
+                  <PackageCheck className="w-4 h-4 text-amber-600" />
+                  <span>Catálogo Completo</span>
                 </div>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Item 1: Catálogo */}
-            <button
-              onClick={() => {
-                onNavigate('catalog');
-                onClose();
-              }}
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-900 font-bold text-xs border border-slate-200 cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5">
-                <PackageCheck className="w-4 h-4 text-amber-600" />
-                <span>Catálogo Principal</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </button>
-
-            {/* Item 2: Categorias Accordion */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-              <button
-                onClick={() => toggleAccordion('categories')}
-                className="w-full flex items-center justify-between p-3 text-slate-900 font-bold text-xs cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Layers className="w-4 h-4 text-amber-600" />
-                  <span>Categorias ({safeCategories.length})</span>
-                </div>
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openAccordion === 'categories' ? 'rotate-180' : ''}`} />
+                <ChevronRight className="w-4 h-4 text-slate-400" />
               </button>
 
-              {openAccordion === 'categories' && (
-                <div className="bg-white border-t border-slate-200 p-2 space-y-1">
-                  <button
-                    onClick={() => {
-                      onNavigate('categories');
-                      onClose();
-                    }}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg bg-amber-50 text-amber-800 font-bold text-xs border border-amber-200 cursor-pointer"
-                  >
-                    <Grid className="w-3.5 h-3.5 text-amber-600" />
-                    <span>VER TODAS AS CATEGORIAS</span>
-                  </button>
+              {/* SEÇÃO 1: MACRO-DEPARTAMENTOS (DRILL-DOWN TRIGGER) */}
+              <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 shadow-2xs">
+                <button
+                  onClick={() => toggleAccordion('departments')}
+                  className="w-full flex items-center justify-between p-3 text-slate-900 font-extrabold text-xs cursor-pointer bg-slate-100/70 border-b border-slate-200/80"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Layers className="w-4 h-4 text-amber-600" />
+                    <span>Departamentos ({departmentsWithData.length})</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openAccordion === 'departments' ? 'rotate-180' : ''}`} />
+                </button>
 
-                  {safeCategories.map((cat) => (
+                {openAccordion === 'departments' && (
+                  <div className="bg-white p-2 space-y-1">
                     <button
-                      key={cat.id}
                       onClick={() => {
-                        onNavigate(`category:${cat.id}`);
+                        onNavigate('categories');
                         onClose();
                       }}
-                      className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-between cursor-pointer"
+                      className="w-full flex items-center justify-between p-2 rounded-xl bg-amber-50 text-amber-900 font-bold text-xs border border-amber-200 cursor-pointer mb-1.5"
                     >
-                      <span>{cat.name}</span>
-                      <span className="text-[10px] text-slate-400">
-                        {safeProducts.filter(p => p.categoryId === cat.id).length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <Grid className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Ver Todas as Categorias</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-amber-600" />
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* Item 3: Marcas Accordion */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
-              <button
-                onClick={() => toggleAccordion('brands')}
-                className="w-full flex items-center justify-between p-3 text-slate-900 font-bold text-xs cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Tag className="w-4 h-4 text-sky-600" />
-                  <span>Marcas ({safeBrands.length})</span>
-                </div>
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${openAccordion === 'brands' ? 'rotate-180' : ''}`} />
-              </button>
+                    {departmentsWithData.map((dept) => {
+                      const IconComponent = DEPT_ICONS[dept.icon] || Layers;
+                      return (
+                        <button
+                          key={dept.id}
+                          onClick={() => setSelectedDept(dept)}
+                          className="w-full p-2.5 rounded-xl text-left bg-white hover:bg-amber-50/60 active:bg-amber-100 border border-slate-100 hover:border-amber-200/80 flex items-center justify-between transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-700 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                              <IconComponent className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-extrabold text-xs text-slate-900 block truncate group-hover:text-amber-700">
+                                {dept.shortName || dept.name}
+                              </span>
+                              <span className="text-[10px] text-slate-500 block truncate">
+                                {dept.categories.length} categorias • {dept.totalProducts} produtos
+                              </span>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-              {openAccordion === 'brands' && (
-                <div className="bg-white border-t border-slate-200 p-2 space-y-1">
-                  <button
-                    onClick={() => {
-                      onNavigate('brands');
-                      onClose();
-                    }}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg bg-sky-50 text-sky-800 font-bold text-xs border border-sky-200 cursor-pointer"
-                  >
-                    <Grid className="w-3.5 h-3.5 text-sky-600" />
-                    <span>VER TODAS AS MARCAS</span>
-                  </button>
+              {/* SEÇÃO 2: MARCAS ACCORDION */}
+              <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50 shadow-2xs">
+                <button
+                  onClick={() => toggleAccordion('brands')}
+                  className="w-full flex items-center justify-between p-3 text-slate-900 font-extrabold text-xs cursor-pointer bg-slate-100/70 border-b border-slate-200/80"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Tag className="w-4 h-4 text-sky-600" />
+                    <span>Marcas ({safeBrands.length})</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${openAccordion === 'brands' ? 'rotate-180' : ''}`} />
+                </button>
 
-                  {safeBrands.map((b) => (
+                {openAccordion === 'brands' && (
+                  <div className="bg-white p-2 space-y-1">
                     <button
-                      key={b.id}
                       onClick={() => {
-                        onNavigate(`brand:${b.id}`);
+                        onNavigate('brands');
                         onClose();
                       }}
-                      className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center justify-between cursor-pointer"
+                      className="w-full flex items-center justify-between p-2 rounded-xl bg-sky-50 text-sky-900 font-bold text-xs border border-sky-200 cursor-pointer mb-1.5"
                     >
-                      <span>{b.name}</span>
-                      <span className="text-[10px] text-slate-400">
-                        {safeProducts.filter(p => p.brandId === b.id).length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <Grid className="w-3.5 h-3.5 text-sky-600" />
+                        <span>Ver Todas as Marcas</span>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-sky-600" />
                     </button>
-                  ))}
+
+                    {safeBrands.map((b) => (
+                      <button
+                        key={b.id}
+                        onClick={() => {
+                          onNavigate(`brand:${b.id}`);
+                          onClose();
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 active:bg-sky-50 flex items-center justify-between cursor-pointer transition-colors"
+                      >
+                        <span className="truncate">{b.name}</span>
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                          {safeProducts.filter(p => p.brandId === b.id).length}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* SEÇÃO 3: SOBRE & ATENDIMENTO */}
+              <button
+                onClick={() => {
+                  onNavigate('about');
+                  onClose();
+                }}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-900 font-bold text-xs border border-slate-200 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Info className="w-4 h-4 text-amber-600" />
+                  <span>Sobre a Athena</span>
                 </div>
-              )}
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </button>
+
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 font-bold text-xs border border-emerald-200 text-decoration-none transition-colors"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <PhoneCall className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="truncate">WhatsApp ({formattedPhone})</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-emerald-600 shrink-0 ml-1" />
+              </a>
+
             </div>
 
-            {/* Item 4: Sobre */}
-            <button
-              onClick={() => {
-                onNavigate('about');
-                onClose();
-              }}
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-900 font-bold text-xs border border-slate-200 cursor-pointer"
+            {/* PANEL 2: DRILL-DOWN SUB-VIEW (CATEGORIAS DO DEPARTAMENTO SELECIONADO) */}
+            <div 
+              className={`absolute inset-0 overflow-y-auto p-4 space-y-3.5 bg-white transition-transform duration-300 ease-in-out ${
+                selectedDept ? 'translate-x-0 opacity-100' : 'translate-x-full pointer-events-none opacity-0'
+              }`}
             >
-              <div className="flex items-center gap-2.5">
-                <Info className="w-4 h-4 text-amber-600" />
-                <span>Sobre a Athena</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-400" />
-            </button>
+              {selectedDept && (
+                <>
+                  {/* Top Back Navigation Bar */}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDept(null)}
+                      className="inline-flex items-center gap-1.5 text-xs font-black text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl border border-amber-200 cursor-pointer transition-colors shadow-2xs"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>Voltar</span>
+                    </button>
+                    <span className="text-[10px] uppercase font-black tracking-wider text-slate-400">
+                      Departamento
+                    </span>
+                  </div>
 
-            {/* Item 5: Falar no WhatsApp */}
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold text-xs border border-emerald-200 text-decoration-none transition-colors"
-            >
-              <div className="flex items-center gap-2.5">
-                <PhoneCall className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Falar no WhatsApp ({formattedPhone})</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-emerald-500" />
-            </a>
+                  {/* Department Banner & Overview */}
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50/40 border border-amber-200/80 space-y-2">
+                    <div className="flex items-center gap-2.5">
+                      {React.createElement(DEPT_ICONS[selectedDept.icon] || Layers, {
+                        className: "w-5 h-5 text-amber-600 shrink-0"
+                      })}
+                      <h4 className="font-black text-slate-900 text-sm leading-tight">
+                        {selectedDept.name}
+                      </h4>
+                    </div>
+                    {selectedDept.description && (
+                      <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-3">
+                        {selectedDept.description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 pt-1 text-[10px] font-extrabold text-amber-800">
+                      <span className="bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300/80">
+                        {selectedDept.categories.length} {selectedDept.categories.length === 1 ? 'categoria' : 'categorias'}
+                      </span>
+                      <span>•</span>
+                      <span>{selectedDept.totalProducts} equipamentos</span>
+                    </div>
+                  </div>
+
+                  {/* List of Child Categories inside this Department */}
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-1 py-1">
+                      Categorias deste Departamento
+                    </div>
+
+                    {selectedDept.categories.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic p-3 text-center bg-slate-50 rounded-xl">
+                        Nenhuma categoria cadastrada neste departamento.
+                      </p>
+                    ) : (
+                      selectedDept.categories.map((cat) => {
+                        const count = categoryCounts.get(cat.id) || 0;
+                        return (
+                          <button
+                            key={cat.id}
+                            onClick={() => {
+                              onNavigate(`category:${cat.id}`);
+                              onClose();
+                            }}
+                            className="w-full text-left p-3 rounded-xl bg-slate-50 hover:bg-amber-50/70 active:bg-amber-100 text-slate-800 hover:text-amber-900 font-bold text-xs flex items-center justify-between border border-slate-200/80 hover:border-amber-300 transition-all cursor-pointer group"
+                          >
+                            <span className="truncate pr-2 group-hover:translate-x-0.5 transition-transform">
+                              {cat.name}
+                            </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white text-slate-600 border border-slate-200 group-hover:bg-amber-100 group-hover:text-amber-800">
+                                {count}
+                              </span>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600" />
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Bottom Return Button */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDept(null)}
+                    className="w-full py-2.5 text-center text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors pt-2 block cursor-pointer"
+                  >
+                    ← Ver outros departamentos
+                  </button>
+                </>
+              )}
+            </div>
 
           </div>
         )}
 
         {/* Footer inside Drawer */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-center pb-20 md:pb-4">
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-center shrink-0 pb-20 md:pb-4">
           {viewMode === 'admin' ? (
             <button
               type="button"

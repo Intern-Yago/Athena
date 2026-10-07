@@ -36,7 +36,9 @@ import {
   Zap,
   AlertTriangle,
   Box,
-  Loader2
+  Loader2,
+  Minus,
+  Plus
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { isProductQuoteOnly, getVariantAvailability, isVariantActiveForSale, getVariantGalleryImages } from '../utils/productVariants';
@@ -218,6 +220,7 @@ export default function ProductDetailPage({
   const [selectedQuickViewProduct, setSelectedQuickViewProduct] = useState(null);
   const [isInstallmentModalOpen, setIsInstallmentModalOpen] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState(null);
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
   const { addToCart, openDirectCheckout, requireVerification } = useCart();
 
   // State for direct fetch when product is not yet in global products list (e.g. fresh page load)
@@ -423,16 +426,16 @@ export default function ProductDetailPage({
     } catch (e) {}
   };
 
-  const variantSuffixText = selectedVariant
-    ? `\n*Opção Selecionada:* ${selectedVariant.name}${selectedVariant.sku ? ` (Cód/SKU: ${selectedVariant.sku})` : ''}${isQuoteOnly ? ' [Sob Consulta]' : (!selectedVariantAvail?.canBuy ? (selectedVariantAvail?.reason === 'auto_inactive' ? ' [Esgotado no estoque - solicito previsão]' : ' [Opção desativada - solicito previsão]') : '')}`
-    : '';
+  const productTitleWithVariant = `${product?.name || ''}${selectedVariant ? ` - ${selectedVariant.name}` : ''}`;
+  const variantSkuText = selectedVariant?.sku ? ` | Cód: ${selectedVariant.sku}` : (product?.sku ? ` | Cód: ${product.sku}` : '');
+  const qtyText = selectedQuantity > 1 ? `\nQuantidade: ${selectedQuantity} unidade(s)` : '';
 
   const whatsappMessage = canBuyOnline
     ? encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${product?.name || ''}*${variantSuffixText}\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\nMarca: ${brand?.name || 'Athena'}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
+        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
       )
     : encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${product?.name || ''}*${variantSuffixText}\nMarca: ${brand?.name || 'Athena'}\nCategoria: ${category?.name || 'Geral'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
+        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nCategoria: ${category?.name || 'Geral'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
       );
 
   // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
@@ -1150,6 +1153,33 @@ export default function ProductDetailPage({
               </div>
             )}
 
+            {/* Quantity Selector */}
+            <div className="flex items-center gap-3 pt-2">
+              <span className="text-xs font-bold text-slate-700">Quantidade:</span>
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setSelectedQuantity(q => Math.max(1, q - 1))}
+                  disabled={selectedQuantity <= 1}
+                  className="w-7 h-7 rounded-lg bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Diminuir quantidade"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="font-extrabold text-xs px-2.5 text-slate-900 min-w-[28px] text-center">
+                  {selectedQuantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedQuantity(q => Math.min(99, q + 1))}
+                  className="w-7 h-7 rounded-lg bg-white hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                  title="Aumentar quantidade"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
             {/* Action Buttons Below Price */}
             <div className="pt-2 flex flex-wrap items-center gap-3">
               {canBuyOnline ? (
@@ -1157,7 +1187,7 @@ export default function ProductDetailPage({
                   <button
                     type="button"
                     disabled={selectedVariant && !selectedVariantAvail?.canBuy}
-                    onClick={() => openDirectCheckout(product, 1, selectedVariant)}
+                    onClick={() => openDirectCheckout(product, selectedQuantity, selectedVariant)}
                     className={`btn-gold text-xs sm:text-sm py-2.5 px-5 shadow-xs font-black flex items-center gap-2 ${
                       selectedVariant && !selectedVariantAvail?.canBuy ? 'opacity-50 cursor-not-allowed filter grayscale' : 'cursor-pointer'
                     }`}
@@ -1169,7 +1199,7 @@ export default function ProductDetailPage({
                   <button
                     type="button"
                     disabled={selectedVariant && !selectedVariantAvail?.canBuy}
-                    onClick={() => addToCart(product, 1, selectedVariant)}
+                    onClick={() => addToCart(product, selectedQuantity, selectedVariant)}
                     className={`py-2.5 px-4 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
                       selectedVariant && !selectedVariantAvail?.canBuy 
                         ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border border-slate-200' 
@@ -1177,7 +1207,7 @@ export default function ProductDetailPage({
                     }`}
                   >
                     <ShoppingCart className="w-4 h-4 text-amber-700" />
-                    <span>+ Carrinho</span>
+                    <span>+ Carrinho{selectedQuantity > 1 ? ` (${selectedQuantity})` : ''}</span>
                   </button>
 
                   <a
@@ -1198,22 +1228,34 @@ export default function ProductDetailPage({
                   </a>
                 </>
               ) : (
-                <a
-                  href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => {
-                    if (requireVerification && requireVerification(() => {
-                      window.open(`https://wa.me/5561983485671?text=${whatsappMessage}`, '_blank');
-                    })) {
-                      e.preventDefault();
-                    }
-                  }}
-                  className="btn-gold text-xs sm:text-sm py-3 px-6 shadow-md font-extrabold flex items-center gap-2 cursor-pointer"
-                >
-                  <MessageCircle className="w-4 h-4 fill-current" />
-                  <span>{selectedVariant ? `Solicitar Orçamento da Opção "${selectedVariant.name}" no WhatsApp` : 'Solicitar Orçamento no WhatsApp'}</span>
-                </a>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => addToCart(product, selectedQuantity, selectedVariant)}
+                    className="py-3 px-5 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all text-slate-900 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 shadow-xs cursor-pointer"
+                    title="Adicionar este equipamento à sua lista de orçamento para cotar múltiplos itens juntos"
+                  >
+                    <ShoppingCart className="w-4 h-4 text-amber-800 shrink-0" />
+                    <span>+ Adicionar ao Orçamento{selectedQuantity > 1 ? ` (${selectedQuantity})` : ''}</span>
+                  </button>
+
+                  <a
+                    href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      if (requireVerification && requireVerification(() => {
+                        window.open(`https://wa.me/5561983485671?text=${whatsappMessage}`, '_blank');
+                      })) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="btn-gold text-xs sm:text-sm py-3 px-6 shadow-md font-extrabold flex items-center gap-2 cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4 fill-current" />
+                    <span>{selectedVariant ? `Cotar "${selectedVariant.name}" no WhatsApp` : 'Solicitar Orçamento no WhatsApp'}</span>
+                  </a>
+                </>
               )}
 
               {onToggleComparison && (
