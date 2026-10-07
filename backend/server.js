@@ -421,72 +421,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Helper: Determina se um IP pertence à infraestrutura interna (Render/Docker RFC 1918) ou aos proxies da Cloudflare
-function isInfrastructureOrPrivateIp(ip) {
-  if (!ip || typeof ip !== 'string') return true;
-  const clean = ip.replace('::ffff:', '').trim();
-  if (clean === '127.0.0.1' || clean === '::1' || clean === 'localhost') return true;
+// -------------------------------------------------------------
+// SECURE CLIENT IP EXTRACTOR & CLOUDFLARE EDGE ISOLATION
+// -------------------------------------------------------------
+const {
+  isPrivateIp,
+  isCloudflareIp,
+  isInfrastructureOrPrivateIp,
+  safeCompareTokens,
+  getClientIp
+} = require('./utils/network');
 
-  // 1. Faixas de Rede Privadas RFC 1918 (Render internal load balancers, VPCs, Docker, Localhost)
-  if (/^10\./.test(clean)) return true;
-  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(clean)) return true;
-  if (/^192\.168\./.test(clean)) return true;
-  if (/^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./.test(clean)) return true;
-  if (/^169\.254\./.test(clean) || clean.startsWith('fe80:')) return true;
-
-  // 2. Faixas Oficiais de Proxies da Borda Cloudflare (para que nenhum nó da Cloudflare seja bloqueado acidentalmente)
-  if (/^173\.245\.(4[8-9]|5[0-9]|6[0-3])\./.test(clean)) return true;
-  if (/^103\.21\.(24[4-7])\./.test(clean)) return true;
-  if (/^103\.22\.(20[0-3])\./.test(clean)) return true;
-  if (/^103\.31\.(4|5|6|7)\./.test(clean)) return true;
-  if (/^141\.101\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./.test(clean)) return true;
-  if (/^108\.162\.(19[2-9]|2[0-4][0-9]|25[0-5])\./.test(clean)) return true;
-  if (/^190\.93\.(24[0-9]|25[0-5])\./.test(clean)) return true;
-  if (/^188\.114\.(9[6-9]|1[0-1][0-9]|12[0-7])\./.test(clean)) return true;
-  if (/^197\.234\.(24[0-3])\./.test(clean)) return true;
-  if (/^198\.41\.(12[8-9]|1[3-9][0-9]|2[0-4][0-9]|25[0-5])\./.test(clean)) return true;
-  if (/^162\.15[89]\./.test(clean)) return true;
-  if (/^104\.(1[6-9]|2[0-7])\./.test(clean)) return true;
-  if (/^172\.(6[4-9]|7[0-1])\./.test(clean)) return true;
-  if (/^131\.0\.(7[2-5])\./.test(clean)) return true;
-
-  return false;
-}
-
-// Retrocompatibilidade interna
 const isPrivateOrInternalIp = isInfrastructureOrPrivateIp;
-
-// Secure Client IP Extractor
-// Prioriza o cabeçalho canônico da Cloudflare (CF-Connecting-IP) ou o primeiro IP público da cadeia
-function getClientIp(req) {
-  // 1. Cloudflare fornece o IP real do cliente no cabeçalho CF-Connecting-IP
-  const cfIp = req.headers['cf-connecting-ip'];
-  if (cfIp && typeof cfIp === 'string') {
-    const cleanCf = cfIp.split(',')[0].trim().replace('::ffff:', '');
-    if (cleanCf && !isInfrastructureOrPrivateIp(cleanCf)) {
-      return cleanCf;
-    }
-  }
-
-  // 2. IP resolvido pelo Express via trust proxy (já filtra proxies locais e privados configurados)
-  let ip = req.ip || req.socket?.remoteAddress || '127.0.0.1';
-  if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
-    ip = ip.replace('::ffff:', '');
-  }
-  if (!isInfrastructureOrPrivateIp(ip)) {
-    return ip.trim();
-  }
-
-  // 3. Fallback: analisa X-Forwarded-For em busca do primeiro IP público que não seja da infraestrutura
-  const xff = req.headers['x-forwarded-for'];
-  if (xff && typeof xff === 'string') {
-    const parts = xff.split(',').map(s => s.trim().replace('::ffff:', '')).filter(Boolean);
-    const publicIp = parts.find(p => !isInfrastructureOrPrivateIp(p));
-    if (publicIp) return publicIp;
-  }
-
-  return typeof ip === 'string' ? ip.trim() : '127.0.0.1';
-}
 
 // -------------------------------------------------------------
 // CORS (CROSS-ORIGIN RESOURCE SHARING) HARDENING
@@ -559,14 +505,14 @@ if (ATHENA_ORIGIN_SECRET) {
 
     const incomingSecret = req.headers['x-athena-origin-secret'];
     const origin = req.headers['origin'];
-    const referer = req.headers['referer'];
-
     const isAthenaReferer = referer && (
       referer.startsWith('https://www.athenaconsultoria.com.br') ||
       referer.startsWith('https://athenaconsultoria.com.br')
     );
 
-    if ((incomingSecret && incomingSecret === ATHENA_ORIGIN_SECRET) || isOriginAllowed(origin) || isAthenaReferer) {
+    const hasSecretMatch = incomingSecret && safeCompareTokens(incomingSecret, ATHENA_ORIGIN_SECRET);
+
+    if (hasSecretMatch || isOriginAllowed(origin) || isAthenaReferer) {
       return next();
     }
 
@@ -3005,12 +2951,21 @@ async function verifyCloudflareTurnstile(token, clientIp) {
     return { success: false, error: 'Token do Cloudflare Turnstile não fornecido.' };
   }
 
+  const cleanToken = token.trim();
+  if (cleanToken.length < 10 || cleanToken.length > 2048 || !/^[A-Za-z0-9_.-]+$/.test(cleanToken)) {
+    return { success: false, error: 'Token do Cloudflare Turnstile com formato inválido.' };
+  }
+
   try {
     const params = new URLSearchParams();
     params.append('secret', secretKey);
-    params.append('response', token);
-    if (clientIp) {
-      params.append('remoteip', clientIp);
+    params.append('response', cleanToken);
+    if (clientIp && typeof clientIp === 'string') {
+      const cleanIp = clientIp.replace('::ffff:', '').trim();
+      const net = require('net');
+      if (net.isIP(cleanIp) && !isInfrastructureOrPrivateIp(cleanIp)) {
+        params.append('remoteip', cleanIp);
+      }
     }
 
     const response = await axios.post(
@@ -3026,11 +2981,21 @@ async function verifyCloudflareTurnstile(token, clientIp) {
       return { success: true };
     }
 
+    const errorCodes = response.data?.['error-codes'] || [];
+    if (errorCodes.includes('timeout-or-duplicate')) {
+      logSecurityEvent({
+        event: 'TURNSTILE_REPLAY_DETECTED',
+        ip: clientIp || 'unknown',
+        outcome: 'BLOCKED',
+        reason: 'Token de desafio Turnstile duplicado ou expirado (tentativa de replay)'
+      });
+    }
+
     console.warn('[Turnstile siteverify falhou]:', response.data);
     return {
       success: false,
       error: 'Validação do Cloudflare Turnstile rejeitada. Por favor, marque o desafio novamente.',
-      codes: response.data?.['error-codes'] || []
+      codes: errorCodes
     };
   } catch (err) {
     console.error('[Turnstile Network Error]:', err.message);

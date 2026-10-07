@@ -11,6 +11,9 @@ const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-fd5d45a1dd144e14
 
 const isR2Configured = Boolean(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY);
 
+const ALLOWED_R2_FOLDERS = ['produtos', 'marcas', 'banners', 'documentos', 'catalogos', 'uploads', 'temp'];
+const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
+
 let r2Client = null;
 if (isR2Configured) {
   r2Client = new S3Client({
@@ -37,7 +40,7 @@ function invalidateR2Cache() {
 
 /**
  * Uploads a file (base64 string or Buffer) to Cloudflare R2.
- * Automatically converts image files to optimized WebP format.
+ * Automatically validates magic bytes, prevents path traversal, and converts images to WebP.
  */
 async function uploadToR2({ file, folder = 'produtos', filename = null }) {
   if (!isR2Configured || !r2Client) {
@@ -52,9 +55,9 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
     buffer = file;
   } else if (typeof file === 'string') {
     if (file.startsWith('data:')) {
-      const matches = file.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      const matches = file.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
       if (matches) {
-        mimeType = matches[1];
+        mimeType = matches[1].toLowerCase();
         buffer = Buffer.from(matches[2], 'base64');
       } else {
         buffer = Buffer.from(file, 'base64');
@@ -66,7 +69,24 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
     throw new Error('Formato de arquivo inválido para upload.');
   }
 
+  // 1. Limite de tamanho de arquivo
+  if (buffer.length > MAX_UPLOAD_SIZE_BYTES) {
+    throw new Error('O arquivo excede o limite máximo permitido de 25 MB.');
+  }
+
+  // 2. Higienização e Validação Estrita de Pasta (Anti-Path Traversal)
+  const safeFolder = String(folder || 'produtos')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+    .slice(0, 32);
+  const finalFolder = ALLOWED_R2_FOLDERS.includes(safeFolder) ? safeFolder : 'produtos';
+
+  // 3. Validação de Tipo de Arquivo e Magic Bytes
   if (mimeType.includes('pdf') || (filename && filename.toLowerCase().endsWith('.pdf'))) {
+    // Valida magic bytes de PDF (%PDF-)
+    if (buffer.length < 5 || buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
+      throw new Error('Arquivo PDF corrompido ou com cabeçalho inválido.');
+    }
     isPdf = true;
   }
 
@@ -74,7 +94,7 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
   let finalContentType = mimeType;
   let extension = isPdf ? 'pdf' : 'webp';
 
-  // If it's an image, convert to WebP using Sharp
+  // 4. Se for imagem, processa e converte com o Sharp (descarta vetores maliciosos/XSS embutidos)
   if (!isPdf) {
     const originalSizeKb = (buffer.length / 1024).toFixed(1);
     try {
@@ -91,31 +111,35 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
       const reduction = (((buffer.length - finalBuffer.length) / buffer.length) * 100).toFixed(1);
       console.log(`[Sharp Engine] Sucesso: ${originalSizeKb} KB -> ${newSizeKb} KB (Economia de ${reduction}% em WebP)`);
     } catch (sharpError) {
-      console.warn('[Sharp Engine] Falha ao converter imagem, mantendo buffer original:', sharpError.message);
+      console.error('[Sharp Engine] Arquivo de imagem inválido ou malicioso rejeitado:', sharpError.message);
+      throw new Error('O arquivo enviado não é uma imagem válida suportada.');
     }
   } else {
-    console.log(`[Storage] Processando documento PDF (${(buffer.length / 1024).toFixed(1)} KB)...`);
+    console.log(`[Storage] Processando documento PDF seguro (${(buffer.length / 1024).toFixed(1)} KB)...`);
   }
 
-  // Generate clean unique key
+  // 5. Gera chave segura sem caracteres de escape
   const randomHash = crypto.randomBytes(6).toString('hex');
   const baseName = filename
-    ? filename.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+    ? String(filename).replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80)
     : `item-${Date.now()}`;
-  const key = `${folder}/${baseName}-${randomHash}.${extension}`;
+  const key = `${finalFolder}/${baseName}-${randomHash}.${extension}`;
 
-  // Upload to Cloudflare R2
+  // 6. Envio para o Cloudflare R2 com cabeçalhos de segurança estritos
   await r2Client.send(new PutObjectCommand({
     Bucket: R2_BUCKET_NAME,
     Key: key,
     Body: finalBuffer,
     ContentType: finalContentType,
-    CacheControl: 'public, max-age=31536000, immutable'
+    CacheControl: 'public, max-age=31536000, immutable',
+    Metadata: {
+      'x-content-type-options': 'nosniff'
+    }
   }));
 
   const publicUrl = `${R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
 
-  // Invalidate library cache so the newly uploaded file appears instantly
+  // Invalida o cache local da biblioteca
   invalidateR2Cache();
 
   return {
@@ -128,7 +152,7 @@ async function uploadToR2({ file, folder = 'produtos', filename = null }) {
 }
 
 /**
- * Deletes a file from Cloudflare R2 given its public URL or key.
+ * Exclui com segurança um arquivo do Cloudflare R2 validando o prefixo da chave.
  */
 async function deleteFromR2(urlOrKey) {
   if (!isR2Configured || !r2Client || !urlOrKey) return false;
@@ -143,17 +167,31 @@ async function deleteFromR2(urlOrKey) {
       }
     }
 
-    if (!key) return false;
+    if (!key || typeof key !== 'string') return false;
+
+    // Defesa estrita contra Path Traversal
+    const cleanKey = decodeURIComponent(key).trim();
+    if (cleanKey.includes('..') || cleanKey.startsWith('/') || cleanKey.includes('\\')) {
+      console.warn('[Cloudflare R2] Tentativa de exclusão com path traversal rejeitada:', cleanKey);
+      return false;
+    }
+
+    // Permite exclusão apenas em pastas autorizadas
+    const isAllowedPrefix = ALLOWED_R2_FOLDERS.some(f => cleanKey.startsWith(`${f}/`));
+    if (!isAllowedPrefix) {
+      console.warn('[Cloudflare R2] Tentativa de exclusão fora das pastas autorizadas:', cleanKey);
+      return false;
+    }
 
     await r2Client.send(new DeleteObjectCommand({
       Bucket: R2_BUCKET_NAME,
-      Key: key,
+      Key: cleanKey,
     }));
 
-    // Invalidate library cache so the deleted file vanishes immediately
+    // Invalida cache da biblioteca
     invalidateR2Cache();
 
-    console.log(`[Cloudflare R2] Objeto excluído com sucesso: ${key}`);
+    console.log(`[Cloudflare R2] Objeto excluído com segurança: ${cleanKey}`);
     return true;
   } catch (err) {
     console.warn(`[Cloudflare R2] Falha ao excluir objeto ${urlOrKey}:`, err.message);
@@ -192,8 +230,7 @@ async function listR2Objects({ page = 1, limit = 36, search = '', folder = '' } 
                             lowerKey.endsWith('.jpeg') ||
                             lowerKey.endsWith('.png') ||
                             lowerKey.endsWith('.gif') ||
-                            lowerKey.endsWith('.avif') ||
-                            lowerKey.endsWith('.svg');
+                            lowerKey.endsWith('.avif');
             if (isMedia) {
               const parts = item.Key.split('/');
               const filename = parts[parts.length - 1];
@@ -268,5 +305,6 @@ module.exports = {
   listR2Objects,
   invalidateR2Cache,
   R2_BUCKET_NAME,
-  R2_PUBLIC_URL
+  R2_PUBLIC_URL,
+  ALLOWED_R2_FOLDERS
 };
