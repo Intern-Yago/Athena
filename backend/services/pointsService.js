@@ -29,6 +29,7 @@ async function applyPointsTransaction({
   if (pointsAmount === 0 || isNaN(pointsAmount)) throw new Error('pointsAmount não pode ser zero.');
 
   const delta = parseInt(pointsAmount, 10);
+  const txType = transactionType || (delta < 0 ? 'redemption_debit' : 'purchase_credit');
 
   return await withTransaction(async (client) => {
     // 1. Verificacao de Idempotencia: Ja processamos esta referencia exata?
@@ -36,7 +37,7 @@ async function applyPointsTransaction({
       SELECT id, points_amount, balance_after, created_at
       FROM a_points_ledger
       WHERE reference_type = $1 AND reference_id = $2 AND transaction_type = $3
-    `, [referenceType, referenceId, transactionType]);
+    `, [referenceType, referenceId, txType]);
 
     if (existingCheck.rows.length > 0) {
       console.log(`[POINTS IDEMPOTENT SKIP] Transação já processada anteriormente: ${referenceType}:${referenceId} (${transactionType})`);
@@ -85,7 +86,7 @@ async function applyPointsTransaction({
       orderId,
       referenceType,
       referenceId,
-      transactionType,
+      txType,
       delta,
       newBalance,
       description,
@@ -97,7 +98,7 @@ async function applyPointsTransaction({
       UPDATE users SET a_points = $1, updated_at = NOW() WHERE id = $2
     `, [newBalance, customerId]);
 
-    console.log(`[A-POINTS LEDGER] Usuário ${customerId}: ${delta > 0 ? '+' : ''}${delta} pts. Saldo anterior: ${currentBalance} -> Novo: ${newBalance} (${transactionType})`);
+    console.log(`[A-POINTS LEDGER] Usuário ${customerId}: ${delta > 0 ? '+' : ''}${delta} pts. Saldo anterior: ${currentBalance} -> Novo: ${newBalance} (${txType})`);
 
     return {
       idempotent: false,

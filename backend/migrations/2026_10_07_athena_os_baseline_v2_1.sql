@@ -212,6 +212,7 @@ CREATE TABLE IF NOT EXISTS public.integration_webhook_events (
     attempts_count INTEGER NOT NULL DEFAULT 0,
     max_attempts INTEGER NOT NULL DEFAULT 5,
     last_error TEXT,
+    next_retry_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     received_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     processed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -220,6 +221,7 @@ CREATE TABLE IF NOT EXISTS public.integration_webhook_events (
 
 CREATE INDEX IF NOT EXISTS idx_webhook_status_provider ON public.integration_webhook_events(status, provider);
 CREATE INDEX IF NOT EXISTS idx_webhook_received_at ON public.integration_webhook_events(received_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_retry ON public.integration_webhook_events(status, next_retry_at);
 
 -- ------------------------------------------------------------------------------
 -- 9. TABELA: order_events (Timeline de Domínio & Histórico do Pedido)

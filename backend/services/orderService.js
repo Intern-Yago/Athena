@@ -21,26 +21,12 @@ const { evaluateCoupon } = require('../utils/coupons');
  * Gera o proximo order_number comercial legivel (ex: '10482' para vendas ou 'R-0012' para resgates)
  */
 async function generateOrderNumber(client, orderType = 'sale') {
-  const prefix = orderType === 'points_redemption' ? 'R-' : '';
-  
-  const res = await client.query(`
-    SELECT order_number 
-    FROM orders 
-    WHERE order_type = $1 AND order_number ~ $2
-    ORDER BY created_at DESC 
-    LIMIT 1
-  `, [orderType, prefix ? '^R-[0-9]+$' : '^[0-9]+$']);
-
-  let nextSeq = 10001;
-  if (res.rows.length > 0) {
-    const rawNum = res.rows[0].order_number.replace('R-', '');
-    const parsed = parseInt(rawNum, 10);
-    if (!isNaN(parsed) && parsed >= 10000) {
-      nextSeq = parsed + 1;
-    }
+  if (orderType === 'points_redemption') {
+    const res = await client.query("SELECT nextval('order_number_redemption_seq') AS num");
+    return `R-${String(res.rows[0].num).padStart(4, '0')}`;
   }
-
-  return `${prefix}${nextSeq}`;
+  const res = await client.query("SELECT nextval('order_number_sale_seq') AS num");
+  return String(res.rows[0].num);
 }
 
 /**

@@ -27,14 +27,33 @@ async function createInitialShipment({ orderId, carrier = 'Transportadora Parcei
     return { skipped: true, reason: 'Pedido não possui itens físicos para expedição.' };
   }
 
+  // 1.5. Idempotência: Se já houver remessa ativa criada para este pedido, retorna existente
+  const existingActive = await query(`
+    SELECT id, shipment_number, status, created_at
+    FROM shipments
+    WHERE order_id = $1 AND status IN ('pending', 'picking', 'ready', 'shipped')
+    LIMIT 1
+  `, [orderId]);
+  if (existingActive.rows.length > 0) {
+    return existingActive.rows[0];
+  }
+
   // Busca o order_number para criar o shipment_number legivel
   const orderRes = await query('SELECT order_number FROM orders WHERE id = $1', [orderId]);
   const orderNum = orderRes.rows[0]?.order_number || orderId;
 
   // Conta quantas remessas ja existem para este pedido
   const countRes = await query('SELECT COUNT(*) FROM shipments WHERE order_id = $1', [orderId]);
-  const seq = parseInt(countRes.rows[0].count, 10) + 1;
-  const shipmentNumber = `SHP-${orderNum}-${String(seq).padStart(2, '0')}`;
+  let seq = parseInt(countRes.rows[0].count, 10) + 1;
+  let shipmentNumber = `SHP-${orderNum}-${String(seq).padStart(2, '0')}`;
+
+  // Garante que o shipmentNumber nunca colida
+  let exists = await query('SELECT id FROM shipments WHERE shipment_number = $1', [shipmentNumber]);
+  while (exists.rows.length > 0) {
+    seq++;
+    shipmentNumber = `SHP-${orderNum}-${String(seq).padStart(2, '0')}`;
+    exists = await query('SELECT id FROM shipments WHERE shipment_number = $1', [shipmentNumber]);
+  }
 
   const res = await query(`
     INSERT INTO shipments (

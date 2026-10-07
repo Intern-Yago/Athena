@@ -21,13 +21,21 @@ async function recordSecurityEvent({
   actorIp = null,
   userAgent = null,
   targetResource = null,
-  actionAttempted,
+  actionAttempted = null,
   decision = 'blocked',
   reason = null,
-  metadata = {}
+  metadata = {},
+  details = {}
 }) {
-  const safeSeverity = SEVERITY_LEVELS.includes(severity) ? severity : 'info';
-  const safeDecision = ['allowed', 'blocked', 'flagged'].includes(decision) ? decision : 'blocked';
+  const normSeverity = String(severity).toLowerCase();
+  const safeSeverity = SEVERITY_LEVELS.includes(normSeverity) ? normSeverity : 'info';
+  const normDecision = String(decision).toLowerCase();
+  const safeDecision = ['allowed', 'blocked', 'flagged'].includes(normDecision) ? normDecision : 'blocked';
+
+  const finalAction = actionAttempted || details?.action || details?.method || eventType || 'SECURITY_EVENT';
+  const finalTarget = targetResource || details?.target || details?.path || 'SYSTEM';
+  const finalReason = reason || details?.reason || details?.error || null;
+  const finalMeta = Object.keys(metadata || {}).length > 0 ? metadata : (details || {});
 
   try {
     const res = await query(`
@@ -44,11 +52,11 @@ async function recordSecurityEvent({
       actorEmail,
       actorIp,
       userAgent,
-      targetResource,
-      actionAttempted,
+      finalTarget,
+      finalAction,
       safeDecision,
-      reason,
-      JSON.stringify(metadata || {})
+      finalReason,
+      JSON.stringify(finalMeta)
     ]);
 
     if (safeSeverity === 'high' || safeSeverity === 'critical') {

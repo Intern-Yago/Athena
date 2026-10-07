@@ -203,104 +203,117 @@ router.get('/health/integrations', requireHermesOpsAuth, async (req, res) => {
 // -------------------------------------------------------------
 router.get('/summary', requireHermesOpsAuth, async (req, res) => {
   try {
-    // 1. Remessas Físicas Pendentes (picking / inspection / dispatch)
-    const shipmentsQuery = await query(`
-      SELECT status, COUNT(*) AS count
-      FROM shipments
-      WHERE status IN ('pending', 'picking', 'ready')
-      GROUP BY status
-    `);
-    const shipmentsMap = shipmentsQuery.rows.reduce((acc, row) => {
-      acc[row.status] = parseInt(row.count, 10);
-      return acc;
-    }, { pending: 0, picking: 0, ready: 0 });
+    // Git commit hash
+    let gitCommit = 'unknown';
+    try {
+      gitCommit = execSync('git rev-parse --short HEAD', { timeout: 2000 }).toString().trim();
+    } catch (e) {}
 
-    // 2. Ativações Digitais Pendentes
-    const activationsQuery = await query(`
-      SELECT status, COUNT(*) AS count
-      FROM digital_activations
-      WHERE status IN ('awaiting_contact', 'contacted', 'in_progress')
-      GROUP BY status
-    `);
-    const activationsMap = activationsQuery.rows.reduce((acc, row) => {
-      acc[row.status] = parseInt(row.count, 10);
-      return acc;
-    }, { awaiting_contact: 0, contacted: 0, in_progress: 0 });
-
-    // 3. Reservas de Estoque ativas e a expirar em breve (< 30 min)
-    const reservationsQuery = await query(`
+    // 1. Pedidos (Hoje & Status)
+    const ordersQuery = await query(`
       SELECT 
-        COUNT(*) AS total_active,
-        COUNT(*) FILTER (WHERE expires_at < NOW() + INTERVAL '30 minutes') AS expiring_soon
-      FROM inventory_reservations
-      WHERE status = 'reserved' AND expires_at > NOW()
+        COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE) AS today,
+        COUNT(*) FILTER (WHERE payment_status = 'pending') AS pending_payment,
+        COUNT(*) FILTER (WHERE status = 'processing') AS processing,
+        COUNT(*) FILTER (WHERE status = 'completed') AS completed
+      FROM orders
     `);
-    const reservations = {
-      active: parseInt(reservationsQuery.rows[0]?.total_active || 0, 10),
-      expiring_soon_30m: parseInt(reservationsQuery.rows[0]?.expiring_soon || 0, 10)
+    const ordersRow = ordersQuery.rows[0] || {};
+    const ordersSnapshot = {
+      today: parseInt(ordersRow.today || 0, 10),
+      pending_payment: parseInt(ordersRow.pending_payment || 0, 10),
+      processing: parseInt(ordersRow.processing || 0, 10),
+      completed: parseInt(ordersRow.completed || 0, 10)
     };
 
-    // 4. Incidentes de Segurança recentes (últimas 24h, High/Critical)
-    const securityQuery = await query(`
-      SELECT COUNT(*) AS count
+    // 2. Expedição e Logística Física (Fulfillment)
+    const shipmentsQuery = await query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'pending') AS awaiting_picking,
+        COUNT(*) FILTER (WHERE status = 'picking') AS awaiting_conference,
+        COUNT(*) FILTER (WHERE status = 'ready') AS awaiting_dispatch
+      FROM shipments
+    `);
+    const shipmentsRow = shipmentsQuery.rows[0] || {};
+    const fulfillmentSnapshot = {
+      awaiting_picking: parseInt(shipmentsRow.awaiting_picking || 0, 10),
+      awaiting_conference: parseInt(shipmentsRow.awaiting_conference || 0, 10),
+      awaiting_dispatch: parseInt(shipmentsRow.awaiting_dispatch || 0, 10)
+    };
+
+    // 3. Fila de Ativações Digitais (Software) & SLA
+    const activationsQuery = await query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE status NOT IN ('activated', 'cancelled')) AS pending,
+        COUNT(*) FILTER (WHERE status NOT IN ('activated', 'cancelled') AND created_at < NOW() - INTERVAL '24 hours') AS sla_breached
+      FROM digital_activations
+    `);
+    const activationsRow = activationsQuery.rows[0] || {};
+    const activationsSnapshot = {
+      pending: parseInt(activationsRow.pending || 0, 10),
+      sla_breached: parseInt(activationsRow.sla_breached || 0, 10)
+    };
+
+    // 4. Reservas de Estoque (Inventory)
+    const inventoryQuery = await query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'reserved' AND expires_at > NOW()) AS active_reservations,
+        COUNT(*) FILTER (WHERE status = 'reserved' AND expires_at > NOW() AND expires_at < NOW() + INTERVAL '30 minutes') AS expiring_soon
+      FROM inventory_reservations
+    `);
+    const inventoryRow = inventoryQuery.rows[0] || {};
+    const inventorySnapshot = {
+      active_reservations: parseInt(inventoryRow.active_reservations || 0, 10),
+      expiring_soon: parseInt(inventoryRow.expiring_soon || 0, 10)
+    };
+
+    // 5. Status de Integrações Externas
+    const integrationsSnapshot = {
+      asaas: process.env.ASAAS_API_KEY || process.env.ASAAS_ACCESS_TOKEN ? 'healthy' : 'unconfigured',
+      omie: process.env.OMIE_APP_KEY && process.env.OMIE_APP_SECRET ? 'healthy' : 'unconfigured',
+      whatsapp: 'operational'
+    };
+
+    // 6. Webhooks (24h)
+    const webhooksQuery = await query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE received_at >= NOW() - INTERVAL '24 hours') AS received_24h,
+        COUNT(*) FILTER (WHERE status = 'processed' AND received_at >= NOW() - INTERVAL '24 hours') AS processed,
+        COUNT(*) FILTER (WHERE status = 'failed' AND received_at >= NOW() - INTERVAL '24 hours') AS failed
+      FROM integration_webhook_events
+    `);
+    const webhooksRow = webhooksQuery.rows[0] || {};
+    const webhooksSnapshot = {
+      received_24h: parseInt(webhooksRow.received_24h || 0, 10),
+      processed: parseInt(webhooksRow.processed || 0, 10),
+      failed: parseInt(webhooksRow.failed || 0, 10)
+    };
+
+    // 7. Incidentes de Segurança Abertos / Recentes (24h)
+    const incidentsQuery = await query(`
+      SELECT COUNT(*) AS open
       FROM security_audit_events
       WHERE severity IN ('HIGH', 'CRITICAL')
         AND created_at >= NOW() - INTERVAL '24 hours'
     `);
-    const securityIncidents24h = parseInt(securityQuery.rows[0]?.count || 0, 10);
-
-    // 5. Fidelidade A-Points movimentada hoje
-    const pointsQuery = await query(`
-      SELECT 
-        COALESCE(SUM(points_amount) FILTER (WHERE points_amount > 0), 0) AS earned_today,
-        COALESCE(ABS(SUM(points_amount) FILTER (WHERE points_amount < 0)), 0) AS redeemed_today
-      FROM a_points_ledger
-      WHERE created_at >= CURRENT_DATE
-    `);
-    const pointsMetrics = {
-      earned_today: parseInt(pointsQuery.rows[0]?.earned_today || 0, 10),
-      redeemed_today: parseInt(pointsQuery.rows[0]?.redeemed_today || 0, 10)
+    const incidentsSnapshot = {
+      open: parseInt(incidentsQuery.rows[0]?.open || 0, 10)
     };
 
-    // 6. Pedidos hoje (contagem e faturamento)
-    const ordersQuery = await query(`
-      SELECT 
-        COUNT(*) AS total_orders,
-        COUNT(*) FILTER (WHERE payment_status = 'paid') AS paid_orders,
-        COALESCE(SUM(total_amount) FILTER (WHERE payment_status = 'paid'), 0) AS revenue_today
-      FROM orders
-      WHERE created_at >= CURRENT_DATE
-    `);
-    const ordersMetrics = {
-      total_orders_today: parseInt(ordersQuery.rows[0]?.total_orders || 0, 10),
-      paid_orders_today: parseInt(ordersQuery.rows[0]?.paid_orders || 0, 10),
-      revenue_today: parseFloat(ordersQuery.rows[0]?.revenue_today || 0)
-    };
-
+    // Operational Snapshot Unificado para Hermes Agent
     return res.json({
-      system: 'Athena OS v2.1',
-      status: 'operational',
-      operations: {
-        physical_logistics: {
-          pending_picking: shipmentsMap.pending,
-          in_picking: shipmentsMap.picking,
-          ready_for_dispatch: shipmentsMap.ready,
-          total_action_needed: shipmentsMap.pending + shipmentsMap.picking + shipmentsMap.ready
-        },
-        digital_activations: {
-          awaiting_first_contact: activationsMap.awaiting_contact,
-          contacted_awaiting_client: activationsMap.contacted,
-          remote_session_in_progress: activationsMap.in_progress,
-          total_action_needed: activationsMap.awaiting_contact + activationsMap.contacted + activationsMap.in_progress
-        },
-        inventory_reservations: reservations,
-        security_alerts: {
-          high_or_critical_last_24h: securityIncidents24h,
-          attention_required: securityIncidents24h > 0
-        },
-        loyalty_points: pointsMetrics,
-        sales_summary: ordersMetrics
+      system: {
+        status: incidentsSnapshot.open > 0 ? 'degraded' : 'healthy',
+        version: '2.1.0',
+        commit: gitCommit
       },
+      orders: ordersSnapshot,
+      fulfillment: fulfillmentSnapshot,
+      activations: activationsSnapshot,
+      inventory: inventorySnapshot,
+      integrations: integrationsSnapshot,
+      webhooks: webhooksSnapshot,
+      incidents: incidentsSnapshot,
       timestamp: new Date().toISOString()
     });
   } catch (err) {

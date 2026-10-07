@@ -299,14 +299,12 @@ describe('Athena OS v2.1 — Operations API, Webhooks & Logistics (Fases 1C, 1D,
     let activation = actRes.rows[0];
 
     if (!activation) {
-      const { createInitialActivation } = require('../../backend/services/activationService.js');
-      activation = await createInitialActivation({
-        orderId: testOrder.id,
-        orderItemId: 1,
-        softwareName: 'Licença Anual Launch'
-      });
+      const { createActivationQueues } = require('../../backend/services/activationService.js');
+      await createActivationQueues(testOrder.id);
+      actRes = await query('SELECT * FROM digital_activations WHERE order_id = $1 LIMIT 1', [testOrder.id]);
+      activation = actRes.rows[0];
     }
-    testActivationId = activation.id;
+    testActivationId = activation?.id;
 
     assert.ok(activation, 'Ativação digital deve existir para o item digital');
 

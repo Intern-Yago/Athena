@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const { query } = require('../services/db.js');
 const { recordSecurityEvent } = require('../services/securityAuditService.js');
 const { confirmPayment, cancelOrder } = require('../services/orderService.js');
+const { triggerImmediateProcessing } = require('../services/webhookWorker.js');
 
 const router = express.Router();
 
@@ -85,59 +86,8 @@ async function handleAsaasWebhook(req, res) {
       status: 'queued'
     });
 
-    // 4. Processamento Assíncrono Desacoplado
-    setImmediate(async () => {
-      try {
-        console.log(`[ASAAS ASYNC PROCESSOR] Processando evento ${event} para pagamento ${payment.id}`);
-        const orderId = payment.externalReference;
-
-        if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
-          if (orderId) {
-            await confirmPayment({
-              orderId,
-              asaasPaymentId: payment.id,
-              paidAmount: payment.value,
-              paymentMethod: payment.billingType?.toLowerCase() || 'asaas'
-            });
-          }
-        } else if (event === 'PAYMENT_REFUNDED' || event === 'PAYMENT_DELETED') {
-          if (orderId) {
-            await cancelOrder({
-              orderId,
-              reason: `Cancelamento ou Estorno registrado via Gateway Asaas (Evento: ${event})`
-            });
-          }
-        }
-
-        // Marca como processado
-        await query(`
-          UPDATE integration_webhook_events
-          SET status = 'processed', processed_at = NOW()
-          WHERE id = $1
-        `, [eventRecordId]);
-
-      } catch (procErr) {
-        console.error(`[ASAAS ASYNC ERROR] Falha ao processar evento ${externalEventId}:`, procErr.message);
-        try {
-          await query(`
-            UPDATE integration_webhook_events
-            SET status = 'failed', error_message = $1
-            WHERE id = $2
-          `, [procErr.message, eventRecordId]);
-
-          await recordSecurityEvent({
-            eventType: 'WEBHOOK_PROCESSING_FAILED',
-            severity: 'MEDIUM',
-            actorId: 'asaas_worker',
-            details: {
-              externalEventId,
-              error: procErr.message,
-              event
-            }
-          });
-        } catch (e) {}
-      }
-    });
+    // 4. Dispara o Worker Durável em background (PostgreSQL-backed)
+    triggerImmediateProcessing();
 
   } catch (dbErr) {
     console.error('[ASAAS WEBHOOK DB ERROR] Falha ao persistir evento de webhook:', dbErr);
