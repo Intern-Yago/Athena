@@ -28,7 +28,10 @@ import {
   Coins,
   Gift,
   TrendingUp,
-  X
+  X,
+  Copy,
+  Check,
+  Zap
 } from 'lucide-react';
 import { saveSession } from '../utils/storage';
 import { formatCpfCnpj, fetchCnpjData, formatPhone, getPasswordValidation } from '../utils/documentUtils';
@@ -77,6 +80,7 @@ export default function CustomerAccountPage({
   // Orders State
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [copiedKey, setCopiedKey] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -515,42 +519,52 @@ export default function CustomerAccountPage({
   };
 
   // Status mapping badge helper
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'entregue':
-      case 'concluido':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Entregue
-          </span>
-        );
-      case 'enviado':
-      case 'em_transporte':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-sky-50 text-sky-700 border border-sky-200">
-            <Truck className="w-3.5 h-3.5 text-sky-600" /> Em Transporte
-          </span>
-        );
-      case 'faturado':
-      case 'aprovado':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Aprovado / Faturado
-          </span>
-        );
-      case 'orcamento_gerado':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="w-3.5 h-3.5 text-amber-600" /> Orçamento Disponível
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
-            <Clock className="w-3.5 h-3.5 text-slate-500" /> Em Análise Técnica
-          </span>
-        );
+  // Status mapping badge helper (Athena OS v2.1 decoupled status support)
+  const getStatusBadge = (orderOrStatus) => {
+    const isObj = typeof orderOrStatus === 'object' && orderOrStatus !== null;
+    const paymentStatus = isObj ? (orderOrStatus.payment_status || orderOrStatus.status) : orderOrStatus;
+    const fulfillmentStatus = isObj ? orderOrStatus.fulfillment_status : null;
+
+    if (fulfillmentStatus === 'delivered' || paymentStatus === 'entregue' || paymentStatus === 'concluido') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Entregue
+        </span>
+      );
     }
+    if (fulfillmentStatus === 'shipped' || paymentStatus === 'enviado' || paymentStatus === 'em_transporte') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-sky-50 text-sky-700 border border-sky-200">
+          <Truck className="w-3.5 h-3.5 text-sky-600" /> Despachado / Em Trânsito
+        </span>
+      );
+    }
+    if (fulfillmentStatus === 'picking' || fulfillmentStatus === 'ready') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-purple-50 text-purple-700 border border-purple-200">
+          <Package className="w-3.5 h-3.5 text-purple-600" /> Em Separação no Estoque
+        </span>
+      );
+    }
+    if (paymentStatus === 'paid' || paymentStatus === 'free' || paymentStatus === 'faturado' || paymentStatus === 'aprovado') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Pagamento Aprovado
+        </span>
+      );
+    }
+    if (paymentStatus === 'cancelled' || paymentStatus === 'cancelado') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+          <AlertCircle className="w-3.5 h-3.5 text-rose-600" /> Cancelado
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+        <Clock className="w-3.5 h-3.5 text-amber-600" /> Aguardando Pagamento
+      </span>
+    );
   };
 
   return (
@@ -718,26 +732,38 @@ export default function CustomerAccountPage({
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-slate-900">
-                            Pedido #{order.id}
+                          <span className="text-xs font-black text-slate-900 font-mono">
+                            Pedido #{order.order_number || order.id.slice(0, 8)}
                           </span>
+                          {order.order_type === 'points_redemption' ? (
+                            <span className="text-[10px] font-black uppercase bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <Coins className="w-3 h-3" />
+                              <span>Resgate A-Points</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                              Venda Comercial
+                            </span>
+                          )}
                           <span className="text-[11px] text-slate-400">
                             • {new Date(order.created_at || order.createdAt || Date.now()).toLocaleDateString('pt-BR')}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500">
                           Total:{' '}
-                          <strong className="text-slate-900 font-extrabold">
-                            {order.total_amount > 0 
-                              ? `R$ ${Number(order.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` 
-                              : 'Sob Cotação Direta'}
+                          <strong className="text-slate-900 font-extrabold font-mono">
+                            {order.order_type === 'points_redemption' 
+                              ? `${order.points_spent || 0} pts` 
+                              : order.total_amount > 0 
+                                ? `R$ ${Number(order.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` 
+                                : 'Sob Cotação Direta'}
                           </strong>
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {getStatusBadge(order.status)}
+                      <div className="flex items-center gap-2.5">
+                        {getStatusBadge(order)}
                         <a
-                          href={`https://wa.me/5561983485671?text=Ol%C3%A1%2C+sou+o+cliente+${encodeURIComponent(currentUser?.name || '')}+e+gostaria+de+informa%C3%A7%C3%B5es+sobre+o+meu+pedido+%23${order.id}`}
+                          href={`https://wa.me/5561983485671?text=Ol%C3%A1%2C+sou+o+cliente+${encodeURIComponent(currentUser?.name || '')}+e+gostaria+de+informa%C3%A7%C3%B5es+sobre+o+meu+pedido+%23${order.order_number || order.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
@@ -747,6 +773,95 @@ export default function CustomerAccountPage({
                         </a>
                       </div>
                     </div>
+
+                    {/* PHYSICAL SHIPMENT & TRACKING CARD */}
+                    {order.shipments && order.shipments.length > 0 && order.shipments.some(s => s.tracking_code || s.status === 'shipped') && (
+                      <div className="p-3.5 bg-sky-50/70 rounded-2xl border border-sky-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-black uppercase text-sky-900 flex items-center gap-1.5">
+                            <Truck className="w-3.5 h-3.5 text-sky-600" />
+                            <span>Rastreamento da Encomenda</span>
+                          </span>
+                          <span className="text-[10px] font-bold text-sky-700 bg-white px-2 py-0.5 rounded-full border border-sky-200">
+                            {order.shipments[0].carrier || 'Transportadora'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-sky-100 font-mono text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-500 text-[11px]">Código de Rastreio:</span>
+                            <strong className="text-slate-900">{order.shipments[0].tracking_code || 'Aguardando despacho'}</strong>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {order.shipments[0].tracking_code && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(order.shipments[0].tracking_code);
+                                  setCopiedKey(order.shipments[0].tracking_code);
+                                  setTimeout(() => setCopiedKey(null), 2000);
+                                }}
+                                className="text-[10px] font-bold text-sky-700 hover:text-sky-800 flex items-center gap-1 cursor-pointer"
+                              >
+                                {copiedKey === order.shipments[0].tracking_code ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                <span>{copiedKey === order.shipments[0].tracking_code ? 'Copiado!' : 'Copiar Código'}</span>
+                              </button>
+                            )}
+                            {order.shipments[0].tracking_url && (
+                              <a
+                                href={order.shipments[0].tracking_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-bold text-sky-700 hover:text-sky-800 flex items-center gap-1"
+                              >
+                                <span>Acompanhar Entrega</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* DIGITAL ACTIVATIONS & LICENSE KEYS CARD */}
+                    {order.digital_activations && order.digital_activations.length > 0 && (
+                      <div className="p-3.5 bg-purple-50/70 rounded-2xl border border-purple-200 space-y-2">
+                        <span className="text-[11px] font-black uppercase text-purple-900 flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Licenças Digitais / Softwares</span>
+                        </span>
+                        {order.digital_activations.map((da, daIdx) => (
+                          <div key={daIdx} className="bg-white p-2.5 rounded-xl border border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <p className="font-bold text-slate-900 text-xs">{da.software_name || 'Software Athena'}</p>
+                              <p className="text-[10px] text-slate-500">
+                                Status: <strong className="capitalize">{da.status === 'activated' ? 'Ativado com Sucesso' : 'Em fila de ativação técnica'}</strong>
+                              </p>
+                            </div>
+                            {da.license_key ? (
+                              <div className="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 font-mono text-xs">
+                                <span className="font-bold text-slate-800">{da.license_key}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(da.license_key);
+                                    setCopiedKey(da.license_key);
+                                    setTimeout(() => setCopiedKey(null), 2000);
+                                  }}
+                                  className="text-[10px] font-bold text-purple-700 hover:text-purple-800 flex items-center gap-1 cursor-pointer"
+                                >
+                                  {copiedKey === da.license_key ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                  <span>{copiedKey === da.license_key ? 'Copiado!' : 'Copiar Chave'}</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                Aguardando liberação pelo suporte técnico
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Order Items */}
                     <div className="space-y-2">

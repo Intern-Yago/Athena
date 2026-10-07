@@ -40,7 +40,9 @@ router.get('/', async (req, res) => {
         o.paid_at
       FROM orders o
       WHERE o.customer_id = $1 
+         OR o.user_id = $1
          OR (o.customer_snapshot->>'email') = $2
+         OR o.user_email = $2
       ORDER BY o.created_at DESC
     `, [userId, userEmail]);
 

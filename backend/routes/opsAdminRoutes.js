@@ -24,6 +24,130 @@ const {
 const router = express.Router();
 
 // -------------------------------------------------------------
+// 0. LISTAGEM GERAL DE PEDIDOS COM MÉTRICAS (PAINEL ADMIN)
+// -------------------------------------------------------------
+router.get('/orders', async (req, res) => {
+  try {
+    const ordersRes = await query(`
+      SELECT 
+        o.id,
+        o.order_number,
+        o.order_type,
+        o.status,
+        o.payment_status,
+        o.fulfillment_status,
+        o.total_amount,
+        o.subtotal_amount,
+        o.discount_amount,
+        o.shipping_amount,
+        o.points_spent,
+        o.points_earned,
+        o.payment_method,
+        o.shipping_address,
+        o.customer_snapshot,
+        o.user_name,
+        o.user_email,
+        o.created_at,
+        o.paid_at
+      FROM orders o
+      ORDER BY o.created_at DESC
+    `);
+
+    const orderIds = ordersRes.rows.map(o => o.id);
+    let itemsMap = {};
+    let shipmentsMap = {};
+    let activationsMap = {};
+
+    if (orderIds.length > 0) {
+      const itemsRes = await query(`
+        SELECT order_id, id, product_id, name, quantity, unit_price, total_price, fulfillment_type, fulfillment_status
+        FROM order_items
+        WHERE order_id = ANY($1)
+      `, [orderIds]);
+      itemsRes.rows.forEach(it => {
+        if (!itemsMap[it.order_id]) itemsMap[it.order_id] = [];
+        itemsMap[it.order_id].push(it);
+      });
+
+      const shipmentsRes = await query(`
+        SELECT order_id, id, shipment_number, carrier, tracking_code, tracking_url, status, shipped_at, delivered_at
+        FROM shipments
+        WHERE order_id = ANY($1)
+      `, [orderIds]);
+      shipmentsRes.rows.forEach(s => {
+        if (!shipmentsMap[s.order_id]) shipmentsMap[s.order_id] = [];
+        shipmentsMap[s.order_id].push(s);
+      });
+
+      const actsRes = await query(`
+        SELECT order_id, id, software_name, status, remote_tool, license_key, activated_at
+        FROM digital_activations
+        WHERE order_id = ANY($1)
+      `, [orderIds]);
+      actsRes.rows.forEach(a => {
+        if (!activationsMap[a.order_id]) activationsMap[a.order_id] = [];
+        activationsMap[a.order_id].push(a);
+      });
+    }
+
+    const orders = ordersRes.rows.map(o => ({
+      ...o,
+      items: (itemsMap[o.id] && itemsMap[o.id].length > 0) ? itemsMap[o.id] : (Array.isArray(o.items) ? o.items : []),
+      shipments: shipmentsMap[o.id] || [],
+      digital_activations: activationsMap[o.id] || []
+    }));
+
+    // Métricas
+    const totalOrders = orders.length;
+    const paidOrders = orders.filter(o => o.payment_status === 'paid' || o.payment_status === 'free');
+    const totalRevenue = paidOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+    const pendingOrders = orders.filter(o => o.payment_status === 'pending').length;
+    const cancelledOrders = orders.filter(o => o.payment_status === 'cancelled').length;
+    const redemptionOrders = orders.filter(o => o.order_type === 'points_redemption').length;
+
+    return res.json({
+      orders,
+      metrics: {
+        total_orders: totalOrders,
+        total_revenue: totalRevenue,
+        paid_orders: paidOrders.length,
+        pending_orders: pendingOrders,
+        cancelled_orders: cancelledOrders,
+        redemption_orders: redemptionOrders
+      }
+    });
+  } catch (err) {
+    console.error('[OPS ADMIN ORDERS ERROR]', err);
+    return res.status(500).json({ error: 'Erro ao carregar lista de pedidos.' });
+  }
+});
+
+router.get('/orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const orderRes = await query('SELECT * FROM orders WHERE id = $1 OR order_number = $1 LIMIT 1', [id]);
+    if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    const order = orderRes.rows[0];
+
+    const itemsRes = await query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    const shipmentsRes = await query('SELECT * FROM shipments WHERE order_id = $1', [order.id]);
+    const actsRes = await query('SELECT * FROM digital_activations WHERE order_id = $1', [order.id]);
+    const eventsRes = await query('SELECT * FROM order_events WHERE order_id = $1 ORDER BY created_at ASC', [order.id]);
+
+    return res.json({
+      order,
+      items: itemsRes.rows.length > 0 ? itemsRes.rows : (Array.isArray(order.items) ? order.items : []),
+      shipments: shipmentsRes.rows,
+      digital_activations: actsRes.rows,
+      events: eventsRes.rows
+    });
+  } catch (err) {
+    console.error('[OPS ADMIN ORDER DETAIL ERROR]', err);
+    return res.status(500).json({ error: 'Erro ao buscar detalhes do pedido.' });
+  }
+});
+
+// -------------------------------------------------------------
 // 1. KANBAN OPERACIONAL UNIFICADO
 // -------------------------------------------------------------
 router.get('/kanban', async (req, res) => {

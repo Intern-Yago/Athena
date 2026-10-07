@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, Layers, Tag, PackageCheck, Info, ChevronDown, ChevronRight, ChevronLeft,
   PhoneCall, Grid, User, LogOut, Package, Gift, Shield, Store, FolderTree,
-  Sparkles, Disc, Cpu, Droplet, Wrench, Wind, Box, ArrowRight
+  Sparkles, Disc, Cpu, Droplet, Wrench, Wind, Box, ArrowRight, Receipt, Truck, Zap
 } from 'lucide-react';
 import { MACRO_DEPARTMENTS, getCategoriesForDepartment } from '../data/departmentsData';
 import { isProductPublished } from '../utils/imageUrl';
@@ -197,6 +197,59 @@ export default function MobileDrawer({
                 title="Sair"
               >
                 <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Section 0: Vendas & Operações (Athena OS) */}
+            <div className="space-y-1">
+              <div className="text-[10px] font-black uppercase tracking-wider text-amber-600 px-2 py-1 flex items-center justify-between">
+                <span>Vendas & Operações</span>
+                <span className="text-[9px] bg-amber-500/10 text-amber-600 px-1 rounded font-mono">Athena OS</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleSelectAdminTab('orders')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                  activeAdminTab === 'orders'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Receipt className="w-4 h-4 shrink-0" />
+                  <span>Vendas & Pedidos</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectAdminTab('fulfillment')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                  activeAdminTab === 'fulfillment'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Truck className="w-4 h-4 shrink-0" />
+                  <span>Mesa de Expedição</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectAdminTab('activations')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                  activeAdminTab === 'activations'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Zap className="w-4 h-4 shrink-0" />
+                  <span>Ativações Digitais</span>
+                </div>
               </button>
             </div>
 

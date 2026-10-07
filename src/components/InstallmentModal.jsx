@@ -111,6 +111,45 @@ export default function InstallmentModal({
     return activeItems.length > 0 && activeItems.every(i => i.productType === 'digital');
   }, [activeItems]);
 
+  // Address State for physical delivery
+  const [address, setAddress] = useState({
+    cep: currentUser?.address?.cep || '',
+    street: currentUser?.address?.street || '',
+    number: currentUser?.address?.number || '',
+    complement: currentUser?.address?.complement || '',
+    neighborhood: currentUser?.address?.neighborhood || '',
+    city: currentUser?.address?.city || '',
+    state: currentUser?.address?.state || ''
+  });
+  const [searchingCep, setSearchingCep] = useState(false);
+  const [cepError, setCepError] = useState(null);
+
+  const handleCepLookup = async (manualCep = null) => {
+    const rawCep = (manualCep || address.cep || '').replace(/\D/g, '');
+    if (rawCep.length !== 8) return;
+    setSearchingCep(true);
+    setCepError(null);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${rawCep}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setAddress(prev => ({
+          ...prev,
+          street: data.logradouro || prev.street,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state
+        }));
+      } else {
+        setCepError('CEP não localizado. Preencha os campos manualmente.');
+      }
+    } catch (e) {
+      setCepError('Erro ao consultar CEP.');
+    } finally {
+      setSearchingCep(false);
+    }
+  };
+
   useEffect(() => {
     if (currentUser) {
       setCustomer(prev => ({
@@ -120,6 +159,18 @@ export default function InstallmentModal({
         phone: prev.phone || (currentUser.phone ? formatPhone(currentUser.phone) : ''),
         companyName: prev.companyName || currentUser.companyName || ''
       }));
+
+      if (currentUser.address) {
+        setAddress(prev => ({
+          cep: prev.cep || currentUser.address.cep || '',
+          street: prev.street || currentUser.address.street || '',
+          number: prev.number || currentUser.address.number || '',
+          complement: prev.complement || currentUser.address.complement || '',
+          neighborhood: prev.neighborhood || currentUser.address.neighborhood || '',
+          city: prev.city || currentUser.address.city || '',
+          state: prev.state || currentUser.address.state || ''
+        }));
+      }
     }
   }, [currentUser]);
 
@@ -221,6 +272,18 @@ export default function InstallmentModal({
         email: c.email || data.email || '',
         phone: c.phone || data.phone || ''
       }));
+      if (data.zip || data.street) {
+        setAddress(prev => ({
+          ...prev,
+          cep: prev.cep || data.zip || '',
+          street: prev.street || data.street || '',
+          number: prev.number || data.number || '',
+          complement: prev.complement || data.complement || '',
+          neighborhood: prev.neighborhood || data.district || '',
+          city: prev.city || data.city || '',
+          state: prev.state || data.state || ''
+        }));
+      }
       setCnpjSuccessMsg(`Empresa localizada: ${data.companyName} (${data.city}/${data.state})`);
       setTimeout(() => setCnpjSuccessMsg(null), 5000);
     } catch (err) {
@@ -337,6 +400,14 @@ export default function InstallmentModal({
       return;
     }
 
+    // Physical shipping validation
+    if (hasPhysicalItems) {
+      if (!address.cep?.trim() || !address.street?.trim() || !address.number?.trim() || !address.city?.trim() || !address.state?.trim()) {
+        setErrorMessage('Por favor, informe o endereço de entrega completo (CEP, rua, número, cidade e UF) para o envio dos equipamentos.');
+        return;
+      }
+    }
+
     // Card Specific Validations
     if (method === 'CREDIT_CARD' && !isFreeOrder) {
       if (!card.holderName.trim()) {
@@ -371,6 +442,7 @@ export default function InstallmentModal({
         customerCpfCnpj: customer.cpfCnpj.trim(),
         customerCompanyName: docInfo.isCnpj ? (customer.companyName || '').trim() : undefined,
         customerPhone: customer.phone.trim(),
+        shippingAddress: hasPhysicalItems ? address : {},
         billingType: isFreeOrder ? 'FREE' : method,
         value: isFreeOrder ? 0 : (
           method === 'PIX' ? gateways.pix.customerAmount :
@@ -916,6 +988,126 @@ export default function InstallmentModal({
                       required
                     />
                   </div>
+
+                  {/* ENDEREÇO DE ENTREGA (PARA PRODUTOS FÍSICOS) */}
+                  {hasPhysicalItems && (
+                    <div className="sm:col-span-2 pt-3 mt-2 border-t border-slate-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Truck className="w-4 h-4 text-amber-600" />
+                          <h4 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                            Endereço de Entrega do Equipamento
+                          </h4>
+                        </div>
+                        <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 font-bold px-2 py-0.5 rounded-full">
+                          Envio Físico / Transportadora
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-6 gap-2.5">
+                        <div className="sm:col-span-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-700">CEP *</label>
+                            <button
+                              type="button"
+                              onClick={() => handleCepLookup()}
+                              disabled={searchingCep || (address.cep || '').replace(/\D/g, '').length !== 8}
+                              className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                            >
+                              {searchingCep ? <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-600" /> : <Search className="w-2.5 h-2.5 text-amber-600" />}
+                              <span>Buscar</span>
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="00000-000"
+                            value={address.cep}
+                            onChange={(e) => {
+                              let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+                              if (v.length > 5) v = `${v.slice(0, 5)}-${v.slice(5)}`;
+                              setAddress(a => ({ ...a, cep: v }));
+                              if (v.replace(/\D/g, '').length === 8) handleCepLookup(v);
+                            }}
+                            className="form-input text-xs font-mono"
+                            required={hasPhysicalItems}
+                          />
+                          {cepError && <p className="text-[10px] text-rose-500 mt-0.5">{cepError}</p>}
+                        </div>
+
+                        <div className="sm:col-span-4">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Logradouro / Rua *</label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Av. das Indústrias"
+                            value={address.street}
+                            onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                            className="form-input text-xs"
+                            required={hasPhysicalItems}
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Número *</label>
+                          <input
+                            type="text"
+                            placeholder="123 ou S/N"
+                            value={address.number}
+                            onChange={(e) => setAddress({ ...address, number: e.target.value })}
+                            className="form-input text-xs"
+                            required={hasPhysicalItems}
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Complemento</label>
+                          <input
+                            type="text"
+                            placeholder="Galpão 4, Sala 1"
+                            value={address.complement}
+                            onChange={(e) => setAddress({ ...address, complement: e.target.value })}
+                            className="form-input text-xs"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Bairro *</label>
+                          <input
+                            type="text"
+                            placeholder="Distrito Industrial"
+                            value={address.neighborhood}
+                            onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
+                            className="form-input text-xs"
+                            required={hasPhysicalItems}
+                          />
+                        </div>
+
+                        <div className="sm:col-span-4">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Cidade *</label>
+                          <input
+                            type="text"
+                            placeholder="Brasília"
+                            value={address.city}
+                            onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                            className="form-input text-xs"
+                            required={hasPhysicalItems}
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">UF *</label>
+                          <input
+                            type="text"
+                            placeholder="DF"
+                            maxLength={2}
+                            value={address.state}
+                            onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })}
+                            className="form-input text-xs uppercase"
+                            required={hasPhysicalItems}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -31,6 +31,7 @@ const opsRoutes = require('./routes/opsRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
 const opsAdminRoutes = require('./routes/opsAdminRoutes');
 const customerOrderRoutes = require('./routes/customerOrderRoutes');
+const orderService = require('./services/orderService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -973,8 +974,11 @@ app.get('/api/openapi.json', (req, res) => {
 // =============================================================
 app.use('/api/internal/ops', opsRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/admin/ops', authenticateToken, requireStaff, opsAdminRoutes);
+app.use('/api/admin/orders', authenticateToken, requireStaff, opsAdminRoutes);
 app.use('/api/admin/fulfillment', authenticateToken, requireStaff, opsAdminRoutes);
 app.use('/api/admin/activations', authenticateToken, requireStaff, opsAdminRoutes);
+app.use('/api/customer/orders', authenticateToken, customerOrderRoutes);
 app.use('/api/customer/orders-v2', authenticateToken, customerOrderRoutes);
 
 // -------------------------------------------------------------
@@ -5186,9 +5190,34 @@ app.post('/api/payments/charge', async (req, res) => {
         return res.status(400).json({ error: 'Pedidos com valor zerado são restritos exclusivamente a cupons oficiais de 100% de desconto.' });
       }
 
-      // Record Free Order directly
+      // Record Free Order directly via Athena OS
+      const shippingAddress = req.body.shippingAddress || req.body.shipping_address || {};
+      let athenaFreeOrder = null;
+      try {
+        athenaFreeOrder = await orderService.createOrder({
+          customerId: userId,
+          orderType: 'sale',
+          items: items.length > 0 ? items : [{ id: 'prod_free', name: description || 'Equipamento Cortesia', price: 0, quantity: 1 }],
+          paymentMethod: 'FREE',
+          shippingAddress,
+          customerSnapshot: {
+            name: customerName,
+            email: cleanEmail,
+            document: cleanDoc,
+            phone: cleanPhone,
+            companyName: cleanCompanyName
+          },
+          couponCode: appliedCoupon ? appliedCoupon.code : null,
+          notes: 'Pedido Gratuito 100% OFF com Cupom ' + (appliedCoupon ? appliedCoupon.code : '')
+        });
+        await orderService.confirmOrderPayment(athenaFreeOrder.id);
+      } catch (errFree) {
+        console.warn('[ATHENA OS FREE ORDER CREATE WARNING]:', errFree.message);
+      }
+
       const freeOrderRecord = {
-        id: orderId,
+        id: athenaFreeOrder ? athenaFreeOrder.id : orderId,
+        order_number: athenaFreeOrder ? athenaFreeOrder.order_number : orderId,
         user_id: userId,
         user_email: cleanEmail,
         user_name: customerName,
@@ -5331,9 +5360,37 @@ app.post('/api/payments/charge', async (req, res) => {
       }
     }
 
-    // Save Order in Database
+    // Save Order in Database via Athena OS Engine
+    const shippingAddress = req.body.shippingAddress || req.body.shipping_address || {};
+    let athenaOrder = null;
+    try {
+      athenaOrder = await orderService.createOrder({
+        customerId: userId,
+        orderType: 'sale',
+        items: items.length > 0 ? items : [{ id: 'prod_custom', name: description || 'Equipamento Athena', price: finalPayable, quantity: 1 }],
+        paymentMethod: billingType || 'PIX',
+        shippingAddress,
+        customerSnapshot: {
+          name: customerName,
+          email: cleanEmail,
+          document: cleanDoc,
+          phone: cleanPhone,
+          companyName: cleanCompanyName
+        },
+        couponCode: appliedCoupon ? appliedCoupon.code : null,
+        notes: `Cobrança Asaas ID: ${paymentData.id} (${billingType})`
+      });
+
+      if (athenaOrder && paymentData.id && pool) {
+        await pool.query('UPDATE orders SET asaas_payment_id = $1 WHERE id = $2', [paymentData.id, athenaOrder.id]);
+      }
+    } catch (orderErr) {
+      console.warn('[ATHENA OS ORDER CREATE WARNING]:', orderErr.message);
+    }
+
     const orderRecord = {
-      id: orderId,
+      id: athenaOrder ? athenaOrder.id : orderId,
+      order_number: athenaOrder ? athenaOrder.order_number : orderId,
       user_id: userId,
       user_email: cleanEmail,
       user_name: customerName,
@@ -6006,6 +6063,38 @@ app.post('/api/rewards/redeem', authenticateToken, async (req, res) => {
       });
 
       const updatedPoints = Math.max(0, userPoints - reward.points_cost);
+
+      // Registra o pedido de resgate no Athena OS para a expedição/fulfillment
+      let redemptionOrder = null;
+      try {
+        redemptionOrder = await orderService.createOrder({
+          customerId: userId,
+          orderType: 'points_redemption',
+          items: [{
+            id: reward.id,
+            product_id: reward.product_id || reward.id,
+            name: reward.name,
+            quantity: 1,
+            points_price: reward.points_cost,
+            fulfillment_type: reward.category === 'vouchers' ? 'digital' : 'physical'
+          }],
+          paymentMethod: 'POINTS',
+          shippingAddress: shippingAddress || {},
+          customerSnapshot: {
+            name: uRes.rows[0].name || 'Cliente',
+            email: uRes.rows[0].email,
+            document: uRes.rows[0].document,
+            phone: uRes.rows[0].phone
+          },
+          notes: finalNotes
+        });
+
+        if (redemptionOrder) {
+          await orderService.confirmOrderPayment(redemptionOrder.id);
+        }
+      } catch (ordErr) {
+        console.warn('[REDEEM ORDER FULFILLMENT WARNING]:', ordErr.message);
+      }
 
       // Dispara envio de comprovante de resgate de fidelidade por e-mail
       sendLoyaltyRedemptionReceiptNotification({

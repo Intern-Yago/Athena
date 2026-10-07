@@ -80,6 +80,7 @@ import {
   Wrench,
   Wind,
   Grid,
+  Receipt,
   Cpu
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl, getVideoEmbedInfo } from '../pages/ProductDetailPage';
@@ -98,6 +99,9 @@ import { isProductPublished } from '../utils/imageUrl';
 import { isProductQuoteOnly, getVariantAvailability, getVariantStockNumber, hasProductValidImages, validateProductImagePublishStatus } from '../utils/productVariants';
 import ProductVariantsManager from './admin/ProductVariantsManager';
 import ClientsManagementTab from './admin/ClientsManagementTab';
+import OrdersManagementTab from './admin/OrdersManagementTab';
+import FulfillmentKanbanTab from './admin/FulfillmentKanbanTab';
+import DigitalActivationsTab from './admin/DigitalActivationsTab';
 import { MACRO_DEPARTMENTS, getDepartmentByCategoryId, getDepartmentById } from '../data/departmentsData';
 
 /**
@@ -4265,6 +4269,9 @@ export default function AdminPanel({
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold">
                 {activeAdminTab === 'products' && <Package className="w-4 h-4" />}
+                {activeAdminTab === 'orders' && <Receipt className="w-4 h-4" />}
+                {activeAdminTab === 'fulfillment' && <Truck className="w-4 h-4" />}
+                {activeAdminTab === 'activations' && <Zap className="w-4 h-4" />}
                 {activeAdminTab === 'departments' && <FolderTree className="w-4 h-4" />}
                 {activeAdminTab === 'categories' && <Layers className="w-4 h-4" />}
                 {activeAdminTab === 'brands' && <Tag className="w-4 h-4" />}
@@ -4278,6 +4285,9 @@ export default function AdminPanel({
               <div className="text-left">
                 <div className="text-xs font-black text-slate-900 leading-tight">
                   {activeAdminTab === 'products' && `Produtos (${products.length})`}
+                  {activeAdminTab === 'orders' && 'Vendas & Pedidos'}
+                  {activeAdminTab === 'fulfillment' && 'Mesa de Expedição (Logística)'}
+                  {activeAdminTab === 'activations' && 'Ativações Digitais (Softwares)'}
                   {activeAdminTab === 'departments' && `Macro-Categorias (${departments.length})`}
                   {activeAdminTab === 'categories' && `Categorias (${categories.length})`}
                   {activeAdminTab === 'brands' && `Marcas (${brands.length})`}
@@ -4317,6 +4327,59 @@ export default function AdminPanel({
                     {userRole === 'admin' ? 'Administrador Geral' : userRole === 'vendedor' ? 'Vendedor' : 'Gestor de Conteúdo'}
                   </div>
                 </div>
+              </div>
+
+              {/* Group 0: Vendas & Operações (Athena OS) */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-amber-500 px-3 py-1 flex items-center justify-between">
+                  <span>Vendas & Operações</span>
+                  <span className="text-[9px] bg-amber-500/10 text-amber-600 px-1.5 py-0.2 rounded font-mono">Athena OS</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('orders'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'orders'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Receipt className="w-4 h-4 shrink-0" />
+                    <span>Vendas & Pedidos</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('fulfillment'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'fulfillment'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Truck className="w-4 h-4 shrink-0" />
+                    <span>Mesa de Expedição</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('activations'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'activations'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Zap className="w-4 h-4 shrink-0" />
+                    <span>Ativações Digitais</span>
+                  </div>
+                </button>
               </div>
 
               {/* Group 1: Catálogo & Loja */}
@@ -4569,6 +4632,31 @@ export default function AdminPanel({
 
           {/* Main Content Area */}
           <main className="flex-1 min-w-0 w-full space-y-6">
+
+        {/* ATHENA OS: ORDERS, FULFILLMENT & ACTIVATIONS TABS */}
+        {activeAdminTab === 'orders' && (
+          <OrdersManagementTab 
+            API_BASE_URL={API_BASE_URL} 
+            currentUser={currentUser} 
+            showNotification={showNotification} 
+          />
+        )}
+
+        {activeAdminTab === 'fulfillment' && (
+          <FulfillmentKanbanTab 
+            API_BASE_URL={API_BASE_URL} 
+            currentUser={currentUser} 
+            showNotification={showNotification} 
+          />
+        )}
+
+        {activeAdminTab === 'activations' && (
+          <DigitalActivationsTab 
+            API_BASE_URL={API_BASE_URL} 
+            currentUser={currentUser} 
+            showNotification={showNotification} 
+          />
+        )}
 
         {/* PRODUCTS MANAGEMENT TAB WITH PAGINATION */}
         {activeAdminTab === 'products' && (() => {

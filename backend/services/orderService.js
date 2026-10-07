@@ -57,7 +57,20 @@ async function createOrder({
 
     for (const item of items) {
       const pId = item.product_id || item.productId || item.id;
-      const dbProd = dbProducts.find(p => p.id === pId);
+      let dbProd = dbProducts.find(p => p.id === pId);
+      if (!dbProd && orderType === 'points_redemption') {
+        const rewRes = await client.query('SELECT id, name, points_cost as a_points, category FROM loyalty_rewards WHERE id = $1', [pId]);
+        if (rewRes.rows.length > 0) {
+          const r = rewRes.rows[0];
+          dbProd = {
+            id: r.id,
+            name: r.name,
+            price: 0,
+            product_type: r.category === 'vouchers' ? 'digital' : 'physical',
+            a_points: r.a_points
+          };
+        }
+      }
       if (!dbProd) throw new Error(`Produto ${pId} não foi encontrado no catálogo.`);
 
       const qty = Math.max(1, parseInt(item.quantity || 1, 10));
