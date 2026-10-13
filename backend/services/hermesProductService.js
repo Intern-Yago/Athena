@@ -110,7 +110,9 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
   if (!clean) return [];
 
   const numLimit = Math.min(50, Math.max(1, Number(limit) || 10));
-  const tokens = clean.split(/\s+/).filter(t => t.length >= 2).map(t => normalizeText(t));
+  const STOP_WORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'em', 'para', 'com', 'sem', 'e', 'ou', 'a', 'o', 'as', 'os', 'um', 'uma', 'uns', 'umas']);
+  const rawTokens = clean.split(/\s+/).filter(t => t.length >= 2).map(t => normalizeText(t));
+  const tokens = rawTokens.filter(t => !STOP_WORDS.has(t.toLowerCase()));
 
   try {
     // 1. Verificacao de correspondencia exata por ID ou codigo Omie / SKU
@@ -131,7 +133,8 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           p.omie_code as "omieCode",
           p.description, p.specs,
           COALESCE(p.variants, '[]'::jsonb) as "variants",
-          c.name as "categoryName", b.name as "brandName"
+          c.name as "categoryName", b.name as "brandName",
+          p.weight, p.height, p.width, p.length, p.ean
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
@@ -152,7 +155,8 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           p.omie_code as "omieCode",
           p.description, p.specs,
           COALESCE(p.variants, '[]'::jsonb) as "variants",
-          c.name as "categoryName", b.name as "brandName"
+          c.name as "categoryName", b.name as "brandName",
+          p.weight, p.height, p.width, p.length, p.ean
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
@@ -165,23 +169,42 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
       return exactRes.rows.map(mapDbRowToHermesProduct);
     }
 
-    // 2. Busca textual flexivel por tokens no nome, descricao, marca, categoria e variacoes
+    // 2. Expansão inteligente de sinônimos (ex: par <-> jogo <-> kit, tonelada <-> ton <-> t)
+    const tokenGroups = [];
+    const sourceTokens = tokens.length > 0 ? tokens : rawTokens;
+
+    for (const t of sourceTokens) {
+      const lower = t.toLowerCase();
+      if (['par', 'pares', 'jogo', 'jogos', 'kit', 'kits'].includes(lower)) {
+        tokenGroups.push(['par', 'jogo', 'kit', '2']);
+      } else if (['tonelada', 'toneladas', 'ton', 'tons', 't'].includes(lower)) {
+        tokenGroups.push(['ton', 'tonelada', 'toneladas', 't']);
+      } else if (['cavalete', 'cavaletes'].includes(lower)) {
+        tokenGroups.push(['cavalete', 'cavaletes']);
+      } else if (['macaco', 'macacos', 'jacare', 'jacaré'].includes(lower)) {
+        tokenGroups.push(['macaco', 'jacare']);
+      } else {
+        tokenGroups.push([lower]);
+      }
+    }
+
     let whereClauses = ["(p.status IS NULL OR p.status IN ('published', 'draft', 'rascunho'))"];
     let params = [];
 
-    if (tokens.length > 0) {
-      tokens.forEach((token, idx) => {
-        params.push(`%${token}%`);
-        const pNum = params.length;
-        whereClauses.push(`(
-          LOWER(p.name) LIKE $${pNum} OR 
-          LOWER(COALESCE(p.omie_code, '')) LIKE $${pNum} OR 
-          LOWER(COALESCE(p.sku, '')) LIKE $${pNum} OR 
-          LOWER(COALESCE(b.name, '')) LIKE $${pNum} OR 
-          LOWER(COALESCE(c.name, '')) LIKE $${pNum} OR
-          LOWER(COALESCE(p.description, '')) LIKE $${pNum} OR
-          LOWER(COALESCE(p.variants::text, '')) LIKE $${pNum}
-        )`);
+    if (tokenGroups.length > 0) {
+      tokenGroups.forEach(synGroup => {
+        const synConditions = [];
+        synGroup.forEach(syn => {
+          params.push(`%${syn}%`);
+          const pNum = params.length;
+          synConditions.push(`LOWER(p.name) LIKE $${pNum}`);
+          synConditions.push(`LOWER(COALESCE(p.sku, '')) LIKE $${pNum}`);
+          synConditions.push(`LOWER(COALESCE(p.omie_code, '')) LIKE $${pNum}`);
+          synConditions.push(`LOWER(COALESCE(b.name, '')) LIKE $${pNum}`);
+          synConditions.push(`LOWER(COALESCE(c.name, '')) LIKE $${pNum}`);
+          synConditions.push(`LOWER(COALESCE(p.description, '')) LIKE $${pNum}`);
+        });
+        whereClauses.push(`(${synConditions.join(" OR ")})`);
       });
     } else {
       params.push(`%${clean.toLowerCase()}%`);
@@ -205,6 +228,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
         p.description, p.specs,
         COALESCE(p.variants, '[]'::jsonb) as "variants",
         c.name as "categoryName", b.name as "brandName",
+        p.weight, p.height, p.width, p.length, p.ean,
         CASE 
           WHEN LOWER(p.name) = LOWER($1) THEN 1
           WHEN LOWER(p.name) LIKE $` + params.length + ` THEN 2
@@ -301,6 +325,14 @@ function mapDbRowToHermesProduct(row) {
     image: row.image || null,
     brandName: row.brandName || "Athena",
     categoryName: row.categoryName || "Geral",
+    weight: Number(row.weight || 0),
+    height: Number(row.height || 0),
+    width: Number(row.width || 0),
+    length: Number(row.length || 0),
+    ean: row.ean || null,
+    dimensoesFormatadas: (Number(row.height || 0) > 0 && Number(row.width || 0) > 0 && Number(row.length || 0) > 0)
+      ? `${Number(row.height)} × ${Number(row.width)} × ${Number(row.length)} cm (${Number(row.weight || 0)} kg)`
+      : (Number(row.weight || 0) > 0 ? `${Number(row.weight)} kg` : null),
     sku: row.sku || row.omieCode || null,
     omieCodigoProduto: row.omieCodigoProduto ? String(row.omieCodigoProduto) : null,
     omieCode: row.omieCode || null,
@@ -494,7 +526,47 @@ async function upsertOmieProductToLocal(pool, omieItem) {
       .replace(/[^a-z0-9 -]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-");
-    const slug = `${rawSlug || "produto"}-${omieCode ? omieCode.toLowerCase().replace(/[^a-z0-9]/g, "") : omieId}`;
+    let slug = `${rawSlug || "produto"}-${omieCode ? omieCode.toLowerCase().replace(/[^a-z0-9]/g, "") : omieId}`;
+    
+    // Verifica se ja existe produto com este slug
+    const slugCheck = await pool.query('SELECT id, name, slug FROM products WHERE slug = $1 LIMIT 1', [slug]);
+    if (slugCheck.rows.length > 0) {
+      const existingSlugProd = slugCheck.rows[0];
+      // Se já existe com este slug, atualiza o produto existente para evitar duplicidade
+      await pool.query(`
+        UPDATE products 
+        SET 
+          omie_codigo_produto = COALESCE(omie_codigo_produto, $1),
+          omie_product_id = COALESCE(omie_product_id, $1),
+          omie_code = COALESCE(NULLIF($2::text, ''), omie_code),
+          preco_venda = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE preco_venda END,
+          estoque_quantidade = $4::integer,
+          in_stock = ($4::integer > 0),
+          omie_last_sync = CURRENT_TIMESTAMP
+        WHERE id = $5
+      `, [omieId, omieCode, preco, estoque, existingSlugProd.id]);
+
+      return {
+        id: existingSlugProd.id,
+        name: existingSlugProd.name,
+        slug: existingSlugProd.slug,
+        sku: omieCode,
+        precoVenda: preco,
+        precoFormatado: preco > 0 ? `R$ ${preco.toFixed(2)}` : "Sob Consulta",
+        precoExibicaoSite: "Sob Consulta",
+        estoqueQuantidade: estoque,
+        priceNegotiable: true,
+        isUnderQuote: true,
+        canBuyOnline: false,
+        modalidadeVenda: "consulta_orcamento",
+        inStock: estoque > 0,
+        omieCodigoProduto: String(omieId),
+        omieCode: omieCode,
+        url: `https://athenaconsultoria.com.br/produto/${existingSlugProd.slug || existingSlugProd.id}`,
+        source: "omie_fallback_cached"
+      };
+    }
+
     const newId = `prod_omie_${omieId}`;
 
     await pool.query(`
@@ -666,8 +738,10 @@ async function enrichProductWithOmiePrice(pool, product) {
  * FUNCAO PRINCIPAL DA TOOL DE BUSCA DO HERMES
  * Executa o fluxo completo Cache-Aside com Fallback e Enriquecimento Just-in-Time
  */
-async function searchHermesProducts({ pool, search = "", limit = 10, forceOmie = false }) {
+async function searchHermesProducts({ pool, search = "", limit = 10, forceOmie = false, cep = null }) {
   const cleanSearch = String(search || "").trim();
+  const cleanCep = String(cep || "").replace(/\D/g, "").slice(0, 8);
+
   if (!cleanSearch) {
     return {
       query: "",
@@ -676,6 +750,35 @@ async function searchHermesProducts({ pool, search = "", limit = 10, forceOmie =
       products: []
     };
   }
+
+  const attachFreightIfRequested = async (productsList) => {
+    if (!cleanCep || cleanCep.length !== 8) return;
+    try {
+      const { calculateShipping } = require("./melhorEnvioService");
+      for (const prod of productsList.slice(0, 5)) {
+        const freight = await calculateShipping({
+          product: {
+            weight: prod.weight,
+            height: prod.height,
+            width: prod.width,
+            length: prod.length,
+            price: prod.precoVenda,
+            precoVenda: prod.precoVenda
+          },
+          destinationCep: cleanCep
+        });
+        if (freight && freight.success) {
+          prod.cotacaoFrete = {
+            origemCep: freight.originCep || "71996413",
+            destinoCep: cleanCep,
+            opcoes: freight.options || []
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("[Hermes Shipping Calculation Warning]:", err.message);
+    }
+  };
 
   // PASSO A & B: Busca semantica no PostgreSQL (Local Read Replica)
   if (!forceOmie && pool) {
@@ -693,12 +796,15 @@ async function searchHermesProducts({ pool, search = "", limit = 10, forceOmie =
         }
       }
 
+      await attachFreightIfRequested(enrichedProducts);
+
       return {
         query: cleanSearch,
         total: enrichedProducts.length,
         executionFlow: "cache_hit_postgres_enriched",
         source: "local_database",
         performance: "optimized",
+        destinationCep: cleanCep || null,
         products: enrichedProducts
       };
     }
@@ -725,11 +831,14 @@ async function searchHermesProducts({ pool, search = "", limit = 10, forceOmie =
     }
   }
 
+  await attachFreightIfRequested(cachedResults);
+
   return {
     query: cleanSearch,
     total: cachedResults.length,
     executionFlow: "cache_miss_omie_loaded",
     source: "omie_erp_fallback_cached",
+    destinationCep: cleanCep || null,
     products: cachedResults
   };
 }

@@ -46,7 +46,8 @@ import {
   clearSession, 
   isSessionExpired,
   getLocalCatalogVersion,
-  setLocalCatalogVersion
+  setLocalCatalogVersion,
+  clearCatalogCache
 } from './utils/storage';
 
 import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
@@ -397,7 +398,7 @@ export default function App() {
         if (Array.isArray(idbProds) && idbProds.length > 0) {
           const normProds = idbProds.map(normalizeProduct);
           setProducts((prev) => {
-            if (prev.length === 0 || normProds.length >= prev.length) {
+            if (prev.length === 0 || prev.length <= INITIAL_PRODUCTS.length) {
               return normProds;
             }
             return prev;
@@ -430,32 +431,30 @@ export default function App() {
         headers: { 'Cache-Control': 'no-cache' }
       });
       if (!vRes.ok) return;
-      const { version: serverVersion } = await vRes.json();
+      const vData = await vRes.json();
+      const serverVersion = vData?.version || null;
+      const serverTotal = vData?.total || null;
       const localVersion = getLocalCatalogVersion();
+      const cachedProds = safeStorageGet('athena_products', null);
+      const currentCount = Array.isArray(cachedProds) ? cachedProds.length : (Array.isArray(products) ? products.length : 0);
 
-      if (serverVersion && serverVersion !== localVersion) {
-        console.log(`[Athena SWR] Modificação detectada no servidor (${localVersion || 'nenhum'} -> ${serverVersion}). Sincronizando catálogo...`);
+      const shouldSync = Boolean((serverVersion && serverVersion !== localVersion) || (serverTotal && currentCount !== serverTotal));
+
+      if (shouldSync) {
+        console.log(`[Athena SWR] Modificação detectada no servidor (${localVersion || 'nenhum'} [${currentCount}] -> ${serverVersion || 'sync'} [${serverTotal}]). Sincronizando catálogo...`);
         const pRes = await fetch(`${activeApiBaseUrl}/products`);
         if (pRes.ok) {
           const prodData = await pRes.json();
           const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
           if (rawProducts.length > 0) {
             const normProds = rawProducts.map(normalizeProduct);
-            setProducts((prev) => {
-              const merged = [...normProds];
-              if (Array.isArray(prev) && prev.length > 0) {
-                prev.forEach((localProd) => {
-                  if (localProd.status === 'draft' && !merged.some(m => m.id === localProd.id)) {
-                    merged.push(localProd);
-                  }
-                });
-              }
-              safeStorageSet('athena_products', merged);
-              idbSet('athena_products', merged).catch(() => {});
-              return merged;
-            });
-            setLocalCatalogVersion(serverVersion);
-            console.log(`[Athena SWR] Catálogo atualizado em segundo plano com sucesso (versão: ${serverVersion}).`);
+            safeStorageSet('athena_products', normProds);
+            idbSet('athena_products', normProds).catch(() => {});
+            setProducts(normProds);
+            if (serverVersion) {
+              setLocalCatalogVersion(serverVersion);
+            }
+            console.log(`[Athena SWR] Catálogo atualizado em segundo plano com sucesso (versão: ${serverVersion || 'sync'}, ${normProds.length} produtos).`);
           }
         }
       }
@@ -506,6 +505,7 @@ export default function App() {
 
         // 1. Dynamic version check: verify if client catalog is already byte-for-byte in sync with PostgreSQL
         let serverVersion = null;
+        let serverTotal = null;
         try {
           const versionRes = await fetch(`${currentBaseUrl}/catalog/version`, {
             cache: 'no-store',
@@ -515,6 +515,7 @@ export default function App() {
           if (versionRes.ok) {
             const vData = await versionRes.json();
             serverVersion = vData?.version || null;
+            serverTotal = vData?.total || null;
           }
         } catch (vErr) {
           console.warn('[Athena SWR] Verificação rápida de versão falhou:', vErr.message);
@@ -522,8 +523,17 @@ export default function App() {
 
         const localVersion = getLocalCatalogVersion();
         const idbProds = await idbGet('athena_products');
-        const hasCachedProducts = (Array.isArray(idbProds) && idbProds.length > 50) || (Array.isArray(products) && products.length > 50);
-        const isCatalogCurrent = Boolean(serverVersion && localVersion && serverVersion === localVersion && hasCachedProducts);
+        const cachedCount = (Array.isArray(idbProds) && idbProds.length > 0)
+          ? idbProds.length
+          : (Array.isArray(products) ? products.length : 0);
+        const countMatches = !serverTotal || cachedCount === serverTotal;
+        const hasCachedProducts = cachedCount > 50;
+        const isCatalogCurrent = Boolean(serverVersion && localVersion && serverVersion === localVersion && hasCachedProducts && countMatches);
+
+        if (serverVersion && (serverVersion !== localVersion || !countMatches)) {
+          console.log(`[Athena SWR] Desalinhamento de versão/contagem (Local: ${localVersion} [${cachedCount}], Servidor: ${serverVersion} [${serverTotal}]). Limpando cache e sincronizando...`);
+          clearCatalogCache();
+        }
 
         // 2. Skip 3.4MB /products payload if exact PostgreSQL snapshot is already cached
         const [prodRes, catRes, brandRes, bannerRes, deptRes] = await Promise.all([
@@ -548,44 +558,11 @@ export default function App() {
                   return prev.length > 0 ? prev : INITIAL_PRODUCTS;
                 }
 
-                // Backend products are the official source of truth
-                const mergedProds = [...normProds];
-                const localOnlyProds = [];
+                // Backend products are the authoritative source of truth
+                safeStorageSet('athena_products', normProds);
+                idbSet('athena_products', normProds).catch(() => {});
 
-                // Keep local offline drafts that have not yet synced to backend
-                if (Array.isArray(prev) && prev.length > 0) {
-                  prev.forEach((localProd) => {
-                    const existsInBackend = mergedProds.some(
-                      (bp) => bp.id === localProd.id || (bp.slug && bp.slug === localProd.slug)
-                    );
-                    if (!existsInBackend && localProd.status === 'draft') {
-                      mergedProds.push(localProd);
-                      localOnlyProds.push(localProd);
-                    }
-                  });
-                }
-
-                safeStorageSet('athena_products', mergedProds);
-                idbSet('athena_products', mergedProds).catch(() => {});
-
-                // Auto-sync locally-saved draft products to PostgreSQL if admin session is active
-                const session = getSession();
-                if (session?.token && (session?.user?.role === 'admin' || session?.user?.isAdmin) && localOnlyProds.length > 0) {
-                  localOnlyProds.forEach((lp) => {
-                    if (lp.id && lp.name) {
-                      fetch(`${currentBaseUrl}/products`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${session.token}`
-                        },
-                        body: JSON.stringify(lp)
-                      }).catch(e => console.warn('[Auto-sync product to DB failed]:', e));
-                    }
-                  });
-                }
-
-                return mergedProds;
+                return normProds;
               });
 
               if (serverVersion) {

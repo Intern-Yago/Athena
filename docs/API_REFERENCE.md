@@ -26,6 +26,7 @@
 14. [Mídia & Cloudflare R2](#14-mídia--cloudflare-r2)
 15. [Monitoramento & Healthcheck](#15-monitoramento--healthcheck)
 16. [Template de Skill AGY para o Hermes](#16-template-de-skill-agy-para-o-hermes)
+17. [Motor de Cálculo de Frete — Melhor Envio v2 (`/api/shipping/calculate`)](#17-motor-de-cálculo-de-frete--melhor-envio-v2)
 
 ---
 
@@ -557,3 +558,155 @@ def creditar_pontos(cliente_id: str, pontos: int, motivo: str):
     res = requests.post(f"{API_URL}/hermes/customers/{cliente_id}/credit", json=payload, headers=headers)
     return res.json()
 ```
+
+---
+
+## 17. Motor de Cálculo de Frete — Melhor Envio v2
+
+A API da Athena integra-se de forma nativa e resiliente com o gateway **Melhor Envio v2**, fornecendo cotações de frete em tempo real para múltiplos transportadores (Correios PAC e SEDEX, Jadlog, Loggi, LATAM Cargo e Azul Cargo).
+
+### Características do Motor:
+- **Origem Fixada:** CEP padrão de expedição `71996-413` (Brasília - DF).
+- **Cubagem e Peso Automáticos:** Utiliza as colunas de logística nativas (`weight`, `height`, `width`, `length`) com fallback inteligente nas `specs` do produto.
+- **Modo Resiliente / Offline:** Se a API do Melhor Envio oscilar ou se o token não estiver configurado, um motor de cálculo de fallback entra em ação para garantir que o cliente e o Hermes nunca fiquem sem cotação de frete nem recebam erro 500.
+
+---
+
+### `POST /api/shipping/calculate`
+Calcula as opções de frete disponíveis para um ou mais produtos.
+
+**Autenticação:** Pública (Permite consulta por clientes anônimos na vitrine ou logados).
+
+**Payload de Cotação Unitária (Página de Produto):**
+```json
+{
+  "toCep": "01310100",
+  "product": {
+    "id": "prod_1791230789327",
+    "name": "Kit 2 Cavaletes Automotivos 3 Toneladas - Sigma Tools",
+    "weight": 5.0,
+    "height": 32.0,
+    "width": 20.0,
+    "length": 22.0,
+    "price": 203.84
+  },
+  "quantity": 1
+}
+```
+
+**Payload de Cotação Múltipla (Carrinho de Compras):**
+```json
+{
+  "toCep": "01310100",
+  "products": [
+    {
+      "id": "prod_1791230789327",
+      "name": "Kit 2 Cavaletes Automotivos 3 Toneladas",
+      "weight": 5.0,
+      "height": 32.0,
+      "width": 20.0,
+      "length": 22.0,
+      "price": 203.84,
+      "quantity": 1
+    },
+    {
+      "id": "prod_1790612867800",
+      "name": "Kit Funil para Troca de Óleo de Motor 18 Peças",
+      "weight": 2.2,
+      "height": 40.0,
+      "width": 35.0,
+      "length": 29.0,
+      "price": 350.00,
+      "quantity": 1
+    }
+  ]
+}
+```
+
+**Resposta de Sucesso (200 OK):**
+```json
+{
+  "success": true,
+  "originCep": "71996413",
+  "destinationCep": "01310100",
+  "options": [
+    {
+      "id": 1,
+      "name": "PAC",
+      "company": {
+        "id": 1,
+        "name": "Correios",
+        "picture": "https://images.athenaconsultoria.com.br/transportadoras/correios.png"
+      },
+      "price": 27.90,
+      "currency": "BRL",
+      "delivery_time": 5,
+      "delivery_range": { "min": 4, "max": 5 },
+      "error": null
+    },
+    {
+      "id": 2,
+      "name": "SEDEX (Expresso)",
+      "company": {
+        "id": 1,
+        "name": "Correios",
+        "picture": "https://images.athenaconsultoria.com.br/transportadoras/correios.png"
+      },
+      "price": 42.00,
+      "currency": "BRL",
+      "delivery_time": 2,
+      "delivery_range": { "min": 1, "max": 2 },
+      "error": null
+    },
+    {
+      "id": 3,
+      "name": ".Package (Econômico)",
+      "company": {
+        "id": 2,
+        "name": "Jadlog",
+        "picture": "https://images.athenaconsultoria.com.br/transportadoras/jadlog.png"
+      },
+      "price": 25.50,
+      "currency": "BRL",
+      "delivery_time": 4,
+      "delivery_range": { "min": 3, "max": 4 },
+      "error": null
+    }
+  ]
+}
+```
+
+---
+
+### Cotação Direta via Hermes Gateway (`/api/hermes/products`)
+
+O agente Hermes pode solicitar a cotação de frete no mesmo instante em que pesquisa o produto, bastando incluir o parâmetro `cep`:
+
+```http
+GET /api/hermes/products?search=cavalete 3 ton&cep=01310100
+x-hermes-key: <HERMES_SECRET_KEY>
+```
+
+Cada produto retornado na lista incluirá o objeto `cotacaoFrete`:
+```json
+{
+  "name": "Kit 2 Cavaletes Automotivos 3 Toneladas - Sigma Tools",
+  "sku": "0761100020",
+  "precoVenda": 203.84,
+  "weight": 5.0,
+  "height": 32.0,
+  "width": 20.0,
+  "length": 22.0,
+  "dimensoesFormatadas": "32 × 20 × 22 cm (5 kg)",
+  "cotacaoFrete": {
+    "origemCep": "71996413",
+    "destinoCep": "01310100",
+    "opcoes": [
+      { "name": ".Package (Econômico)", "price": 25.50, "delivery_time": 4 },
+      { "name": "PAC", "price": 27.90, "delivery_time": 5 },
+      { "name": "SEDEX (Expresso)", "price": 42.00, "delivery_time": 2 }
+    ]
+  }
+}
+```
+

@@ -6,6 +6,7 @@ import ProductModal from '../components/ProductModal';
 import InstallmentModal from '../components/InstallmentModal';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import NotFoundPage from './NotFoundPage';
+import ShippingCalculator from '../components/ShippingCalculator';
 import { isProductPublished, normalizeProduct } from '../utils/imageUrl';
 import { 
   ArrowLeft, 
@@ -221,6 +222,7 @@ export default function ProductDetailPage({
   const [isInstallmentModalOpen, setIsInstallmentModalOpen] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState(null);
   const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [selectedShipping, setSelectedShipping] = useState(null);
   const { addToCart, openDirectCheckout, requireVerification } = useCart();
 
   // State for direct fetch when product is not yet in global products list (e.g. fresh page load)
@@ -429,13 +431,16 @@ export default function ProductDetailPage({
   const productTitleWithVariant = `${product?.name || ''}${selectedVariant ? ` - ${selectedVariant.name}` : ''}`;
   const variantSkuText = selectedVariant?.sku ? ` | Cód: ${selectedVariant.sku}` : (product?.sku ? ` | Cód: ${product.sku}` : '');
   const qtyText = selectedQuantity > 1 ? `\nQuantidade: ${selectedQuantity} unidade(s)` : '';
+  const shippingText = selectedShipping 
+    ? `\nFrete Consultado: ${selectedShipping.company?.name || 'Transportadora'} ${selectedShipping.name} (${formatBRL(selectedShipping.price)} - ${selectedShipping.delivery_time} dias úteis)`
+    : '';
 
   const whatsappMessage = canBuyOnline
     ? encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
+        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).${shippingText}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
       )
     : encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nCategoria: ${category?.name || 'Geral'}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
+        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nCategoria: ${category?.name || 'Geral'}.${shippingText}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
       );
 
   // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
@@ -1271,6 +1276,15 @@ export default function ProductDetailPage({
                   <span>{comparisonList?.some(p => p.id === product.id) ? 'Em Comparação' : 'Comparar Modelo'}</span>
                 </button>
               )}
+            </div>
+
+            {/* COTAÇÃO DE FRETE INTEGRADA MELHOR ENVIO */}
+            <div className="pt-1">
+              <ShippingCalculator 
+                product={product} 
+                quantity={selectedQuantity}
+                onSelectShipping={(opt) => setSelectedShipping(opt)}
+              />
             </div>
 
 

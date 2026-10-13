@@ -30,7 +30,7 @@ function normalizeKey(str) {
 function extractModelKeys(str) {
   if (!str) return [];
   const upper = String(str).toUpperCase();
-  const matches = upper.match(/[A-Z0-9]{2,}[-_/][A-Z0-9]{2,}|[A-Z]{2,4}[0-9]{2,5}[A-Z0-9]*|[0-9]{2,5}[A-Z]{2,4}/g) || [];
+  const matches = upper.match(/[A-Z0-9]{2,}\s*[-_/]\s*[A-Z0-9]{2,}|[A-Z]{2,4}\s*[0-9]{2,5}[A-Z0-9]*|[0-9]{2,5}\s*[A-Z]{2,4}/g) || [];
   return matches.map(m => normalizeKey(m)).filter(m => m.length >= 3 && !SKU_STOP_WORDS.has(m));
 }
 
@@ -58,8 +58,33 @@ async function fetchOmieProductDetails(codigoProduto, codigo) {
   }
 }
 
+function cleanTitle(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&#8211;/g, '-')
+    .replace(/&#8243;/g, '"')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+}
+
+function getSignificantTitleWords(str) {
+  const cleaned = cleanTitle(str).replace(/[^A-Z0-9]/g, ' ');
+  const TITLE_STOP_WORDS = new Set([
+    'COM', 'SEM', 'PARA', 'DAS', 'DOS', 'UMA', 'UNS', 'POR', 'TIPO', 'NOVO', 'SOB',
+    'DE', 'DA', 'DO', 'EM', 'NA', 'NO', 'E', 'O', 'A', 'AS', 'OS', 'AO', 'AOS'
+  ]);
+  return cleaned
+    .split(/\s+/)
+    .filter(w => w.length >= 3 && !SKU_STOP_WORDS.has(w) && !TITLE_STOP_WORDS.has(w));
+}
+
 /**
  * Localiza produto existente no catálogo do PostgreSQL através de múltiplos níveis de precisão (Multi-Tier Deduplication)
+ * Regra estrita: prioriza SEMPRE produtos já publicados (status = 'published') com imagens válidas.
+ * Procura PRIMEIRO por SKU (exato, normalizado, base, variações) e DEPOIS por Nome/Título.
  */
 async function findMatchingAthenaProduct(pool, { codigoProduto, codigoSku, descricao }) {
   if (!pool) return null;
@@ -68,11 +93,14 @@ async function findMatchingAthenaProduct(pool, { codigoProduto, codigoSku, descr
   const rawSku = String(codigoSku || '').trim();
   const normCod = normalizeKey(rawSku);
 
+  const PRIORITY_ORDER = `ORDER BY (CASE WHEN status = 'published' THEN 0 ELSE 1 END), (CASE WHEN image IS NOT NULL AND image != '' THEN 0 ELSE 1 END), id ASC`;
+
   // 1. Match exato por IDs numéricos do Omie
   if (omieId && !isNaN(omieId) && omieId > 0) {
     const res = await pool.query(
-      `SELECT id, name, slug, sku, omie_code, status, price_negotiable FROM products 
-       WHERE omie_codigo_produto = $1 OR omie_product_id = $1 LIMIT 1`,
+      `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
+       WHERE omie_codigo_produto = $1 OR omie_product_id = $1 
+       ${PRIORITY_ORDER} LIMIT 1`,
       [omieId]
     );
     if (res.rows.length > 0) return { product: res.rows[0], matchType: 'omie_id' };
@@ -81,10 +109,10 @@ async function findMatchingAthenaProduct(pool, { codigoProduto, codigoSku, descr
   // 2. Match exato case-insensitive por SKU ou omie_code
   if (rawSku && !SKU_STOP_WORDS.has(rawSku.toUpperCase())) {
     const res = await pool.query(
-      `SELECT id, name, slug, sku, omie_code, status, price_negotiable FROM products 
+      `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
        WHERE (sku IS NOT NULL AND LOWER(sku) = LOWER($1))
           OR (omie_code IS NOT NULL AND LOWER(omie_code) = LOWER($1))
-       LIMIT 1`,
+       ${PRIORITY_ORDER} LIMIT 1`,
       [rawSku]
     );
     if (res.rows.length > 0) return { product: res.rows[0], matchType: 'exact_sku' };
@@ -94,55 +122,22 @@ async function findMatchingAthenaProduct(pool, { codigoProduto, codigoSku, descr
   // Ex: "MAH-3D1" equivale a "MAH3D1"
   if (normCod && normCod.length >= 3 && !SKU_STOP_WORDS.has(normCod)) {
     const res = await pool.query(
-      `SELECT id, name, slug, sku, omie_code, status, price_negotiable FROM products 
+      `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
        WHERE (sku IS NOT NULL AND regexp_replace(UPPER(sku), '[^A-Z0-9]', '', 'g') = $1)
           OR (omie_code IS NOT NULL AND regexp_replace(UPPER(omie_code), '[^A-Z0-9]', '', 'g') = $1)
-       LIMIT 1`,
+       ${PRIORITY_ORDER} LIMIT 1`,
       [normCod]
     );
     if (res.rows.length > 0) return { product: res.rows[0], matchType: 'normalized_sku' };
   }
 
-  // 4. Match de código/modelo contido no ID, slug ou nome do produto
-  // Ex: Produto Athena "prod_mahovi_mah3d1_alinhador" ou nome contendo "MAH-3D1"
-  if (normCod && normCod.length >= 3 && !SKU_STOP_WORDS.has(normCod)) {
-    const res = await pool.query(
-      `SELECT id, name, slug, sku, omie_code, status, price_negotiable FROM products 
-       WHERE (id IS NOT NULL AND regexp_replace(UPPER(id), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
-          OR (slug IS NOT NULL AND regexp_replace(UPPER(slug), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
-          OR (name IS NOT NULL AND regexp_replace(UPPER(name), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
-       ORDER BY (CASE WHEN regexp_replace(UPPER(COALESCE(sku, '')), '[^A-Z0-9]', '', 'g') = $1 THEN 1 ELSE 2 END) ASC
-       LIMIT 1`,
-      [normCod]
-    );
-    if (res.rows.length > 0) return { product: res.rows[0], matchType: 'model_in_name_or_id' };
-  }
-
-  // 5. Extração de chaves de modelo a partir da descrição e do código
-  const modelCandidates = new Set([
-    ...extractModelKeys(rawSku),
-    ...extractModelKeys(descricao || '')
-  ]);
-
-  for (const model of modelCandidates) {
-    if (model.length < 3 || SKU_STOP_WORDS.has(model)) continue;
-    const res = await pool.query(
-      `SELECT id, name, slug, sku, omie_code, status, price_negotiable FROM products 
-       WHERE (sku IS NOT NULL AND regexp_replace(UPPER(sku), '[^A-Z0-9]', '', 'g') = $1)
-          OR (id IS NOT NULL AND regexp_replace(UPPER(id), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
-          OR (name IS NOT NULL AND regexp_replace(UPPER(name), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
-       LIMIT 1`,
-      [model]
-    );
-    if (res.rows.length > 0) return { product: res.rows[0], matchType: `desc_model_${model}` };
-  }
-
-  // 6. Match por SKU ou Omie ID dentro do array de variações (variants JSONB)
+  // 4. Match por SKU dentro do array de variações (variants JSONB)
   if (rawSku || (omieId && !isNaN(omieId) && omieId > 0)) {
     try {
       const resVariants = await pool.query(
         `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
-         WHERE variants IS NOT NULL AND jsonb_array_length(variants) > 0`
+         WHERE variants IS NOT NULL AND jsonb_array_length(variants) > 0
+         ${PRIORITY_ORDER}`
       );
       for (const row of resVariants.rows) {
         const vars = Array.isArray(row.variants) ? row.variants : [];
@@ -171,6 +166,84 @@ async function findMatchingAthenaProduct(pool, { codigoProduto, codigoSku, descr
       }
     } catch (varErr) {
       console.warn(`[Omie Webhook] Erro ao buscar correspondência em variações: ${varErr.message}`);
+    }
+  }
+
+  // 5. Match por SKU Base (removendo sufixos de voltagem como -110V, -220V, -127V, -DUP, -KIT)
+  const baseSku = rawSku.replace(/-(?:110V|220V|127V|DUP|KIT)$/i, '').trim();
+  const baseNorm = normalizeKey(baseSku);
+  if (baseNorm && baseNorm !== normCod && baseNorm.length >= 3 && !SKU_STOP_WORDS.has(baseNorm)) {
+    const resBase = await pool.query(
+      `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
+       WHERE (sku IS NOT NULL AND regexp_replace(UPPER(sku), '[^A-Z0-9]', '', 'g') LIKE $1 || '%')
+          OR (omie_code IS NOT NULL AND regexp_replace(UPPER(omie_code), '[^A-Z0-9]', '', 'g') LIKE $1 || '%')
+          OR (id IS NOT NULL AND regexp_replace(UPPER(id), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
+       ${PRIORITY_ORDER} LIMIT 1`,
+      [baseNorm]
+    );
+    if (resBase.rows.length > 0) return { product: resBase.rows[0], matchType: 'base_sku_suffix_stripped' };
+  }
+
+  // 6. Match de código/modelo contido no ID, slug ou nome do produto
+  if (normCod && normCod.length >= 3 && !SKU_STOP_WORDS.has(normCod)) {
+    const res = await pool.query(
+      `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
+       WHERE (id IS NOT NULL AND regexp_replace(UPPER(id), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
+          OR (slug IS NOT NULL AND regexp_replace(UPPER(slug), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
+          OR (name IS NOT NULL AND regexp_replace(UPPER(name), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
+       ${PRIORITY_ORDER} LIMIT 1`,
+      [normCod]
+    );
+    if (res.rows.length > 0) return { product: res.rows[0], matchType: 'model_in_name_or_id' };
+  }
+
+  // 7. Extração de chaves de modelo a partir da descrição e do código
+  const modelCandidates = new Set([
+    ...extractModelKeys(rawSku),
+    ...extractModelKeys(descricao || '')
+  ]);
+
+  for (const model of modelCandidates) {
+    if (model.length < 3 || SKU_STOP_WORDS.has(model)) continue;
+    const res = await pool.query(
+      `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
+       WHERE (sku IS NOT NULL AND regexp_replace(UPPER(sku), '[^A-Z0-9]', '', 'g') = $1)
+          OR (id IS NOT NULL AND regexp_replace(UPPER(id), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
+          OR (name IS NOT NULL AND regexp_replace(UPPER(name), '[^A-Z0-9]', '', 'g') LIKE '%' || $1 || '%')
+       ${PRIORITY_ORDER} LIMIT 1`,
+      [model]
+    );
+    if (res.rows.length > 0) return { product: res.rows[0], matchType: `desc_model_${model}` };
+  }
+
+  // 8. Match Semântico por NOME / TÍTULO (Deduplicação Inteligente por Descrição)
+  if (descricao && typeof descricao === 'string' && descricao.trim().length >= 5) {
+    const cleanDesc = cleanTitle(descricao);
+    const normDesc = normalizeKey(cleanDesc);
+
+    // 8a. Match exato por nome normalizado (ignorando pontuações e espaços)
+    const resExactName = await pool.query(
+      `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
+       WHERE regexp_replace(UPPER(name), '[^A-Z0-9]', '', 'g') = $1
+       ${PRIORITY_ORDER} LIMIT 1`,
+      [normDesc]
+    );
+    if (resExactName.rows.length > 0) return { product: resExactName.rows[0], matchType: 'exact_name_match' };
+
+    // 8b. Match por sobreposição de palavras significativas no título (Keywords)
+    const keywords = getSignificantTitleWords(descricao);
+    if (keywords.length >= 2) {
+      // Busca produtos publicados que contenham as palavras-chave
+      const likeClauses = keywords.slice(0, 4).map((_, idx) => `name ILIKE $${idx + 1}`);
+      const resKeywords = await pool.query(
+        `SELECT id, name, slug, sku, omie_code, status, price_negotiable, variants FROM products 
+         WHERE status = 'published' AND (${likeClauses.join(' AND ')})
+         LIMIT 1`,
+        keywords.slice(0, 4).map(k => `%${k}%`)
+      );
+      if (resKeywords.rows.length > 0) {
+        return { product: resKeywords.rows[0], matchType: 'keywords_title_match' };
+      }
     }
   }
 
@@ -296,6 +369,13 @@ async function processOmieProductWebhook(pool, body) {
         cleanSku,
         existing.id
       ]);
+
+      if (codigoProduto && existing.id !== `prod_omie_${codigoProduto}`) {
+        await pool.query(
+          `DELETE FROM products WHERE id = $1 AND status = 'draft'`,
+          [`prod_omie_${codigoProduto}`]
+        );
+      }
 
       console.log(`[OMIE WEBHOOK] ✅ Produto existente localizado (${matchResult.matchType}) e atualizado: "${existing.name}" (ID: ${existing.id}) | Preço: R$ ${finalPreco} | Estoque: ${finalEstoque}`);
       return {

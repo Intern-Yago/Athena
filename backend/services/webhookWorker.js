@@ -219,6 +219,7 @@ function startWebhookWorker(intervalMs = 5000) {
   workerTimer = setInterval(() => {
     processQueueBatch().catch(() => {});
   }, intervalMs);
+  workerTimer.unref();
 
   // Executa uma primeira passagem imediata
   processQueueBatch().catch(() => {});

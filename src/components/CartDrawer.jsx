@@ -14,6 +14,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import ShippingCalculator from './ShippingCalculator';
 
 export function CartDrawer() {
   const {
@@ -233,6 +234,12 @@ export function CartDrawer() {
           {/* Footer & Checkout Trigger */}
           {cartItems.length > 0 && (
             <div className="p-4 sm:p-5 pb-16 sm:pb-5 border-t border-slate-200 bg-slate-50 space-y-3.5">
+              {/* Cotação de Frete do Carrinho (Melhor Envio) */}
+              <ShippingCalculator 
+                items={cartItems}
+                className="!bg-white !p-3 !rounded-xl !shadow-none !border-slate-200/90"
+              />
+
               {/* Totals Breakdown */}
               <div className="space-y-1.5 text-xs">
                 {quoteItemCount > 0 && (

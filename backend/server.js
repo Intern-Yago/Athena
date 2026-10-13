@@ -32,6 +32,7 @@ const webhookRoutes = require('./routes/webhookRoutes');
 const opsAdminRoutes = require('./routes/opsAdminRoutes');
 const customerOrderRoutes = require('./routes/customerOrderRoutes');
 const orderService = require('./services/orderService');
+const { calculateShipping, cleanCep } = require('./services/melhorEnvioService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -4543,8 +4544,8 @@ async function pingAsaasKeepAlive() {
     console.warn(`[Asaas Keep-Alive] Aviso ao consultar Asaas:`, err.response?.data?.errors?.[0]?.description || err.message);
   }
 }
-setTimeout(pingAsaasKeepAlive, 10000);
-setInterval(pingAsaasKeepAlive, 5 * 24 * 60 * 60 * 1000);
+setTimeout(pingAsaasKeepAlive, 10000).unref();
+setInterval(pingAsaasKeepAlive, 5 * 24 * 60 * 60 * 1000).unref();
 
 // -------------------------------------------------------------
 // COUPONS & DISCOUNT ENGINE (WITH STRICT R$ 5,00 GATEWAY RULE)
@@ -4968,6 +4969,74 @@ app.post('/api/coupons/validate', async (req, res) => {
   } catch (err) {
     console.error('Erro na validação do cupom:', err);
     return res.status(500).json({ valid: false, error: 'Erro ao validar cupom.' });
+  }
+});
+
+// -------------------------------------------------------------
+// MELHOR ENVIO - COTAÇÃO E CÁLCULO DE FRETE (B2B / E-COMMERCE)
+// -------------------------------------------------------------
+app.post(['/api/shipping/calculate', '/api/frete/calcular'], async (req, res) => {
+  try {
+    const { 
+      toCep, 
+      destinationCep, 
+      cep, 
+      productId, 
+      quantity = 1, 
+      products = [], 
+      package: pkg,
+      product: directProduct
+    } = req.body;
+
+    const targetCep = cleanCep(toCep || destinationCep || cep);
+    if (!targetCep || targetCep.length !== 8) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'CEP de destino inválido. O CEP deve conter 8 dígitos numéricos.' 
+      });
+    }
+
+    let itemsToCalculate = [];
+
+    // 1. Se foi enviada lista de produtos (ex: carrinho)
+    if (Array.isArray(products) && products.length > 0) {
+      itemsToCalculate = products;
+    } 
+    // 2. Se foi enviado objeto direto do produto
+    else if (directProduct && typeof directProduct === 'object') {
+      itemsToCalculate = [{ ...directProduct, quantity }];
+    } 
+    // 3. Se foi enviado apenas productId, busca na base de produtos
+    else if (productId) {
+      let foundProduct = null;
+      if (pool) {
+        try {
+          const pRes = await pool.query('SELECT * FROM products WHERE id = $1 LIMIT 1', [productId]);
+          if (pRes.rows.length > 0) foundProduct = pRes.rows[0];
+        } catch (e) {}
+      }
+      if (!foundProduct) {
+        const db = readDbJson();
+        foundProduct = (db.products || []).find(p => p.id === productId);
+      }
+      if (foundProduct) {
+        itemsToCalculate = [{ ...foundProduct, quantity }];
+      }
+    }
+
+    const result = await calculateShipping({
+      destinationCep: targetCep,
+      products: itemsToCalculate,
+      package: pkg
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error('[MELHOR ENVIO API ERROR]', err);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Não foi possível calcular o frete no momento. Tente novamente mais tarde.' 
+    });
   }
 });
 
@@ -6944,10 +7013,10 @@ app.get('/api/hermes/rewards', validateHermesAuth, async (req, res) => {
   }
 });
 
-// Hermes: Busca Inteligente de Produtos (Cache-Aside: PostgreSQL -> Omie Fallback)
+// Hermes: Busca Inteligente de Produtos (Cache-Aside: PostgreSQL -> Omie Fallback + Cálculo de Frete)
 app.get(['/api/hermes/products', '/api/hermes/produtos'], validateHermesAuth, async (req, res) => {
   try {
-    const { search = '', query = '', q = '', limit = 20, forceOmie = false } = req.query;
+    const { search = '', query = '', q = '', limit = 20, forceOmie = false, cep = '' } = req.query;
     const cleanSearch = String(search || query || q || '').trim();
     const numLimit = Math.min(50, Math.max(1, Number(limit) || 20));
 
@@ -6955,7 +7024,8 @@ app.get(['/api/hermes/products', '/api/hermes/produtos'], validateHermesAuth, as
       pool,
       search: cleanSearch,
       limit: numLimit,
-      forceOmie: forceOmie === 'true' || forceOmie === true
+      forceOmie: forceOmie === 'true' || forceOmie === true,
+      cep: cep || null
     });
 
     return res.json(result);
@@ -6968,7 +7038,7 @@ app.get(['/api/hermes/products', '/api/hermes/produtos'], validateHermesAuth, as
 // Hermes: Busca de Produtos via POST (Compatível com chamadas de Tools do Gemini / Agentes)
 app.post(['/api/hermes/products', '/api/hermes/produtos'], validateHermesAuth, async (req, res) => {
   try {
-    const { search = '', query = '', q = '', limit = 20, forceOmie = false } = req.body || {};
+    const { search = '', query = '', q = '', limit = 20, forceOmie = false, cep = '' } = req.body || {};
     const cleanSearch = String(search || query || q || '').trim();
     const numLimit = Math.min(50, Math.max(1, Number(limit) || 20));
 
@@ -6976,7 +7046,8 @@ app.post(['/api/hermes/products', '/api/hermes/produtos'], validateHermesAuth, a
       pool,
       search: cleanSearch,
       limit: numLimit,
-      forceOmie: Boolean(forceOmie)
+      forceOmie: Boolean(forceOmie),
+      cep: cep || req.query.cep || null
     });
 
     return res.json(result);
@@ -8837,7 +8908,10 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
-        WHERE p.id = $1 OR p.slug = $1
+        WHERE p.id = $1 
+           OR p.slug = $1 
+           OR p.id = (SELECT target_product_id FROM product_slug_aliases WHERE old_slug = $1 LIMIT 1)
+           OR ($1 = 'kit-funil-para-oleo-de-motor-15-pecas-sigma-tools-0699990106' AND p.id = 'prod_1790612867800')
         LIMIT 1
       `, [cleanId]);
 
@@ -8888,8 +8962,46 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
     finalStatus = 'draft';
   }
 
+  let assignedId = req.body.id;
+  if (!assignedId && pool) {
+    try {
+      const matchQueries = [];
+      const matchParams = [];
+      let paramIdx = 1;
+
+      if (req.body.brandId && finalSku) {
+        matchQueries.push(`(brand_id = $${paramIdx} AND LOWER(TRIM(sku)) = LOWER(TRIM($${paramIdx + 1})))`);
+        matchParams.push(req.body.brandId, finalSku);
+        paramIdx += 2;
+      }
+      if (req.body.slug) {
+        matchQueries.push(`(slug = $${paramIdx})`);
+        matchParams.push(req.body.slug.trim());
+        paramIdx += 1;
+      }
+      const incomingOmieId = req.body.omieProductId || req.body.omie_product_id || req.body.omieCodigoProduto;
+      if (incomingOmieId && Number(incomingOmieId) > 0) {
+        matchQueries.push(`(omie_product_id = $${paramIdx} OR omie_codigo_produto = $${paramIdx})`);
+        matchParams.push(Number(incomingOmieId));
+        paramIdx += 1;
+      }
+
+      if (matchQueries.length > 0) {
+        const findDup = await pool.query(
+          `SELECT id FROM products WHERE ${matchQueries.join(' OR ')} LIMIT 1`,
+          matchParams
+        );
+        if (findDup.rows.length > 0) {
+          assignedId = findDup.rows[0].id;
+        }
+      }
+    } catch (e) {
+      console.warn('[Products Deduplication Check Warning]:', e.message);
+    }
+  }
+
   const newProduct = { 
-    id: req.body.id || `prod_${Date.now()}`, 
+    id: assignedId || `prod_${Date.now()}`, 
     ...req.body,
     status: finalStatus,
     sku: finalSku,
@@ -9222,6 +9334,9 @@ if (require.main === module) {
 
 module.exports = {
   app,
+  pool,
+  generateToken,
+  verifyToken,
   validatePasswordStandard,
   evaluateCoupon,
   isOriginAllowed,

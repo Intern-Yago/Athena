@@ -74,6 +74,10 @@
       "description": "Upload WebP de alta velocidade e gerenciamento de arquivos."
     },
     {
+      "name": "Cálculo de Frete (Melhor Envio)",
+      "description": "Cotação de frete dinâmica e multi-transportadoras (Correios, Jadlog, Loggi, Latam Cargo, Azul Cargo)."
+    },
+    {
       "name": "Monitoramento & Sistema",
       "description": "Healthchecks, pre-warming e especificação OpenAPI."
     }
@@ -1493,6 +1497,14 @@
               "default": false
             },
             "description": "Forçar busca no Omie"
+          },
+          {
+            "name": "cep",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "CEP de destino (8 dígitos). Se informado, calcula frete instantâneo via Melhor Envio com base no peso e cubagem reais do produto."
           }
         ],
         "responses": {
@@ -1530,6 +1542,11 @@
                   "forceOmie": {
                     "type": "boolean",
                     "default": false
+                  },
+                  "cep": {
+                    "type": "string",
+                    "example": "01310-100",
+                    "description": "CEP de destino para cotação instantânea de frete"
                   }
                 }
               }
@@ -2107,6 +2124,103 @@
         "responses": {
           "201": {
             "description": "Pedido registrado."
+          }
+        }
+      }
+    },
+    "/api/shipping/calculate": {
+      "post": {
+        "tags": [
+          "Cálculo de Frete (Melhor Envio)"
+        ],
+        "summary": "Cálculo de frete em tempo real para produtos ou carrinho",
+        "description": "Cotação multi-transportadoras (Correios PAC/SEDEX, Jadlog, Loggi, Latam Cargo, Azul Cargo) integrada ao Melhor Envio com origem no CD de Brasília (CEP 71996-413). Suporta cotação unitária por produto ou consolidação de múltiplos itens do carrinho.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cep"
+                ],
+                "properties": {
+                  "cep": {
+                    "type": "string",
+                    "example": "01310-100",
+                    "description": "CEP de destino do cliente (8 dígitos)"
+                  },
+                  "productId": {
+                    "type": "string",
+                    "example": "prod_1790612867800",
+                    "description": "ID do produto para cotação unitária"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "default": 1,
+                    "example": 1,
+                    "description": "Quantidade do item"
+                  },
+                  "products": {
+                    "type": "array",
+                    "description": "Lista de produtos para cotação agregada do carrinho",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "price": { "type": "number" },
+                        "quantity": { "type": "integer" },
+                        "weight": { "type": "number" },
+                        "height": { "type": "number" },
+                        "width": { "type": "number" },
+                        "length": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Opções de frete retornadas pelo Melhor Envio ordenadas por prazo e custo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "originCep": { "type": "string", "example": "71996413" },
+                    "destinationCep": { "type": "string", "example": "01310100" },
+                    "options": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer", "example": 1 },
+                          "name": { "type": "string", "example": "PAC" },
+                          "company": {
+                            "type": "object",
+                            "properties": {
+                              "name": { "type": "string", "example": "Correios" },
+                              "picture": { "type": "string", "example": "https://images.athenaconsultoria.com.br/transportadoras/correios.png" }
+                            }
+                          },
+                          "price": { "type": "number", "example": 27.9 },
+                          "currency": { "type": "string", "example": "BRL" },
+                          "delivery_time": { "type": "integer", "example": 5 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CEP de destino inválido ou parâmetros ausentes."
           }
         }
       }
