@@ -16,6 +16,7 @@ const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'));
 const CustomerAccountPage = lazyWithRetry(() => import('./pages/CustomerAccountPage'));
 const NotFoundPage = lazyWithRetry(() => import('./pages/NotFoundPage'));
 const LegalPage = lazyWithRetry(() => import('./pages/LegalPage'));
+const ThankYouPage = lazyWithRetry(() => import('./pages/ThankYouPage'));
 
 import Footer from './components/Footer';
 import Toast from './components/Toast';
@@ -1382,6 +1383,16 @@ export default function App() {
 
     if (currentRoute === 'politica-de-cookies' || currentRoute === 'cookies') {
       return <LegalPage initialTab="cookies" onNavigate={navigateTo} />;
+    }
+
+    if (
+      currentRoute === 'obrigado' ||
+      currentRoute === 'solicitacao-recebida' ||
+      currentRoute === 'sucesso' ||
+      currentRoute === 'agradecimento' ||
+      currentRoute === 'thank-you'
+    ) {
+      return <ThankYouPage onNavigate={navigateTo} />;
     }
 
     if (currentRoute === 'admin') {
