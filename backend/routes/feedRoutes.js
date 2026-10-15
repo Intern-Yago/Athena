@@ -116,9 +116,11 @@ router.get('/facebook-catalog.xml', async (req, res) => {
         ? `${BASE_URL}/produto/${p.slug}?utm_source=facebook_marketplace&utm_medium=catalog&action=wpp`
         : `${BASE_URL}/produto/${p.slug}?utm_source=facebook_marketplace&utm_medium=catalog`;
 
-      // Formatação de preço para o Meta Commerce (requer número com duas casas decimais e moeda)
+      // Formatação de preço para o Meta Commerce / Google Merchant:
+      // O Meta e o Google REJEITAM produtos com preço 0.00 BRL.
+      // Produtos Sob Consulta usam o valor simbólico de 1.00 BRL (padrão de marketplace)
       const numPrice = Number(p.price || p.preco_venda || 0);
-      const formattedPrice = `${numPrice > 0 ? numPrice.toFixed(2) : '0.00'} BRL`;
+      const formattedPrice = `${numPrice > 0 ? numPrice.toFixed(2) : '1.00'} BRL`;
 
       // Para produtos de revenda / sem estoque imediato:
       // Mantém 'in stock' para não ocultar no Marketplace, permitindo venda sob encomenda
@@ -188,7 +190,7 @@ router.get('/facebook-catalog.csv', async (req, res) => {
         : `${BASE_URL}/produto/${p.slug}?utm_source=facebook_marketplace&utm_medium=catalog`;
 
       const numPrice = Number(p.price || p.preco_venda || 0);
-      const price = `${numPrice > 0 ? numPrice.toFixed(2) : '0.00'} BRL`;
+      const price = `${numPrice > 0 ? numPrice.toFixed(2) : '1.00'} BRL`;
 
       const row = [
         sku,
