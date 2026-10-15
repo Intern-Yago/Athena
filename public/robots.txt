@@ -1,17 +1,40 @@
 # Robots.txt - Athena Soluções Automotivas
 # https://www.athenaconsultoria.com.br
 
+User-agent: facebookexternalhit
+Allow: /
+Allow: /facebook-catalog.xml
+Allow: /facebook-catalog.csv
+Allow: /api/feeds/
+
+User-agent: Facebot
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
 User-agent: *
 Allow: /
 Allow: /produto/
 Allow: /categoria/
 Allow: /marca/
 Allow: /sobre
+Allow: /facebook-catalog.xml
+Allow: /facebook-catalog.csv
+Allow: /api/feeds/
 
 # Bloqueio de rotas administrativas e API interna para proteger segurança e indexação
 Disallow: /admin
 Disallow: /api/
+Allow: /api/feeds/
 Disallow: /api-docs
 
 # Sitemap oficial indexador
 Sitemap: https://www.athenaconsultoria.com.br/sitemap.xml
+

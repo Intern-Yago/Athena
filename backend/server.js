@@ -494,13 +494,20 @@ if (ATHENA_ORIGIN_SECRET) {
       return next();
     }
 
-    // Permite health checks internos do Render, ping e Webhooks legítimos de pagamento
+    // Permite health checks internos do Render, ping, Webhooks de pagamento e feeds públicos do Meta Commerce / Google
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase();
+    const isPublicCrawler = userAgent.includes('facebook') || 
+                            userAgent.includes('meta-external') || 
+                            userAgent.includes('googlebot');
+
     if (
       req.path === '/api/health' || 
       req.path === '/api/ping' || 
       req.path === '/health' || 
       req.path.startsWith('/api/payments/webhook') ||
-      req.headers['user-agent']?.includes('Render/')
+      req.path.startsWith('/api/feeds/') ||
+      req.headers['user-agent']?.includes('Render/') ||
+      isPublicCrawler
     ) {
       return next();
     }
