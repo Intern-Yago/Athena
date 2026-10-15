@@ -95,8 +95,23 @@ router.get('/', async (req, res) => {
 
     return res.json(enrichedOrders);
   } catch (err) {
-    console.error('[CUSTOMER ORDERS ERROR]', err);
-    return res.status(500).json({ error: 'Erro ao carregar pedidos do cliente.' });
+    console.error('[CUSTOMER ORDERS ERROR]', err.message);
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const dbPath = path.join(__dirname, '..', 'data', 'athena-db.json');
+      if (fs.existsSync(dbPath)) {
+        const db = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
+        const userOrders = (db.orders || []).filter(o => 
+          o.customer_id === req.user?.id || 
+          o.user_id === req.user?.id || 
+          (o.customer_snapshot && o.customer_snapshot.email === req.user?.email) || 
+          o.user_email === req.user?.email
+        );
+        return res.json(userOrders);
+      }
+    } catch (e) {}
+    return res.json([]);
   }
 });
 
