@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Truck, MapPin, Search, Loader2, CheckCircle2, AlertCircle, Info, ExternalLink, ShieldCheck } from 'lucide-react';
+import { getFallbackShippingOptions } from '../utils/fallbackShipping';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
+const API_BASE_URL = (typeof window !== 'undefined' && window.location.origin)
+  ? `${window.location.origin}/api`
+  : (import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api');
 
 /**
  * ShippingCalculator
@@ -54,6 +57,38 @@ export function ShippingCalculator({
     setErrorMessage('');
     setShippingOptions(null);
 
+    // Prepara payload de produtos
+    let payloadProducts = [];
+    if (Array.isArray(items) && items.length > 0) {
+      payloadProducts = items.map(it => ({
+        id: it.id,
+        sku: it.sku,
+        name: it.name,
+        specs: it.specs,
+        weight: it.weight,
+        height: it.height,
+        width: it.width,
+        length: it.length,
+        price: Number(it.price) || 50,
+        quantity: Number(it.quantity) || 1
+      }));
+    } else if (product) {
+      payloadProducts = [
+        {
+          id: product.id,
+          sku: product.sku,
+          name: product.name,
+          specs: product.specs,
+          weight: product.weight,
+          height: product.height,
+          width: product.width,
+          length: product.length,
+          price: Number(product.price) || 50,
+          quantity: Number(quantity) || 1
+        }
+      ];
+    }
+
     try {
       // 1. Busca dados do endereço via ViaCEP em paralelo para feedback instantâneo de localização
       fetch(`https://viacep.com.br/ws/${rawCep}/json/`)
@@ -65,71 +100,70 @@ export function ShippingCalculator({
         })
         .catch(() => {});
 
-      // 2. Prepara payload de produtos
-      let payloadProducts = [];
-      if (Array.isArray(items) && items.length > 0) {
-        payloadProducts = items.map(it => ({
-          id: it.id,
-          sku: it.sku,
-          name: it.name,
-          specs: it.specs,
-          weight: it.weight,
-          height: it.height,
-          width: it.width,
-          length: it.length,
-          price: Number(it.price) || 50,
-          quantity: Number(it.quantity) || 1
-        }));
-      } else if (product) {
-        payloadProducts = [
-          {
-            id: product.id,
-            sku: product.sku,
-            name: product.name,
-            specs: product.specs,
-            weight: product.weight,
-            height: product.height,
-            width: product.width,
-            length: product.length,
-            price: Number(product.price) || 50,
-            quantity: Number(quantity) || 1
+      // 2. Dispara requisição para o backend do Athena OS (Melhor Envio) com fallback de contingência
+      let calculatedOptions = null;
+      let isSimulatedResult = false;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/shipping/calculate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            toCep: rawCep,
+            products: payloadProducts
+          })
+        });
+
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data && data.success && Array.isArray(data.options) && data.options.length > 0) {
+            calculatedOptions = data.options;
+            isSimulatedResult = Boolean(data.is_simulated);
           }
-        ];
+        }
+      } catch (networkErr) {
+        console.warn('Backend de frete indisponível no momento, acionando estimador resiliente:', networkErr);
       }
 
-      // 3. Dispara requisição para o backend do Athena OS (Melhor Envio)
-      const res = await fetch(`${API_BASE_URL}/shipping/calculate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          toCep: rawCep,
-          products: payloadProducts
-        })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setErrorMessage(data.error || 'Não foi possível calcular o frete para este CEP.');
-        return;
-      }
-
-      setShippingOptions(data.options || []);
-      setIsSimulated(Boolean(data.is_simulated));
-
-      // Seleciona a opção mais econômica por padrão
-      if (data.options && data.options.length > 0) {
-        setSelectedOptionId(data.options[0].id);
+      // 3. Se o backend respondeu com sucesso, usa as cotações calculadas
+      if (calculatedOptions && calculatedOptions.length > 0) {
+        setShippingOptions(calculatedOptions);
+        setIsSimulated(isSimulatedResult);
+        setSelectedOptionId(calculatedOptions[0].id);
         if (onSelectShipping) {
-          onSelectShipping(data.options[0]);
+          onSelectShipping(calculatedOptions[0]);
+        }
+      } else {
+        // Fallback resiliente: calcula estimativa offline instantânea com base no CEP e cubagem/peso
+        const fallbackOptions = getFallbackShippingOptions(rawCep, payloadProducts);
+        if (fallbackOptions && fallbackOptions.length > 0) {
+          setShippingOptions(fallbackOptions);
+          setIsSimulated(true);
+          setSelectedOptionId(fallbackOptions[0].id);
+          if (onSelectShipping) {
+            onSelectShipping(fallbackOptions[0]);
+          }
+        } else {
+          setErrorMessage('Não foi possível calcular o frete para este CEP no momento.');
         }
       }
-
     } catch (err) {
       console.error('Erro ao calcular frete:', err);
-      setErrorMessage('Falha na conexão com o servidor de frete. Tente novamente.');
+      // Fallback em caso de erro inesperado
+      try {
+        const fallbackOptions = getFallbackShippingOptions(rawCep, payloadProducts);
+        setShippingOptions(fallbackOptions);
+        setIsSimulated(true);
+        if (fallbackOptions.length > 0) {
+          setSelectedOptionId(fallbackOptions[0].id);
+          if (onSelectShipping) onSelectShipping(fallbackOptions[0]);
+        }
+      } catch {
+        setErrorMessage('Não foi possível calcular o frete. Tente novamente mais tarde.');
+      }
     } finally {
       setLoading(false);
     }
