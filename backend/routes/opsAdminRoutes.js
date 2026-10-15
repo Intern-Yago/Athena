@@ -20,7 +20,13 @@ const {
   startRemoteSession, 
   completeActivation 
 } = require('../services/activationService.js');
-const { syncOmieSalesOrders } = require('../scripts/sync_omie_orders_to_fulfillment.js');
+let syncOmieSalesOrders = null;
+try {
+  const syncModule = require('../scripts/sync_omie_orders_to_fulfillment.js');
+  syncOmieSalesOrders = syncModule.syncOmieSalesOrders;
+} catch (e) {
+  // Script opcional em ambiente isolado de testes
+}
 
 const router = express.Router();
 
@@ -177,7 +183,7 @@ router.get(['/orders/:id', '/ops/orders/:id', '/:id([0-9a-fA-F-]{10,}|[0-9]+)'],
 // -------------------------------------------------------------
 router.get(['/kanban', '/fulfillment/kanban', '/ops/kanban'], async (req, res) => {
   try {
-    if (req.query.sync === 'true' || req.query.sync_omie === 'true') {
+    if ((req.query.sync === 'true' || req.query.sync_omie === 'true') && typeof syncOmieSalesOrders === 'function') {
       try {
         await syncOmieSalesOrders();
       } catch (errSync) {
