@@ -378,6 +378,13 @@ async function processOmieProductWebhook(pool, body) {
       }
 
       console.log(`[OMIE WEBHOOK] ✅ Produto existente localizado (${matchResult.matchType}) e atualizado: "${existing.name}" (ID: ${existing.id}) | Preço: R$ ${finalPreco} | Estoque: ${finalEstoque}`);
+      
+      // Sincroniza catálogo XML/CSV no Cloudflare R2 em segundo plano
+      try {
+        const { generateAndSyncCatalogToR2 } = require('../routes/feedRoutes');
+        generateAndSyncCatalogToR2(true).catch(err => console.error('[Omie Catalog Sync Notice]:', err.message));
+      } catch (e) {}
+
       return {
         processed: true,
         action: "updated",

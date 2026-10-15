@@ -15,11 +15,110 @@ const WHATSAPP_PHONE = '5561983485671';
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { r2Client, R2_BUCKET_NAME, isR2Configured } = require('../r2Service');
 
-let lastR2SyncTime = 0;
+async function generateAndSyncCatalogToR2(force = false) {
+  if (!isR2Configured || !r2Client) return;
+  const now = Date.now();
+  if (!force && (now - lastR2SyncTime < 2 * 60 * 1000)) return; // Se não for forçado, throttle de 2 min
+  lastR2SyncTime = now;
+
+  try {
+    const query = `
+      SELECT 
+        p.id, p.name, p.slug, p.sku, p.description, p.price, p.preco_venda,
+        p.price_negotiable, p.in_stock, p.estoque_quantidade, p.image, p.images,
+        p.brand_id, b.name as brand_name
+      FROM products p
+      LEFT JOIN brands b ON p.brand_id = b.id
+      WHERE p.status = 'published'
+      ORDER BY p.updated_at DESC
+    `;
+
+    const { rows: products } = await pool.query(query);
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">\n`;
+    xml += `  <channel>\n`;
+    xml += `    <title>Athena Soluções Automotivas - Catálogo Oficial</title>\n`;
+    xml += `    <link>${BASE_URL}</link>\n`;
+    xml += `    <description>Catálogo de ferramentas, elevadores, scanners e equipamentos automotivos Athena</description>\n`;
+
+    const headers = ["id", "title", "description", "availability", "condition", "price", "link", "image_link", "brand", "custom_label_0", "custom_label_1"];
+    let csv = headers.join(",") + "\n";
+
+    for (const p of products) {
+      const sku = (p.sku && p.sku.trim()) || p.id;
+      const title = p.name || "";
+      const rawDesc = stripHtml(p.description) || `${p.name} - Athena Soluções Automotivas.`;
+      const brand = p.brand_name || DEFAULT_BRAND;
+      const image = p.image || (Array.isArray(p.images) && p.images[0]) || `${BASE_URL}/logo-athena.png`;
+
+      const isSobConsulta = (p.price_negotiable === true || !p.price || Number(p.price) <= 0);
+      const targetLink = isSobConsulta
+        ? `${BASE_URL}/produto/${p.slug}?utm_source=facebook_marketplace&utm_medium=catalog&action=wpp`
+        : `${BASE_URL}/produto/${p.slug}?utm_source=facebook_marketplace&utm_medium=catalog`;
+
+      const numPrice = Number(p.price || p.preco_venda || 0);
+      const formattedPrice = `${numPrice > 0 ? numPrice.toFixed(2) : "1.00"} BRL`;
+
+      xml += `    <item>\n`;
+      xml += `      <g:id>${escapeXml(sku)}</g:id>\n`;
+      xml += `      <g:title>${escapeXml(title)}</g:title>\n`;
+      xml += `      <g:description>${escapeXml(rawDesc.slice(0, 5000))}</g:description>\n`;
+      xml += `      <g:link>${escapeXml(targetLink)}</g:link>\n`;
+      xml += `      <g:image_link>${escapeXml(image)}</g:image_link>\n`;
+      xml += `      <g:brand>${escapeXml(brand)}</g:brand>\n`;
+      xml += `      <g:condition>new</g:condition>\n`;
+      xml += `      <g:availability>in stock</g:availability>\n`;
+      xml += `      <g:price>${formattedPrice}</g:price>\n`;
+      xml += `      <g:custom_label_0>${isSobConsulta ? "sob_consulta" : "venda_direta"}</g:custom_label_0>\n`;
+      xml += `      <g:custom_label_1>${isSobConsulta ? "whatsapp" : "checkout_site"}</g:custom_label_1>\n`;
+      xml += `    </item>\n`;
+
+      const row = [
+        sku,
+        `"${title.replace(/"/g, "\"\"")}"`,
+        `"${rawDesc.slice(0, 5000).replace(/"/g, "\"\"")}"`,
+        "in stock",
+        "new",
+        formattedPrice,
+        targetLink,
+        image,
+        `"${brand.replace(/"/g, "\"\"")}"`,
+        isSobConsulta ? "sob_consulta" : "venda_direta",
+        isSobConsulta ? "whatsapp" : "checkout_site"
+      ];
+      csv += row.join(",") + "\n";
+    }
+
+    xml += `  </channel>\n`;
+    xml += `</rss>`;
+
+    await r2Client.send(new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: 'facebook-catalog.xml',
+      Body: xml,
+      ContentType: 'application/xml; charset=utf-8',
+      CacheControl: 'public, max-age=300'
+    }));
+
+    await r2Client.send(new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: 'facebook-catalog.csv',
+      Body: csv,
+      ContentType: 'text/csv; charset=utf-8',
+      CacheControl: 'public, max-age=300'
+    }));
+
+    console.log(`[R2 Catalog Sync] Sincronização automática para R2 realizada com sucesso! (${products.length} produtos)`);
+  } catch (err) {
+    console.error('[R2 Catalog Sync Error]:', err.message);
+  }
+}
+
 async function backgroundSyncToR2(xmlContent, csvContent) {
   if (!isR2Configured || !r2Client) return;
   const now = Date.now();
-  if (now - lastR2SyncTime < 15 * 60 * 1000) return; // Máximo uma sincronização a cada 15 minutos
+  if (now - lastR2SyncTime < 5 * 60 * 1000) return; // Máximo uma sincronização a cada 5 minutos
   lastR2SyncTime = now;
 
   try {
@@ -285,3 +384,5 @@ router.get('/status', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.router = router;
+module.exports.generateAndSyncCatalogToR2 = generateAndSyncCatalogToR2;

@@ -32,6 +32,7 @@ const webhookRoutes = require('./routes/webhookRoutes');
 const opsAdminRoutes = require('./routes/opsAdminRoutes');
 const customerOrderRoutes = require('./routes/customerOrderRoutes');
 const feedRoutes = require('./routes/feedRoutes');
+const { generateAndSyncCatalogToR2 } = feedRoutes;
 const orderService = require('./services/orderService');
 const { calculateShipping, cleanCep } = require('./services/melhorEnvioService');
 
@@ -9082,6 +9083,11 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
         console.error('[Omie Post-Create Sync Error]:', err.message)
       );
 
+      // Sincroniza catálogo XML/CSV no Cloudflare R2 em segundo plano
+      generateAndSyncCatalogToR2(true).catch(err =>
+        console.error('[Catalog R2 Post-Create Sync Error]:', err.message)
+      );
+
       return res.status(201).json(newProduct);
     } catch (e) {
       console.error('Erro ao salvar produto no PostgreSQL:', e.message);
@@ -9194,6 +9200,11 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
         console.error('[Omie Post-Update Sync Error]:', err.message)
       );
 
+      // Sincroniza catálogo XML/CSV no Cloudflare R2 em segundo plano
+      generateAndSyncCatalogToR2(true).catch(err =>
+        console.error('[Catalog R2 Post-Update Sync Error]:', err.message)
+      );
+
       return res.json(updatedProduct);
     } catch (e) {
       console.error('Erro ao atualizar produto no PostgreSQL:', e.message);
@@ -9254,6 +9265,11 @@ app.delete('/api/products/:id', authenticateToken, requireStaff, async (req, res
 
   // 3. Responde imediatamente ao cliente (evita timeout na rede / Render)
   res.json({ success: true, id: productId });
+
+  // Sincroniza catálogo XML/CSV no Cloudflare R2 em segundo plano
+  generateAndSyncCatalogToR2(true).catch(err =>
+    console.error('[Catalog R2 Post-Delete Sync Error]:', err.message)
+  );
 
   // 4. Limpeza de imagens e anexos em segundo plano (não bloqueia o usuário)
   if (productToDelete) {
@@ -9334,6 +9350,13 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   const { startWebhookWorker } = require('./services/webhookWorker');
   startWebhookWorker(5000);
+
+  // Sincronização periódica do catálogo R2 a cada 1 hora
+  setInterval(() => {
+    generateAndSyncCatalogToR2().catch(err => 
+      console.warn('[Catalog R2 Periodic Sync Notice]:', err.message)
+    );
+  }, 60 * 60 * 1000);
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Athena API Backend rodando em http://0.0.0.0:${PORT}`);
