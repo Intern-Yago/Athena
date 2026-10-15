@@ -43,11 +43,14 @@ export default function FulfillmentKanbanTab({ API_BASE_URL, currentUser, showNo
 
   const [pickingListModal, setPickingListModal] = useState(null);
 
-  const fetchKanban = async () => {
+  const fetchKanban = async (syncWithOmie = false) => {
     if (!currentUser?.token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/fulfillment/kanban`, {
+      const url = syncWithOmie 
+        ? `${API_BASE_URL}/admin/fulfillment/kanban?sync=true` 
+        : `${API_BASE_URL}/admin/fulfillment/kanban`;
+      const res = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${currentUser.token}`
@@ -56,6 +59,9 @@ export default function FulfillmentKanbanTab({ API_BASE_URL, currentUser, showNo
       if (res.ok) {
         const data = await res.json();
         setKanban(data.physical_kanban || { pending: [], picking: [], ready: [], shipped: [], delivered: [] });
+        if (syncWithOmie) {
+          showNotification?.('Kanban sincronizado com pedidos do Omie!', 'success');
+        }
       } else {
         showNotification?.('Erro ao carregar Kanban de expedição.', 'error');
       }
@@ -220,9 +226,10 @@ export default function FulfillmentKanbanTab({ API_BASE_URL, currentUser, showNo
           </p>
         </div>
         <button
-          onClick={fetchKanban}
+          onClick={() => fetchKanban(true)}
           disabled={loading}
           className="btn-secondary text-xs flex items-center gap-2 self-start sm:self-auto cursor-pointer"
+          title="Sincroniza pedidos e remessas em tempo real com o Omie ERP"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           <span>Atualizar Kanban</span>

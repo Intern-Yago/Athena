@@ -443,6 +443,23 @@ export default function ProductDetailPage({
         `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nCategoria: ${category?.name || 'Geral'}.${shippingText}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
       );
 
+  // AUTO-FORWARD TO WHATSAPP IF TRAFFIC ARRIVES FROM MARKETPLACE CATALOG (action=wpp)
+  useEffect(() => {
+    if (!product || !whatsappMessage) return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('action') === 'wpp') {
+        const targetUrl = `https://wa.me/5561983485671?text=${whatsappMessage}`;
+        const timer = setTimeout(() => {
+          window.location.href = targetUrl;
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }, [product, whatsappMessage]);
+
   // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
   useEffect(() => {
     if (!product) return;

@@ -20,6 +20,7 @@ const {
   startRemoteSession, 
   completeActivation 
 } = require('../services/activationService.js');
+const { syncOmieSalesOrders } = require('../scripts/sync_omie_orders_to_fulfillment.js');
 
 const router = express.Router();
 
@@ -152,6 +153,14 @@ router.get(['/orders/:id', '/ops/orders/:id', '/:id([0-9a-fA-F-]{10,}|[0-9]+)'],
 // -------------------------------------------------------------
 router.get(['/kanban', '/fulfillment/kanban', '/ops/kanban'], async (req, res) => {
   try {
+    if (req.query.sync === 'true' || req.query.sync_omie === 'true') {
+      try {
+        await syncOmieSalesOrders();
+      } catch (errSync) {
+        console.warn('[KANBAN OMIE SYNC WARN]:', errSync.message);
+      }
+    }
+
     // 1. Remessas Físicas
     const shipmentsQuery = await query(`
       SELECT 

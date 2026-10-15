@@ -31,83 +31,99 @@ async function applyPointsTransaction({
   const delta = parseInt(pointsAmount, 10);
   const txType = transactionType || (delta < 0 ? 'redemption_debit' : 'purchase_credit');
 
-  return await withTransaction(async (client) => {
-    // 1. Verificacao de Idempotencia: Ja processamos esta referencia exata?
-    const existingCheck = await client.query(`
-      SELECT id, points_amount, balance_after, created_at
-      FROM a_points_ledger
-      WHERE reference_type = $1 AND reference_id = $2 AND transaction_type = $3
-    `, [referenceType, referenceId, txType]);
+  try {
+    return await withTransaction(async (client) => {
+      // 1. Verificacao de Idempotencia: Ja processamos esta referencia exata?
+      const existingCheck = await client.query(`
+        SELECT id, points_amount, balance_after, created_at
+        FROM a_points_ledger
+        WHERE reference_type = $1 AND reference_id = $2 AND transaction_type = $3
+      `, [referenceType, referenceId, txType]);
 
-    if (existingCheck.rows.length > 0) {
-      console.log(`[POINTS IDEMPOTENT SKIP] Transação já processada anteriormente: ${referenceType}:${referenceId} (${transactionType})`);
+      if (existingCheck.rows.length > 0) {
+        console.log(`[POINTS IDEMPOTENT SKIP] Transação já processada anteriormente: ${referenceType}:${referenceId} (${transactionType})`);
+        return {
+          idempotent: true,
+          transaction: existingCheck.rows[0]
+        };
+      }
+
+      // 2. Lock Pessimista no usuario (Impede race conditions de resgates simultaneos)
+      const userRes = await client.query(`
+        SELECT id, a_points FROM users WHERE id = $1 FOR UPDATE
+      `, [customerId]);
+
+      if (userRes.rows.length === 0) {
+        throw new Error(`Usuário ${customerId} não encontrado no banco de dados.`);
+      }
+
+      const currentBalance = parseInt(userRes.rows[0].a_points || 0, 10);
+      const newBalance = currentBalance + delta;
+
+      // 3. Regra de Seguranca: Saldo de pontos nunca pode ficar negativo
+      if (newBalance < 0) {
+        await recordSecurityEvent({
+          eventType: 'POINTS_OVERDRAFT_BLOCKED',
+          severity: 'high',
+          actorId: customerId,
+          targetResource: `users/${customerId}/points`,
+          actionAttempted: `Tentativa de débito de ${Math.abs(delta)} pontos com saldo atual ${currentBalance}`,
+          decision: 'blocked',
+          reason: 'Saldo insuficiente para resgate de pontos'
+        });
+        throw new Error(`Saldo insuficiente de A-Points. Saldo atual: ${currentBalance}, necessário: ${Math.abs(delta)}.`);
+      }
+
+      // 4. Insere no Ledger Imutavel
+      const ledgerRes = await client.query(`
+        INSERT INTO a_points_ledger (
+          customer_id, order_id, reference_type, reference_id,
+          transaction_type, points_amount, balance_after, description,
+          created_by, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        RETURNING id, balance_after, created_at
+      `, [
+        customerId,
+        orderId,
+        referenceType,
+        referenceId,
+        txType,
+        delta,
+        newBalance,
+        description,
+        createdBy
+      ]);
+
+      // 5. Atualiza o saldo consolidado na tabela users
+      await client.query(`
+        UPDATE users SET a_points = $1, updated_at = NOW() WHERE id = $2
+      `, [newBalance, customerId]);
+
+      console.log(`[A-POINTS LEDGER] Usuário ${customerId}: ${delta > 0 ? '+' : ''}${delta} pts. Saldo anterior: ${currentBalance} -> Novo: ${newBalance} (${txType})`);
+
+      return {
+        idempotent: false,
+        transactionId: ledgerRes.rows[0].id,
+        previousBalance: currentBalance,
+        newBalance,
+        delta
+      };
+    });
+  } catch (err) {
+    if (err.code === '23505' && (err.constraint === 'uq_points_idempotency' || String(err.detail).includes('reference_type'))) {
+      console.log(`[POINTS CONCURRENT IDEMPOTENT] Capturado conflito de unicidade (uq_points_idempotency) em corrida: ${referenceType}:${referenceId}`);
+      const existingCheck = await query(`
+        SELECT id, points_amount, balance_after, created_at
+        FROM a_points_ledger
+        WHERE reference_type = $1 AND reference_id = $2 AND transaction_type = $3
+      `, [referenceType, referenceId, txType]);
       return {
         idempotent: true,
-        transaction: existingCheck.rows[0]
+        transaction: existingCheck.rows[0] || null
       };
     }
-
-    // 2. Lock Pessimista no usuario (Impede race conditions de resgates simultaneos)
-    const userRes = await client.query(`
-      SELECT id, a_points FROM users WHERE id = $1 FOR UPDATE
-    `, [customerId]);
-
-    if (userRes.rows.length === 0) {
-      throw new Error(`Usuário ${customerId} não encontrado no banco de dados.`);
-    }
-
-    const currentBalance = parseInt(userRes.rows[0].a_points || 0, 10);
-    const newBalance = currentBalance + delta;
-
-    // 3. Regra de Seguranca: Saldo de pontos nunca pode ficar negativo
-    if (newBalance < 0) {
-      await recordSecurityEvent({
-        eventType: 'POINTS_OVERDRAFT_BLOCKED',
-        severity: 'high',
-        actorId: customerId,
-        targetResource: `users/${customerId}/points`,
-        actionAttempted: `Tentativa de débito de ${Math.abs(delta)} pontos com saldo atual ${currentBalance}`,
-        decision: 'blocked',
-        reason: 'Saldo insuficiente para resgate de pontos'
-      });
-      throw new Error(`Saldo insuficiente de A-Points. Saldo atual: ${currentBalance}, necessário: ${Math.abs(delta)}.`);
-    }
-
-    // 4. Insere no Ledger Imutavel
-    const ledgerRes = await client.query(`
-      INSERT INTO a_points_ledger (
-        customer_id, order_id, reference_type, reference_id,
-        transaction_type, points_amount, balance_after, description,
-        created_by, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-      RETURNING id, balance_after, created_at
-    `, [
-      customerId,
-      orderId,
-      referenceType,
-      referenceId,
-      txType,
-      delta,
-      newBalance,
-      description,
-      createdBy
-    ]);
-
-    // 5. Atualiza o saldo consolidado na tabela users
-    await client.query(`
-      UPDATE users SET a_points = $1, updated_at = NOW() WHERE id = $2
-    `, [newBalance, customerId]);
-
-    console.log(`[A-POINTS LEDGER] Usuário ${customerId}: ${delta > 0 ? '+' : ''}${delta} pts. Saldo anterior: ${currentBalance} -> Novo: ${newBalance} (${txType})`);
-
-    return {
-      idempotent: false,
-      transactionId: ledgerRes.rows[0].id,
-      previousBalance: currentBalance,
-      newBalance,
-      delta
-    };
-  });
+    throw err;
+  }
 }
 
 /**
