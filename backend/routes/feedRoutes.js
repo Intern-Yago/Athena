@@ -12,6 +12,41 @@ const BASE_URL = 'https://www.athenaconsultoria.com.br';
 const DEFAULT_BRAND = 'Athena Soluções Automotivas';
 const WHATSAPP_PHONE = '5561983485671';
 
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { r2Client, R2_BUCKET_NAME, isR2Configured } = require('../r2Service');
+
+let lastR2SyncTime = 0;
+async function backgroundSyncToR2(xmlContent, csvContent) {
+  if (!isR2Configured || !r2Client) return;
+  const now = Date.now();
+  if (now - lastR2SyncTime < 15 * 60 * 1000) return; // Máximo uma sincronização a cada 15 minutos
+  lastR2SyncTime = now;
+
+  try {
+    if (xmlContent) {
+      await r2Client.send(new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: 'facebook-catalog.xml',
+        Body: xmlContent,
+        ContentType: 'application/xml; charset=utf-8',
+        CacheControl: 'public, max-age=300'
+      }));
+    }
+    if (csvContent) {
+      await r2Client.send(new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: 'facebook-catalog.csv',
+        Body: csvContent,
+        ContentType: 'text/csv; charset=utf-8',
+        CacheControl: 'public, max-age=300'
+      }));
+    }
+    console.log('[Feed Service] Sincronização automática em background com Cloudflare R2 concluída com sucesso!');
+  } catch (err) {
+    console.warn('[Feed Service] Aviso na sincronização secundária do R2:', err.message);
+  }
+}
+
 function escapeXml(unsafe) {
   if (!unsafe) return '';
   return unsafe.toString()
@@ -108,7 +143,9 @@ router.get('/facebook-catalog.xml', async (req, res) => {
     xml += `</rss>`;
 
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=1800, stale-while-revalidate=86400');
+    backgroundSyncToR2(xml, null).catch(() => {});
     return res.status(200).send(xml);
   } catch (err) {
     console.error('Erro ao gerar feed do Facebook:', err);
@@ -171,7 +208,10 @@ router.get('/facebook-catalog.csv', async (req, res) => {
     }
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="facebook-catalog.csv"');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Disposition', 'inline; filename="facebook-catalog.csv"');
+    res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=1800, stale-while-revalidate=86400');
+    backgroundSyncToR2(null, csv).catch(() => {});
     return res.status(200).send(csv);
   } catch (err) {
     console.error('Erro ao gerar CSV do catálogo:', err);

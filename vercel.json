@@ -83,6 +83,8 @@
   ],
   "rewrites": [
     { "source": "/api/:match*", "destination": "https://athena-backend-hu1m.onrender.com/api/:match*" },
+    { "source": "/facebook-catalog.xml", "destination": "https://athena-backend-hu1m.onrender.com/api/feeds/facebook-catalog.xml" },
+    { "source": "/facebook-catalog.csv", "destination": "https://athena-backend-hu1m.onrender.com/api/feeds/facebook-catalog.csv" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
