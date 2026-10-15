@@ -8702,7 +8702,12 @@ app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
       });
     } catch (e) {
       console.error('[Catalog Version Error]:', e.message);
-      return res.status(500).json({ error: 'Erro ao verificar versão do catálogo' });
+      return res.json({
+        version: `fallback-${Date.now()}`,
+        total: 0,
+        lastUpdated: 0,
+        serverTime: Date.now()
+      });
     }
   }
 
