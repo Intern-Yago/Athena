@@ -51,6 +51,7 @@ import {
 } from './utils/storage';
 
 import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
+import { trackMetaEvent } from './utils/metaPixel';
 
 const REMOTE_API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
 const LOCAL_API_BASE_URL = typeof window !== 'undefined' 
@@ -385,6 +386,11 @@ export default function App() {
       window.removeEventListener('hashchange', handleUrlChange);
     };
   }, []);
+
+  // Track Meta Pixel PageView on SPA route change
+  useEffect(() => {
+    trackMetaEvent('PageView');
+  }, [currentRoute]);
 
   // Load heavy data from IndexedDB on startup
   useEffect(() => {

@@ -8,6 +8,7 @@ import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../
 import NotFoundPage from './NotFoundPage';
 import ShippingCalculator from '../components/ShippingCalculator';
 import { isProductPublished, normalizeProduct } from '../utils/imageUrl';
+import { trackMetaEvent } from '../utils/metaPixel';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -443,12 +444,35 @@ export default function ProductDetailPage({
         `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nCategoria: ${category?.name || 'Geral'}.${shippingText}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
       );
 
+  // META PIXEL PRODUCT VIEWCONTENT TELEMETRY (Catalog Dynamic Ads Matching)
+  useEffect(() => {
+    if (!product) return;
+    const prodSku = (product.sku && product.sku.trim()) || product.id;
+    trackMetaEvent('ViewContent', {
+      content_ids: [prodSku],
+      content_name: product.name,
+      content_type: 'product',
+      value: Number(product.price || product.preco_venda || 1.00),
+      currency: 'BRL',
+      content_category: category?.name || 'Equipamentos Automotivos'
+    });
+  }, [product?.id]);
+
   // AUTO-FORWARD TO WHATSAPP IF TRAFFIC ARRIVES FROM MARKETPLACE CATALOG (action=wpp)
   useEffect(() => {
     if (!product || !whatsappMessage) return;
     try {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('action') === 'wpp') {
+        const prodSku = (product.sku && product.sku.trim()) || product.id;
+        trackMetaEvent('Lead', {
+          content_ids: [prodSku],
+          content_name: product.name,
+          value: Number(product.price || product.preco_venda || 1.00),
+          currency: 'BRL',
+          content_category: 'WhatsApp Marketplace Lead'
+        });
+
         const targetUrl = `https://wa.me/5561983485671?text=${whatsappMessage}`;
         const timer = setTimeout(() => {
           window.location.href = targetUrl;
@@ -459,6 +483,41 @@ export default function ProductDetailPage({
       // Ignore
     }
   }, [product, whatsappMessage]);
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    const prodSku = (product.sku && product.sku.trim()) || product.id;
+    trackMetaEvent('AddToCart', {
+      content_ids: [prodSku],
+      content_name: product.name,
+      content_type: 'product',
+      value: Number(product.price || product.preco_venda || 1.00),
+      currency: 'BRL'
+    });
+    addToCart(product, selectedQuantity, selectedVariant);
+  };
+
+  const handleWhatsAppClick = (e) => {
+    if (!product) return;
+    const prodSku = (product.sku && product.sku.trim()) || product.id;
+    trackMetaEvent('Lead', {
+      content_ids: [prodSku],
+      content_name: product.name,
+      value: Number(product.price || product.preco_venda || 1.00),
+      currency: 'BRL',
+      content_category: 'WhatsApp Direct Click'
+    });
+    trackMetaEvent('Contact', {
+      content_ids: [prodSku],
+      content_name: product.name
+    });
+
+    if (requireVerification && requireVerification(() => {
+      window.open(`https://wa.me/5561983485671?text=${whatsappMessage}`, '_blank');
+    })) {
+      e.preventDefault();
+    }
+  };
 
   // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
   useEffect(() => {
@@ -1221,7 +1280,7 @@ export default function ProductDetailPage({
                   <button
                     type="button"
                     disabled={selectedVariant && !selectedVariantAvail?.canBuy}
-                    onClick={() => addToCart(product, selectedQuantity, selectedVariant)}
+                    onClick={handleAddToCart}
                     className={`py-2.5 px-4 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
                       selectedVariant && !selectedVariantAvail?.canBuy 
                         ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border border-slate-200' 
@@ -1236,13 +1295,7 @@ export default function ProductDetailPage({
                     href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={(e) => {
-                      if (requireVerification && requireVerification(() => {
-                        window.open(`https://wa.me/5561983485671?text=${whatsappMessage}`, '_blank');
-                      })) {
-                        e.preventDefault();
-                      }
-                    }}
+                    onClick={handleWhatsAppClick}
                     className="py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
                   >
                     <MessageCircle className="w-4 h-4 text-emerald-600 fill-emerald-600/20" />
@@ -1253,7 +1306,7 @@ export default function ProductDetailPage({
                 <>
                   <button
                     type="button"
-                    onClick={() => addToCart(product, selectedQuantity, selectedVariant)}
+                    onClick={handleAddToCart}
                     className="py-3 px-5 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all text-slate-900 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 shadow-xs cursor-pointer"
                     title="Adicionar este equipamento à sua lista de orçamento para cotar múltiplos itens juntos"
                   >
@@ -1265,13 +1318,7 @@ export default function ProductDetailPage({
                     href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={(e) => {
-                      if (requireVerification && requireVerification(() => {
-                        window.open(`https://wa.me/5561983485671?text=${whatsappMessage}`, '_blank');
-                      })) {
-                        e.preventDefault();
-                      }
-                    }}
+                    onClick={handleWhatsAppClick}
                     className="btn-gold text-xs sm:text-sm py-3 px-6 shadow-md font-extrabold flex items-center gap-2 cursor-pointer"
                   >
                     <MessageCircle className="w-4 h-4 fill-current" />
