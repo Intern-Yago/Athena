@@ -387,9 +387,17 @@ export default function App() {
     };
   }, []);
 
-  // Track Meta Pixel PageView on SPA route change
+  // Track Meta Pixel & Google Tag Manager PageView on SPA route change
   useEffect(() => {
     trackMetaEvent('PageView');
+    if (typeof window !== 'undefined') {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: 'virtual_page_view',
+        page_path: window.location.pathname + window.location.search,
+        page_title: document.title
+      });
+    }
   }, [currentRoute]);
 
   // Load heavy data from IndexedDB on startup
