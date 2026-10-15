@@ -83,8 +83,8 @@
   ],
   "rewrites": [
     { "source": "/api/:match*", "destination": "https://athena-backend-hu1m.onrender.com/api/:match*" },
-    { "source": "/facebook-catalog.xml", "destination": "https://athena-backend-hu1m.onrender.com/api/feeds/facebook-catalog.xml" },
-    { "source": "/facebook-catalog.csv", "destination": "https://athena-backend-hu1m.onrender.com/api/feeds/facebook-catalog.csv" },
+    { "source": "/facebook-catalog.xml", "destination": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/facebook-catalog.xml" },
+    { "source": "/facebook-catalog.csv", "destination": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/facebook-catalog.csv" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
