@@ -1,7 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
+import DigitalCardPage from './pages/DigitalCardPage'
+import { isDigitalCardSubdomain } from './config/digitalCardConfig'
+import { lazyWithRetry } from './utils/lazyWithRetry'
 import './index.css'
+
+// Lazy-load main catalog App so the NFC Digital Card subdomain (cartao.athenaconsultoria.com.br)
+// loads instantaneously without downloading the 1MB catalog bundle.
+const App = lazyWithRetry(() => import('./App'))
 
 // Trata erro de chunk dinâmico desatualizado após novo deploy no servidor
 window.addEventListener('vite:preloadError', (event) => {
@@ -15,8 +21,16 @@ window.addEventListener('vite:preloadError', (event) => {
   }
 });
 
+const isCardMode = isDigitalCardSubdomain();
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    {isCardMode ? (
+      <DigitalCardPage />
+    ) : (
+      <React.Suspense fallback={null}>
+        <App />
+      </React.Suspense>
+    )}
   </React.StrictMode>,
 )
