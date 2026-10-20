@@ -1,15 +1,207 @@
 /**
  * metaPixel.js
- * Utilitário de telemetria e eventos para o Meta Pixel (Facebook & Instagram Ads)
- * Datasets ativos:
- * - 2181846082544846 (Conjunto de Dados do Catálogo / Meta Commerce)
- * - 2198770257418355 (Pixel Secundário)
+ *
+ * Central Unificada de Telemetria Comercial & Conversão (Meta Pixel + Google Analytics 4 / GTM).
+ *
+ * Funcionalidades:
+ * 1. Filtro Automático de Equipe (Staff Block):
+ *    - Bloqueia o envio de métricas quando o usuário logado faz parte da equipe interna
+ *      (roles: 'admin', 'vendedor', 'editor', 'staff', 'gerente', 'operador', 'logistica')
+ *      ou quando está navegando dentro de '/admin'.
+ *    - Mantém o rastreamento 100% ATIVO para Clientes logados (role: 'cliente' / 'customer')
+ *      e visitantes anônimos.
+ * 2. Disparo Duplo Sincronizado (Dual-Dispatch):
+ *    - Envia eventos padrão e personalizados simultaneamente para o Meta Pixel (`fbq`)
+ *      e para a camada de dados do Google Tag Manager / GA4 (`window.dataLayer`).
  */
 
 export const META_PIXEL_ID = '2181846082544846';
 export const META_PIXEL_IDS = ['2181846082544846', '2198770257418355'];
 
+const STAFF_ROLES = new Set([
+  'admin',
+  'administrador',
+  'vendedor',
+  'editor',
+  'staff',
+  'gerente',
+  'operador',
+  'logistica'
+]);
+
+/**
+ * Verifica se a sessão atual pertence a um membro da equipe interna (Admin / Funcionário).
+ * Clientes logados ('cliente' / 'customer') retornam `false` e continuam sendo rastreados normalmente.
+ *
+ * @returns {boolean} `true` se o rastreamento deve ser bloqueado (Staff), `false` caso contrário.
+ */
+export function isStaffAnalyticsBlocked() {
+  if (typeof window === 'undefined') return true;
+
+  try {
+    if (window.location?.pathname?.startsWith('/admin')) {
+      return true;
+    }
+
+    const raw = window.localStorage?.getItem('athena_user');
+    if (!raw) return false;
+
+    const user = JSON.parse(raw);
+    if (!user || !user.role) return false;
+
+    const role = String(user.role).toLowerCase().trim();
+    // Clientes reais da loja nunca são bloqueados
+    if (role === 'cliente' || role === 'customer' || role === 'user') {
+      return false;
+    }
+
+    return STAFF_ROLES.has(role);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Envia um evento estruturado para o Google Tag Manager / GA4 (`window.dataLayer`).
+ *
+ * @param {string} gaEventName - Nome do evento GA4 (snake_case)
+ * @param {Object} params - Parâmetros do evento
+ */
+export function pushGtmEvent(gaEventName, params = {}) {
+  if (isStaffAnalyticsBlocked()) return;
+
+  try {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: gaEventName,
+      ...params
+    });
+
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', gaEventName, params);
+    }
+  } catch (err) {
+    console.warn('[GA4/GTM Warning]:', err.message);
+  }
+}
+
+/**
+ * Converte parâmetros do Meta Pixel para o formato padrão E-Commerce do GA4.
+ */
+function mapMetaToGa4Event(eventName, params = {}) {
+  const contentIds = Array.isArray(params.content_ids) ? params.content_ids : [];
+  const primaryId = contentIds[0] || params.product_id || '';
+  const itemName = params.content_name || params.product_name || '';
+  const itemCategory = params.content_category || '';
+  const value = Number(params.value || 0);
+  const currency = params.currency || 'BRL';
+
+  const items = Array.isArray(params.contents) && params.contents.length > 0
+    ? params.contents.map(c => ({
+        item_id: String(c.id || primaryId),
+        item_name: c.name || itemName,
+        price: Number(c.item_price || value || 0),
+        quantity: Number(c.quantity || 1)
+      }))
+    : (primaryId || itemName
+        ? [{
+            item_id: String(primaryId),
+            item_name: String(itemName),
+            item_category: String(itemCategory),
+            price: value,
+            quantity: Number(params.num_items || 1)
+          }]
+        : []);
+
+  switch (eventName) {
+    case 'ViewContent':
+      return {
+        gaName: 'view_item',
+        gaParams: {
+          currency,
+          value,
+          content_name: itemName,
+          content_id: primaryId,
+          content_category: itemCategory,
+          items
+        }
+      };
+    case 'AddToCart':
+      return {
+        gaName: 'add_to_cart',
+        gaParams: {
+          currency,
+          value,
+          content_name: itemName,
+          content_id: primaryId,
+          items
+        }
+      };
+    case 'InitiateCheckout':
+      return {
+        gaName: 'begin_checkout',
+        gaParams: {
+          currency,
+          value,
+          num_items: params.num_items || items.length,
+          shipping_cep: params.shipping_cep || '',
+          shipping_carrier: params.shipping_carrier || '',
+          items
+        }
+      };
+    case 'Search':
+      return {
+        gaName: 'search',
+        gaParams: {
+          search_term: params.search_string || params.search_term || '',
+          results_count: params.results_count ?? null
+        }
+      };
+    case 'Lead':
+      return {
+        gaName: 'generate_lead',
+        gaParams: {
+          currency,
+          value,
+          lead_source: params.lead_source || 'whatsapp_quote',
+          content_name: itemName,
+          content_id: primaryId,
+          shipping_cep: params.shipping_cep || '',
+          shipping_location: params.shipping_location || '',
+          shipping_carrier: params.shipping_carrier || '',
+          shipping_price: params.shipping_price ?? null,
+          items
+        }
+      };
+    case 'Contact':
+      return {
+        gaName: 'whatsapp_contact',
+        gaParams: {
+          content_name: itemName,
+          content_id: primaryId,
+          content_category: itemCategory,
+          value,
+          currency,
+          shipping_cep: params.shipping_cep || '',
+          shipping_location: params.shipping_location || '',
+          shipping_carrier: params.shipping_carrier || ''
+        }
+      };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Dispara um Evento Padrão (Standard Event) no Meta Pixel e espelha automaticamente no GA4/GTM.
+ * Ignora automaticamente caso o usuário logado seja Staff/Admin.
+ *
+ * @param {string} eventName - Ex: 'PageView', 'ViewContent', 'AddToCart', 'Search', 'InitiateCheckout', 'Lead', 'Contact'
+ * @param {Object} params - Parâmetros de contexto (content_ids, content_name, value, currency, etc.)
+ */
 export function trackMetaEvent(eventName, params = {}) {
+  if (isStaffAnalyticsBlocked()) return;
+
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
     try {
       window.fbq('track', eventName, params);
@@ -17,9 +209,27 @@ export function trackMetaEvent(eventName, params = {}) {
       console.warn('[Meta Pixel Warning]:', err.message);
     }
   }
+
+  // Para PageView, o App.jsx já gerencia o push dedicado de page_view com path/title
+  if (eventName !== 'PageView') {
+    const mapped = mapMetaToGa4Event(eventName, params);
+    if (mapped) {
+      pushGtmEvent(mapped.gaName, mapped.gaParams);
+    }
+  }
 }
 
+/**
+ * Dispara um Evento Personalizado (Custom Event) no Meta Pixel (`fbq('trackCustom', ...)`)
+ * e espelha no Google Tag Manager / GA4 (`window.dataLayer`).
+ * Ignora automaticamente caso o usuário logado seja Staff/Admin.
+ *
+ * @param {string} eventName - Ex: 'CalculateShipping', 'ViewCategory', 'ViewBrand', 'CompareProduct'
+ * @param {Object} params - Dados ricos da ação
+ */
 export function trackMetaCustom(eventName, params = {}) {
+  if (isStaffAnalyticsBlocked()) return;
+
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
     try {
       window.fbq('trackCustom', eventName, params);
@@ -27,4 +237,10 @@ export function trackMetaCustom(eventName, params = {}) {
       console.warn('[Meta Pixel Custom Warning]:', err.message);
     }
   }
+
+  const gaSnakeName = String(eventName)
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .toLowerCase();
+
+  pushGtmEvent(gaSnakeName, params);
 }

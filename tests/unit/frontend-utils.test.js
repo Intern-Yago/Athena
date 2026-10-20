@@ -13,6 +13,7 @@ import {
   setCachedAdminData,
   invalidateAdminCache
 } from '../../src/utils/adminDataCache.js';
+import { isStaffAnalyticsBlocked } from '../../src/utils/metaPixel.js';
 
 describe('Frontend Utils: Image & Product Normalization (imageUrl.js)', () => {
   it('should rewrite legacy R2 dev URLs to the fast custom CDN domain', () => {
@@ -184,5 +185,33 @@ describe('Frontend Utils: Order & Fulfillment Domain Utilities (orderUtils.js)',
 
     invalidateAdminCache(ADMIN_CACHE_KEYS.FULFILLMENT_KANBAN);
     assert.strictEqual(getCachedAdminData(ADMIN_CACHE_KEYS.FULFILLMENT_KANBAN), null);
+  });
+
+  it('should block analytics for Staff (admin/vendedor) while keeping analytics active for Customers (cliente)', () => {
+    const store = new Map();
+    globalThis.window = {
+      location: { pathname: '/produto/elevador-hidraulico' },
+      localStorage: {
+        getItem: (k) => store.get(k) || null,
+        setItem: (k, v) => store.set(k, v)
+      }
+    };
+
+    // Visitante anônimo -> rastreia normalmente (false = não bloqueado)
+    assert.strictEqual(isStaffAnalyticsBlocked(), false);
+
+    // Cliente logado -> rastreia normalmente (false = não bloqueado)
+    store.set('athena_user', JSON.stringify({ id: 'u1', role: 'cliente', name: 'Oficina Cliente' }));
+    assert.strictEqual(isStaffAnalyticsBlocked(), false);
+
+    // Admin logado -> bloqueado (true)
+    store.set('athena_user', JSON.stringify({ id: 'u2', role: 'admin', name: 'Yago Admin' }));
+    assert.strictEqual(isStaffAnalyticsBlocked(), true);
+
+    // Vendedor logado -> bloqueado (true)
+    store.set('athena_user', JSON.stringify({ id: 'u3', role: 'vendedor', name: 'Vendedor Athena' }));
+    assert.strictEqual(isStaffAnalyticsBlocked(), true);
+
+    delete globalThis.window;
   });
 });

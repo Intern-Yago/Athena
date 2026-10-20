@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import ShippingCalculator from './ShippingCalculator';
+import { trackMetaEvent } from '../utils/metaPixel';
 
 export function CartDrawer() {
   const {
@@ -317,6 +318,39 @@ export function CartDrawer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => {
+                      const itemSkus = cartItems.map(it => (it.sku && String(it.sku).trim()) || it.id);
+                      const shipCep = cartShipping?.cep || '';
+                      const shipCarrier = cartShipping?.company?.name
+                        ? `${cartShipping.company.name} (${cartShipping.name || ''})`
+                        : '';
+
+                      trackMetaEvent('InitiateCheckout', {
+                        content_ids: itemSkus,
+                        num_items: totalItemCount,
+                        value: Number(subtotal || 1.00),
+                        currency: 'BRL',
+                        shipping_cep: shipCep,
+                        shipping_carrier: shipCarrier,
+                        contents: cartItems.map(it => ({
+                          id: (it.sku && String(it.sku).trim()) || it.id,
+                          name: it.name,
+                          quantity: Number(it.quantity) || 1,
+                          item_price: Number(it.price || 1.00)
+                        }))
+                      });
+
+                      trackMetaEvent('Lead', {
+                        content_ids: itemSkus,
+                        content_name: `Orçamento Carrinho (${totalItemCount} itens)`,
+                        value: Number(subtotal || 1.00),
+                        currency: 'BRL',
+                        lead_source: 'cart_whatsapp_quote',
+                        shipping_cep: shipCep,
+                        shipping_location: cartShipping?.addressInfo || '',
+                        shipping_carrier: shipCarrier,
+                        shipping_price: cartShipping?.price ?? null
+                      });
+
                       if (requireVerification && requireVerification(() => {
                         window.open(getWhatsAppQuoteUrl(), '_blank');
                       })) {

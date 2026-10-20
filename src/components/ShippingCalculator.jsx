@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Truck, MapPin, Search, Loader2, CheckCircle2, AlertCircle, Info, ExternalLink, ShieldCheck } from 'lucide-react';
 import { getFallbackShippingOptions } from '../utils/fallbackShipping';
+import { trackMetaCustom } from '../utils/metaPixel';
 
 const API_BASE_URL = (typeof window !== 'undefined' && window.location.origin)
   ? `${window.location.origin}/api`
@@ -253,6 +254,15 @@ export function ShippingCalculator({
     }
 
     await executeCalculation(rawCep);
+
+    // Telemetria Comercial: Registra cálculo de frete (CEP consultado e equipamento) no Meta Pixel & GA4
+    const formattedCep = `${rawCep.slice(0, 5)}-${rawCep.slice(5)}`;
+    trackMetaCustom('CalculateShipping', {
+      shipping_cep: formattedCep,
+      product_id: product?.sku || product?.id || 'cart',
+      product_name: product?.name || 'Carrinho de Orçamento',
+      quantity: Number(quantity) || 1
+    });
   };
 
   // Se já houver um CEP salvo na sessão (ex: calculou na página do produto e abriu o carrinho), calcula automaticamente ao montar

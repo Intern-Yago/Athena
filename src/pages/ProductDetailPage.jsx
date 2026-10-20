@@ -515,16 +515,34 @@ export default function ProductDetailPage({
   const handleWhatsAppClick = (e) => {
     if (!product) return;
     const prodSku = (product.sku && product.sku.trim()) || product.id;
+    const shipCep = selectedShippingOption?.cep || '';
+    const shipLoc = selectedShippingOption?.addressInfo || '';
+    const shipCarrier = selectedShippingOption?.company?.name
+      ? `${selectedShippingOption.company.name} (${selectedShippingOption.name || ''})`
+      : '';
+    const shipPrice = selectedShippingOption?.price != null ? Number(selectedShippingOption.price) : null;
+
     trackMetaEvent('Lead', {
       content_ids: [prodSku],
       content_name: product.name,
       value: Number(product.price || product.preco_venda || 1.00),
       currency: 'BRL',
-      content_category: 'WhatsApp Direct Click'
+      num_items: Number(selectedQuantity) || 1,
+      content_category: 'WhatsApp Direct Click',
+      shipping_cep: shipCep,
+      shipping_location: shipLoc,
+      shipping_carrier: shipCarrier,
+      shipping_price: shipPrice
     });
     trackMetaEvent('Contact', {
       content_ids: [prodSku],
-      content_name: product.name
+      content_name: product.name,
+      content_category: category?.name || 'Equipamentos Automotivos',
+      value: Number(product.price || product.preco_venda || 1.00),
+      currency: 'BRL',
+      shipping_cep: shipCep,
+      shipping_location: shipLoc,
+      shipping_carrier: shipCarrier
     });
 
     if (requireVerification && requireVerification(() => {

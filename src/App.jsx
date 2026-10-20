@@ -52,7 +52,7 @@ import {
 } from './utils/storage';
 
 import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
-import { trackMetaEvent } from './utils/metaPixel';
+import { trackMetaEvent, trackMetaCustom, pushGtmEvent } from './utils/metaPixel';
 
 const REMOTE_API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
 const LOCAL_API_BASE_URL = typeof window !== 'undefined' 
@@ -388,18 +388,44 @@ export default function App() {
     };
   }, []);
 
-  // Track Meta Pixel & Google Tag Manager PageView on SPA route change
+  // Track Meta Pixel & Google Tag Manager PageView + Category/Brand Exploration on SPA route change
   useEffect(() => {
     trackMetaEvent('PageView');
-    if (typeof window !== 'undefined') {
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({
-        event: 'virtual_page_view',
-        page_path: window.location.pathname + window.location.search,
-        page_title: document.title
+    pushGtmEvent('virtual_page_view', {
+      page_path: window.location.pathname + window.location.search,
+      page_title: document.title
+    });
+
+    if (currentRoute.startsWith('categoria/') || currentRoute.startsWith('category:')) {
+      const catSlug = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
+      const catObj = categories.find(c => c.slug === catSlug || c.id === catSlug);
+      trackMetaCustom('ViewCategory', {
+        category_id: catObj?.id || catSlug,
+        category_name: catObj?.name || catSlug,
+        category_slug: catObj?.slug || catSlug
+      });
+    } else if (currentRoute.startsWith('marca/') || currentRoute.startsWith('brand:')) {
+      const brandSlug = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
+      const brandObj = brands.find(b => b.slug === brandSlug || b.id === brandSlug);
+      trackMetaCustom('ViewBrand', {
+        brand_id: brandObj?.id || brandSlug,
+        brand_name: brandObj?.name || brandSlug,
+        brand_slug: brandObj?.slug || brandSlug
       });
     }
   }, [currentRoute]);
+
+  // Track Catalog Search Terms (debounced 900ms) on Meta Pixel & GA4
+  useEffect(() => {
+    const cleanSearch = (searchTerm || '').trim();
+    if (cleanSearch.length < 3) return;
+    const timer = setTimeout(() => {
+      trackMetaEvent('Search', {
+        search_string: cleanSearch
+      });
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Load heavy data from IndexedDB on startup
   useEffect(() => {
