@@ -18,9 +18,19 @@ import {
   Check
 } from 'lucide-react';
 
+import {
+  ADMIN_CACHE_KEYS,
+  getCachedAdminData,
+  setCachedAdminData
+} from '../../utils/adminDataCache';
+
 export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showNotification }) {
-  const [activations, setActivations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const initialCached = useMemo(
+    () => getCachedAdminData(ADMIN_CACHE_KEYS.DIGITAL_ACTIVATIONS),
+    []
+  );
+  const [activations, setActivations] = useState(() => initialCached?.data || []);
+  const [loading, setLoading] = useState(() => !initialCached);
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -47,9 +57,11 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
 
   const [copiedKey, setCopiedKey] = useState(false);
 
-  const fetchActivations = async () => {
+  const fetchActivations = async ({ silent = false } = {}) => {
     if (!currentUser?.token) return;
-    setLoading(true);
+    if (!silent && !getCachedAdminData(ADMIN_CACHE_KEYS.DIGITAL_ACTIVATIONS)) {
+      setLoading(true);
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/admin/fulfillment/kanban`, {
         headers: {
@@ -59,20 +71,35 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
       });
       if (res.ok) {
         const data = await res.json();
-        setActivations(data.digital_activations || []);
-      } else {
+        const nextActivations = data.digital_activations || [];
+        setActivations(nextActivations);
+        setCachedAdminData(ADMIN_CACHE_KEYS.DIGITAL_ACTIVATIONS, nextActivations);
+        if (data.physical_kanban) {
+          setCachedAdminData(ADMIN_CACHE_KEYS.FULFILLMENT_KANBAN, data.physical_kanban);
+        }
+      } else if (!silent) {
         showNotification?.('Erro ao carregar fila de ativações.', 'error');
       }
     } catch (e) {
       console.error('Erro ao buscar ativações:', e);
-      showNotification?.('Falha ao conectar com o servidor.', 'error');
+      if (!silent) {
+        showNotification?.('Falha ao conectar com o servidor.', 'error');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchActivations();
+    const cached = getCachedAdminData(ADMIN_CACHE_KEYS.DIGITAL_ACTIVATIONS);
+    if (cached) {
+      setActivations(cached.data || []);
+      setLoading(false);
+      if (cached.isFresh) return;
+      fetchActivations({ silent: true });
+    } else {
+      fetchActivations();
+    }
   }, [currentUser?.token]);
 
   const filteredActivations = useMemo(() => {

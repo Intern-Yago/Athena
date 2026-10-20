@@ -1,6 +1,18 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeImageUrl, normalizeProduct, normalizeBrand, isProductPublished } from '../../src/utils/imageUrl.js';
+import {
+  decodeHtmlEntities,
+  getMacroRegionByState,
+  resolveOrderOrigin,
+  matchesShipmentFilters
+} from '../../src/utils/orderUtils.js';
+import {
+  ADMIN_CACHE_KEYS,
+  getCachedAdminData,
+  setCachedAdminData,
+  invalidateAdminCache
+} from '../../src/utils/adminDataCache.js';
 
 describe('Frontend Utils: Image & Product Normalization (imageUrl.js)', () => {
   it('should rewrite legacy R2 dev URLs to the fast custom CDN domain', () => {
@@ -75,5 +87,102 @@ describe('Frontend Utils: Image & Product Normalization (imageUrl.js)', () => {
     const p4 = normalizeProduct({ id: 'p4', name: 'Teste', priceNegotiable: false, price_negotiable: true });
     assert.strictEqual(p4.priceNegotiable, true);
     assert.strictEqual(p4.price_negotiable, true);
+  });
+});
+
+describe('Frontend Utils: Order & Fulfillment Domain Utilities (orderUtils.js)', () => {
+  it('should decode HTML entities in item names', () => {
+    assert.strictEqual(decodeHtmlEntities('ALICATE UNIVERSAL 8&quot;'), 'ALICATE UNIVERSAL 8"');
+    assert.strictEqual(decodeHtmlEntities('KIT CHAVE &amp; SOQUETE &#39;PRO&#39;'), "KIT CHAVE & SOQUETE 'PRO'");
+  });
+
+  it('should map Brazilian state UF to macro-regions accurately', () => {
+    assert.strictEqual(getMacroRegionByState('DF'), 'Centro-Oeste');
+    assert.strictEqual(getMacroRegionByState('SP'), 'Sudeste');
+    assert.strictEqual(getMacroRegionByState('PR'), 'Sul');
+    assert.strictEqual(getMacroRegionByState('BA'), 'Nordeste');
+    assert.strictEqual(getMacroRegionByState('AM'), 'Norte');
+  });
+
+  it('should differentiate Site orders (even when synced to Omie) from native Omie ERP orders', () => {
+    const nativeOmieOrder = {
+      id: 'ord_omie_123456',
+      order_number: 'OMIE-124',
+      omie_pedido_id: '123456'
+    };
+    const origOmie = resolveOrderOrigin(nativeOmieOrder);
+    assert.strictEqual(origOmie.originKey, 'omie');
+    assert.strictEqual(origOmie.isSyncedWithOmie, true);
+    assert.strictEqual(origOmie.omieRef, '123456');
+
+    const siteOrderSyncedToOmie = {
+      id: 'ord_998877',
+      order_number: 'ATH-2026-0042',
+      omie_pedido_id: '654321'
+    };
+    const origSite = resolveOrderOrigin(siteOrderSyncedToOmie);
+    assert.strictEqual(origSite.originKey, 'site');
+    assert.strictEqual(origSite.isSyncedWithOmie, true);
+    assert.strictEqual(origSite.omieRef, '654321');
+  });
+
+  it('should filter shipments by search, status, origin, items volume and region', () => {
+    const rawShipment = {
+      id: 'shp_omie_124',
+      order_id: 'ord_omie_124',
+      order_number: 'OMIE-124',
+      customer_snapshot: { name: 'LIDIANE GUIMARAES AMORIM' },
+      status: 'pending',
+      shipping_address: { city: 'BRASILIA (DF)', state: 'DF', zip: '70000-000' },
+      items: Array.from({ length: 18 }, (_, i) => ({ name: `Item ${i + 1}`, quantity: 1 }))
+    };
+    const sampleShipment = {
+      ...rawShipment,
+      _statusKey: 'pending',
+      _origin: resolveOrderOrigin(rawShipment),
+      _itemCount: rawShipment.items.length,
+      _stateUf: 'DF',
+      _macroRegion: getMacroRegionByState('DF')
+    };
+
+    assert.strictEqual(
+      matchesShipmentFilters(sampleShipment, { searchQuery: '#omie-124' }),
+      true
+    );
+    assert.strictEqual(
+      matchesShipmentFilters(sampleShipment, {
+        originFilter: 'omie',
+        itemsFilter: '16+',
+        regionFilter: 'macro:Centro-Oeste'
+      }),
+      true
+    );
+    assert.strictEqual(
+      matchesShipmentFilters(sampleShipment, { originFilter: 'site' }),
+      false
+    );
+    assert.strictEqual(
+      matchesShipmentFilters(sampleShipment, { itemsFilter: '1' }),
+      false
+    );
+  });
+
+  it('should store, retrieve and invalidate operational data in adminDataCache (SWR)', () => {
+    const sampleKanban = {
+      pending: [{ id: 'shp_1', order_number: 'OMIE-124' }],
+      picking: [],
+      ready: [],
+      shipped: [],
+      delivered: []
+    };
+
+    setCachedAdminData(ADMIN_CACHE_KEYS.FULFILLMENT_KANBAN, sampleKanban);
+    const cached = getCachedAdminData(ADMIN_CACHE_KEYS.FULFILLMENT_KANBAN);
+    assert.ok(cached);
+    assert.strictEqual(cached.isFresh, true);
+    assert.strictEqual(cached.data.pending.length, 1);
+
+    invalidateAdminCache(ADMIN_CACHE_KEYS.FULFILLMENT_KANBAN);
+    assert.strictEqual(getCachedAdminData(ADMIN_CACHE_KEYS.FULFILLMENT_KANBAN), null);
   });
 });

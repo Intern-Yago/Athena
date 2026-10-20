@@ -102,6 +102,12 @@ import ClientsManagementTab from './admin/ClientsManagementTab';
 import OrdersManagementTab from './admin/OrdersManagementTab';
 import FulfillmentKanbanTab from './admin/FulfillmentKanbanTab';
 import DigitalActivationsTab from './admin/DigitalActivationsTab';
+import {
+  ADMIN_CACHE_KEYS,
+  getCachedAdminData,
+  setCachedAdminData,
+  preloadAdminOperationalData
+} from '../utils/adminDataCache';
 import { MACRO_DEPARTMENTS, getDepartmentByCategoryId, getDepartmentById } from '../data/departmentsData';
 
 /**
@@ -720,19 +726,29 @@ export default function AdminPanel({
   useEffect(() => {
     if (isStaff) {
       fetchUsers();
+      preloadAdminOperationalData(API_BASE_URL, currentUser?.token);
     }
-  }, [isStaff]);
+  }, [isStaff, currentUser?.token]);
 
-  // Omie ERP Reconciliation & Loyalty State
-  const [omieSyncStatus, setOmieSyncStatus] = useState(null);
+  // Omie ERP Reconciliation & Loyalty State (com cache Stale-While-Revalidate)
+  const [omieSyncStatus, setOmieSyncStatus] = useState(
+    () => getCachedAdminData(ADMIN_CACHE_KEYS.OMIE_SYNC_STATUS)?.data || null
+  );
   const [loadingOmieSync, setLoadingOmieSync] = useState(false);
   const [reconcilingOmie, setReconcilingOmie] = useState(false);
   const [omieManualLinks, setOmieManualLinks] = useState({});
   const [omieSearchFilter, setOmieSearchFilter] = useState('');
 
-  const fetchOmieSyncStatus = async () => {
+  const fetchOmieSyncStatus = async (forceRefresh = false) => {
     if (!isAdminRole) return;
-    setLoadingOmieSync(true);
+    const cached = getCachedAdminData(ADMIN_CACHE_KEYS.OMIE_SYNC_STATUS);
+    if (cached && !forceRefresh) {
+      setOmieSyncStatus(cached.data);
+      if (cached.isFresh) return;
+    }
+    if (!cached) {
+      setLoadingOmieSync(true);
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/admin/omie/sync-status`, {
         headers: getAuthHeaders()
@@ -740,6 +756,7 @@ export default function AdminPanel({
       if (res.ok) {
         const data = await res.json();
         setOmieSyncStatus(data);
+        setCachedAdminData(ADMIN_CACHE_KEYS.OMIE_SYNC_STATUS, data);
       }
     } catch (e) {
       console.warn('Erro ao carregar status Omie:', e);
@@ -759,7 +776,7 @@ export default function AdminPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao executar reconciliação.');
       showNotification(data.message || 'Vínculos atualizados com sucesso!', 'success');
-      fetchOmieSyncStatus();
+      fetchOmieSyncStatus(true);
     } catch (err) {
       showNotification(err.message, 'error');
     } finally {
@@ -788,7 +805,7 @@ export default function AdminPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao vincular produto.');
       showNotification(data.message || 'Item vinculado ao Omie com sucesso!', 'success');
-      fetchOmieSyncStatus();
+      fetchOmieSyncStatus(true);
     } catch (err) {
       showNotification(err.message, 'error');
     }
@@ -964,6 +981,7 @@ export default function AdminPanel({
   const [adminItemsPerPage, setAdminItemsPerPage] = useState(10);
   const [adminSortField, setAdminSortField] = useState('name');
   const [adminSortDirection, setAdminSortDirection] = useState('asc');
+  const [focusedFulfillmentOrder, setFocusedFulfillmentOrder] = useState(null);
 
   const handleAdminSort = (field) => {
     if (adminSortField === field) {
@@ -4313,8 +4331,8 @@ export default function AdminPanel({
           </div>
 
           {/* Lateral Sidebar Navigation (Desktop only: hidden on mobile) */}
-          <aside className="hidden lg:block w-64 xl:w-72 shrink-0">
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-4 space-y-5 lg:sticky lg:top-24">
+          <aside className="hidden lg:block w-64 xl:w-72 shrink-0 lg:sticky lg:top-24 lg:self-start">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-4 space-y-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto custom-scrollbar">
               
               {/* User Profile Mini Card */}
               <div className="p-3 rounded-2xl bg-slate-900 text-white flex items-center gap-3">
@@ -4638,7 +4656,11 @@ export default function AdminPanel({
           <OrdersManagementTab 
             API_BASE_URL={API_BASE_URL} 
             currentUser={currentUser} 
-            showNotification={showNotification} 
+            showNotification={showNotification}
+            onOpenOrderInFulfillment={(order) => {
+              setFocusedFulfillmentOrder(order);
+              setActiveAdminTab('fulfillment');
+            }}
           />
         )}
 
@@ -4646,7 +4668,9 @@ export default function AdminPanel({
           <FulfillmentKanbanTab 
             API_BASE_URL={API_BASE_URL} 
             currentUser={currentUser} 
-            showNotification={showNotification} 
+            showNotification={showNotification}
+            focusedOrder={focusedFulfillmentOrder}
+            onClearFocusedOrder={() => setFocusedFulfillmentOrder(null)}
           />
         )}
 

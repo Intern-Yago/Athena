@@ -30,6 +30,8 @@ export function CartDrawer() {
     removeFromCart,
     updateQuantity,
     clearCart,
+    cartShipping,
+    setCartShipping,
     openCartCheckout,
     getWhatsAppQuoteUrl,
     requireVerification
@@ -237,6 +239,7 @@ export function CartDrawer() {
               {/* Cotação de Frete do Carrinho (Melhor Envio) */}
               <ShippingCalculator 
                 items={cartItems}
+                onSelectShipping={(opt) => setCartShipping(opt)}
                 className="!bg-white !p-3 !rounded-xl !shadow-none !border-slate-200/90"
               />
 
@@ -247,6 +250,17 @@ export function CartDrawer() {
                     <span className="font-semibold text-amber-950">Itens sob consulta:</span>
                     <span className="font-extrabold text-amber-900 bg-amber-100 px-2 py-0.5 rounded text-[11px]">
                       {quoteItemCount} {quoteItemCount === 1 ? 'item' : 'itens'}
+                    </span>
+                  </div>
+                )}
+
+                {cartShipping && !cartShipping.onlyCep && cartShipping.price != null && (
+                  <div className="flex items-center justify-between text-slate-700 bg-emerald-50/80 border border-emerald-200/80 px-2.5 py-1.5 rounded-lg gap-2">
+                    <span className="font-semibold text-emerald-950 truncate">
+                      Frete ({cartShipping.company?.name || 'Transp.'} — {cartShipping.name}):
+                    </span>
+                    <span className="font-extrabold text-emerald-900 shrink-0">
+                      {formatBRL(cartShipping.price)}
                     </span>
                   </div>
                 )}

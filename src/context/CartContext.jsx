@@ -14,6 +14,7 @@ export function CartProvider({ children, showNotification, brands = [], categori
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutTarget, setCheckoutTarget] = useState(null); // null = cart checkout, { items: [...] } = direct buy
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [cartShipping, setCartShipping] = useState(null);
 
   // Sync to localStorage
   useEffect(() => {
@@ -89,6 +90,11 @@ export function CartProvider({ children, showNotification, brands = [], categori
         variantName: selectedVariant?.name || null,
         variantColorHex: selectedVariant?.colorHex || null,
         sku: selectedVariant?.sku || product.sku || product.id,
+        specs: product.specs || [],
+        weight: product.weight,
+        height: product.height,
+        width: product.width,
+        length: product.length,
         quantity: Math.max(1, quantity)
       };
 
@@ -160,6 +166,11 @@ export function CartProvider({ children, showNotification, brands = [], categori
             variantName: variant?.name || null,
             variantColorHex: variant?.colorHex || null,
             sku: variant?.sku || product.sku || product.id,
+            specs: product.specs || [],
+            weight: product.weight,
+            height: product.height,
+            width: product.width,
+            length: product.length,
             quantity: Math.max(1, quantity)
           });
         }
@@ -321,9 +332,10 @@ export function CartProvider({ children, showNotification, brands = [], categori
   const subtotal = buyableItems.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
 
   /**
-   * Generates formatted WhatsApp URL with all products selected in the cart for a quote.
+   * Generates formatted WhatsApp URL with all products selected in the cart for a quote,
+   * including any CEP / shipping option calculated in the cart or session.
    */
-  const getWhatsAppQuoteUrl = () => {
+  const getWhatsAppQuoteUrl = (customShipping = null) => {
     if (cartItems.length === 0) return 'https://wa.me/5561983485671';
     
     let message = 'Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de fazer um orçamento dos seguintes produtos:\n\n';
@@ -337,7 +349,34 @@ export function CartProvider({ children, showNotification, brands = [], categori
       message += `${idx + 1}. *${item.quantity}x ${item.name}${variantDisplay}*${brand}${sku}${priceText}\n`;
     });
 
-    message += '\nPoderia me informar valores, condições comerciais, disponibilidade e prazo de entrega?';
+    if (subtotal > 0) {
+      message += `\nSubtotal dos itens com preço: *R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*\n`;
+    }
+
+    const activeShipping = customShipping || cartShipping;
+    const hasSelectedShippingOption = Boolean(activeShipping && !activeShipping.onlyCep && activeShipping.price != null);
+    const hasOnlyCep = Boolean(activeShipping && activeShipping.onlyCep && activeShipping.cep);
+    const cepLocationLabel = activeShipping?.cep
+      ? `${activeShipping.cep}${activeShipping.addressInfo ? ` (${activeShipping.addressInfo})` : ''}`
+      : '';
+
+    if (hasSelectedShippingOption) {
+      const formattedFreight = Number(activeShipping.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      const daysLabel = `${activeShipping.delivery_time} ${activeShipping.delivery_time === 1 ? 'dia útil' : 'dias úteis'}`;
+      message += `\n📦 *Frete & Entrega Selecionados:*`;
+      if (cepLocationLabel) {
+        message += `\n• CEP: ${cepLocationLabel}`;
+      }
+      message += `\n• Opção escolhida: ${activeShipping.company?.name || 'Transportadora'} — ${activeShipping.name}`;
+      message += `\n• Valor do frete: ${formattedFreight} (Previsão: ${daysLabel})\n`;
+      message += '\nPoderia me informar os valores dos itens sob consulta e as condições comerciais para fecharmos o pedido com essa opção de envio?';
+    } else if (hasOnlyCep) {
+      message += `\n📦 *Dados para Entrega:*\n• CEP informado: ${cepLocationLabel}\n`;
+      message += '\nPoderia me informar valores, condições comerciais, disponibilidade e opções de frete para este CEP?';
+    } else {
+      message += '\nPoderia me informar valores, condições comerciais, disponibilidade e prazo de entrega?';
+    }
+
     return `https://wa.me/5561983485671?text=${encodeURIComponent(message)}`;
   };
 
@@ -360,6 +399,8 @@ export function CartProvider({ children, showNotification, brands = [], categori
         clearCart,
         appliedCoupon,
         setAppliedCoupon,
+        cartShipping,
+        setCartShipping,
         isCheckoutOpen,
         checkoutTarget,
         openDirectCheckout,

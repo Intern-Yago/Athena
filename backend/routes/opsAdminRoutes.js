@@ -13,7 +13,7 @@ const {
   startPicking, 
   completeInspection, 
   dispatchShipment, 
-  markDelivered 
+  updateDeliveryStatus 
 } = require('../services/fulfillmentService.js');
 const { 
   recordContactAttempt, 
@@ -29,6 +29,26 @@ try {
 }
 
 const router = express.Router();
+
+// Cache em memória L1 no servidor (evita queries repetidas ao PostgreSQL a cada troca de aba)
+const OPS_CACHE_TTL_MS = 20 * 1000; // 20 segundos
+const opsServerCache = {
+  orders: { data: null, timestamp: 0 },
+  kanban: { data: null, timestamp: 0 }
+};
+
+function invalidateOpsServerCache() {
+  opsServerCache.orders = { data: null, timestamp: 0 };
+  opsServerCache.kanban = { data: null, timestamp: 0 };
+}
+
+// Qualquer mutação (POST/PUT/PATCH/DELETE) invalida imediatamente o cache operacional
+router.use((req, res, next) => {
+  if (req.method !== 'GET') {
+    invalidateOpsServerCache();
+  }
+  next();
+});
 
 function getFallbackDb() {
   try {
@@ -47,10 +67,20 @@ function getFallbackDb() {
 // -------------------------------------------------------------
 router.get(['/', '/orders', '/ops/orders'], async (req, res) => {
   try {
+    const now = Date.now();
+    if (
+      req.query.force !== 'true' &&
+      opsServerCache.orders.data &&
+      now - opsServerCache.orders.timestamp < OPS_CACHE_TTL_MS
+    ) {
+      return res.json(opsServerCache.orders.data);
+    }
+
     const ordersRes = await query(`
       SELECT 
         o.id,
         o.order_number,
+        o.customer_id,
         o.order_type,
         o.status,
         o.payment_status,
@@ -62,6 +92,8 @@ router.get(['/', '/orders', '/ops/orders'], async (req, res) => {
         o.points_spent,
         o.points_earned,
         o.payment_method,
+        o.omie_pedido_id,
+        o.omie_nfe_number,
         o.shipping_address,
         o.customer_snapshot,
         o.user_name,
@@ -109,7 +141,22 @@ router.get(['/', '/orders', '/ops/orders'], async (req, res) => {
       });
     }
 
-    const orders = ordersRes.rows.map(o => ({
+    // Deduplicação defensiva: se um pedido nasceu no Site e possui omie_pedido_id vinculado,
+    // oculta eventual registro legado 'ord_omie_{omie_pedido_id}' duplicado.
+    const siteSyncedOmieIds = new Set(
+      ordersRes.rows
+        .filter(o => !String(o.id).startsWith('ord_omie_') && o.omie_pedido_id)
+        .map(o => String(o.omie_pedido_id))
+    );
+
+    const deduplicatedRows = ordersRes.rows.filter(o => {
+      if (String(o.id).startsWith('ord_omie_') && o.omie_pedido_id && siteSyncedOmieIds.has(String(o.omie_pedido_id))) {
+        return false;
+      }
+      return true;
+    });
+
+    const orders = deduplicatedRows.map(o => ({
       ...o,
       items: (itemsMap[o.id] && itemsMap[o.id].length > 0) ? itemsMap[o.id] : (Array.isArray(o.items) ? o.items : []),
       shipments: shipmentsMap[o.id] || [],
@@ -124,7 +171,7 @@ router.get(['/', '/orders', '/ops/orders'], async (req, res) => {
     const cancelledOrders = orders.filter(o => o.payment_status === 'cancelled').length;
     const redemptionOrders = orders.filter(o => o.order_type === 'points_redemption').length;
 
-    return res.json({
+    const payload = {
       orders,
       metrics: {
         total_orders: totalOrders,
@@ -134,7 +181,9 @@ router.get(['/', '/orders', '/ops/orders'], async (req, res) => {
         cancelled_orders: cancelledOrders,
         redemption_orders: redemptionOrders
       }
-    });
+    };
+    opsServerCache.orders = { data: payload, timestamp: Date.now() };
+    return res.json(payload);
   } catch (err) {
     console.error('[OPS ADMIN ORDERS ERROR]', err.message);
     const db = getFallbackDb();
@@ -183,12 +232,20 @@ router.get(['/orders/:id', '/ops/orders/:id', '/:id([0-9a-fA-F-]{10,}|[0-9]+)'],
 // -------------------------------------------------------------
 router.get(['/kanban', '/fulfillment/kanban', '/ops/kanban'], async (req, res) => {
   try {
-    if ((req.query.sync === 'true' || req.query.sync_omie === 'true') && typeof syncOmieSalesOrders === 'function') {
+    const shouldSyncOmie = req.query.sync === 'true' || req.query.sync_omie === 'true';
+    if (shouldSyncOmie && typeof syncOmieSalesOrders === 'function') {
       try {
         await syncOmieSalesOrders();
+        invalidateOpsServerCache();
       } catch (errSync) {
         console.warn('[KANBAN OMIE SYNC WARN]:', errSync.message);
       }
+    } else if (
+      req.query.force !== 'true' &&
+      opsServerCache.kanban.data &&
+      Date.now() - opsServerCache.kanban.timestamp < OPS_CACHE_TTL_MS
+    ) {
+      return res.json(opsServerCache.kanban.data);
     }
 
     // 1. Remessas Físicas
@@ -197,6 +254,8 @@ router.get(['/kanban', '/fulfillment/kanban', '/ops/kanban'], async (req, res) =
         s.*,
         o.order_number,
         o.customer_id,
+        o.order_type,
+        o.omie_pedido_id,
         o.customer_snapshot,
         o.shipping_address,
         o.created_at AS order_created_at
@@ -229,12 +288,14 @@ router.get(['/kanban', '/fulfillment/kanban', '/ops/kanban'], async (req, res) =
     };
 
     shipmentsQuery.rows.forEach(s => {
+      const effectiveStatus = (s.status === 'pending' && s.picking_by) ? 'picking' : s.status;
       const enriched = {
         ...s,
+        status: effectiveStatus,
         items: (itemsByOrder[s.order_id] || []).filter(i => i.fulfillment_type === 'physical')
       };
-      if (kanban[s.status]) {
-        kanban[s.status].push(enriched);
+      if (kanban[effectiveStatus]) {
+        kanban[effectiveStatus].push(enriched);
       }
     });
 
@@ -250,14 +311,16 @@ router.get(['/kanban', '/fulfillment/kanban', '/ops/kanban'], async (req, res) =
       ORDER BY da.created_at ASC
     `);
 
-    return res.json({
+    const payload = {
       physical_kanban: kanban,
       digital_activations: activationsQuery.rows,
       summary: {
         total_shipments: shipmentsQuery.rows.length,
         total_activations: activationsQuery.rows.length
       }
-    });
+    };
+    opsServerCache.kanban = { data: payload, timestamp: Date.now() };
+    return res.json(payload);
   } catch (err) {
     console.error('[OPS ADMIN KANBAN ERROR]', err.message);
     return res.json({
@@ -392,7 +455,7 @@ router.post(['/dispatch', '/fulfillment/dispatch'], async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 5. CONFIRMAÇÃO DE ENTREGA (FINALIZAÇÃO LOGÍSTICA)
+// 5. CONFIRMAÇÃO DE ENTREGA E TRANSIÇÃO RÁPIDA (DRAG & DROP)
 // -------------------------------------------------------------
 router.post(['/delivered', '/fulfillment/delivered'], async (req, res) => {
   try {
@@ -401,7 +464,13 @@ router.post(['/delivered', '/fulfillment/delivered'], async (req, res) => {
       return res.status(400).json({ error: 'shipmentId é obrigatório.' });
     }
 
-    const delivered = await markDelivered({ shipmentId, notes });
+    const delivered = await updateDeliveryStatus({
+      shipmentId,
+      status: 'delivered',
+      isManual: true,
+      reason: notes || 'Entrega confirmada pelo operador logístico no painel.',
+      actorId: req.user?.id || 'staff_expedicao'
+    });
     return res.json({
       success: true,
       message: 'Entrega confirmada com sucesso.',
@@ -409,6 +478,59 @@ router.post(['/delivered', '/fulfillment/delivered'], async (req, res) => {
     });
   } catch (err) {
     console.error('[DELIVERY ERROR]', err);
+    return res.status(400).json({ error: err.message });
+  }
+});
+
+router.post(['/status', '/fulfillment/status'], async (req, res) => {
+  try {
+    const { shipmentId, targetStatus } = req.body;
+    if (!shipmentId || !targetStatus) {
+      return res.status(400).json({ error: 'shipmentId e targetStatus são obrigatórios.' });
+    }
+
+    const staffId = req.user?.id || 'staff_expedicao';
+    const staffName = req.user?.name || 'Operador Logístico';
+
+    if (targetStatus === 'pending') {
+      const shipRes = await query('SELECT order_id FROM shipments WHERE id = $1', [shipmentId]);
+      if (shipRes.rows.length === 0) return res.status(404).json({ error: 'Remessa não encontrada.' });
+      const orderId = shipRes.rows[0].order_id;
+
+      await query(`
+        UPDATE shipments
+        SET status = 'pending', picking_by = NULL
+        WHERE id = $1
+      `, [shipmentId]);
+
+      await query(`
+        UPDATE order_items
+        SET fulfillment_status = 'pending'
+        WHERE order_id = $1 AND fulfillment_type = 'physical'
+      `, [orderId]);
+
+      return res.json({ success: true, status: 'pending' });
+    }
+
+    if (targetStatus === 'picking') {
+      const result = await startPicking({ shipmentId, staffId, staffName });
+      return res.json(result);
+    }
+
+    if (targetStatus === 'delivered') {
+      const delivered = await updateDeliveryStatus({
+        shipmentId,
+        status: 'delivered',
+        isManual: true,
+        reason: 'Entrega confirmada via movimentação no quadro de expedição.',
+        actorId: staffId
+      });
+      return res.json(delivered);
+    }
+
+    return res.status(400).json({ error: `Transição para '${targetStatus}' requer validação modal específica.` });
+  } catch (err) {
+    console.error('[STATUS TRANSITION ERROR]', err);
     return res.status(400).json({ error: err.message });
   }
 });

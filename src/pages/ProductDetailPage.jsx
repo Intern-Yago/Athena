@@ -431,17 +431,32 @@ export default function ProductDetailPage({
 
   const productTitleWithVariant = `${product?.name || ''}${selectedVariant ? ` - ${selectedVariant.name}` : ''}`;
   const variantSkuText = selectedVariant?.sku ? ` | Cód: ${selectedVariant.sku}` : (product?.sku ? ` | Cód: ${product.sku}` : '');
-  const qtyText = selectedQuantity > 1 ? `\nQuantidade: ${selectedQuantity} unidade(s)` : '';
-  const shippingText = selectedShipping 
-    ? `\nFrete Consultado: ${selectedShipping.company?.name || 'Transportadora'} ${selectedShipping.name} (${formatBRL(selectedShipping.price)} - ${selectedShipping.delivery_time} dias úteis)`
+  const qtyText = `\nQuantidade: ${selectedQuantity} ${selectedQuantity === 1 ? 'unidade' : 'unidades'}`;
+
+  const hasSelectedShippingOption = Boolean(selectedShipping && !selectedShipping.onlyCep && selectedShipping.price != null);
+  const hasOnlyCep = Boolean(selectedShipping && selectedShipping.onlyCep && selectedShipping.cep);
+  const cepLocationLabel = selectedShipping?.cep
+    ? `${selectedShipping.cep}${selectedShipping.addressInfo ? ` (${selectedShipping.addressInfo})` : ''}`
     : '';
+
+  const shippingText = hasSelectedShippingOption
+    ? `\n\n📦 *Frete & Entrega Selecionados:*${cepLocationLabel ? `\n• CEP: ${cepLocationLabel}` : ''}\n• Opção escolhida: ${selectedShipping.company?.name || 'Transportadora'} — ${selectedShipping.name}\n• Valor do frete: ${formatBRL(selectedShipping.price)} (Previsão: ${selectedShipping.delivery_time} ${selectedShipping.delivery_time === 1 ? 'dia útil' : 'dias úteis'})`
+    : hasOnlyCep
+    ? `\n\n📦 *Dados para Entrega:*\n• CEP informado: ${cepLocationLabel}`
+    : '';
+
+  const quoteClosingText = hasSelectedShippingOption
+    ? 'Por favor, me informe o valor do equipamento e as formas de pagamento para fecharmos o pedido com essa opção de envio.'
+    : hasOnlyCep
+    ? 'Por favor, me informe sobre valores do equipamento, opções de frete para este CEP e formas de pagamento.'
+    : 'Por favor, me informe sobre valores, frete para meu CEP e formas de pagamento.';
 
   const whatsappMessage = canBuyOnline
     ? encodeURIComponent(
         `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).${shippingText}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
       )
     : encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nCategoria: ${category?.name || 'Geral'}.${shippingText}\n\nPor favor, me informe sobre valores, frete para meu CEP e formas de pagamento.`
+        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}\nCategoria: ${category?.name || 'Geral'}${qtyText}${shippingText}\n\n${quoteClosingText}`
       );
 
   // META PIXEL PRODUCT VIEWCONTENT TELEMETRY (Catalog Dynamic Ads Matching)
@@ -1345,7 +1360,7 @@ export default function ProductDetailPage({
             {/* COTAÇÃO DE FRETE INTEGRADA MELHOR ENVIO */}
             <div className="pt-1">
               <ShippingCalculator 
-                product={product} 
+                product={{ ...product, price: activePrice, sku: selectedVariant?.sku || product.sku }} 
                 quantity={selectedQuantity}
                 onSelectShipping={(opt) => setSelectedShipping(opt)}
               />

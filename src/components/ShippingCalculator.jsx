@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Truck, MapPin, Search, Loader2, CheckCircle2, AlertCircle, Info, ExternalLink, ShieldCheck } from 'lucide-react';
 import { getFallbackShippingOptions } from '../utils/fallbackShipping';
 
 const API_BASE_URL = (typeof window !== 'undefined' && window.location.origin)
   ? `${window.location.origin}/api`
   : (import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api');
+
+const STORAGE_CEP_KEY = 'athena_shipping_cep';
+const STORAGE_PREF_ID_KEY = 'athena_shipping_pref_id';
 
 /**
  * ShippingCalculator
@@ -16,7 +19,7 @@ const API_BASE_URL = (typeof window !== 'undefined' && window.location.origin)
  * @param {Object} [props.product] - Produto atual
  * @param {number} [props.quantity] - Quantidade selecionada
  * @param {Array} [props.items] - Itens consolidados do carrinho
- * @param {Function} [props.onSelectShipping] - Callback ao selecionar uma transportadora
+ * @param {Function} [props.onSelectShipping] - Callback ao selecionar uma transportadora ou informar CEP
  * @param {string} [props.className] - Classes CSS extras
  */
 export function ShippingCalculator({
@@ -26,13 +29,67 @@ export function ShippingCalculator({
   onSelectShipping = null,
   className = ''
 }) {
-  const [cep, setCep] = useState('');
+  const [cep, setCep] = useState(() => {
+    try {
+      return sessionStorage.getItem(STORAGE_CEP_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [addressInfo, setAddressInfo] = useState(null);
   const [shippingOptions, setShippingOptions] = useState(null);
-  const [selectedOptionId, setSelectedOptionId] = useState(null);
+  const [selectedOptionId, setSelectedOptionId] = useState(() => {
+    try {
+      return sessionStorage.getItem(STORAGE_PREF_ID_KEY) || null;
+    } catch {
+      return null;
+    }
+  });
   const [errorMessage, setErrorMessage] = useState('');
   const [isSimulated, setIsSimulated] = useState(false);
+  const hasAutoCalculatedOnMount = useRef(false);
+  const onSelectShippingRef = useRef(onSelectShipping);
+
+  useEffect(() => {
+    onSelectShippingRef.current = onSelectShipping;
+  }, [onSelectShipping]);
+
+  // Sincroniza a seleção atual (opção + CEP + endereço) com o componente pai (Página do Produto ou Carrinho)
+  useEffect(() => {
+    if (!onSelectShippingRef.current) return;
+
+    const rawCep = cep.replace(/\D/g, '');
+    if (rawCep.length !== 8) {
+      onSelectShippingRef.current(null);
+      return;
+    }
+
+    const formattedCep = `${rawCep.slice(0, 5)}-${rawCep.slice(5)}`;
+
+    if (Array.isArray(shippingOptions) && shippingOptions.length > 0 && selectedOptionId != null) {
+      const selectedOpt = shippingOptions.find(o => String(o.id) === String(selectedOptionId)) || shippingOptions[0];
+      if (selectedOpt) {
+        onSelectShippingRef.current({
+          ...selectedOpt,
+          cep: formattedCep,
+          rawCep,
+          addressInfo: addressInfo || null,
+          isSimulated,
+          onlyCep: false
+        });
+        return;
+      }
+    }
+
+    // Se o usuário digitou um CEP válido de 8 dígitos mas ainda não clicou em Calcular
+    onSelectShippingRef.current({
+      cep: formattedCep,
+      rawCep,
+      addressInfo: addressInfo || null,
+      onlyCep: true
+    });
+  }, [cep, shippingOptions, selectedOptionId, addressInfo, isSimulated]);
 
   // Formata o CEP com máscara 00000-000
   const handleCepChange = (e) => {
@@ -42,20 +99,28 @@ export function ShippingCalculator({
     }
     setCep(val);
     setErrorMessage('');
+
+    const raw = val.replace(/\D/g, '');
+    if (raw.length === 8) {
+      try {
+        sessionStorage.setItem(STORAGE_CEP_KEY, val);
+      } catch {}
+    } else {
+      setShippingOptions(null);
+      setAddressInfo(null);
+    }
   };
 
-  const handleCalculate = async (e) => {
-    if (e) e.preventDefault();
-
-    const rawCep = cep.replace(/\D/g, '');
-    if (rawCep.length !== 8) {
-      setErrorMessage('Digite um CEP válido com 8 dígitos.');
-      return;
-    }
+  const executeCalculation = async (targetRawCep) => {
+    if (!targetRawCep || targetRawCep.length !== 8) return;
 
     setLoading(true);
     setErrorMessage('');
-    setShippingOptions(null);
+
+    const formattedCep = `${targetRawCep.slice(0, 5)}-${targetRawCep.slice(5)}`;
+    try {
+      sessionStorage.setItem(STORAGE_CEP_KEY, formattedCep);
+    } catch {}
 
     // Prepara payload de produtos
     let payloadProducts = [];
@@ -91,7 +156,7 @@ export function ShippingCalculator({
 
     try {
       // 1. Busca dados do endereço via ViaCEP em paralelo para feedback instantâneo de localização
-      fetch(`https://viacep.com.br/ws/${rawCep}/json/`)
+      fetch(`https://viacep.com.br/ws/${targetRawCep}/json/`)
         .then(res => res.json())
         .then(data => {
           if (!data.erro) {
@@ -111,7 +176,7 @@ export function ShippingCalculator({
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            toCep: rawCep,
+            toCep: targetRawCep,
             products: payloadProducts
           })
         });
@@ -128,25 +193,35 @@ export function ShippingCalculator({
         console.warn('Backend de frete indisponível no momento, acionando estimador resiliente:', networkErr);
       }
 
+      const pickPreferredOption = (optionsList) => {
+        if (!Array.isArray(optionsList) || optionsList.length === 0) return null;
+        let savedPrefId = selectedOptionId;
+        try {
+          if (!savedPrefId) savedPrefId = sessionStorage.getItem(STORAGE_PREF_ID_KEY);
+        } catch {}
+        if (savedPrefId != null) {
+          const match = optionsList.find(o => String(o.id) === String(savedPrefId));
+          if (match) return match;
+        }
+        return optionsList[0];
+      };
+
       // 3. Se o backend respondeu com sucesso, usa as cotações calculadas
       if (calculatedOptions && calculatedOptions.length > 0) {
+        const chosen = pickPreferredOption(calculatedOptions);
         setShippingOptions(calculatedOptions);
         setIsSimulated(isSimulatedResult);
-        setSelectedOptionId(calculatedOptions[0].id);
-        if (onSelectShipping) {
-          onSelectShipping(calculatedOptions[0]);
-        }
+        setSelectedOptionId(chosen.id);
       } else {
         // Fallback resiliente: calcula estimativa offline instantânea com base no CEP e cubagem/peso
-        const fallbackOptions = getFallbackShippingOptions(rawCep, payloadProducts);
+        const fallbackOptions = getFallbackShippingOptions(targetRawCep, payloadProducts);
         if (fallbackOptions && fallbackOptions.length > 0) {
+          const chosen = pickPreferredOption(fallbackOptions);
           setShippingOptions(fallbackOptions);
           setIsSimulated(true);
-          setSelectedOptionId(fallbackOptions[0].id);
-          if (onSelectShipping) {
-            onSelectShipping(fallbackOptions[0]);
-          }
+          setSelectedOptionId(chosen.id);
         } else {
+          setShippingOptions(null);
           setErrorMessage('Não foi possível calcular o frete para este CEP no momento.');
         }
       }
@@ -154,12 +229,11 @@ export function ShippingCalculator({
       console.error('Erro ao calcular frete:', err);
       // Fallback em caso de erro inesperado
       try {
-        const fallbackOptions = getFallbackShippingOptions(rawCep, payloadProducts);
+        const fallbackOptions = getFallbackShippingOptions(targetRawCep, payloadProducts);
         setShippingOptions(fallbackOptions);
         setIsSimulated(true);
         if (fallbackOptions.length > 0) {
           setSelectedOptionId(fallbackOptions[0].id);
-          if (onSelectShipping) onSelectShipping(fallbackOptions[0]);
         }
       } catch {
         setErrorMessage('Não foi possível calcular o frete. Tente novamente mais tarde.');
@@ -169,11 +243,50 @@ export function ShippingCalculator({
     }
   };
 
+  const handleCalculate = async (e) => {
+    if (e) e.preventDefault();
+
+    const rawCep = cep.replace(/\D/g, '');
+    if (rawCep.length !== 8) {
+      setErrorMessage('Digite um CEP válido com 8 dígitos.');
+      return;
+    }
+
+    await executeCalculation(rawCep);
+  };
+
+  // Se já houver um CEP salvo na sessão (ex: calculou na página do produto e abriu o carrinho), calcula automaticamente ao montar
+  useEffect(() => {
+    if (hasAutoCalculatedOnMount.current) return;
+    const rawCep = cep.replace(/\D/g, '');
+    if (rawCep.length === 8) {
+      hasAutoCalculatedOnMount.current = true;
+      executeCalculation(rawCep);
+    }
+  }, []);
+
+  // Recalcula automaticamente quando a quantidade ou itens do carrinho mudam e já existe uma cotação ativa
+  const itemsSignature = Array.isArray(items)
+    ? items.map(it => `${it.id}:${it.quantity}`).join('|')
+    : `${product?.id || ''}:${quantity}`;
+
+  useEffect(() => {
+    if (!shippingOptions) return;
+    const rawCep = cep.replace(/\D/g, '');
+    if (rawCep.length !== 8) return;
+
+    const timer = setTimeout(() => {
+      executeCalculation(rawCep);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [itemsSignature]);
+
   const handleSelect = (option) => {
     setSelectedOptionId(option.id);
-    if (onSelectShipping) {
-      onSelectShipping(option);
-    }
+    try {
+      sessionStorage.setItem(STORAGE_PREF_ID_KEY, String(option.id));
+    } catch {}
   };
 
   const formatBRL = (val) => {
@@ -271,7 +384,7 @@ export function ShippingCalculator({
 
           <div className="space-y-2">
             {shippingOptions.map((opt) => {
-              const isSelected = selectedOptionId === opt.id;
+              const isSelected = String(selectedOptionId) === String(opt.id);
               const carrierName = opt.company?.name || 'Transportadora';
               const serviceName = opt.name;
               const deliveryDays = opt.delivery_time;
@@ -296,13 +409,18 @@ export function ShippingCalculator({
                     </div>
 
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-black text-slate-900">
                           {carrierName} — {serviceName}
                         </span>
                         {opt.id === shippingOptions[0]?.id && (
                           <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                             Mais Econômico
+                          </span>
+                        )}
+                        {isSelected && (
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-200/80 text-amber-950 border border-amber-300">
+                            ✓ Selecionado p/ Cotação
                           </span>
                         )}
                       </div>

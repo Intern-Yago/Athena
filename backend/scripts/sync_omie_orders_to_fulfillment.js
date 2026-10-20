@@ -113,6 +113,7 @@ async function syncOmieSalesOrders(dbPool = pool) {
 
       const codigoPedido = cab.codigo_pedido;
       const numeroPedido = cab.numero_pedido;
+      const codigoPedidoIntegracao = cab.codigo_pedido_integracao ? String(cab.codigo_pedido_integracao).trim() : null;
       const etapa = String(cab.etapa || '00');
       const totalAmount = Number(tot.valor_total_pedido || 0);
       const clientId = cab.codigo_cliente;
@@ -126,6 +127,31 @@ async function syncOmieSalesOrders(dbPool = pool) {
       if (etapa === '20') shipmentStatus = 'ready';
       else if (etapa === '50' || etapa === '60') shipmentStatus = 'shipped';
       else if (etapa === '70') shipmentStatus = 'delivered';
+
+      // PREVENÇÃO DE DUPLICIDADE (SITE ➔ OMIE):
+      // Se o pedido nasceu no Site Athena e foi integrado ao Omie, vinculamos o omie_pedido_id
+      // ao pedido original do Site e NÃO criamos um segundo registro "OMIE-X" duplicado.
+      const existingSiteOrderRes = await dbPool.query(`
+        SELECT id, order_number FROM orders
+        WHERE id NOT LIKE 'ord_omie_%'
+          AND (
+            omie_pedido_id = $1
+            OR ($2::text IS NOT NULL AND (id = $2 OR order_number = $2))
+          )
+        LIMIT 1
+      `, [String(codigoPedido), codigoPedidoIntegracao]);
+
+      if (existingSiteOrderRes.rows.length > 0) {
+        const siteOrder = existingSiteOrderRes.rows[0];
+        await dbPool.query(`
+          UPDATE orders
+          SET omie_pedido_id = $1,
+              updated_at = NOW()
+          WHERE id = $2
+        `, [String(codigoPedido), siteOrder.id]);
+        totalImported++;
+        continue;
+      }
 
       const orderId = `ord_omie_${codigoPedido}`;
       const orderNumber = `OMIE-${numeroPedido}`;
