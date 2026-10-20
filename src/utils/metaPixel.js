@@ -1,10 +1,13 @@
 /**
  * metaPixel.js
  * Utilitário de telemetria e eventos para o Meta Pixel (Facebook & Instagram Ads)
- * Pixel ID: 2198770257418355
+ * Datasets ativos:
+ * - 2181846082544846 (Conjunto de Dados do Catálogo / Meta Commerce)
+ * - 2198770257418355 (Pixel Secundário)
  */
 
-export const META_PIXEL_ID = '2198770257418355';
+export const META_PIXEL_ID = '2181846082544846';
+export const META_PIXEL_IDS = ['2181846082544846', '2198770257418355'];
 
 export function trackMetaEvent(eventName, params = {}) {
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
