@@ -387,10 +387,10 @@ async function syncProductToOmie(pool, product) {
       await pool.query(`
         UPDATE products
         SET 
-          sku = COALESCE(NULLIF($1, ''), sku),
-          omie_code = COALESCE(NULLIF($1, ''), omie_code),
-          omie_codigo_produto = COALESCE($2, omie_codigo_produto),
-          omie_product_id = COALESCE($2, omie_product_id),
+          sku = COALESCE(NULLIF($1::text, ''), sku),
+          omie_code = COALESCE(NULLIF($1::text, ''), omie_code),
+          omie_codigo_produto = COALESCE($2::bigint, omie_codigo_produto),
+          omie_product_id = COALESCE($2::bigint, omie_product_id),
           price = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE price END,
           preco_venda = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE preco_venda END,
           estoque_quantidade = $4::integer,
@@ -398,10 +398,10 @@ async function syncProductToOmie(pool, product) {
           specs = $6::jsonb,
           variants = $7::jsonb,
           omie_last_sync = CURRENT_TIMESTAMP
-        WHERE id = $8
+        WHERE id = $8::text
       `, [
         omieCode,
-        omieId,
+        omieId > 0 ? omieId : null,
         finalPrice > 0 ? finalPrice : 0,
         finalStock != null && !isNaN(finalStock) ? Math.max(0, Math.round(finalStock)) : 0,
         Boolean(product.inStock),

@@ -7325,10 +7325,10 @@ app.post('/api/admin/omie/link-product', authenticateToken, requireAdmin, async 
         SET 
           omie_product_id = COALESCE($1::bigint, omie_product_id),
           omie_codigo_produto = COALESCE($1::bigint, omie_codigo_produto),
-          omie_code = $2,
-          sku = COALESCE(NULLIF(sku, ''), $2),
+          omie_code = $2::text,
+          sku = COALESCE(NULLIF(sku, ''), $2::text),
           omie_last_sync = CURRENT_TIMESTAMP
-        WHERE id = $3
+        WHERE id = $3::text
       `, [parsedBigIntId, resolvedCode, athenaProductId]);
 
       // Consulta imediatamente o Omie pelo código (ex: "EW1043") ou ID para descobrir o bigint real
