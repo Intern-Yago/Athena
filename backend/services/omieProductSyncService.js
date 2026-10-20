@@ -15,9 +15,36 @@
  */
 
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 const OMIE_PRODUTOS_URL = 'https://app.omie.com.br/api/v1/geral/produtos/';
 const OMIE_ESTOQUE_AJUSTE_URL = 'https://app.omie.com.br/api/v1/estoque/ajuste/';
+const OMIE_ESTOQUE_CONSULTA_URL = 'https://app.omie.com.br/api/v1/estoque/consulta/';
+
+/**
+ * Busca de contingência no cache local do Omie (omie_products_cache.json)
+ * caso a API do Omie esteja em cooldown de rate-limit.
+ */
+function findInLocalOmieCache(candidateSku, candidateOmieId) {
+  try {
+    const cachePath = path.join(__dirname, '../data/omie_products_cache.json');
+    if (!fs.existsSync(cachePath)) return null;
+    const list = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+    if (!Array.isArray(list)) return null;
+
+    if (candidateOmieId && Number(candidateOmieId) > 0) {
+      const byId = list.find(item => Number(item.codigo_produto) === Number(candidateOmieId));
+      if (byId) return byId;
+    }
+    if (candidateSku) {
+      const cleanTarget = String(candidateSku).trim().toUpperCase();
+      const bySku = list.find(item => String(item.codigo || '').trim().toUpperCase() === cleanTarget);
+      if (bySku) return bySku;
+    }
+  } catch (_) {}
+  return null;
+}
 
 const SKU_STOP_WORDS = new Set([
   'TOOLS', 'SIGMA', 'MAHOVI', 'DELTA', 'STARKX', 'WOLFCAR', 'LAPEK',
@@ -137,6 +164,11 @@ async function syncProductToOmie(pool, product) {
       if (res.success && res.data) omieItem = res.data;
     }
 
+    // Fallback para cache local caso a API do Omie esteja em rate-limit temporário
+    if (!omieItem) {
+      omieItem = findInLocalOmieCache(candidateSku, candidateOmieId);
+    }
+
     if (!omieItem) {
       console.log(`[Omie Sync] Produto com SKU "${candidateSku}" não encontrado no Omie ERP.`);
       return { synced: false, reason: 'not_found_on_omie' };
@@ -145,67 +177,137 @@ async function syncProductToOmie(pool, product) {
     const omieId = Number(omieItem.codigo_produto);
     const omieCode = String(omieItem.codigo || candidateSku).trim();
 
-    // 2. Atualiza dados cadastrais / preço no Omie via AlterarProduto
-    const precoNum = Number(product.price || product.precoVenda || 0);
-    const updatePayload = {
-      codigo_produto: omieId,
-      codigo: omieCode,
-      descricao: product.name
-    };
-    if (precoNum > 0) {
-      updatePayload.valor_unitario = precoNum;
+    // 1.1 Consulta PosicaoEstoque em tempo real no Omie (para puxar saldo de estoque e preço atualizados)
+    let posicaoEstoque = null;
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    const formattedDate = `${dd}/${mm}/${yyyy}`;
+
+    if (omieId > 0) {
+      const stockRes = await callOmie(OMIE_ESTOQUE_CONSULTA_URL, 'PosicaoEstoque', {
+        codigo_local_estoque: 0,
+        id_prod: omieId,
+        data: formattedDate
+      });
+      if (stockRes.success && stockRes.data) {
+        posicaoEstoque = stockRes.data;
+      }
     }
 
-    const alterRes = await callOmie(OMIE_PRODUTOS_URL, 'AlterarProduto', updatePayload);
-    if (alterRes.success) {
-      console.log(`[Omie Sync] ✅ Dados do produto "${product.name}" atualizados no Omie ERP com sucesso!`);
-    } else {
-      console.warn(`[Omie Sync] Aviso ao atualizar dados no Omie: ${alterRes.error}`);
-    }
-
-    // 3. Atualização de estoque no Omie se informado e diferente do atual
-    const stockQty = product.stock != null 
-      ? Number(product.stock) 
-      : (product.estoqueQuantidade != null ? Number(product.estoqueQuantidade) : null);
-
-    const currentOmieStock = omieItem.quantidade_estoque != null
-      ? Number(omieItem.quantidade_estoque)
-      : (omieItem.saldo_fisico != null ? Number(omieItem.saldo_fisico) : null);
-
-    // Evita chamadas repetitivas e abusivas a IncluirAjusteEstoque:
-    // Apenas envia ajuste se o estoque mudou de fato, se for > 0, ou se syncStock for explicitamente pedido
-    const shouldSyncStock = stockQty != null && !isNaN(stockQty) && stockQty >= 0 && (
-      product.syncStock === true ||
-      (currentOmieStock != null && stockQty !== currentOmieStock) ||
-      (currentOmieStock == null && stockQty > 0)
+    // 2. Hidratação Bidirecional de Preço / Valor de Venda:
+    // - Se o usuário NÃO preencheu preço (<= 0), puxa automaticamente do Omie!
+    // - Se o usuário preencheu um preço (> 0), envia para o Omie.
+    const userPrice = Number(product.price || product.precoVenda || product.preco_venda || 0);
+    const omieUnitPrice = Number(
+      omieItem.valor_unitario ||
+      posicaoEstoque?.nPrecoUnitario ||
+      posicaoEstoque?.preco_unitario ||
+      0
     );
 
-    if (shouldSyncStock) {
-      const today = new Date();
-      const dd = String(today.getDate()).padStart(2, '0');
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const yyyy = today.getFullYear();
-      const formattedDate = `${dd}/${mm}/${yyyy}`;
-
-      const ajustePayload = {
-        id_prod: omieId,
-        data: formattedDate,
-        quan: stockQty,
-        obs: 'Ajuste sincronizado via Painel Admin Athena Loja Virtual',
-        origem: 'AJU',
-        tipo: 'ENT',
-        motivo: 'INV'
+    let finalPrice = userPrice;
+    if (userPrice <= 0 && omieUnitPrice > 0) {
+      finalPrice = omieUnitPrice;
+      product.price = finalPrice;
+      product.precoVenda = finalPrice;
+      product.preco_venda = finalPrice;
+      console.log(`[Omie Sync] 💰 Preço puxado automaticamente do Omie para "${product.name}": R$ ${finalPrice}`);
+    } else if (userPrice > 0) {
+      const updatePayload = {
+        codigo_produto: omieId,
+        codigo: omieCode,
+        descricao: product.name,
+        valor_unitario: userPrice
       };
-
-      const ajusteRes = await callOmie(OMIE_ESTOQUE_AJUSTE_URL, 'IncluirAjusteEstoque', ajustePayload);
-      if (ajusteRes.success) {
-        console.log(`[Omie Sync] ✅ Estoque do produto "${product.name}" atualizado no Omie para ${stockQty} un.`);
+      const alterRes = await callOmie(OMIE_PRODUTOS_URL, 'AlterarProduto', updatePayload);
+      if (alterRes.success) {
+        console.log(`[Omie Sync] ✅ Dados do produto "${product.name}" atualizados no Omie ERP com sucesso!`);
       } else {
-        console.warn(`[Omie Sync] Aviso ao sincronizar estoque no Omie (${stockQty} un.): ${ajusteRes.error}`);
+        console.warn(`[Omie Sync] Aviso ao atualizar dados no Omie: ${alterRes.error}`);
       }
-    } else if (stockQty != null) {
-      console.log(`[Omie Sync] Estoque do produto "${product.name}" (${stockQty} un.) já alinhado com Omie ERP (${currentOmieStock ?? 0} un.). Ajuste de estoque ignorado.`);
     }
+
+    // 3. Hidratação Bidirecional de Estoque:
+    // - Se o estoque não foi preenchido (ou está 0) no site, puxa o saldo real do Omie!
+    // - Se o usuário preencheu um estoque > 0 diferente do Omie, atualiza no Omie.
+    const rawUserStock = product.stock != null && product.stock !== ''
+      ? Number(product.stock)
+      : (product.estoqueQuantidade != null && product.estoqueQuantidade !== '' ? Number(product.estoqueQuantidade) : 0);
+
+    const currentOmieStock = posicaoEstoque?.saldo != null
+      ? Number(posicaoEstoque.saldo)
+      : (posicaoEstoque?.fisico != null
+          ? Number(posicaoEstoque.fisico)
+          : (omieItem.quantidade_estoque != null
+              ? Number(omieItem.quantidade_estoque)
+              : (omieItem.saldo_fisico != null ? Number(omieItem.saldo_fisico) : null)));
+
+    let finalStock = rawUserStock;
+    if ((!rawUserStock || rawUserStock <= 0) && currentOmieStock != null && !isNaN(currentOmieStock)) {
+      finalStock = Math.max(0, Math.round(currentOmieStock));
+      product.stock = finalStock;
+      product.estoqueQuantidade = finalStock;
+      product.estoque_quantidade = finalStock;
+      product.inStock = finalStock > 0 || product.inStock !== false;
+      console.log(`[Omie Sync] 📦 Estoque puxado automaticamente do Omie para "${product.name}": ${finalStock} un.`);
+    } else {
+      const shouldSyncStock = rawUserStock != null && !isNaN(rawUserStock) && rawUserStock > 0 && (
+        product.syncStock === true ||
+        (currentOmieStock != null && rawUserStock !== currentOmieStock) ||
+        currentOmieStock == null
+      );
+
+      if (shouldSyncStock) {
+        const ajustePayload = {
+          id_prod: omieId,
+          data: formattedDate,
+          quan: rawUserStock,
+          obs: 'Ajuste sincronizado via Painel Admin Athena Loja Virtual',
+          origem: 'AJU',
+          tipo: 'ENT',
+          motivo: 'INV'
+        };
+
+        const ajusteRes = await callOmie(OMIE_ESTOQUE_AJUSTE_URL, 'IncluirAjusteEstoque', ajustePayload);
+        if (ajusteRes.success) {
+          console.log(`[Omie Sync] ✅ Estoque do produto "${product.name}" atualizado no Omie para ${rawUserStock} un.`);
+        } else {
+          console.warn(`[Omie Sync] Aviso ao sincronizar estoque no Omie (${rawUserStock} un.): ${ajusteRes.error}`);
+        }
+      }
+    }
+
+    // 3.0 Hidratação Automática de Medidas e Peso (se ausentes no produto):
+    // Puxa largura, altura, profundidade (cm) e peso_bruto/peso_liq (kg) do Omie
+    const omieWidth = Number(omieItem.largura || 0);
+    const omieHeight = Number(omieItem.altura || 0);
+    const omieDepth = Number(omieItem.profundidade || omieItem.comprimento || 0);
+    const omieWeight = Number(omieItem.peso_bruto || omieItem.peso_liq || 0);
+
+    const currentSpecs = Array.isArray(product.specs) ? [...product.specs] : [];
+    const hasWeightSpec = currentSpecs.some(s => /peso/i.test(String(s)));
+    const hasDimensionSpec = currentSpecs.some(s => /(dimens|medidas|tamanho|largura|altura)/i.test(String(s)));
+
+    if (!hasWeightSpec && omieWeight > 0) {
+      currentSpecs.push(`Peso bruto: ${omieWeight.toString().replace('.', ',')} kg`);
+      product.weight = omieWeight;
+      console.log(`[Omie Sync] ⚖️ Peso puxado automaticamente do Omie para "${product.name}": ${omieWeight} kg`);
+    }
+
+    if (!hasDimensionSpec && (omieWidth > 0 || omieHeight > 0 || omieDepth > 0)) {
+      const wStr = omieWidth > 0 ? omieWidth : 20;
+      const hStr = omieHeight > 0 ? omieHeight : 15;
+      const dStr = omieDepth > 0 ? omieDepth : 25;
+      currentSpecs.push(`Dimensões: ${wStr} x ${hStr} x ${dStr} cm`);
+      if (omieWidth > 0) product.width = omieWidth;
+      if (omieHeight > 0) product.height = omieHeight;
+      if (omieDepth > 0) product.length = omieDepth;
+      console.log(`[Omie Sync] 📏 Medidas puxadas automaticamente do Omie para "${product.name}": ${wStr}x${hStr}x${dStr} cm`);
+    }
+
+    product.specs = currentSpecs;
 
     // 3.1 Sincronização individual das variações (se houverem)
     if (Array.isArray(product.variants) && product.variants.length > 0) {
@@ -226,11 +328,20 @@ async function syncProductToOmie(pool, product) {
             const res = await callOmie(OMIE_PRODUTOS_URL, 'ConsultarProduto', { codigo: vSku });
             if (res.success && res.data) omieVarItem = res.data;
           }
+          if (!omieVarItem) {
+            omieVarItem = findInLocalOmieCache(vSku, vOmieId);
+          }
 
           if (omieVarItem) {
             const vProdId = Number(omieVarItem.codigo_produto);
+            v.omieProductId = vProdId;
+            v.omieCode = String(omieVarItem.codigo || vSku).trim();
+
             const vPrice = Number(v.price || 0);
-            if (vPrice > 0) {
+            const omieVarPrice = Number(omieVarItem.valor_unitario || 0);
+            if (vPrice <= 0 && omieVarPrice > 0) {
+              v.price = omieVarPrice;
+            } else if (vPrice > 0) {
               await callOmie(OMIE_PRODUTOS_URL, 'AlterarProduto', {
                 codigo_produto: vProdId,
                 codigo: omieVarItem.codigo || vSku,
@@ -238,17 +349,19 @@ async function syncProductToOmie(pool, product) {
                 valor_unitario: vPrice
               });
             }
-            const vStock = v.stockQty != null ? Number(v.stockQty) : null;
-            if (vStock != null && !isNaN(vStock) && vStock >= 0) {
-              const currentVStock = omieVarItem.quantidade_estoque != null ? Number(omieVarItem.quantidade_estoque) : null;
+
+            const vStock = v.stockQty !== '' && v.stockQty != null ? Number(v.stockQty) : null;
+            const currentVStock = omieVarItem.quantidade_estoque != null
+              ? Number(omieVarItem.quantidade_estoque)
+              : (omieVarItem.saldo_fisico != null ? Number(omieVarItem.saldo_fisico) : null);
+
+            if ((vStock == null || vStock <= 0) && currentVStock != null && !isNaN(currentVStock)) {
+              v.stockQty = Math.max(0, Math.round(currentVStock));
+            } else if (vStock != null && !isNaN(vStock) && vStock > 0) {
               if (currentVStock != null && vStock !== currentVStock) {
-                const today = new Date();
-                const dd = String(today.getDate()).padStart(2, '0');
-                const mm = String(today.getMonth() + 1).padStart(2, '0');
-                const yyyy = today.getFullYear();
                 await callOmie(OMIE_ESTOQUE_AJUSTE_URL, 'IncluirAjusteEstoque', {
                   id_prod: vProdId,
-                  data: `${dd}/${mm}/${yyyy}`,
+                  data: formattedDate,
                   quan: vStock,
                   obs: `Ajuste variação ${v.name} via Painel Admin Athena`,
                   origem: 'AJU',
@@ -264,7 +377,12 @@ async function syncProductToOmie(pool, product) {
       }
     }
 
-    // 4. Salva o vínculo e timestamp de sincronização no PostgreSQL local
+    product.sku = product.sku || omieCode;
+    product.omieCode = omieCode;
+    product.omieProductId = omieId;
+    product.omieCodigoProduto = omieId;
+
+    // 4. Salva o vínculo, preços, estoque, medidas e timestamp de sincronização no PostgreSQL local
     if (pool && product.id) {
       await pool.query(`
         UPDATE products
@@ -273,15 +391,33 @@ async function syncProductToOmie(pool, product) {
           omie_code = COALESCE(NULLIF($1, ''), omie_code),
           omie_codigo_produto = COALESCE($2, omie_codigo_produto),
           omie_product_id = COALESCE($2, omie_product_id),
+          price = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE price END,
+          preco_venda = CASE WHEN $3::numeric > 0 THEN $3::numeric ELSE preco_venda END,
+          estoque_quantidade = $4::integer,
+          in_stock = $5::boolean,
+          specs = $6::jsonb,
+          variants = $7::jsonb,
           omie_last_sync = CURRENT_TIMESTAMP
-        WHERE id = $3
-      `, [omieCode, omieId, product.id]);
+        WHERE id = $8
+      `, [
+        omieCode,
+        omieId,
+        finalPrice > 0 ? finalPrice : 0,
+        finalStock != null && !isNaN(finalStock) ? Math.max(0, Math.round(finalStock)) : 0,
+        Boolean(product.inStock),
+        JSON.stringify(Array.isArray(product.specs) ? product.specs : []),
+        JSON.stringify(Array.isArray(product.variants) ? product.variants : []),
+        product.id
+      ]);
     }
 
     return {
       synced: true,
       omieId,
       omieCode,
+      price: finalPrice,
+      stock: finalStock,
+      specs: product.specs,
       productName: product.name
     };
   } catch (err) {

@@ -9083,10 +9083,25 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
         newProduct.model3d ? JSON.stringify(newProduct.model3d) : null
       ]);
 
-      // Sincronização com Omie ERP em segundo plano (Site -> Omie)
-      syncProductToOmie(pool, newProduct).catch(err => 
-        console.error('[Omie Post-Create Sync Error]:', err.message)
+      // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,
+      // aguarda a hidratação imediata do Omie para devolver os dados preenchidos ao Painel Admin
+      const needsOmiePull = Boolean(finalSku || newProduct.omieProductId) && (
+        !newProduct.price || Number(newProduct.price) <= 0 ||
+        !stockQty || Number(stockQty) <= 0 ||
+        !(newProduct.specs || []).some(s => /(peso|dimens|medidas)/i.test(String(s)))
       );
+
+      if (needsOmiePull) {
+        try {
+          await syncProductToOmie(pool, newProduct);
+        } catch (err) {
+          console.error('[Omie Immediate Pull Error on Create]:', err.message);
+        }
+      } else {
+        syncProductToOmie(pool, newProduct).catch(err => 
+          console.error('[Omie Post-Create Sync Error]:', err.message)
+        );
+      }
 
       // Sincroniza catálogo XML/CSV no Cloudflare R2 em segundo plano
       generateAndSyncCatalogToR2(true).catch(err =>
@@ -9200,10 +9215,25 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
         req.params.id
       ]);
 
-      // Sincronização com Omie ERP em segundo plano (Site -> Omie)
-      syncProductToOmie(pool, updatedProduct).catch(err => 
-        console.error('[Omie Post-Update Sync Error]:', err.message)
+      // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,
+      // aguarda a hidratação imediata do Omie para devolver os dados preenchidos ao Painel Admin
+      const needsOmiePull = Boolean(finalSku || updatedProduct.omieProductId) && (
+        !updatedProduct.price || Number(updatedProduct.price) <= 0 ||
+        !stockQty || Number(stockQty) <= 0 ||
+        !(updatedProduct.specs || []).some(s => /(peso|dimens|medidas)/i.test(String(s)))
       );
+
+      if (needsOmiePull) {
+        try {
+          await syncProductToOmie(pool, updatedProduct);
+        } catch (err) {
+          console.error('[Omie Immediate Pull Error on Update]:', err.message);
+        }
+      } else {
+        syncProductToOmie(pool, updatedProduct).catch(err => 
+          console.error('[Omie Post-Update Sync Error]:', err.message)
+        );
+      }
 
       // Sincroniza catálogo XML/CSV no Cloudflare R2 em segundo plano
       generateAndSyncCatalogToR2(true).catch(err =>

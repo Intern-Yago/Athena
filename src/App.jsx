@@ -716,6 +716,15 @@ export default function App() {
       });
       if (res.ok) {
         setIsBackendConnected(true);
+        const savedFromServer = await res.json().catch(() => null);
+        if (savedFromServer && savedFromServer.id) {
+          setProducts((prev) => {
+            const next = prev.map((p) => (p.id === newProduct.id || p.id === savedFromServer.id ? { ...p, ...savedFromServer } : p));
+            safeStorageSet('athena_products', next);
+            idbSet('athena_products', next).catch(() => {});
+            return next;
+          });
+        }
         fetch(`${API_BASE_URL}/catalog/version`).then(r => r.json()).then(d => {
           if (d?.version) setLocalCatalogVersion(d.version);
         }).catch(() => {});
@@ -741,18 +750,31 @@ export default function App() {
         headers: getAuthHeaders(),
         body: JSON.stringify(updatedProduct)
       });
+      let savedFromServer = null;
       if (!res.ok && res.status === 404) {
         const createRes = await fetch(`${API_BASE_URL}/products`, {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify(updatedProduct)
         });
-        if (createRes.ok) mutationSuccess = true;
+        if (createRes.ok) {
+          mutationSuccess = true;
+          savedFromServer = await createRes.json().catch(() => null);
+        }
       } else if (res.ok) {
         mutationSuccess = true;
+        savedFromServer = await res.json().catch(() => null);
       }
       if (mutationSuccess) {
         setIsBackendConnected(true);
+        if (savedFromServer && savedFromServer.id) {
+          setProducts((prev) => {
+            const next = prev.map((p) => (p.id === updatedProduct.id ? { ...p, ...savedFromServer } : p));
+            safeStorageSet('athena_products', next);
+            idbSet('athena_products', next).catch(() => {});
+            return next;
+          });
+        }
         fetch(`${API_BASE_URL}/catalog/version`).then(r => r.json()).then(d => {
           if (d?.version) setLocalCatalogVersion(d.version);
         }).catch(() => {});
