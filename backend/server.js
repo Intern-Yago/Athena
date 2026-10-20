@@ -7187,14 +7187,21 @@ app.get('/api/admin/omie/sync-status', authenticateToken, requireAdmin, async (r
       const totRes = await pool.query('SELECT COUNT(*) FROM products');
       totalProducts = parseInt(totRes.rows[0].count, 10);
 
-      // Produtos com omie_product_id direto no pai
-      const linkRes = await pool.query('SELECT COUNT(*) FROM products WHERE omie_product_id IS NOT NULL');
+      // Produtos com omie_product_id, omie_codigo_produto ou omie_code direto no pai
+      const linkRes = await pool.query(`
+        SELECT COUNT(*) FROM products 
+        WHERE omie_product_id IS NOT NULL 
+           OR omie_codigo_produto IS NOT NULL 
+           OR (omie_code IS NOT NULL AND TRIM(omie_code) != '')
+      `);
       linkedProducts = parseInt(linkRes.rows[0].count, 10);
 
-      // Produtos que não têm omie_product_id no pai, mas têm variações conectadas
+      // Produtos que não têm vínculo no pai, mas têm variações conectadas
       const linkVarRes = await pool.query(`
         SELECT COUNT(*) FROM products 
         WHERE omie_product_id IS NULL
+          AND omie_codigo_produto IS NULL
+          AND (omie_code IS NULL OR TRIM(omie_code) = '')
           AND variants IS NOT NULL 
           AND jsonb_typeof(variants) = 'array'
           AND EXISTS (
@@ -7209,6 +7216,8 @@ app.get('/api/admin/omie/sync-status', authenticateToken, requireAdmin, async (r
         SELECT id, name, sku, brand_id as "brandId", price::float, COALESCE(variants, '[]'::jsonb) as "variants"
         FROM products 
         WHERE omie_product_id IS NULL
+          AND omie_codigo_produto IS NULL
+          AND (omie_code IS NULL OR TRIM(omie_code) = '')
           AND (
             variants IS NULL 
             OR jsonb_typeof(variants) != 'array' 
@@ -7258,43 +7267,100 @@ app.post('/api/admin/omie/reconcile', authenticateToken, requireAdmin, async (re
 app.post('/api/admin/omie/link-product', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { athenaProductId, variantId, omieProductId, omieCode } = req.body;
-    if (!athenaProductId || !omieProductId) {
-      return res.status(400).json({ error: 'IDs de produto Athena e Omie são obrigatórios.' });
+    const rawIdentifier = String(omieProductId || omieCode || '').trim();
+    if (!athenaProductId || !rawIdentifier) {
+      return res.status(400).json({ error: 'ID do produto Athena e código/ID do Omie são obrigatórios.' });
     }
 
+    const isNumericId = /^\d+$/.test(rawIdentifier);
+    const parsedBigIntId = isNumericId ? Number(rawIdentifier) : null;
+    const resolvedCode = String(omieCode || rawIdentifier).trim();
+
     if (pool) {
+      const findRes = await pool.query('SELECT * FROM products WHERE id = $1', [athenaProductId]);
+      if (findRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Produto não encontrado no banco de dados.' });
+      }
+      const dbProduct = findRes.rows[0];
+
       if (variantId) {
         // Vínculo de variação específica
-        const findRes = await pool.query('SELECT variants FROM products WHERE id = $1', [athenaProductId]);
-        if (findRes.rows.length > 0) {
-          const variants = Array.isArray(findRes.rows[0].variants) ? findRes.rows[0].variants : [];
-          const idx = variants.findIndex(v => v.id === variantId);
-          if (idx !== -1) {
-            variants[idx] = {
-              ...variants[idx],
-              omieProductId: Number(omieProductId),
-              omieCode: omieCode || String(omieProductId)
-            };
-            await pool.query(`
-              UPDATE products
-              SET variants = $1::jsonb, omie_last_sync = CURRENT_TIMESTAMP
-              WHERE id = $2
-            `, [JSON.stringify(variants), athenaProductId]);
-            return res.json({ success: true, message: `Variação "${variants[idx].name}" vinculada com sucesso ao Omie!` });
-          }
+        const variants = Array.isArray(dbProduct.variants) ? [...dbProduct.variants] : [];
+        const idx = variants.findIndex(v => v.id === variantId);
+        if (idx !== -1) {
+          variants[idx] = {
+            ...variants[idx],
+            sku: variants[idx].sku || resolvedCode,
+            omieCode: resolvedCode,
+            ...(parsedBigIntId ? { omieProductId: parsedBigIntId, omie_codigo_produto: parsedBigIntId } : {})
+          };
+
+          const productForSync = {
+            ...dbProduct,
+            variants
+          };
+
+          // Tenta resolver o codigo_produto numérico e puxar preço/estoque da variação no Omie
+          await syncProductToOmie(pool, productForSync).catch(err =>
+            console.warn('[Omie Link Variant Sync Warning]:', err.message)
+          );
+
+          await pool.query(`
+            UPDATE products
+            SET variants = $1::jsonb, omie_last_sync = CURRENT_TIMESTAMP
+            WHERE id = $2
+          `, [JSON.stringify(productForSync.variants || variants), athenaProductId]);
+
+          return res.json({
+            success: true,
+            message: `Variação "${variants[idx].name}" vinculada e sincronizada com o Omie (${resolvedCode})!`,
+            product: productForSync
+          });
         }
       }
 
-      // Vínculo no produto pai
+      // Vínculo no produto pai: salva omie_code/sku e (se for numérico) omie_product_id
       await pool.query(`
         UPDATE products
-        SET omie_product_id = $1, omie_code = $2, omie_last_sync = CURRENT_TIMESTAMP
+        SET 
+          omie_product_id = COALESCE($1::bigint, omie_product_id),
+          omie_codigo_produto = COALESCE($1::bigint, omie_codigo_produto),
+          omie_code = $2,
+          sku = COALESCE(NULLIF(sku, ''), $2),
+          omie_last_sync = CURRENT_TIMESTAMP
         WHERE id = $3
-      `, [omieProductId, omieCode || '', athenaProductId]);
+      `, [parsedBigIntId, resolvedCode, athenaProductId]);
+
+      // Consulta imediatamente o Omie pelo código (ex: "EW1043") ou ID para descobrir o bigint real
+      // e puxar preço, estoque e medidas caso estejam vazios
+      const productForSync = {
+        ...dbProduct,
+        id: athenaProductId,
+        sku: resolvedCode,
+        omieCode: resolvedCode,
+        omieProductId: parsedBigIntId || dbProduct.omie_product_id || null,
+        omieCodigoProduto: parsedBigIntId || dbProduct.omie_codigo_produto || null,
+        stock: dbProduct.estoque_quantidade,
+        inStock: dbProduct.in_stock
+      };
+
+      const syncResult = await syncProductToOmie(pool, productForSync).catch(err => {
+        console.warn('[Omie Link Product Sync Warning]:', err.message);
+        return { synced: false };
+      });
+
+      return res.json({
+        success: true,
+        message: syncResult?.synced
+          ? `Produto vinculado ao Omie (${syncResult.omieCode} • ID #${syncResult.omieId}) com estoque e valores sincronizados!`
+          : `Código "${resolvedCode}" vinculado ao produto com sucesso!`,
+        syncResult
+      });
     }
 
     return res.json({ success: true, message: 'Produto vinculado com sucesso!' });
   } catch (err) {
+    console.error('[Omie Link Product Error]:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
