@@ -33,6 +33,7 @@ const opsAdminRoutes = require('./routes/opsAdminRoutes');
 const customerOrderRoutes = require('./routes/customerOrderRoutes');
 const feedRoutes = require('./routes/feedRoutes');
 const { generateAndSyncCatalogToR2 } = feedRoutes;
+const capiRoutes = require('./routes/capiRoutes');
 const orderService = require('./services/orderService');
 const { calculateShipping, cleanCep } = require('./services/melhorEnvioService');
 
@@ -932,6 +933,7 @@ app.get('/api/openapi.json', (req, res) => {
 app.use('/api/internal/ops', opsRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/feeds', feedRoutes);
+app.use('/api/analytics', capiRoutes);
 app.use('/api/admin', authenticateToken, requireStaff, opsAdminRoutes);
 app.use('/api/admin/ops', authenticateToken, requireStaff, opsAdminRoutes);
 app.use('/api/admin/orders', authenticateToken, requireStaff, opsAdminRoutes);

@@ -193,7 +193,59 @@ function mapMetaToGa4Event(eventName, params = {}) {
 }
 
 /**
- * Dispara um Evento Padrão (Standard Event) no Meta Pixel e espelha automaticamente no GA4/GTM.
+ * Lê um cookie específico do navegador (usado para _fbp e _fbc da Meta CAPI).
+ */
+function getCookieValue(cookieName) {
+  if (typeof document === 'undefined' || !document.cookie) return '';
+  const match = document.cookie.match(new RegExp(`(^| )${cookieName}=([^;]+)`));
+  return match ? decodeURIComponent(match[2]) : '';
+}
+
+/**
+ * Envia o evento em segundo plano para a API de Conversões (CAPI) no servidor Node.js,
+ * utilizando o mesmo `eventId` para desduplicação automática na Meta nos 2 Datasets.
+ */
+function sendServerCapiEvent(eventName, eventId, params = {}) {
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+
+  try {
+    let customerData = {};
+    const rawUser = window.localStorage?.getItem('athena_user');
+    if (rawUser) {
+      const parsed = JSON.parse(rawUser);
+      if (parsed && (parsed.role === 'cliente' || parsed.role === 'customer')) {
+        customerData = {
+          email: parsed.email || undefined,
+          phone: parsed.phone || undefined,
+          userId: parsed.id || undefined
+        };
+      }
+    }
+
+    const apiBase = (window.location && window.location.origin)
+      ? `${window.location.origin}/api`
+      : 'https://athena-backend-hu1m.onrender.com/api';
+
+    fetch(`${apiBase}/analytics/capi`, {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventName,
+        eventId,
+        eventSourceUrl: window.location?.href || 'https://www.athenaconsultoria.com.br/',
+        customData: params,
+        userData: customerData,
+        fbp: getCookieValue('_fbp'),
+        fbc: getCookieValue('_fbc')
+      })
+    }).catch(() => {});
+  } catch (_) {}
+}
+
+/**
+ * Dispara um Evento Padrão (Standard Event) nos 2 Conjuntos de Dados do Meta Pixel
+ * (via Browser + CAPI Server-Side com desduplicação) e espelha automaticamente no GA4/GTM.
  * Ignora automaticamente caso o usuário logado seja Staff/Admin.
  *
  * @param {string} eventName - Ex: 'PageView', 'ViewContent', 'AddToCart', 'Search', 'InitiateCheckout', 'Lead', 'Contact'
@@ -202,13 +254,19 @@ function mapMetaToGa4Event(eventName, params = {}) {
 export function trackMetaEvent(eventName, params = {}) {
   if (isStaffAnalyticsBlocked()) return;
 
+  const eventId = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
     try {
-      window.fbq('track', eventName, params);
+      // Dispara automaticamente para todos os Datasets inicializados (2181846082544846 e 2198770257418355)
+      window.fbq('track', eventName, params, { eventID: eventId });
     } catch (err) {
       console.warn('[Meta Pixel Warning]:', err.message);
     }
   }
+
+  // Envia via Server-Side CAPI com o mesmo eventID (desduplicado nos 2 Datasets)
+  sendServerCapiEvent(eventName, eventId, params);
 
   // Para PageView, o App.jsx já gerencia o push dedicado de page_view com path/title
   if (eventName !== 'PageView') {
@@ -220,8 +278,8 @@ export function trackMetaEvent(eventName, params = {}) {
 }
 
 /**
- * Dispara um Evento Personalizado (Custom Event) no Meta Pixel (`fbq('trackCustom', ...)`)
- * e espelha no Google Tag Manager / GA4 (`window.dataLayer`).
+ * Dispara um Evento Personalizado (Custom Event) nos 2 Conjuntos de Dados do Meta Pixel
+ * (`fbq('trackCustom', ...)` + CAPI Server-Side) e espelha no Google Tag Manager / GA4 (`window.dataLayer`).
  * Ignora automaticamente caso o usuário logado seja Staff/Admin.
  *
  * @param {string} eventName - Ex: 'CalculateShipping', 'ViewCategory', 'ViewBrand', 'CompareProduct'
@@ -230,13 +288,19 @@ export function trackMetaEvent(eventName, params = {}) {
 export function trackMetaCustom(eventName, params = {}) {
   if (isStaffAnalyticsBlocked()) return;
 
+  const eventId = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
     try {
-      window.fbq('trackCustom', eventName, params);
+      // Dispara automaticamente para todos os Datasets inicializados (2181846082544846 e 2198770257418355)
+      window.fbq('trackCustom', eventName, params, { eventID: eventId });
     } catch (err) {
       console.warn('[Meta Pixel Custom Warning]:', err.message);
     }
   }
+
+  // Envia via Server-Side CAPI com o mesmo eventID (desduplicado nos 2 Datasets)
+  sendServerCapiEvent(eventName, eventId, params);
 
   const gaSnakeName = String(eventName)
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
