@@ -266,65 +266,118 @@ export default function OrdersManagementTab({
         </div>
       </div>
 
-      {/* FILTER BAR */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          <div className="relative flex-1">
+      {/* FILTER BAR — Compacta, alinhada em linha única e proporcional */}
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 items-center">
+          {/* 1. Campo de Busca */}
+          <div className="sm:col-span-2 lg:col-span-5 relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="Buscar por nº (#OMIE-133), cliente, e-mail ou CPF/CNPJ..."
+              placeholder="Buscar nº (#OMIE-133), cliente, e-mail ou CPF/CNPJ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="form-input text-xs !pl-9 w-full"
+              className="w-full h-9 bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-8 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
             />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Origin Filter: Site vs Omie ERP */}
-            <select
-              value={originFilter}
-              onChange={(e) => setOriginFilter(e.target.value)}
-              className="form-select text-xs font-bold"
-            >
-              <option value="all">Origem: Todas ({enrichedOrders.length})</option>
-              <option value="site">🌐 Compras no Site ({originCounts.site})</option>
-              <option value="omie">🏢 Pedidos Omie ERP ({originCounts.omie})</option>
-            </select>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="form-select text-xs"
-            >
-              <option value="all">Status: Todos</option>
-              <option value="paid">Pagamento: Aprovado</option>
-              <option value="pending">Pagamento: Pendente</option>
-              <option value="cancelled">Pagamento: Cancelado</option>
-            </select>
-
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="form-select text-xs"
-            >
-              <option value="all">Tipo: Todos</option>
-              <option value="sale">Vendas Comerciais</option>
-              <option value="points_redemption">Resgate de Pontos</option>
-            </select>
-
-            {hasActiveFilters && (
+            {searchTerm && (
               <button
                 type="button"
-                onClick={clearFilters}
-                className="text-xs font-bold text-amber-800 hover:text-amber-950 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-1 cursor-pointer"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+                title="Limpar busca"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Limpar</span>
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
+
+          {/* 2. Seletor Segmentado de Origem (Todas | Site | Omie) */}
+          <div className="lg:col-span-3 flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 h-9">
+            <button
+              type="button"
+              onClick={() => setOriginFilter('all')}
+              className={`flex-1 h-full rounded-lg text-[11px] font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                originFilter === 'all'
+                  ? 'bg-slate-900 text-amber-400 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>Todas</span>
+              <span className="font-mono text-[10px] opacity-80">({enrichedOrders.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOriginFilter('site')}
+              className={`flex-1 h-full rounded-lg text-[11px] font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                originFilter === 'site'
+                  ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Globe className="w-3 h-3 shrink-0" />
+              <span>Site</span>
+              <span className="font-mono text-[10px] opacity-80">({originCounts.site})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOriginFilter('omie')}
+              className={`flex-1 h-full rounded-lg text-[11px] font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                originFilter === 'omie'
+                  ? 'bg-sky-700 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Building2 className="w-3 h-3 shrink-0" />
+              <span>Omie</span>
+              <span className="font-mono text-[10px] opacity-80">({originCounts.omie})</span>
+            </button>
+          </div>
+
+          {/* 3. Filtro de Status de Pagamento */}
+          <div className="lg:col-span-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full h-9 bg-slate-50 border border-slate-200 rounded-xl px-2.5 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+            >
+              <option value="all">Status: Todos</option>
+              <option value="paid">Pago / Aprovado</option>
+              <option value="pending">Pendente</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </div>
+
+          {/* 4. Filtro de Tipo de Operação */}
+          <div className="lg:col-span-2">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full h-9 bg-slate-50 border border-slate-200 rounded-xl px-2.5 text-xs font-bold text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+            >
+              <option value="all">Tipo: Todos</option>
+              <option value="sale">Vendas Comerciais</option>
+              <option value="points_redemption">Resgate A-Points</option>
+            </select>
+          </div>
         </div>
+
+        {/* Rodapé compacto de contagem e limpeza */}
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+            <span>
+              Filtrando <strong className="font-mono text-slate-900">{filteredOrders.length}</strong> de{' '}
+              <strong className="font-mono text-slate-900">{enrichedOrders.length}</strong> pedidos
+            </span>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Limpar filtros</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ORDERS TABLE */}
