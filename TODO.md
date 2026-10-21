@@ -623,7 +623,7 @@ Para evitar criar categorias infinitas para cada detalhe técnico, a página de 
   - Quando finalizar a criação da conta/faturamento no Google Ads, copiar o ID de Conversão (`AW-...`) e o Rótulo de Conversão de "Pedir Cotação" e inserir em `src/utils/metaPixel.js` + GTM (`GTM-K63VC8QP`).
 - [ ] **Gerar e Inserir Token da Meta CAPI (`META_CAPI_ACCESS_TOKEN`) no Render:**
   - Confirmar conta de desenvolvedor em `https://developers.facebook.com/apps/`, gerar o token no Gerenciador de Eventos para os conjuntos de dados `2181846082544846` e `2198770257418355`, e salvar nas variáveis de ambiente do Render.
-- [ ] **Integrar TikTok Pixel (`ttq`):**
-  - Criar o Pixel no TikTok Ads Manager (*Ativos ➔ Eventos ➔ Eventos da Web*), copiar o Pixel ID e ativar em `index.html` + `src/utils/metaPixel.js`.
+- [x] **Integrar TikTok Pixel (`DBCEG2JC77UASCMGEM1G`):**
+  - Pixel criado no TikTok Ads Manager (`DBCEG2JC77UASCMGEM1G`) e ativado em `index.html` + `src/utils/metaPixel.js` com bloqueio de Staff/Admin, Advanced Matching de clientes e envio automático de todos os eventos ricos (`PageView`, `ViewContent`, `AddToCart`, `Search`, `InitiateCheckout`, `Contact`, `SubmitForm`, `FindLocation`, `CalculateShipping`, `ViewCategory`, `ViewBrand`).
 
 

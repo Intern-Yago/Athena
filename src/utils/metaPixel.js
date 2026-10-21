@@ -22,6 +22,7 @@
 
 export const META_PIXEL_ID = '2181846082544846';
 export const META_PIXEL_IDS = ['2181846082544846', '2198770257418355'];
+export const TIKTOK_PIXEL_ID = 'DBCEG2JC77UASCMGEM1G';
 export const GA4_MEASUREMENT_ID = 'G-8LBCQ5SBNR';
 
 const STAFF_ROLES = new Set([
@@ -404,12 +405,25 @@ function sendServerCapiEvent(eventName, eventId, params = {}) {
 }
 
 /**
- * Dispara o evento correspondente no TikTok Pixel (`window.ttq`), caso esteja ativo.
+ * Dispara o evento correspondente no TikTok Pixel (`window.ttq` — ID: DBCEG2JC77UASCMGEM1G), caso esteja ativo.
  */
 function dispatchTikTokEvent(eventName, enriched = {}, eventId = '') {
   if (typeof window === 'undefined' || !window.ttq) return;
 
   try {
+    // Se o cliente real estiver logado, envia Advanced Matching para o TikTok Pixel
+    const rawUser = window.localStorage?.getItem('athena_user');
+    if (rawUser && typeof window.ttq.identify === 'function') {
+      const parsed = JSON.parse(rawUser);
+      if (parsed && (parsed.role === 'cliente' || parsed.role === 'customer')) {
+        window.ttq.identify({
+          ...(parsed.email ? { email: String(parsed.email).trim().toLowerCase() } : {}),
+          ...(parsed.phone ? { phone_number: String(parsed.phone).replace(/\D/g, '') } : {}),
+          ...(parsed.id ? { external_id: String(parsed.id) } : {})
+        });
+      }
+    }
+
     if (eventName === 'PageView') {
       if (typeof window.ttq.page === 'function') {
         window.ttq.page();
@@ -420,15 +434,32 @@ function dispatchTikTokEvent(eventName, enriched = {}, eventId = '') {
     if (typeof window.ttq.track !== 'function') return;
 
     const contentIds = Array.isArray(enriched.content_ids) ? enriched.content_ids : [];
-    const primaryId = String(contentIds[0] || enriched.product_id || enriched.sku || '');
+    const primaryId = String(contentIds[0] || enriched.product_id || enriched.sku || enriched.category_id || enriched.brand_id || 'athena_catalog');
+    const primaryName = String(enriched.content_name || enriched.product_name || enriched.category_name || enriched.brand_name || 'Catálogo Athena');
     const ttqEventName = eventName === 'Lead' ? 'SubmitForm' : eventName;
+    const itemValue = Number(enriched.value || enriched.shipping_price || 1.00);
+    const qty = Number(enriched.quantity || enriched.num_items || 1);
 
     const ttqPayload = {
       ...enriched,
-      ...(primaryId ? { content_id: primaryId } : {}),
+      content_id: primaryId,
+      content_name: primaryName,
       content_type: enriched.content_type || 'product',
       currency: enriched.currency || 'BRL',
-      value: Number(enriched.value || 1.00)
+      value: itemValue,
+      description: enriched.descricao || primaryName,
+      ...(eventName === 'Search' ? { query: enriched.search_string || '' } : {}),
+      contents: [
+        {
+          content_id: primaryId,
+          content_type: enriched.content_type || 'product',
+          content_name: primaryName,
+          content_category: enriched.content_category || enriched.secao || 'Equipamentos Automotivos',
+          brand: enriched.brand_name || 'Athena',
+          price: itemValue,
+          quantity: qty
+        }
+      ]
     };
 
     window.ttq.track(ttqEventName, ttqPayload, eventId ? { event_id: eventId } : undefined);
