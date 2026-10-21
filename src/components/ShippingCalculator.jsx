@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Truck, MapPin, Search, Loader2, CheckCircle2, AlertCircle, Info, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Truck, MapPin, Search, Loader2, CheckCircle2, AlertCircle, Info, ExternalLink, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { getFallbackShippingOptions } from '../utils/fallbackShipping';
 import { trackMetaCustom, trackMetaEvent } from '../utils/metaPixel';
 
@@ -28,6 +28,7 @@ export function ShippingCalculator({
   quantity = 1,
   items = null,
   onSelectShipping = null,
+  compact = false,
   className = ''
 }) {
   const [cep, setCep] = useState(() => {
@@ -40,6 +41,7 @@ export function ShippingCalculator({
   const [loading, setLoading] = useState(false);
   const [addressInfo, setAddressInfo] = useState(null);
   const [shippingOptions, setShippingOptions] = useState(null);
+  const [showAllCarriers, setShowAllCarriers] = useState(false);
   const [selectedOptionId, setSelectedOptionId] = useState(() => {
     try {
       return sessionStorage.getItem(STORAGE_PREF_ID_KEY) || null;
@@ -342,11 +344,35 @@ export function ShippingCalculator({
     try {
       sessionStorage.setItem(STORAGE_PREF_ID_KEY, String(option.id));
     } catch {}
+    if (compact) {
+      setShowAllCarriers(false);
+    }
   };
 
   const formatBRL = (val) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
+
+  const visibleShippingOptions = (() => {
+    if (!Array.isArray(shippingOptions) || shippingOptions.length === 0) return [];
+    const maxCollapsed = compact ? 1 : 3;
+    if (showAllCarriers || shippingOptions.length <= maxCollapsed) {
+      return shippingOptions;
+    }
+    const selectedOpt = shippingOptions.find(o => String(o.id) === String(selectedOptionId)) || shippingOptions[0];
+    if (compact) {
+      return selectedOpt ? [selectedOpt] : shippingOptions.slice(0, 1);
+    }
+    const topSlice = shippingOptions.slice(0, maxCollapsed);
+    if (selectedOpt && !topSlice.some(o => String(o.id) === String(selectedOpt.id))) {
+      return [selectedOpt, ...topSlice.slice(0, maxCollapsed - 1)];
+    }
+    return topSlice;
+  })();
+
+  const hiddenCount = Array.isArray(shippingOptions)
+    ? Math.max(0, shippingOptions.length - visibleShippingOptions.length)
+    : 0;
 
   return (
     <div className={`bg-slate-50/80 rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-2xs space-y-3.5 ${className}`}>
@@ -430,15 +456,19 @@ export function ShippingCalculator({
       {/* Resultados da Cotação */}
       {shippingOptions && shippingOptions.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-slate-200">
-          <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mb-1">
-            <span>Opções disponíveis para o seu CEP:</span>
-            <span className="text-emerald-700 font-bold flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-emerald-600" /> Seguro de Carga Incluso
+          <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold mb-1 gap-2">
+            <span>
+              {compact && !showAllCarriers && shippingOptions.length > 1
+                ? 'Transportadora selecionada:'
+                : `Opções para o seu CEP (${shippingOptions.length}):`}
+            </span>
+            <span className="text-emerald-700 font-bold flex items-center gap-1 shrink-0">
+              <ShieldCheck className="w-3 h-3 text-emerald-600" /> Seguro Incluso
             </span>
           </div>
 
-          <div className="space-y-2">
-            {shippingOptions.map((opt) => {
+          <div className="space-y-2 max-h-56 overflow-y-auto overscroll-contain pr-1">
+            {visibleShippingOptions.map((opt) => {
               const isSelected = String(selectedOptionId) === String(opt.id);
               const carrierName = opt.company?.name || 'Transportadora';
               const serviceName = opt.name;
@@ -448,13 +478,13 @@ export function ShippingCalculator({
                 <div
                   key={opt.id}
                   onClick={() => handleSelect(opt)}
-                  className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  className={`${compact ? 'p-2.5' : 'p-3'} rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
                     isSelected
                       ? 'bg-amber-500/10 border-amber-500/60 ring-1 ring-amber-400/50 shadow-2xs'
                       : 'bg-white hover:bg-slate-100/70 border-slate-200'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
                       isSelected
                         ? 'border-amber-600 bg-amber-600 text-white'
@@ -463,9 +493,9 @@ export function ShippingCalculator({
                       {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
 
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-black text-slate-900">
+                        <span className="text-xs font-black text-slate-900 truncate">
                           {carrierName} — {serviceName}
                         </span>
                         {opt.id === shippingOptions[0]?.id && (
@@ -475,28 +505,52 @@ export function ShippingCalculator({
                         )}
                         {isSelected && (
                           <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-amber-200/80 text-amber-950 border border-amber-300">
-                            ✓ Selecionado p/ Cotação
+                            ✓ Selecionado
                           </span>
                         )}
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        Previsão de entrega: <strong className="text-slate-700">{deliveryDays} {deliveryDays === 1 ? 'dia útil' : 'dias úteis'}</strong>
+                        Prazo: <strong className="text-slate-700">{deliveryDays} {deliveryDays === 1 ? 'dia útil' : 'dias úteis'}</strong>
                       </p>
                     </div>
                   </div>
 
                   <div className="text-right shrink-0">
-                    <span className="text-sm font-black text-slate-900 block">
+                    <span className="text-xs sm:text-sm font-black text-slate-900 block">
                       {formatBRL(opt.price)}
                     </span>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      com rastreamento
+                      c/ rastreio
                     </span>
                   </div>
                 </div>
               );
             })}
           </div>
+
+          {shippingOptions.length > (compact ? 1 : 3) && (
+            <button
+              type="button"
+              onClick={() => setShowAllCarriers(prev => !prev)}
+              className="w-full py-1.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200/80 text-slate-700 hover:text-slate-950 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-200/80"
+            >
+              {showAllCarriers ? (
+                <>
+                  <span>Recolher opções de transportadora</span>
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </>
+              ) : (
+                <>
+                  <span>
+                    {compact
+                      ? `Trocar transportadora (+${hiddenCount} ${hiddenCount === 1 ? 'opção' : 'opções'})`
+                      : `Ver todas as ${shippingOptions.length} transportadoras (+${hiddenCount})`}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </>
+              )}
+            </button>
+          )}
 
           {isSimulated && (
             <p className="text-[10px] text-slate-400 text-center pt-1 italic">

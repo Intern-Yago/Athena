@@ -110,8 +110,8 @@ export function CartDrawer() {
             </div>
           </div>
 
-          {/* Cart Items List */}
-          <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-3 divide-y divide-slate-100">
+          {/* Scrollable Body: Cart Items + Shipping Calculator */}
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
             {cartItems.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center py-12 px-4 space-y-4">
                 <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-sm">
@@ -133,117 +133,124 @@ export function CartDrawer() {
                 </button>
               </div>
             ) : (
-              cartItems.map((item) => {
-                const itemTotal = Number(item.price) * (Number(item.quantity) || 1);
-                const itemKey = item.id || item.productId;
-                return (
-                  <div key={itemKey} className="pt-3 first:pt-0 flex items-start gap-3 text-xs">
-                    {/* Thumbnail */}
-                    <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 p-1 shrink-0 overflow-hidden flex items-center justify-center">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block truncate">
-                        {item.brandName || 'Athena'}
-                      </span>
-                      <h5 className="font-bold text-slate-900 leading-snug line-clamp-2">
-                        {item.name}
-                      </h5>
-
-                      {/* Variant Badge / Info */}
-                      {item.variantName && (
-                        <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-                          {item.variantColorHex && (
-                            <span 
-                              className="w-3 h-3 rounded-full border border-slate-300 shadow-2xs shrink-0" 
-                              style={{ backgroundColor: item.variantColorHex }} 
-                              title={item.variantName}
-                            />
-                          )}
-                          <span className="text-[10px] font-extrabold text-slate-800 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
-                            {item.variantName}
-                          </span>
-                          {item.sku && (
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              SKU: {item.sku}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between gap-2 pt-1">
-                        {item.isQuote || !(Number(item.price) > 0) ? (
-                          <span className="font-extrabold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded text-[11px] shadow-2xs">
-                            Sob Consulta
-                          </span>
-                        ) : (
-                          <span className="font-extrabold text-amber-900 text-xs sm:text-sm">
-                            {formatBRL(itemTotal)}
-                          </span>
-                        )}
-                        {!item.isQuote && Number(item.price) > 0 && item.quantity > 1 && (
-                          <span className="text-[10px] text-slate-400">
-                            ({formatBRL(item.price)} cada)
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Quantity Controls */}
-                      <div className="flex items-center justify-between pt-1">
-                        <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(itemKey, item.quantity - 1)}
-                            className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 active:scale-90 text-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                            title="Diminuir quantidade"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="font-extrabold text-xs px-2 text-slate-900 min-w-[22px] text-center">
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(itemKey, item.quantity + 1)}
-                            className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 active:scale-90 text-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
-                            title="Aumentar quantidade"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
+              <>
+                <div className="space-y-3 divide-y divide-slate-100">
+                  {cartItems.map((item) => {
+                    const itemTotal = Number(item.price) * (Number(item.quantity) || 1);
+                    const itemKey = item.id || item.productId;
+                    return (
+                      <div key={itemKey} className="pt-3 first:pt-0 flex items-start gap-3 text-xs">
+                        {/* Thumbnail */}
+                        <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 p-1 shrink-0 overflow-hidden flex items-center justify-center">
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                          />
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => removeFromCart(itemKey)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 active:scale-90 transition-all cursor-pointer"
-                          title="Remover este item"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block truncate">
+                            {item.brandName || 'Athena'}
+                          </span>
+                          <h5 className="font-bold text-slate-900 leading-snug line-clamp-2">
+                            {item.name}
+                          </h5>
+
+                          {/* Variant Badge / Info */}
+                          {item.variantName && (
+                            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                              {item.variantColorHex && (
+                                <span 
+                                  className="w-3 h-3 rounded-full border border-slate-300 shadow-2xs shrink-0" 
+                                  style={{ backgroundColor: item.variantColorHex }} 
+                                  title={item.variantName}
+                                />
+                              )}
+                              <span className="text-[10px] font-extrabold text-slate-800 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                                {item.variantName}
+                              </span>
+                              {item.sku && (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  SKU: {item.sku}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-2 pt-1">
+                            {item.isQuote || !(Number(item.price) > 0) ? (
+                              <span className="font-extrabold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded text-[11px] shadow-2xs">
+                                Sob Consulta
+                              </span>
+                            ) : (
+                              <span className="font-extrabold text-amber-900 text-xs sm:text-sm">
+                                {formatBRL(itemTotal)}
+                              </span>
+                            )}
+                            {!item.isQuote && Number(item.price) > 0 && item.quantity > 1 && (
+                              <span className="text-[10px] text-slate-400">
+                                ({formatBRL(item.price)} cada)
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Quantity Controls */}
+                          <div className="flex items-center justify-between pt-1">
+                            <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(itemKey, item.quantity - 1)}
+                                className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 active:scale-90 text-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                                title="Diminuir quantidade"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                              <span className="font-extrabold text-xs px-2 text-slate-900 min-w-[22px] text-center">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(itemKey, item.quantity + 1)}
+                                className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 active:scale-90 text-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                                title="Aumentar quantidade"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => removeFromCart(itemKey)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 active:scale-90 transition-all cursor-pointer"
+                              title="Remover este item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })
+                    );
+                  })}
+                </div>
+
+                {/* Cotação de Frete do Carrinho (Melhor Envio) — Dentro da área rolável e em modo compacto */}
+                <div className="pt-3 border-t border-slate-200/80">
+                  <ShippingCalculator 
+                    items={cartItems}
+                    compact={true}
+                    onSelectShipping={(opt) => setCartShipping(opt)}
+                    className="!bg-slate-50/90 !p-3 !rounded-xl !shadow-none !border-slate-200/90"
+                  />
+                </div>
+              </>
             )}
           </div>
 
-          {/* Footer & Checkout Trigger */}
+          {/* Footer Fixo & Compacto: Totais & Botões de Ação */}
           {cartItems.length > 0 && (
-            <div className="p-4 sm:p-5 pb-16 sm:pb-5 border-t border-slate-200 bg-slate-50 space-y-3.5">
-              {/* Cotação de Frete do Carrinho (Melhor Envio) */}
-              <ShippingCalculator 
-                items={cartItems}
-                onSelectShipping={(opt) => setCartShipping(opt)}
-                className="!bg-white !p-3 !rounded-xl !shadow-none !border-slate-200/90"
-              />
-
+            <div className="shrink-0 p-4 sm:p-5 pb-16 sm:pb-4 border-t border-slate-200 bg-slate-50 space-y-3">
               {/* Totals Breakdown */}
               <div className="space-y-1.5 text-xs">
                 {quoteItemCount > 0 && (
