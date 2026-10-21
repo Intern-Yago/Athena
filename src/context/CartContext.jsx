@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { safeStorageGet, safeStorageSet } from '../utils/storage';
 import { isProductQuoteOnly, getVariantAvailability } from '../utils/productVariants';
+import { trackMetaEvent } from '../utils/metaPixel';
 
 const CartContext = createContext();
 
@@ -110,6 +111,26 @@ export function CartProvider({ children, showNotification, brands = [], categori
       }
     }
 
+    const itemSku = selectedVariant?.sku || product.sku || product.id;
+    const brandName = brandObj?.name || 'Athena';
+    const catName = catObj?.name || 'Equipamentos Automotivos';
+    const qtyNum = Math.max(1, Number(quantity) || 1);
+    const modalidade = isQuoteItem ? 'Lista de Orçamento (Sob Consulta)' : 'Carrinho de Compra Online';
+
+    trackMetaEvent('AddToCart', {
+      descricao: `Adicionou ao ${isQuoteItem ? 'orçamento' : 'carrinho'} (${qtyNum} un): ${product.name}${selectedVariant?.name ? ` - ${selectedVariant.name}` : ''} [${itemSku}] | Marca: ${brandName} | Cat: ${catName}`,
+      content_ids: [String(itemSku)],
+      content_name: product.name,
+      content_type: 'product',
+      content_category: catName,
+      brand_name: brandName,
+      variant_name: selectedVariant?.name || '',
+      modalidade_venda: modalidade,
+      quantity: qtyNum,
+      value: Number(effectivePrice > 0 ? effectivePrice * qtyNum : 1.00),
+      currency: 'BRL'
+    });
+
     setIsCartOpen(true);
     return true;
   };
@@ -182,6 +203,25 @@ export function CartProvider({ children, showNotification, brands = [], categori
     const totalQty = itemsToAdd.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0);
     if (showNotification) {
       showNotification(`${totalQty} item(ns) adicionado(s) à sua lista de orçamento!`, 'success');
+    }
+
+    const firstEntry = itemsToAdd[0];
+    if (firstEntry?.product) {
+      const p = firstEntry.product;
+      const skus = itemsToAdd.map(i => String(i.variant?.sku || i.product?.sku || i.product?.id));
+      const brandName = brandMap.get(p.brandId) || 'Athena';
+      const catName = catMap.get(p.categoryId) || 'Equipamentos Automotivos';
+      trackMetaEvent('AddToCart', {
+        descricao: `Adicionou lote de variações (${totalQty} un): ${p.name} [${skus.join(', ')}] | Marca: ${brandName}`,
+        content_ids: skus,
+        content_name: p.name,
+        content_type: 'product',
+        content_category: catName,
+        brand_name: brandName,
+        quantity: totalQty,
+        value: 1.00,
+        currency: 'BRL'
+      });
     }
 
     setIsCartOpen(true);

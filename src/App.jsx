@@ -228,8 +228,21 @@ export default function App() {
         showNotification('Você pode comparar até 3 modelos simultaneamente.', 'info');
         return;
       }
+      const nextCount = comparisonList.length + 1;
       setComparisonList((prev) => [...prev, product]);
       showNotification(`"${product.name.slice(0, 28)}..." adicionado ao comparador!`, 'success');
+
+      const brandObj = brands.find(b => b.id === product.brandId);
+      const catObj = categories.find(c => c.id === product.categoryId);
+      const prodCode = product.sku || product.id;
+      trackMetaCustom('CompareProduct', {
+        descricao: `Adicionou ao comparador técnico (${nextCount}/3): ${product.name} [${prodCode}]`,
+        product_id: prodCode,
+        product_name: product.name,
+        brand_name: brandObj?.name || '',
+        content_category: catObj?.name || '',
+        comparison_count: nextCount
+      });
     }
   };
 
@@ -390,29 +403,90 @@ export default function App() {
 
   // Track Meta Pixel & Google Tag Manager PageView + Category/Brand Exploration on SPA route change
   useEffect(() => {
-    trackMetaEvent('PageView');
+    const cleanRoute = (currentRoute || 'catalog').replace(/^\//, '');
+    const diretorio = `/${cleanRoute === 'catalog' ? 'catalogo' : cleanRoute}`;
+    const paginaAnterior = previousRoute ? `/${previousRoute === 'catalog' ? 'catalogo' : previousRoute}` : 'Acesso Direto / Externo';
+
+    let secao = 'Catálogo Principal';
+    let itemNome = 'Vitrine Geral de Equipamentos';
+    let descricaoPageView = `Navegou para Catálogo Principal (${diretorio})`;
+
+    if (cleanRoute.startsWith('produto/') || cleanRoute.startsWith('product:')) {
+      const slugOrId = (cleanRoute.includes('/') ? cleanRoute.split('/')[1] : cleanRoute.split(':')[1] || '').split('?')[0];
+      const prodObj = products.find(p => p.slug === slugOrId || String(p.id) === String(slugOrId));
+      const brandObj = prodObj ? brands.find(b => b.id === prodObj.brandId) : null;
+      const catObj = prodObj ? categories.find(c => c.id === prodObj.categoryId) : null;
+      secao = 'Página de Produto';
+      itemNome = prodObj?.name || slugOrId;
+      descricaoPageView = `Acessou Página de Produto: ${itemNome}${prodObj?.sku ? ` [${prodObj.sku}]` : ''}${brandObj?.name ? ` | Marca: ${brandObj.name}` : ''}${catObj?.name ? ` | Cat: ${catObj.name}` : ''} (${diretorio})`;
+    } else if (cleanRoute.startsWith('categoria/') || cleanRoute.startsWith('category:')) {
+      const catSlug = cleanRoute.includes('/') ? cleanRoute.split('/')[1] : cleanRoute.split(':')[1];
+      const catObj = categories.find(c => c.slug === catSlug || c.id === catSlug);
+      const count = catObj ? products.filter(p => p.categoryId === catObj.id && isProductPublished(p)).length : null;
+      secao = 'Página de Categoria';
+      itemNome = catObj?.name || catSlug;
+      descricaoPageView = `Acessou Categoria: ${itemNome}${count != null ? ` (${count} equipamentos)` : ''} (${diretorio})`;
+
+      trackMetaCustom('ViewCategory', {
+        descricao: `Explorou a categoria: ${itemNome}${count != null ? ` (${count} equipamentos disponíveis)` : ''} (${diretorio})`,
+        category_id: catObj?.id || catSlug,
+        category_name: itemNome,
+        category_slug: catObj?.slug || catSlug,
+        products_count: count,
+        diretorio,
+        pagina_anterior: paginaAnterior
+      });
+    } else if (cleanRoute.startsWith('marca/') || cleanRoute.startsWith('brand:')) {
+      const brandSlug = cleanRoute.includes('/') ? cleanRoute.split('/')[1] : cleanRoute.split(':')[1];
+      const brandObj = brands.find(b => b.slug === brandSlug || b.id === brandSlug);
+      const count = brandObj ? products.filter(p => p.brandId === brandObj.id && isProductPublished(p)).length : null;
+      secao = 'Página de Marca';
+      itemNome = brandObj?.name || brandSlug;
+      descricaoPageView = `Acessou Marca: ${itemNome}${count != null ? ` (${count} equipamentos)` : ''} (${diretorio})`;
+
+      trackMetaCustom('ViewBrand', {
+        descricao: `Explorou a marca: ${itemNome}${count != null ? ` (${count} equipamentos disponíveis)` : ''} (${diretorio})`,
+        brand_id: brandObj?.id || brandSlug,
+        brand_name: itemNome,
+        brand_slug: brandObj?.slug || brandSlug,
+        products_count: count,
+        diretorio,
+        pagina_anterior: paginaAnterior
+      });
+    } else if (cleanRoute === 'categorias' || cleanRoute === 'categories') {
+      secao = 'Índice de Categorias';
+      itemNome = 'Todas as Categorias';
+      descricaoPageView = `Acessou Índice de Todas as Categorias (${diretorio})`;
+    } else if (cleanRoute === 'marcas' || cleanRoute === 'brands') {
+      secao = 'Índice de Marcas';
+      itemNome = 'Todas as Marcas Parceiras';
+      descricaoPageView = `Acessou Índice de Todas as Marcas (${diretorio})`;
+    } else if (cleanRoute === 'sobre' || cleanRoute === 'about' || cleanRoute === 'quem-somos') {
+      secao = 'Institucional / Sobre a Athena';
+      itemNome = 'Sobre a Athena Soluções Automotivas';
+      descricaoPageView = `Acessou Página Institucional Sobre a Athena (${diretorio})`;
+    } else if (cleanRoute === 'minha-conta' || cleanRoute === 'account' || cleanRoute === 'pedidos') {
+      secao = 'Área do Cliente';
+      itemNome = 'Minha Conta / Pedidos';
+      descricaoPageView = `Acessou Área do Cliente (${diretorio})`;
+    }
+
+    const pageViewPayload = {
+      descricao: descricaoPageView,
+      diretorio,
+      secao,
+      content_name: itemNome,
+      pagina_anterior: paginaAnterior,
+      url_completa: window.location.href,
+      titulo_pagina: document.title
+    };
+
+    trackMetaEvent('PageView', pageViewPayload);
     pushGtmEvent('virtual_page_view', {
-      page_path: window.location.pathname + window.location.search,
+      ...pageViewPayload,
+      page_path: diretorio,
       page_title: document.title
     });
-
-    if (currentRoute.startsWith('categoria/') || currentRoute.startsWith('category:')) {
-      const catSlug = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
-      const catObj = categories.find(c => c.slug === catSlug || c.id === catSlug);
-      trackMetaCustom('ViewCategory', {
-        category_id: catObj?.id || catSlug,
-        category_name: catObj?.name || catSlug,
-        category_slug: catObj?.slug || catSlug
-      });
-    } else if (currentRoute.startsWith('marca/') || currentRoute.startsWith('brand:')) {
-      const brandSlug = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
-      const brandObj = brands.find(b => b.slug === brandSlug || b.id === brandSlug);
-      trackMetaCustom('ViewBrand', {
-        brand_id: brandObj?.id || brandSlug,
-        brand_name: brandObj?.name || brandSlug,
-        brand_slug: brandObj?.slug || brandSlug
-      });
-    }
   }, [currentRoute]);
 
   // Track Catalog Search Terms (debounced 900ms) on Meta Pixel & GA4
@@ -420,8 +494,21 @@ export default function App() {
     const cleanSearch = (searchTerm || '').trim();
     if (cleanSearch.length < 3) return;
     const timer = setTimeout(() => {
+      const qLower = cleanSearch.toLowerCase();
+      const matched = (products || []).filter(p => {
+        if (!isProductPublished(p)) return false;
+        const nameMatch = (p.name || '').toLowerCase().includes(qLower);
+        const skuMatch = (p.sku || '').toLowerCase().includes(qLower);
+        const descMatch = (p.description || '').toLowerCase().includes(qLower);
+        return nameMatch || skuMatch || descMatch;
+      });
+      const sampleNames = matched.slice(0, 3).map(p => `${p.name}${p.sku ? ` [${p.sku}]` : ''}`).join(' | ');
+
       trackMetaEvent('Search', {
-        search_string: cleanSearch
+        descricao: `Pesquisou por "${cleanSearch}" no catálogo (${matched.length} equipamentos encontrados)`,
+        search_string: cleanSearch,
+        results_count: matched.length,
+        sample_results: sampleNames || 'Nenhum resultado direto'
       });
     }, 900);
     return () => clearTimeout(timer);

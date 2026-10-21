@@ -32,6 +32,7 @@
     </script>
     <!-- End Google Tag Manager -->
     <meta charset="UTF-8" />
+    <meta name="referrer" content="no-referrer-when-downgrade" />
     <link rel="icon" type="image/jpeg" href="/logo.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Athena Soluções Automotivas | Catálogo de Equipamentos de Alta Performance</title>
@@ -190,9 +191,10 @@
         t.src=v;s=b.getElementsByTagName(e)[0];
         s.parentNode.insertBefore(t,s)}(window, document,'script',
         'https://connect.facebook.net/en_US/fbevents.js');
+        /* Desativa PageView automático sem parâmetros de pushState para que o React envie PageView completo com diretório e descrição */
+        fbq.disablePushState = true;
         fbq('init', '2181846082544846');
         fbq('init', '2198770257418355');
-        fbq('track', 'PageView');
       }
     </script>
     <!-- End Meta Pixel Code -->

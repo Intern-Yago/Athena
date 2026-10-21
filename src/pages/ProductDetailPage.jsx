@@ -463,13 +463,25 @@ export default function ProductDetailPage({
   useEffect(() => {
     if (!product) return;
     const prodSku = (product.sku && product.sku.trim()) || product.id;
+    const brandName = brand?.name || 'Athena';
+    const catName = category?.name || 'Equipamentos Automotivos';
+    const modalidadeVenda = canBuyOnline
+      ? `Venda Direta Online (${formattedPrice})`
+      : 'Orçamento Sob Consulta';
+    const paginaAnterior = previousRoute ? `/${previousRoute === 'catalog' ? 'catalogo' : previousRoute}` : 'Acesso Direto';
+
     trackMetaEvent('ViewContent', {
-      content_ids: [prodSku],
+      descricao: `Abriu ficha do equipamento: ${product.name} [${prodSku}] | Marca: ${brandName} | Cat: ${catName} | ${modalidadeVenda}`,
+      content_ids: [String(prodSku)],
       content_name: product.name,
       content_type: 'product',
+      content_category: catName,
+      brand_name: brandName,
+      sku: String(prodSku),
+      modalidade_venda: modalidadeVenda,
+      pagina_anterior: paginaAnterior,
       value: Number(product.price || product.preco_venda || 1.00),
-      currency: 'BRL',
-      content_category: category?.name || 'Equipamentos Automotivos'
+      currency: 'BRL'
     });
   }, [product?.id]);
 
@@ -480,12 +492,17 @@ export default function ProductDetailPage({
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('action') === 'wpp') {
         const prodSku = (product.sku && product.sku.trim()) || product.id;
+        const brandName = brand?.name || 'Athena';
+        const catName = category?.name || 'Equipamentos Automotivos';
         trackMetaEvent('Lead', {
-          content_ids: [prodSku],
+          descricao: `Redirecionamento direto p/ WhatsApp via Catálogo Meta: ${product.name} [${prodSku}] | Marca: ${brandName}`,
+          content_ids: [String(prodSku)],
           content_name: product.name,
+          brand_name: brandName,
           value: Number(product.price || product.preco_venda || 1.00),
           currency: 'BRL',
-          content_category: 'WhatsApp Marketplace Lead'
+          lead_source: 'whatsapp_marketplace_direct',
+          content_category: catName
         });
 
         const targetUrl = `https://wa.me/5561983485671?text=${whatsappMessage}`;
@@ -501,44 +518,50 @@ export default function ProductDetailPage({
 
   const handleAddToCart = () => {
     if (!product) return;
-    const prodSku = (product.sku && product.sku.trim()) || product.id;
-    trackMetaEvent('AddToCart', {
-      content_ids: [prodSku],
-      content_name: product.name,
-      content_type: 'product',
-      value: Number(product.price || product.preco_venda || 1.00),
-      currency: 'BRL'
-    });
     addToCart(product, selectedQuantity, selectedVariant);
   };
 
   const handleWhatsAppClick = (e) => {
     if (!product) return;
-    const prodSku = (product.sku && product.sku.trim()) || product.id;
-    const shipCep = selectedShippingOption?.cep || '';
-    const shipLoc = selectedShippingOption?.addressInfo || '';
-    const shipCarrier = selectedShippingOption?.company?.name
-      ? `${selectedShippingOption.company.name} (${selectedShippingOption.name || ''})`
+    const prodSku = (selectedVariant?.sku || (product.sku && product.sku.trim()) || product.id);
+    const brandName = brand?.name || 'Athena';
+    const catName = category?.name || 'Equipamentos Automotivos';
+    const qtyNum = Number(selectedQuantity) || 1;
+    const shipCep = selectedShipping?.cep || '';
+    const shipLoc = selectedShipping?.addressInfo || '';
+    const shipCarrier = selectedShipping?.company?.name
+      ? `${selectedShipping.company.name} (${selectedShipping.name || ''})`
       : '';
-    const shipPrice = selectedShippingOption?.price != null ? Number(selectedShippingOption.price) : null;
+    const shipPrice = selectedShipping?.price != null ? Number(selectedShipping.price) : null;
+
+    const cepSummary = shipCep ? ` | CEP: ${shipCep}${shipLoc ? ` (${shipLoc})` : ''}` : '';
+    const carrierSummary = shipCarrier ? ` | Frete: ${shipCarrier}${shipPrice != null ? ` R$ ${shipPrice.toFixed(2)}` : ''}` : '';
+    const descText = `Clicou no WhatsApp (Ficha do Produto): ${productTitleWithVariant} [${prodSku}] (${qtyNum} un) | Marca: ${brandName}${cepSummary}${carrierSummary}`;
 
     trackMetaEvent('Lead', {
-      content_ids: [prodSku],
-      content_name: product.name,
-      value: Number(product.price || product.preco_venda || 1.00),
+      descricao: descText,
+      content_ids: [String(prodSku)],
+      content_name: productTitleWithVariant,
+      brand_name: brandName,
+      content_category: catName,
+      lead_source: 'product_page_whatsapp',
+      origem_clique: 'Ficha Técnica do Produto',
+      value: Number(activePrice || product.price || product.preco_venda || 1.00),
       currency: 'BRL',
-      num_items: Number(selectedQuantity) || 1,
-      content_category: 'WhatsApp Direct Click',
+      num_items: qtyNum,
       shipping_cep: shipCep,
       shipping_location: shipLoc,
       shipping_carrier: shipCarrier,
       shipping_price: shipPrice
     });
     trackMetaEvent('Contact', {
-      content_ids: [prodSku],
-      content_name: product.name,
-      content_category: category?.name || 'Equipamentos Automotivos',
-      value: Number(product.price || product.preco_venda || 1.00),
+      descricao: descText,
+      content_ids: [String(prodSku)],
+      content_name: productTitleWithVariant,
+      brand_name: brandName,
+      content_category: catName,
+      origem_clique: 'Ficha Técnica do Produto',
+      value: Number(activePrice || product.price || product.preco_venda || 1.00),
       currency: 'BRL',
       shipping_cep: shipCep,
       shipping_location: shipLoc,

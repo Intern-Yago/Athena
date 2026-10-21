@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Truck, MapPin, Search, Loader2, CheckCircle2, AlertCircle, Info, ExternalLink, ShieldCheck } from 'lucide-react';
 import { getFallbackShippingOptions } from '../utils/fallbackShipping';
-import { trackMetaCustom } from '../utils/metaPixel';
+import { trackMetaCustom, trackMetaEvent } from '../utils/metaPixel';
 
 const API_BASE_URL = (typeof window !== 'undefined' && window.location.origin)
   ? `${window.location.origin}/api`
@@ -155,13 +155,18 @@ export function ShippingCalculator({
       ];
     }
 
+    let resolvedAddress = addressInfo || '';
+    let finalOptions = [];
+
     try {
       // 1. Busca dados do endereço via ViaCEP em paralelo para feedback instantâneo de localização
-      fetch(`https://viacep.com.br/ws/${targetRawCep}/json/`)
+      const viaCepPromise = fetch(`https://viacep.com.br/ws/${targetRawCep}/json/`)
         .then(res => res.json())
         .then(data => {
-          if (!data.erro) {
-            setAddressInfo(`${data.bairro ? data.bairro + ', ' : ''}${data.localidade} - ${data.uf}`);
+          if (data && !data.erro) {
+            const loc = `${data.bairro ? data.bairro + ', ' : ''}${data.localidade} - ${data.uf}`;
+            resolvedAddress = loc;
+            setAddressInfo(loc);
           }
         })
         .catch(() => {});
@@ -194,6 +199,8 @@ export function ShippingCalculator({
         console.warn('Backend de frete indisponível no momento, acionando estimador resiliente:', networkErr);
       }
 
+      await viaCepPromise;
+
       const pickPreferredOption = (optionsList) => {
         if (!Array.isArray(optionsList) || optionsList.length === 0) return null;
         let savedPrefId = selectedOptionId;
@@ -209,6 +216,7 @@ export function ShippingCalculator({
 
       // 3. Se o backend respondeu com sucesso, usa as cotações calculadas
       if (calculatedOptions && calculatedOptions.length > 0) {
+        finalOptions = calculatedOptions;
         const chosen = pickPreferredOption(calculatedOptions);
         setShippingOptions(calculatedOptions);
         setIsSimulated(isSimulatedResult);
@@ -217,6 +225,7 @@ export function ShippingCalculator({
         // Fallback resiliente: calcula estimativa offline instantânea com base no CEP e cubagem/peso
         const fallbackOptions = getFallbackShippingOptions(targetRawCep, payloadProducts);
         if (fallbackOptions && fallbackOptions.length > 0) {
+          finalOptions = fallbackOptions;
           const chosen = pickPreferredOption(fallbackOptions);
           setShippingOptions(fallbackOptions);
           setIsSimulated(true);
@@ -231,6 +240,7 @@ export function ShippingCalculator({
       // Fallback em caso de erro inesperado
       try {
         const fallbackOptions = getFallbackShippingOptions(targetRawCep, payloadProducts);
+        finalOptions = fallbackOptions || [];
         setShippingOptions(fallbackOptions);
         setIsSimulated(true);
         if (fallbackOptions.length > 0) {
@@ -242,6 +252,8 @@ export function ShippingCalculator({
     } finally {
       setLoading(false);
     }
+
+    return { finalOptions, resolvedAddress };
   };
 
   const handleCalculate = async (e) => {
@@ -253,16 +265,49 @@ export function ShippingCalculator({
       return;
     }
 
-    await executeCalculation(rawCep);
+    const result = await executeCalculation(rawCep);
+    const finalOptions = result?.finalOptions || [];
+    const resolvedLocation = result?.resolvedAddress || addressInfo || 'Brasil';
+    const bestOpt = finalOptions[0] || null;
+    const bestCarrierName = bestOpt
+      ? `${bestOpt.company?.name || 'Transportadora'}${bestOpt.name ? ` (${bestOpt.name})` : ''}`
+      : '';
+    const bestPrice = bestOpt?.price != null ? Number(bestOpt.price) : null;
+    const bestDays = bestOpt?.delivery_time != null ? Number(bestOpt.delivery_time) : null;
 
-    // Telemetria Comercial: Registra cálculo de frete (CEP consultado e equipamento) no Meta Pixel & GA4
+    // Telemetria Comercial: Registra cálculo de frete (CEP consultado, cidade/UF, transportadora e equipamento) no Meta Pixel & GA4
     const formattedCep = `${rawCep.slice(0, 5)}-${rawCep.slice(5)}`;
-    trackMetaCustom('CalculateShipping', {
+    const prodId = String(product?.sku || product?.id || 'cart');
+    const prodName = product?.name
+      ? `${product.name} [${prodId}]`
+      : (Array.isArray(items) && items.length > 0
+          ? `Carrinho (${items.length} itens: ${items.map(i => i.name).slice(0, 2).join(', ')})`
+          : 'Carrinho de Orçamento');
+
+    const descFrete = `Calculou frete p/ CEP ${formattedCep} (${resolvedLocation}) no item: ${prodName}${bestCarrierName ? ` | Menor opção: ${bestCarrierName} R$ ${bestPrice?.toFixed(2) || '0.00'} (${bestDays || '?'} dias úteis)` : ''}`;
+
+    const shippingPayload = {
+      descricao: descFrete,
       shipping_cep: formattedCep,
-      product_id: product?.sku || product?.id || 'cart',
-      product_name: product?.name || 'Carrinho de Orçamento',
+      postal_code: formattedCep,
+      shipping_location: resolvedLocation,
+      destino_cidade_uf: resolvedLocation,
+      shipping_carrier: bestCarrierName,
+      shipping_price: bestPrice,
+      delivery_days: bestDays,
+      options_count: finalOptions.length,
+      product_id: prodId,
+      product_name: prodName,
+      content_ids: [prodId],
+      content_name: prodName,
+      content_type: 'product',
       quantity: Number(quantity) || 1
-    });
+    };
+
+    trackMetaCustom('CalculateShipping', shippingPayload);
+
+    // Também dispara o evento padrão 'FindLocation' ("Encontrar localização" no Gerenciador de Eventos da Meta)
+    trackMetaEvent('FindLocation', shippingPayload);
   };
 
   // Se já houver um CEP salvo na sessão (ex: calculou na página do produto e abriu o carrinho), calcula automaticamente ao montar

@@ -318,21 +318,31 @@ export function CartDrawer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => {
-                      const itemSkus = cartItems.map(it => (it.sku && String(it.sku).trim()) || it.id);
+                      const itemSkus = cartItems.map(it => String((it.sku && String(it.sku).trim()) || it.id));
+                      const itemsSummary = cartItems.map(it => `${it.quantity || 1}x ${it.name}${it.variantName ? ` (${it.variantName})` : ''}`).join(' | ');
                       const shipCep = cartShipping?.cep || '';
+                      const shipLoc = cartShipping?.addressInfo || '';
                       const shipCarrier = cartShipping?.company?.name
                         ? `${cartShipping.company.name} (${cartShipping.name || ''})`
                         : '';
+                      const shipPrice = cartShipping?.price ?? null;
+                      const cepSummary = shipCep ? ` | CEP: ${shipCep}${shipLoc ? ` (${shipLoc})` : ''}` : '';
+                      const carrierSummary = shipCarrier ? ` | Frete: ${shipCarrier}${shipPrice != null ? ` R$ ${Number(shipPrice).toFixed(2)}` : ''}` : '';
+                      const descCart = `Solicitou Orçamento do Carrinho no WhatsApp (${totalItemCount} un): ${itemsSummary}${cepSummary}${carrierSummary}`;
 
                       trackMetaEvent('InitiateCheckout', {
+                        descricao: descCart,
                         content_ids: itemSkus,
+                        content_name: `Carrinho (${totalItemCount} un): ${itemsSummary.slice(0, 120)}`,
+                        itens_orcamento: itemsSummary,
                         num_items: totalItemCount,
                         value: Number(subtotal || 1.00),
                         currency: 'BRL',
                         shipping_cep: shipCep,
+                        shipping_location: shipLoc,
                         shipping_carrier: shipCarrier,
                         contents: cartItems.map(it => ({
-                          id: (it.sku && String(it.sku).trim()) || it.id,
+                          id: String((it.sku && String(it.sku).trim()) || it.id),
                           name: it.name,
                           quantity: Number(it.quantity) || 1,
                           item_price: Number(it.price || 1.00)
@@ -340,15 +350,31 @@ export function CartDrawer() {
                       });
 
                       trackMetaEvent('Lead', {
+                        descricao: descCart,
                         content_ids: itemSkus,
-                        content_name: `Orçamento Carrinho (${totalItemCount} itens)`,
+                        content_name: `Orçamento Carrinho (${totalItemCount} itens): ${itemsSummary.slice(0, 120)}`,
+                        itens_orcamento: itemsSummary,
                         value: Number(subtotal || 1.00),
                         currency: 'BRL',
                         lead_source: 'cart_whatsapp_quote',
+                        origem_clique: 'Gaveta do Carrinho de Orçamento',
                         shipping_cep: shipCep,
-                        shipping_location: cartShipping?.addressInfo || '',
+                        shipping_location: shipLoc,
                         shipping_carrier: shipCarrier,
-                        shipping_price: cartShipping?.price ?? null
+                        shipping_price: shipPrice
+                      });
+
+                      trackMetaEvent('Contact', {
+                        descricao: descCart,
+                        content_ids: itemSkus,
+                        content_name: `Orçamento Carrinho (${totalItemCount} itens): ${itemsSummary.slice(0, 120)}`,
+                        itens_orcamento: itemsSummary,
+                        origem_clique: 'Gaveta do Carrinho de Orçamento',
+                        value: Number(subtotal || 1.00),
+                        currency: 'BRL',
+                        shipping_cep: shipCep,
+                        shipping_location: shipLoc,
+                        shipping_carrier: shipCarrier
                       });
 
                       if (requireVerification && requireVerification(() => {

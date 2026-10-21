@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { isProductPublished } from '../utils/imageUrl';
 import { isVariantVisibleInCatalog } from '../utils/productVariants';
+import { trackMetaEvent } from '../utils/metaPixel';
 import ProductVariantSelectModal from './ProductVariantSelectModal';
 
 export default function ProductCard({ 
@@ -64,6 +65,42 @@ export default function ProductCard({
     : encodeURIComponent(
         `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de um orçamento para o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'}). Poderia me informar valor, prazo de entrega e formas de pagamento?`
       );
+
+  const handleCardWhatsAppClick = (e) => {
+    const prodSku = String((product.sku && product.sku.trim()) || product.id);
+    const brandName = brand?.name || 'Athena';
+    const catName = category?.name || 'Equipamentos Automotivos';
+    const descText = `Clicou em Cotar no WhatsApp (Card do Catálogo): ${product.name} [${prodSku}] | Marca: ${brandName} | Cat: ${catName}`;
+
+    trackMetaEvent('Lead', {
+      descricao: descText,
+      content_ids: [prodSku],
+      content_name: product.name,
+      brand_name: brandName,
+      content_category: catName,
+      lead_source: 'catalog_card_whatsapp',
+      origem_clique: 'Card do Catálogo',
+      value: Number(product.price || product.preco_venda || 1.00),
+      currency: 'BRL'
+    });
+
+    trackMetaEvent('Contact', {
+      descricao: descText,
+      content_ids: [prodSku],
+      content_name: product.name,
+      brand_name: brandName,
+      content_category: catName,
+      origem_clique: 'Card do Catálogo',
+      value: Number(product.price || product.preco_venda || 1.00),
+      currency: 'BRL'
+    });
+
+    if (requireVerification && requireVerification(() => {
+      window.open(`https://wa.me/5561983485671?text=${whatsappText}`, '_blank');
+    })) {
+      e.preventDefault();
+    }
+  };
 
   const isDraft = !isProductPublished(product);
   if (isDraft && !isAdmin) {
@@ -359,13 +396,7 @@ export default function ProductCard({
                     href={`https://wa.me/5561983485671?text=${whatsappText}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={(e) => {
-                      if (requireVerification && requireVerification(() => {
-                        window.open(`https://wa.me/5561983485671?text=${whatsappText}`, '_blank');
-                      })) {
-                        e.preventDefault();
-                      }
-                    }}
+                    onClick={handleCardWhatsAppClick}
                     className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
@@ -692,13 +723,7 @@ export default function ProductCard({
                 href={`https://wa.me/5561983485671?text=${whatsappText}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={(e) => {
-                  if (requireVerification && requireVerification(() => {
-                    window.open(`https://wa.me/5561983485671?text=${whatsappText}`, '_blank');
-                  })) {
-                    e.preventDefault();
-                  }
-                }}
+                onClick={handleCardWhatsAppClick}
                 className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs transition-colors bg-emerald-600 hover:bg-emerald-700 text-white truncate"
                 title="Cotar este item no WhatsApp"
               >
