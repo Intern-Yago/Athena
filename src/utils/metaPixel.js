@@ -387,6 +387,9 @@ function sendServerCapiEvent(eventName, eventId, params = {}) {
       ? `${window.location.origin}/api`
       : 'https://athena-backend-hu1m.onrender.com/api';
 
+    const urlParams = new URLSearchParams(window.location?.search || '');
+    const ttclid = urlParams.get('ttclid') || getCookieValue('ttclid') || '';
+
     fetch(`${apiBase}/analytics/capi`, {
       method: 'POST',
       keepalive: true,
@@ -398,7 +401,9 @@ function sendServerCapiEvent(eventName, eventId, params = {}) {
         customData: params,
         userData: customerData,
         fbp: getCookieValue('_fbp'),
-        fbc: getCookieValue('_fbc')
+        fbc: getCookieValue('_fbc'),
+        ttp: getCookieValue('_ttp'),
+        ttclid
       })
     }).catch(() => {});
   } catch (_) {}
