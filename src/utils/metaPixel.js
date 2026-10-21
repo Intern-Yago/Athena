@@ -22,6 +22,7 @@
 
 export const META_PIXEL_ID = '2181846082544846';
 export const META_PIXEL_IDS = ['2181846082544846', '2198770257418355'];
+export const GA4_MEASUREMENT_ID = 'G-8LBCQ5SBNR';
 
 const STAFF_ROLES = new Set([
   'admin',
@@ -190,9 +191,14 @@ export function pushGtmEvent(gaEventName, params = {}) {
       ...params
     });
 
-    if (typeof window.gtag === 'function') {
-      window.gtag('event', gaEventName, params);
-    }
+    const gtagFn = typeof window.gtag === 'function'
+      ? window.gtag
+      : function () { window.dataLayer.push(arguments); };
+
+    gtagFn('event', gaEventName, {
+      send_to: GA4_MEASUREMENT_ID,
+      ...params
+    });
   } catch (err) {
     console.warn('[GA4/GTM Warning]:', err.message);
   }
