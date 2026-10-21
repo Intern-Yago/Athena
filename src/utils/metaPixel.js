@@ -404,8 +404,42 @@ function sendServerCapiEvent(eventName, eventId, params = {}) {
 }
 
 /**
+ * Dispara o evento correspondente no TikTok Pixel (`window.ttq`), caso esteja ativo.
+ */
+function dispatchTikTokEvent(eventName, enriched = {}, eventId = '') {
+  if (typeof window === 'undefined' || !window.ttq) return;
+
+  try {
+    if (eventName === 'PageView') {
+      if (typeof window.ttq.page === 'function') {
+        window.ttq.page();
+      }
+      return;
+    }
+
+    if (typeof window.ttq.track !== 'function') return;
+
+    const contentIds = Array.isArray(enriched.content_ids) ? enriched.content_ids : [];
+    const primaryId = String(contentIds[0] || enriched.product_id || enriched.sku || '');
+    const ttqEventName = eventName === 'Lead' ? 'SubmitForm' : eventName;
+
+    const ttqPayload = {
+      ...enriched,
+      ...(primaryId ? { content_id: primaryId } : {}),
+      content_type: enriched.content_type || 'product',
+      currency: enriched.currency || 'BRL',
+      value: Number(enriched.value || 1.00)
+    };
+
+    window.ttq.track(ttqEventName, ttqPayload, eventId ? { event_id: eventId } : undefined);
+  } catch (err) {
+    console.warn('[TikTok Pixel Warning]:', err.message);
+  }
+}
+
+/**
  * Dispara um Evento Padrão (Standard Event) nos 2 Conjuntos de Dados do Meta Pixel
- * (via Browser + CAPI Server-Side com desduplicação) e espelha automaticamente no GA4/GTM.
+ * (via Browser + CAPI Server-Side com desduplicação), no TikTok Pixel e espelha automaticamente no GA4/GTM.
  * Ignora automaticamente caso o usuário logado seja Staff/Admin.
  *
  * @param {string} eventName - Ex: 'PageView', 'ViewContent', 'AddToCart', 'Search', 'InitiateCheckout', 'Lead', 'Contact', 'FindLocation'
@@ -426,6 +460,9 @@ export function trackMetaEvent(eventName, params = {}) {
     }
   }
 
+  // Dispara no TikTok Pixel (se inicializado)
+  dispatchTikTokEvent(eventName, enriched, eventId);
+
   // Envia via Server-Side CAPI com o mesmo eventID (desduplicado nos 2 Datasets)
   sendServerCapiEvent(eventName, eventId, enriched);
 
@@ -440,7 +477,7 @@ export function trackMetaEvent(eventName, params = {}) {
 
 /**
  * Dispara um Evento Personalizado (Custom Event) nos 2 Conjuntos de Dados do Meta Pixel
- * (`fbq('trackCustom', ...)` + CAPI Server-Side) e espelha no Google Tag Manager / GA4 (`window.dataLayer`).
+ * (`fbq('trackCustom', ...)` + CAPI Server-Side), no TikTok Pixel e espelha no Google Tag Manager / GA4 (`window.dataLayer`).
  * Ignora automaticamente caso o usuário logado seja Staff/Admin.
  *
  * @param {string} eventName - Ex: 'CalculateShipping', 'ViewCategory', 'ViewBrand', 'CompareProduct'
@@ -460,6 +497,9 @@ export function trackMetaCustom(eventName, params = {}) {
       console.warn('[Meta Pixel Custom Warning]:', err.message);
     }
   }
+
+  // Dispara no TikTok Pixel (se inicializado)
+  dispatchTikTokEvent(eventName, enriched, eventId);
 
   // Envia via Server-Side CAPI com o mesmo eventID (desduplicado nos 2 Datasets)
   sendServerCapiEvent(eventName, eventId, enriched);

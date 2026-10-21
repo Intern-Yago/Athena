@@ -609,3 +609,21 @@ Para evitar criar categorias infinitas para cada detalhe técnico, a página de 
 - [ ] **Blindagem Permanente de Sessões Magic Link:**
   - Sessões emitidas via Link Emergencial já estão bloqueadas contra alteração de senha/e-mail; manter essa restrição e formalizar exigência de login com senha completa para modificações cadastrais.
 
+---
+
+## 📈 9. [TELEMETRIA & TRÁFEGO PAGO] Google Ads, TikTok Pixel & Meta CAPI
+
+- [x] **Filtro Automático de Equipe (Staff Block):**
+  - Bloquear automaticamente o disparo de eventos do Meta Pixel, GA4/GTM e TikTok Pixel quando logado como Staff (`admin`, `vendedor`, `editor`, `gerente`, `operador`, `logistica`), mantendo 100% ativo para Clientes (`cliente` / `customer`) e visitantes.
+- [x] **Eventos Ricos com Descrição em Português e Diretório Completo:**
+  - Implementado enriquecimento automático em `src/utils/metaPixel.js` (`descricao`, `diretorio`, `secao`, `pagina_anterior`, `url_completa`) + `<meta name="referrer" content="no-referrer-when-downgrade" />` em `index.html`.
+- [x] **Sincronização Dual Meta Pixel (`2181846082544846` e `2198770257418355`) + Ponte Direta GA4 (`G-8LBCQ5SBNR`):**
+  - Todos os eventos padrão e personalizados disparam simultaneamente nos 2 conjuntos de dados da Meta e direto para o GA4.
+- [ ] **Configurar Tag de Conversão e Remarketing do Google Ads (`AW-XXXXXXXXXX`):**
+  - Quando finalizar a criação da conta/faturamento no Google Ads, copiar o ID de Conversão (`AW-...`) e o Rótulo de Conversão de "Pedir Cotação" e inserir em `src/utils/metaPixel.js` + GTM (`GTM-K63VC8QP`).
+- [ ] **Gerar e Inserir Token da Meta CAPI (`META_CAPI_ACCESS_TOKEN`) no Render:**
+  - Confirmar conta de desenvolvedor em `https://developers.facebook.com/apps/`, gerar o token no Gerenciador de Eventos para os conjuntos de dados `2181846082544846` e `2198770257418355`, e salvar nas variáveis de ambiente do Render.
+- [ ] **Integrar TikTok Pixel (`ttq`):**
+  - Criar o Pixel no TikTok Ads Manager (*Ativos ➔ Eventos ➔ Eventos da Web*), copiar o Pixel ID e ativar em `index.html` + `src/utils/metaPixel.js`.
+
+
