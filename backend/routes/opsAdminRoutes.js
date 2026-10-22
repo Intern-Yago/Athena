@@ -96,11 +96,14 @@ router.get(['/', '/orders', '/ops/orders'], async (req, res) => {
         o.omie_nfe_number,
         o.shipping_address,
         o.customer_snapshot,
+        COALESCE(o.customer_snapshot->>'phone', u.phone) AS customer_phone,
+        COALESCE(o.customer_snapshot->>'document', u.document) AS customer_document,
         o.user_name,
         o.user_email,
         o.created_at,
         o.paid_at
       FROM orders o
+      LEFT JOIN users u ON o.customer_id = u.id::varchar
       ORDER BY o.created_at DESC
     `);
 
@@ -205,7 +208,16 @@ router.get(['/', '/orders', '/ops/orders'], async (req, res) => {
 router.get(['/orders/:id', '/ops/orders/:id', '/:id([0-9a-fA-F-]{10,}|[0-9]+)'], async (req, res) => {
   try {
     const { id } = req.params;
-    const orderRes = await query('SELECT * FROM orders WHERE id = $1 OR order_number = $1 LIMIT 1', [id]);
+    const orderRes = await query(`
+      SELECT 
+        o.*,
+        COALESCE(o.customer_snapshot->>'phone', u.phone) AS customer_phone,
+        COALESCE(o.customer_snapshot->>'document', u.document) AS customer_document
+      FROM orders o
+      LEFT JOIN users u ON o.customer_id = u.id::varchar
+      WHERE o.id = $1 OR o.order_number = $1 
+      LIMIT 1
+    `, [id]);
     if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Pedido não encontrado.' });
     const order = orderRes.rows[0];
 

@@ -31,7 +31,9 @@ import {
   X,
   Copy,
   Check,
-  Zap
+  Zap,
+  Bell,
+  CreditCard
 } from 'lucide-react';
 import { saveSession } from '../utils/storage';
 import { formatCpfCnpj, fetchCnpjData, formatPhone, getPasswordValidation } from '../utils/documentUtils';
@@ -518,6 +520,80 @@ export default function CustomerAccountPage({
     }
   };
 
+  // Pedidos com pagamento pendente
+  const pendingOrders = useMemo(() => {
+    return orders.filter(order => {
+      const pStatus = String(order.payment_status || order.status || '').toLowerCase();
+      const isPaid = ['paid', 'free', 'faturado', 'aprovado'].includes(pStatus);
+      const isCancelled = ['cancelled', 'cancelado'].includes(pStatus);
+      return !isPaid && !isCancelled;
+    });
+  }, [orders]);
+
+  // Régua de cobrança e notificações: D1, D15, D30 e a cada 30 dias subsequentes
+  const getPendingDunningInfo = (createdAt) => {
+    if (!createdAt) return { diffDays: 0, label: 'Hoje', isMilestone: false, milestoneText: 'Aguardando processamento bancário.' };
+    const diffDays = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return {
+        diffDays: 0,
+        label: 'Iniciado hoje',
+        isMilestone: false,
+        milestoneText: 'Pedido realizado hoje. Aguardando compensação da instituição financeira (PIX ou Boleto).'
+      };
+    }
+    if (diffDays === 1) {
+      return {
+        diffDays: 1,
+        label: 'Há 1 dia (Régua D1)',
+        isMilestone: true,
+        milestoneText: '🔔 Lembrete D1: Seu pedido foi iniciado ontem e está com estoque reservado. Conclua hoje para envio imediato!'
+      };
+    }
+    if (diffDays === 15) {
+      return {
+        diffDays: 15,
+        label: 'Há 15 dias (Régua D15)',
+        isMilestone: true,
+        milestoneText: '🔔 Lembrete D15: Cotação/pedido há 15 dias em aberto. Converse com seu consultor para manter as condições da proposta.'
+      };
+    }
+    if (diffDays === 30) {
+      return {
+        diffDays: 30,
+        label: 'Há 30 dias (Régua D30)',
+        isMilestone: true,
+        milestoneText: '🔔 Lembrete D30: Pedido em aberto há 1 mês. Caso precise de 2ª via ou novo prazo de faturamento, avise nossa equipe.'
+      };
+    }
+    if (diffDays > 30 && (diffDays - 30) % 30 === 0) {
+      const cycle = Math.floor(diffDays / 30);
+      return {
+        diffDays,
+        label: `Há ${diffDays} dias (${cycle}º mês)`,
+        isMilestone: true,
+        milestoneText: `🔔 Lembrete Periódico (${cycle}º mês): Pedido em aberto há ${diffDays} dias. Entre em contato para regularizar.`
+      };
+    }
+
+    let nextMilestone = 1;
+    if (diffDays >= 30) {
+      nextMilestone = 30 + (Math.floor((diffDays - 30) / 30) + 1) * 30;
+    } else if (diffDays >= 15) {
+      nextMilestone = 30;
+    } else if (diffDays >= 1) {
+      nextMilestone = 15;
+    }
+
+    return {
+      diffDays,
+      label: `Há ${diffDays} dias`,
+      isMilestone: false,
+      milestoneText: `Aguardando confirmação bancária há ${diffDays} dias. Próximo lembrete no marco D${nextMilestone}.`
+    };
+  };
+
   // Status mapping badge helper
   // Status mapping badge helper (Athena OS v2.1 decoupled status support)
   const getStatusBadge = (orderOrStatus) => {
@@ -643,6 +719,40 @@ export default function CustomerAccountPage({
           </div>
         </div>
 
+        {/* PENDING PAYMENTS ALERT BANNER */}
+        {pendingOrders.length > 0 && (
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-orange-500/10 border-2 border-amber-400/80 rounded-2xl p-4 sm:p-5 shadow-xs animate-in fade-in">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                  <Clock className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-amber-950 flex items-center gap-2 flex-wrap">
+                    <span>Você possui {pendingOrders.length} pedido{pendingOrders.length > 1 ? 's' : ''} aguardando pagamento</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 px-2 py-0.5 rounded-full">
+                      Ação Necessária
+                    </span>
+                  </h3>
+                  <p className="text-xs text-amber-900/80 mt-1">
+                    Mantenha seus pedidos em dia para garantir o envio imediato e o congelamento dos preços de tabela. Notificamos no 1º, 15º, 30º dia e a cada 30 dias após o início da compra.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('orders')}
+                  className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Ver Pedido{pendingOrders.length > 1 ? 's' : ''}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Navigation Tabs */}
         <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
           <button
@@ -658,6 +768,11 @@ export default function CustomerAccountPage({
             {orders.length > 0 && (
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'orders' ? 'bg-amber-800 text-white' : 'bg-slate-200 text-slate-800'}`}>
                 {orders.length}
+              </span>
+            )}
+            {pendingOrders.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-amber-950 animate-pulse">
+                {pendingOrders.length} pendente{pendingOrders.length > 1 ? 's' : ''}
               </span>
             )}
           </button>
@@ -724,55 +839,114 @@ export default function CustomerAccountPage({
               </div>
             ) : orders.length > 0 ? (
               <div className="space-y-4">
-                {orders.map((order) => (
-                  <div 
-                    key={order.id}
-                    className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 space-y-4 hover:border-amber-400 transition-colors"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-slate-900 font-mono">
-                            Pedido #{order.order_number || order.id.slice(0, 8)}
-                          </span>
-                          {order.order_type === 'points_redemption' ? (
-                            <span className="text-[10px] font-black uppercase bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <Coins className="w-3 h-3" />
-                              <span>Resgate A-Points</span>
+                {orders.map((order) => {
+                  const pStatus = String(order.payment_status || order.status || '').toLowerCase();
+                  const isPaid = ['paid', 'free', 'faturado', 'aprovado'].includes(pStatus);
+                  const isCancelled = ['cancelled', 'cancelado'].includes(pStatus);
+                  const isPending = !isPaid && !isCancelled;
+                  const dunning = isPending ? getPendingDunningInfo(order.created_at || order.createdAt) : null;
+
+                  return (
+                    <div 
+                      key={order.id}
+                      className={`bg-white rounded-3xl border shadow-xs p-6 space-y-4 transition-colors ${
+                        isPending ? 'border-amber-300 ring-1 ring-amber-200/50' : 'border-slate-200 hover:border-amber-400'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-slate-900 font-mono">
+                              Pedido #{order.order_number || order.id.slice(0, 8)}
                             </span>
-                          ) : (
-                            <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                              Venda Comercial
+                            {order.order_type === 'points_redemption' ? (
+                              <span className="text-[10px] font-black uppercase bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <Coins className="w-3 h-3" />
+                                <span>Resgate A-Points</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                Venda Comercial
+                              </span>
+                            )}
+                            <span className="text-[11px] text-slate-400">
+                              • {new Date(order.created_at || order.createdAt || Date.now()).toLocaleDateString('pt-BR')}
                             </span>
-                          )}
-                          <span className="text-[11px] text-slate-400">
-                            • {new Date(order.created_at || order.createdAt || Date.now()).toLocaleDateString('pt-BR')}
-                          </span>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            Total:{' '}
+                            <strong className="text-slate-900 font-extrabold font-mono">
+                              {order.order_type === 'points_redemption' 
+                                ? `${order.points_spent || 0} pts` 
+                                : order.total_amount > 0 
+                                  ? `R$ ${Number(order.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` 
+                                  : 'Sob Cotação Direta'}
+                            </strong>
+                          </p>
                         </div>
-                        <p className="text-xs text-slate-500">
-                          Total:{' '}
-                          <strong className="text-slate-900 font-extrabold font-mono">
-                            {order.order_type === 'points_redemption' 
-                              ? `${order.points_spent || 0} pts` 
-                              : order.total_amount > 0 
-                                ? `R$ ${Number(order.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` 
-                                : 'Sob Cotação Direta'}
-                          </strong>
-                        </p>
+                        <div className="flex items-center gap-2.5">
+                          {getStatusBadge(order)}
+                          <a
+                            href={`https://wa.me/5561983485671?text=Ol%C3%A1%2C+sou+o+cliente+${encodeURIComponent(currentUser?.name || '')}+e+gostaria+de+informa%C3%A7%C3%B5es+sobre+o+meu+pedido+%23${order.order_number || order.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Falar no WhatsApp</span>
+                          </a>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2.5">
-                        {getStatusBadge(order)}
-                        <a
-                          href={`https://wa.me/5561983485671?text=Ol%C3%A1%2C+sou+o+cliente+${encodeURIComponent(currentUser?.name || '')}+e+gostaria+de+informa%C3%A7%C3%B5es+sobre+o+meu+pedido+%23${order.order_number || order.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                        >
-                          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Falar no WhatsApp</span>
-                        </a>
-                      </div>
-                    </div>
+
+                      {/* PENDING PAYMENT NOTICE & DUNNING TIMELINE */}
+                      {isPending && dunning && (
+                        <div className={`p-4 rounded-2xl border space-y-2.5 transition-all ${
+                          dunning.isMilestone 
+                            ? 'bg-amber-100/70 border-amber-400 text-amber-950 ring-1 ring-amber-400/50' 
+                            : 'bg-amber-50/70 border-amber-200/80 text-amber-900'
+                        }`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                              <span className="text-xs font-black uppercase tracking-wider text-amber-900">
+                                {dunning.isMilestone ? `🔔 Alerta de Cobrança — ${dunning.label}` : `Aguardando Pagamento (${dunning.label})`}
+                              </span>
+                            </div>
+                            {dunning.isMilestone && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 self-start sm:self-auto">
+                                Lembrete Ativo
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-amber-900/90 leading-relaxed font-medium">
+                            {dunning.milestoneText}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                            <a
+                              href={`https://wa.me/5561983485671?text=${encodeURIComponent(
+                                `Olá! Sou o cliente ${currentUser?.name || ''} e gostaria de concluir o pagamento do meu pedido #${order.order_number || order.id}${order.total_amount > 0 ? ` no valor de R$ ${Number(order.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}. Pode me auxiliar?`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>Concluir Pagamento no WhatsApp</span>
+                            </a>
+                            {Boolean(order.payment_url || order.invoice_url) && (
+                              <a
+                                href={order.payment_url || order.invoice_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Acessar Link Bancário / Boleto / PIX</span>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                     {/* PHYSICAL SHIPMENT & TRACKING CARD */}
                     {order.shipments && order.shipments.length > 0 && order.shipments.some(s => s.tracking_code || s.status === 'shipped') && (
@@ -881,7 +1055,8 @@ export default function CustomerAccountPage({
                       </div>
                     </div>
                   </div>
-                ))}
+                );
+              })}
               </div>
             ) : (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs space-y-4 max-w-lg mx-auto">

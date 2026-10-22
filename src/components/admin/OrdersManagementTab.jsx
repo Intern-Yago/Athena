@@ -22,7 +22,9 @@ import {
   Globe,
   Building2,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Phone,
+  MessageCircle
 } from 'lucide-react';
 import { decodeHtmlEntities, resolveOrderOrigin } from '../../utils/orderUtils';
 import {
@@ -162,6 +164,26 @@ export default function OrdersManagementTab({
       // Status filter
       if (statusFilter === 'paid' && order.payment_status !== 'paid' && order.payment_status !== 'free') return false;
       if (statusFilter === 'pending' && order.payment_status !== 'pending') return false;
+      if (statusFilter === 'pending_d1') {
+        if (order.payment_status !== 'pending') return false;
+        const diffDays = Math.floor((Date.now() - new Date(order.created_at || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays !== 1) return false;
+      }
+      if (statusFilter === 'pending_d15') {
+        if (order.payment_status !== 'pending') return false;
+        const diffDays = Math.floor((Date.now() - new Date(order.created_at || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays !== 15) return false;
+      }
+      if (statusFilter === 'pending_d30') {
+        if (order.payment_status !== 'pending') return false;
+        const diffDays = Math.floor((Date.now() - new Date(order.created_at || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays !== 30) return false;
+      }
+      if (statusFilter === 'pending_d30_plus') {
+        if (order.payment_status !== 'pending') return false;
+        const diffDays = Math.floor((Date.now() - new Date(order.created_at || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 30) return false;
+      }
       if (statusFilter === 'cancelled' && order.payment_status !== 'cancelled') return false;
 
       // Type filter
@@ -174,8 +196,10 @@ export default function OrdersManagementTab({
         const num = `#${order.order_number || order.id || ''}`.toLowerCase();
         const name = String(order.customer_snapshot?.name || order.user_name || '').toLowerCase();
         const email = String(order.customer_snapshot?.email || order.user_email || '').toLowerCase();
-        const doc = String(order.customer_snapshot?.document || '').toLowerCase();
-        return num.includes(term) || name.includes(term) || email.includes(term) || doc.includes(term);
+        const doc = String(order.customer_snapshot?.document || order.customer_document || '').toLowerCase();
+        const phone = String(order.customer_snapshot?.phone || order.customer_phone || '').replace(/\D/g, '');
+        const cleanTerm = term.replace(/\D/g, '');
+        return num.includes(term) || name.includes(term) || email.includes(term) || doc.includes(term) || (cleanTerm && phone.includes(cleanTerm));
       }
 
       return true;
@@ -374,8 +398,21 @@ export default function OrdersManagementTab({
           </span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-amber-200/80 bg-amber-50/20 shadow-xs space-y-1">
-          <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Aguardando Pagamento</span>
+        <div 
+          onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer shadow-xs space-y-1 ${
+            statusFilter === 'pending' 
+              ? 'bg-amber-100/60 border-amber-500 ring-2 ring-amber-400' 
+              : 'bg-white border-amber-200/80 bg-amber-50/20 hover:border-amber-400'
+          }`}
+          title="Clique para filtrar apenas pedidos aguardando pagamento"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Aguardando Pagamento</span>
+            {statusFilter === 'pending' && (
+              <span className="text-[9px] font-black text-amber-900 bg-amber-200/80 px-1.5 py-0.2 rounded-full">Filtro Ativo</span>
+            )}
+          </div>
           <span className="text-lg font-black text-amber-900 font-mono">{metrics.pending_orders}</span>
           <span className="text-[10px] text-amber-600 font-bold block">Boletos / PIX pendentes</span>
         </div>
@@ -469,7 +506,11 @@ export default function OrdersManagementTab({
             >
               <option value="all">Status: Todos</option>
               <option value="paid">Pago / Aprovado</option>
-              <option value="pending">Pendente</option>
+              <option value="pending">Pendente (Todos)</option>
+              <option value="pending_d1">🔔 Régua D1 (1º dia)</option>
+              <option value="pending_d15">🔔 Régua D15 (15 dias)</option>
+              <option value="pending_d30">🔔 Régua D30 (30 dias)</option>
+              <option value="pending_d30_plus">⏳ Pendente (30+ dias)</option>
               <option value="cancelled">Cancelado</option>
             </select>
           </div>
@@ -601,6 +642,30 @@ export default function OrdersManagementTab({
                             <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
                               {order.customer_snapshot?.email || order.user_email || '-'}
                             </p>
+                            {/* Atalhos Rápidos de Contato Telefônico & WhatsApp */}
+                            {Boolean(order.customer_snapshot?.phone || order.customer_phone) && (
+                              <div className="flex items-center gap-1.5 pt-1">
+                                <a
+                                  href={`tel:${String(order.customer_snapshot?.phone || order.customer_phone).replace(/[^\d+]/g, '')}`}
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200 transition-colors"
+                                  title="Ligar para o cliente agora"
+                                >
+                                  <Phone className="w-2.5 h-2.5 text-amber-700" />
+                                  <span>{order.customer_snapshot?.phone || order.customer_phone}</span>
+                                </a>
+                                <a
+                                  href={`https://wa.me/55${String(order.customer_snapshot?.phone || order.customer_phone).replace(/\D/g, '')}?text=${encodeURIComponent(
+                                    `Olá ${order.customer_snapshot?.name || order.user_name || 'Cliente'}, tudo bem? Aqui é da equipe da Athena Soluções Automotivas referente ao seu pedido #${order.order_number || order.id.slice(0, 8)}.`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors"
+                                  title="Chamar cliente no WhatsApp"
+                                >
+                                  <MessageCircle className="w-2.5 h-2.5" />
+                                </a>
+                              </div>
+                            )}
                           </div>
                         </td>
 
@@ -629,10 +694,25 @@ export default function OrdersManagementTab({
                             </span>
                           )}
                           {isPending && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
-                              <Clock className="w-3 h-3" />
-                              <span>Pendente</span>
-                            </span>
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+                                <Clock className="w-3 h-3" />
+                                <span>Pendente</span>
+                              </span>
+                              {order.created_at && (
+                                <div className="text-[10px] font-bold text-slate-500">
+                                  {(() => {
+                                    const diffDays = Math.floor((Date.now() - new Date(order.created_at).getTime()) / (1000 * 60 * 60 * 24));
+                                    if (diffDays === 0) return <span className="text-amber-700">Iniciado hoje</span>;
+                                    if (diffDays === 1) return <span className="text-amber-800 font-black">Há 1 dia (Régua D1)</span>;
+                                    if (diffDays === 15) return <span className="text-orange-700 font-black">Há 15 dias (Régua D15)</span>;
+                                    if (diffDays === 30) return <span className="text-rose-700 font-black">Há 30 dias (Régua D30)</span>;
+                                    if (diffDays > 30) return <span className="text-slate-500">Há {diffDays} dias ({Math.floor(diffDays / 30)}º ciclo)</span>;
+                                    return <span className="text-slate-500">Há {diffDays} dias</span>;
+                                  })()}
+                                </div>
+                              )}
+                            </div>
                           )}
                           {isCancelled && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
@@ -793,12 +873,36 @@ export default function OrdersManagementTab({
                     <strong>E-mail:</strong> {selectedOrder.customer_snapshot?.email || selectedOrder.user_email || '-'}
                   </p>
                   <p className="text-slate-500">
-                    <strong>Documento:</strong> {selectedOrder.customer_snapshot?.document || '-'}
+                    <strong>Documento:</strong> {selectedOrder.customer_snapshot?.document || selectedOrder.customer_document || '-'}
                   </p>
-                  {selectedOrder.customer_snapshot?.phone && (
-                    <p className="text-slate-500">
-                      <strong>Telefone:</strong> {selectedOrder.customer_snapshot.phone}
-                    </p>
+                  {Boolean(selectedOrder.customer_snapshot?.phone || selectedOrder.customer_phone) && (
+                    <div className="pt-2 flex flex-col gap-1.5 border-t border-slate-200 mt-2">
+                      <p className="text-slate-700 font-medium">
+                        <strong>Telefone:</strong> {selectedOrder.customer_snapshot?.phone || selectedOrder.customer_phone}
+                      </p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <a
+                          href={`tel:${String(selectedOrder.customer_snapshot?.phone || selectedOrder.customer_phone).replace(/[^\d+]/g, '')}`}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-2.5 py-1.5 rounded-lg border border-amber-300 transition-colors"
+                          title="Ligar para o cliente"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Ligar para Cliente</span>
+                        </a>
+                        <a
+                          href={`https://wa.me/55${String(selectedOrder.customer_snapshot?.phone || selectedOrder.customer_phone).replace(/\D/g, '')}?text=${encodeURIComponent(
+                            `Olá ${selectedOrder.customer_snapshot?.name || selectedOrder.user_name || 'Cliente'}, tudo bem? Aqui é da equipe da Athena Soluções Automotivas referente ao seu pedido #${selectedOrder.order_number || selectedOrder.id.slice(0, 8)}.`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1.5 rounded-lg border border-emerald-300 transition-colors"
+                          title="Chamar cliente no WhatsApp"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>WhatsApp</span>
+                        </a>
+                      </div>
+                    </div>
                   )}
                 </div>
 
