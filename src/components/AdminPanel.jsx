@@ -966,6 +966,7 @@ export default function AdminPanel({
   useEffect(() => {
     if (isAdminRole && (activeAdminTab === 'settings' || activeAdminTab === 'omie')) {
       fetchNotificationSettings();
+      fetchTelegramStatus();
     }
     if (isAdminRole && activeAdminTab === 'omie') {
       fetchOmieSyncStatus();
@@ -4141,6 +4142,45 @@ export default function AdminPanel({
       console.warn('Erro ao carregar configurações de notificação:', e);
     } finally {
       setLoadingNotifications(false);
+    }
+  };
+
+  // Telegram Alert Bot State & Handlers
+  const [telegramStatus, setTelegramStatus] = useState({ configured: false, loading: false });
+  const [testingTelegram, setTestingTelegram] = useState(false);
+
+  const fetchTelegramStatus = async () => {
+    if (!isAdminRole) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/telegram/status`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTelegramStatus(data);
+      }
+    } catch (e) {
+      console.warn('Erro ao verificar status do Telegram:', e);
+    }
+  };
+
+  const handleTestTelegram = async () => {
+    setTestingTelegram(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/telegram/test`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || 'Falha ao conectar com o Telegram.');
+      }
+      showNotification(data.message || 'Mensagem de teste enviada com sucesso no Telegram!', 'success');
+      fetchTelegramStatus();
+    } catch (err) {
+      showNotification(err.message || 'Erro ao disparar teste no Telegram.', 'error');
+    } finally {
+      setTestingTelegram(false);
     }
   };
 
@@ -7364,6 +7404,88 @@ export default function AdminPanel({
                 </div>
               </div>
 
+            </div>
+
+            {/* CENTRAL DE MONITORAMENTO & ALERTAS NO TELEGRAM */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shrink-0">
+                    <Send className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
+                        Canal de Alertas & Segurança no Telegram
+                      </h3>
+                      {telegramStatus.configured ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Bot Conectado ao Render (Monitoramento Ativo)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                          Configuração em Andamento no Render
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Classificação em 3 níveis: sirene ativa para falhas críticas (P0), silencioso para avisos (P1) e descarte automático de ruído (P2).
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTestTelegram}
+                  disabled={testingTelegram}
+                  className="btn-gold text-xs font-extrabold py-2.5 px-4 shadow-xs flex items-center gap-2 cursor-pointer shrink-0"
+                  title="Disparar mensagem de teste ao bot do Telegram agora"
+                >
+                  {testingTelegram ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Verificando Bot...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Disparar Teste no Telegram</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Informações dos Níveis */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-rose-50/60 border border-rose-200/80 space-y-1">
+                  <span className="text-[11px] font-black uppercase text-rose-800 flex items-center gap-1.5">
+                    <span>🚨</span> Nível 1: Falha Crítica
+                  </span>
+                  <p className="text-slate-600 text-[11px]">
+                    Banco PostgreSQL inacessível, crash da API ou tentativa de forja de Webhook. <strong>Som alto imediato</strong>.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-1">
+                  <span className="text-[11px] font-black uppercase text-amber-800 flex items-center gap-1.5">
+                    <span>⚠️</span> Nível 2: Degradação & Alto Valor
+                  </span>
+                  <p className="text-slate-600 text-[11px]">
+                    APIs de frete oscilando, força bruta de login ou pedidos acima de R$ 10.000. <strong>Silencioso c/ Cooldown 15m</strong>.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                  <span className="text-[11px] font-black uppercase text-slate-700 flex items-center gap-1.5">
+                    <span>🛡️</span> Nível 3: Anti-Spam / Ruído
+                  </span>
+                  <p className="text-slate-600 text-[11px]">
+                    Bots em 404, erro de digitação de CEP de cliente e cupons expirados. <strong>Zero Telegram</strong>.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Lower Grid: Password and Profile Cards */}
