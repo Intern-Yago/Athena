@@ -9486,6 +9486,19 @@ if (require.main === module) {
     );
   }, 60 * 60 * 1000);
 
+  // Housekeeping Preventivo de Banco de Dados: Executa limpeza de retenção a cada 24 horas
+  setTimeout(() => {
+    socService.runHousekeepingCleanup('Automated Daily Job').catch(err =>
+      console.warn('[HOUSEKEEPING AUTO WARN]:', err.message)
+    );
+  }, 60 * 1000).unref();
+
+  setInterval(() => {
+    socService.runHousekeepingCleanup('Automated Daily Job').catch(err =>
+      console.warn('[HOUSEKEEPING AUTO WARN]:', err.message)
+    );
+  }, 24 * 60 * 60 * 1000).unref();
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Athena API Backend rodando em http://0.0.0.0:${PORT}`);
     console.log(`Swagger API Docs protegida em: http://localhost:${PORT}/api-docs`);

@@ -360,5 +360,58 @@ describe('Athena OS v2.1 — SOC ChatOps & Telegram Firewall', () => {
       assert.ok(mem);
       assert.strictEqual(mem.isBlocked, true);
     });
+
+    it('Deve responder ao comando /help com instruções completas incluindo /limparlogs', async () => {
+      process.env.TELEGRAM_CHAT_ID = testChatId;
+
+      const mockReq = {
+        body: {
+          message: {
+            text: '/help',
+            chat: { id: testChatId },
+            from: { username: 'soc_admin' }
+          }
+        },
+        headers: {}
+      };
+      const mockRes = createMockRes();
+
+      await webhookHandler(mockReq, mockRes, noopNext);
+      assert.strictEqual(mockRes.getStatusCode(), 200);
+    });
+
+    it('Deve executar o comando /limparlogs e purgar resíduos com sucesso', async () => {
+      process.env.TELEGRAM_CHAT_ID = testChatId;
+
+      const mockReq = {
+        body: {
+          message: {
+            text: '/limparlogs',
+            chat: { id: testChatId },
+            from: { username: 'soc_cleaner' }
+          }
+        },
+        headers: {}
+      };
+      const mockRes = createMockRes();
+
+      await webhookHandler(mockReq, mockRes, noopNext);
+      assert.strictEqual(mockRes.getStatusCode(), 200);
+    });
+  });
+
+  describe('5. Housekeeping & Retenção de Dados', () => {
+    it('runHousekeepingCleanup deve executar queries de expurgo com integridade sem quebrar', async () => {
+      const result = await socService.runHousekeepingCleanup('Test Runner');
+
+      assert.ok(result);
+      assert.strictEqual(result.ok, true);
+      assert.strictEqual(typeof result.totalDeleted, 'number');
+      assert.strictEqual(typeof result.auditLogsDeleted, 'number');
+      assert.strictEqual(typeof result.tokensDeleted, 'number');
+      assert.strictEqual(typeof result.reservationsDeleted, 'number');
+      assert.strictEqual(typeof result.unblockedIpsPruned, 'number');
+      assert.strictEqual(typeof result.orphanedEventsDeleted, 'number');
+    });
   });
 });

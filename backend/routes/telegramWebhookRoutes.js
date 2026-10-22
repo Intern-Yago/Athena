@@ -169,8 +169,9 @@ router.post(['/', '/webhook'], async (req, res) => {
           `• \`/status\` ou \`/saude\` : Diagnóstico em tempo real (Postgres, Latência, RAM, Uptime)\n\n` +
           `📊 *Comandos de Negócio & Manutenção:*\n` +
           `• \`/pedidos\` ou \`/vendas\` : Resumo financeiro e de pedidos de hoje\n` +
+          `• \`/limparlogs\` ou \`/faxina\` : Purga preventiva de logs antigos e tokens expirados\n` +
           `• \`/limpartestes\` : Remove com segurança pedidos e dados de teste\n` +
-          `• \`/ajuda\` : Mostra esta mensagem de ajuda\n\n` +
+          `• \`/help\` ou \`/ajuda\` : Mostra esta mensagem de ajuda\n\n` +
           `_Dica: Alertas de invasão enviados a este canal possuem botões interativos de 1 clique para bloqueio imediato._`;
 
         await sendTelegramDirectMessage({ chatId, text: helpMessage });
@@ -368,10 +369,36 @@ router.post(['/', '/webhook'], async (req, res) => {
         return;
       }
 
+      // --- 9. LIMPEZA PREVENTIVA DE LOGS (HOUSEKEEPING) ---
+      if (['/limparlogs', '/faxina', '/housekeeping', '/purga'].includes(rawCommand)) {
+        const result = await socService.runHousekeepingCleanup(senderName);
+        if (result.ok) {
+          const text = 
+            `🧹 *[Athena OS — Housekeeping & Retenção de Dados]*\n\n` +
+            `Limpeza preventiva executada com sucesso por ${senderName}!\n\n` +
+            `• *Logs de Auditoria Expurgados:* \`${result.auditLogsDeleted}\`\n` +
+            `• *Tokens Expirados Limpos:* \`${result.tokensDeleted}\`\n` +
+            `• *Reservas Antigas Descartadas:* \`${result.reservationsDeleted}\`\n` +
+            `• *IPs Desbloqueados Prunados:* \`${result.unblockedIpsPruned}\`\n` +
+            `• *Eventos Órfãos Removidos:* \`${result.orphanedEventsDeleted}\`\n` +
+            `━━━━━━━━━━━━━━━━━━━━━\n` +
+            `✨ *Total de Registros Limpos:* \`${result.totalDeleted}\`\n` +
+            `_O banco de dados PostgreSQL permanece leve e otimizado._`;
+
+          await sendTelegramDirectMessage({ chatId, text });
+        } else {
+          await sendTelegramDirectMessage({
+            chatId,
+            text: `⚠️ *Falha ao executar limpeza de logs:* ${result.error}`
+          });
+        }
+        return;
+      }
+
       // Comando desconhecido
       await sendTelegramDirectMessage({
         chatId,
-        text: `❓ Comando \`${rawCommand}\` não reconhecido.\nEnvie \`/ajuda\` para consultar os comandos disponíveis do SOC.`
+        text: `❓ Comando \`${rawCommand}\` não reconhecido.\nEnvie \`/help\` ou \`/ajuda\` para consultar os comandos disponíveis do SOC.`
       });
     }
   } catch (err) {

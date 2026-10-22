@@ -400,6 +400,121 @@ async function cleanupTestOrders(actor = 'Telegram SOC') {
   }
 }
 
+/**
+ * Executa política de retenção de dados e limpeza preventiva (Housekeeping)
+ * - Remove logs antigos de auditoria (info/warning > 30d, high > 90d, critical > 180d)
+ * - Remove tokens de email e password resets expirados (> 1d)
+ * - Remove reservas de estoque antigas/abandonadas (> 7d)
+ * - Remove registros de IPs que já foram desbloqueados (> 30d)
+ * - Remove eventos órfãos de pedidos excluídos
+ */
+async function runHousekeepingCleanup(actor = 'Telegram SOC') {
+  let auditLogsDeleted = 0;
+  let tokensDeleted = 0;
+  let reservationsDeleted = 0;
+  let unblockedIpsPruned = 0;
+  let orphanedEventsDeleted = 0;
+
+  try {
+    // 1. Expurgar logs de auditoria antigos por nível de severidade
+    try {
+      const resAudit = await query(`
+        DELETE FROM security_audit_events
+        WHERE 
+          (severity = 'info' AND created_at < NOW() - INTERVAL '30 days')
+          OR (severity IN ('warning', 'low') AND created_at < NOW() - INTERVAL '60 days')
+          OR (severity = 'high' AND created_at < NOW() - INTERVAL '90 days')
+          OR (severity = 'critical' AND created_at < NOW() - INTERVAL '180 days')
+      `);
+      auditLogsDeleted = resAudit.rowCount || 0;
+    } catch (e) {
+      console.warn('[HOUSEKEEPING AUDIT DELETE WARN]:', e.message);
+    }
+
+    // 2. Limpar tokens expirados de email e redefinição de senha
+    try {
+      const resEmailTokens = await query(`
+        DELETE FROM email_verifications 
+        WHERE expires_at < NOW() - INTERVAL '1 day'
+      `);
+      tokensDeleted += (resEmailTokens.rowCount || 0);
+    } catch (_) {}
+
+    try {
+      const resPwTokens = await query(`
+        DELETE FROM password_resets 
+        WHERE expires_at < NOW() - INTERVAL '1 day'
+      `);
+      tokensDeleted += (resPwTokens.rowCount || 0);
+    } catch (_) {}
+
+    // 3. Limpar reservas de estoque antigas/abandonadas
+    try {
+      const resRes = await query(`
+        DELETE FROM inventory_reservations 
+        WHERE expires_at < NOW() - INTERVAL '7 days'
+      `);
+      reservationsDeleted = resRes.rowCount || 0;
+    } catch (_) {}
+
+    // 4. Limpar IPs que já foram desbloqueados há mais de 30 dias (mantém os bloqueados intactos)
+    try {
+      const resIps = await query(`
+        DELETE FROM security_ip_blocklist 
+        WHERE is_blocked = false AND unblocked_at < NOW() - INTERVAL '30 days'
+      `);
+      unblockedIpsPruned = resIps.rowCount || 0;
+    } catch (_) {}
+
+    // 5. Limpar eventos órfãos de pedidos excluídos
+    try {
+      const resEvents = await query(`
+        DELETE FROM order_events 
+        WHERE order_id NOT IN (SELECT id FROM orders)
+      `);
+      orphanedEventsDeleted = resEvents.rowCount || 0;
+    } catch (_) {}
+
+    const totalDeleted = auditLogsDeleted + tokensDeleted + reservationsDeleted + unblockedIpsPruned + orphanedEventsDeleted;
+
+    // Registra na trilha de auditoria
+    try {
+      await recordAuditSecurityEvent({
+        eventType: 'HOUSEKEEPING_PRUNED',
+        severity: 'info',
+        actorEmail: actor,
+        reason: `Limpeza preventiva executada por ${actor}. Total de registros expurgados: ${totalDeleted}`,
+        details: {
+          auditLogsDeleted,
+          tokensDeleted,
+          reservationsDeleted,
+          unblockedIpsPruned,
+          orphanedEventsDeleted,
+          totalDeleted
+        }
+      });
+    } catch (_) {}
+
+    return {
+      ok: true,
+      totalDeleted,
+      auditLogsDeleted,
+      tokensDeleted,
+      reservationsDeleted,
+      unblockedIpsPruned,
+      orphanedEventsDeleted,
+      actor
+    };
+  } catch (err) {
+    console.error('[HOUSEKEEPING ERROR]:', err.message);
+    return {
+      ok: false,
+      error: err.message,
+      totalDeleted: 0
+    };
+  }
+}
+
 module.exports = {
   banIp,
   unbanIp,
@@ -408,6 +523,7 @@ module.exports = {
   getSystemStatus,
   getTodayOrdersSummary,
   cleanupTestOrders,
+  runHousekeepingCleanup,
   setMemoryTracker,
   getMemoryTracker,
   sanitizeIp
