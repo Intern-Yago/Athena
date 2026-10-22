@@ -824,4 +824,29 @@ router.post(['/complete', '/activations/complete', '/activations/activations/com
   }
 });
 
+// -------------------------------------------------------------
+// 9. TELEGRAM ALERT BOT DIAGNOSTIC & TEST (ADMIN ONLY)
+// -------------------------------------------------------------
+router.get(['/telegram/status', '/ops/telegram/status'], async (req, res) => {
+  const isConfigured = Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
+  return res.json({
+    configured: isConfigured,
+    hasToken: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+    hasChatId: Boolean(process.env.TELEGRAM_CHAT_ID)
+  });
+});
+
+router.post(['/telegram/test', '/ops/telegram/test'], async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Apenas administradores podem testar o bot do Telegram.' });
+    }
+    const { testTelegramConnection } = require('../services/telegramAlertService');
+    const result = await testTelegramConnection();
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao disparar teste no Telegram: ' + err.message });
+  }
+});
+
 module.exports = router;

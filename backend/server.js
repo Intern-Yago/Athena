@@ -1851,6 +1851,24 @@ async function sendHoneypotAlertEmail(clientIp, targetPath, userAgent, extraDeta
 
 async function sendCriticalErrorAlertEmail(err, req, clientIp) {
   const routeKey = `error_${req.method}_${req.path}`;
+
+  // Dispara alerta inteligente no Telegram se configurado
+  try {
+    const { sendTelegramAlert } = require('./services/telegramAlertService');
+    sendTelegramAlert({
+      level: 'CRITICAL',
+      title: 'EXCEÇÃO NÃO TRATADA NA API (HTTP 500)',
+      message: err.message || 'Erro interno no processamento de requisição.',
+      fields: {
+        'Endpoint': `${req.method} ${req.originalUrl}`,
+        'IP': clientIp,
+        'Erro': String(err.message || 'Sem mensagem').slice(0, 150)
+      },
+      dedupKey: routeKey,
+      cooldownMinutes: 10
+    }).catch(() => {});
+  } catch (_) {}
+
   if (isAlertInCooldown(routeKey, 10)) {
     return; // Silencia se o mesmo erro disparar em menos de 10 minutos
   }

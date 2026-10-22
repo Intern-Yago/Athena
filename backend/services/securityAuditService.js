@@ -61,6 +61,21 @@ async function recordSecurityEvent({
 
     if (safeSeverity === 'high' || safeSeverity === 'critical') {
       console.warn(`🚨 [SECURITY AUDIT ALERT] [${safeSeverity.toUpperCase()}] ${eventType}: ${reason || actionAttempted} (Actor: ${actorEmail || actorId || actorIp})`);
+      try {
+        const { notifySecurityIncident } = require('./telegramAlertService');
+        notifySecurityIncident({
+          eventType,
+          severity: safeSeverity,
+          actor: actorEmail || actorId || actorIp,
+          reason: finalReason,
+          ip: actorIp,
+          details: {
+            'Alvo': finalTarget,
+            'Ação': finalAction,
+            'Decisão': safeDecision
+          }
+        }).catch(() => {});
+      } catch (_) {}
     }
 
     return res.rows[0];

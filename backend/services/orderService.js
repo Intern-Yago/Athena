@@ -227,6 +227,18 @@ async function createOrder({
 
     console.log(`[ORDER CREATED] Pedido #${orderNumber} (${orderUuid}) registrado com sucesso para o cliente ${customerId}`);
 
+    // Notificação inteligente de alto valor no Telegram (> R$ 10.000)
+    try {
+      const { notifyHighValueOrder } = require('./telegramAlertService');
+      notifyHighValueOrder({
+        id: orderUuid,
+        order_number: orderNumber,
+        total_amount: totalAmount,
+        customer_snapshot: customerSnapshot,
+        order_type: orderType
+      }).catch(() => {});
+    } catch (_) {}
+
     return {
       id: orderUuid,
       orderNumber,
