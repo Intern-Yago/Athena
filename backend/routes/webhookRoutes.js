@@ -54,6 +54,9 @@ async function handleAsaasWebhook(req, res) {
 
       return res.status(401).json({ error: 'Token de webhook inválido ou ausente.' });
     }
+  } else if (process.env.NODE_ENV === 'production') {
+    console.error('[SECURITY ALERT] ASAAS_WEBHOOK_SECRET não configurado em ambiente de produção!');
+    return res.status(500).json({ error: 'ASAAS_WEBHOOK_SECRET pendente de configuração no servidor.' });
   }
 
   const { event, payment } = req.body || {};

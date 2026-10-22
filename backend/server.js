@@ -3130,6 +3130,8 @@ async function unblockIpRecord(ip, unblockedBy = 'Admin') {
 // -------------------------------------------------------------
 // AUTH & USER ROLES ENDPOINTS
 // -------------------------------------------------------------
+// Em ambiente de produção e deploy público (Render/Cloudflare), devCode é rigorosamente desativado
+const isDevCodeAllowed = process.env.NODE_ENV !== 'production' && !process.env.RENDER;
 
 // Login (Protected by progressive loginSlowDown and strict loginLimiter rate limiting)
 app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
@@ -3913,8 +3915,8 @@ app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) =>
       success: true,
       message: 'E-mail enviado! Se o endereço estiver cadastrado em nosso sistema, você receberá o código de recuperação em instantes.',
       delivery: emailResult.method,
-      // In dev/test without SMTP configured, returns code for instant test preview
-      ...(emailResult.method === 'log' ? { devCode: resetCode } : {})
+      // Em dev local isolado sem SMTP, expõe código para testes locais; bloqueado em produção
+      ...(isDevCodeAllowed && emailResult.method === 'log' ? { devCode: resetCode } : {})
     });
   } catch (err) {
     console.error('Erro ao processar esqueci minha senha:', err);
@@ -4210,7 +4212,7 @@ app.post('/api/auth/send-verification-code', authenticateToken, async (req, res)
       message: 'Código de verificação enviado para o seu e-mail!',
       delivery: emailResult.method,
       expiresInMinutes: 30,
-      ...(emailResult.method === 'log' ? { devCode: verificationCode } : {})
+      ...(isDevCodeAllowed && emailResult.method === 'log' ? { devCode: verificationCode } : {})
     });
   } catch (err) {
     console.error('Erro ao enviar código de verificação:', err);
@@ -7792,7 +7794,7 @@ app.post('/api/admin/users/:id/send-reset-email', authenticateToken, requireStaf
       success: true,
       message: `E-mail de recuperação enviado com sucesso para ${inputEmail}!`,
       delivery: emailResult.method,
-      ...(emailResult.method === 'log' ? { devCode: resetCode } : {})
+      ...(isDevCodeAllowed && emailResult.method === 'log' ? { devCode: resetCode } : {})
     });
   } catch (err) {
     console.error('Erro ao reenviar e-mail de redefinição pelo admin:', err);
