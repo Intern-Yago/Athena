@@ -34,6 +34,7 @@ const customerOrderRoutes = require('./routes/customerOrderRoutes');
 const feedRoutes = require('./routes/feedRoutes');
 const { generateAndSyncCatalogToR2 } = feedRoutes;
 const capiRoutes = require('./routes/capiRoutes');
+const telegramWebhookRoutes = require('./routes/telegramWebhookRoutes');
 const orderService = require('./services/orderService');
 const { calculateShipping, cleanCep } = require('./services/melhorEnvioService');
 
@@ -507,6 +508,7 @@ if (ATHENA_ORIGIN_SECRET) {
       req.path === '/api/ping' || 
       req.path === '/health' || 
       req.path.startsWith('/api/payments/webhook') ||
+      req.path.startsWith('/api/telegram') ||
       req.path.startsWith('/api/feeds/') ||
       req.headers['user-agent']?.includes('Render/') ||
       isPublicCrawler
@@ -932,6 +934,7 @@ app.get('/api/openapi.json', (req, res) => {
 // =============================================================
 app.use('/api/internal/ops', opsRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/telegram', telegramWebhookRoutes);
 app.use('/api/feeds', feedRoutes);
 app.use('/api/analytics', capiRoutes);
 app.use('/api/admin', authenticateToken, requireStaff, opsAdminRoutes);
@@ -2969,6 +2972,8 @@ function logSecurityEvent({ event, userId = null, email = null, ip = null, userA
 // CLOUDFLARE TURNSTILE & ADVANCED SECURITY HELPERS
 // -------------------------------------------------------------
 const ipSecurityTracker = new Map(); // ip -> { failedAttempts: number, isBlocked: boolean, blockedAt: Date }
+const socService = require('./services/socService');
+socService.setMemoryTracker(ipSecurityTracker);
 // In-Memory Fast-Path Cache for Locked Accounts & IP Cooldowns
 // Cache local do processo (redução de carga): descarta requisições contra contas travadas antes de consultar o PostgreSQL ou rodar Bcrypt
 const lockedAccountsMemory = new Map(); // lowercase_email -> { lockedUntil: Date, isLocked: boolean }

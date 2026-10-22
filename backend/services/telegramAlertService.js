@@ -61,7 +61,8 @@ async function sendTelegramAlert({
   message,
   fields = {},
   dedupKey = null,
-  cooldownMinutes = null
+  cooldownMinutes = null,
+  replyMarkup = null
 }) {
   const normLevel = String(level).toUpperCase();
 
@@ -132,16 +133,16 @@ async function sendTelegramAlert({
 
   try {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    const res = await axios.post(
-      url,
-      {
-        chat_id: chatId,
-        text,
-        parse_mode: 'Markdown',
-        disable_notification: disableSound
-      },
-      { timeout: 5000 }
-    );
+    const payload = {
+      chat_id: chatId,
+      text,
+      parse_mode: 'Markdown',
+      disable_notification: disableSound
+    };
+    if (replyMarkup) {
+      payload.reply_markup = replyMarkup;
+    }
+    const res = await axios.post(url, payload, { timeout: 15000 });
 
     return { ok: true, messageId: res.data?.result?.message_id };
   } catch (err) {
@@ -180,6 +181,26 @@ async function notifySecurityIncident({
   details = {}
 }) {
   const isCritical = severity === 'critical';
+
+  let replyMarkup = null;
+  if (ip && typeof ip === 'string') {
+    const cleanIp = ip.replace('::ffff:', '').trim();
+    const net = require('net');
+    try {
+      const { isInfrastructureOrPrivateIp } = require('../utils/network');
+      if (net.isIP(cleanIp) && !isInfrastructureOrPrivateIp(cleanIp)) {
+        replyMarkup = {
+          inline_keyboard: [
+            [
+              { text: `🛑 Bloquear IP Agora`, callback_data: `soc_ban:${cleanIp}` },
+              { text: `🌐 Investigar (Whois)`, callback_data: `soc_whois:${cleanIp}` }
+            ]
+          ]
+        };
+      }
+    } catch (_) {}
+  }
+
   return sendTelegramAlert({
     level: isCritical ? 'CRITICAL' : 'WARNING',
     title: `INCIDENTE DE SEGURANÇA: ${eventType}`,
@@ -191,7 +212,8 @@ async function notifySecurityIncident({
       ...details
     },
     dedupKey: `sec_${eventType}_${ip || actor}`,
-    cooldownMinutes: isCritical ? 5 : 15
+    cooldownMinutes: isCritical ? 5 : 15,
+    replyMarkup
   });
 }
 
@@ -244,7 +266,7 @@ async function testTelegramConnection() {
         parse_mode: 'Markdown',
         disable_notification: false
       },
-      { timeout: 6000 }
+      { timeout: 15000 }
     );
 
     return {
@@ -262,10 +284,104 @@ async function testTelegramConnection() {
   }
 }
 
+/**
+ * Envia uma mensagem direta de resposta para o Telegram (usada pelo SOC ChatOps)
+ */
+async function sendTelegramDirectMessage({
+  chatId = null,
+  text,
+  parseMode = 'Markdown',
+  replyMarkup = null,
+  disableNotification = false
+}) {
+  const token = process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN;
+  const targetChatId = chatId || process.env.TELEGRAM_CHAT_ID || TELEGRAM_CHAT_ID;
+
+  if (!token || token === 'undefined' || !targetChatId || targetChatId === 'undefined') {
+    return { ok: false, error: 'Credenciais do Telegram não configuradas.' };
+  }
+
+  try {
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    const payload = {
+      chat_id: targetChatId,
+      text,
+      parse_mode: parseMode,
+      disable_notification: disableNotification
+    };
+    if (replyMarkup) {
+      payload.reply_markup = replyMarkup;
+    }
+
+    const res = await axios.post(url, payload, { timeout: 15000 });
+    return { ok: true, messageId: res.data?.result?.message_id };
+  } catch (err) {
+    console.warn('[TELEGRAM DIRECT MESSAGE WARN]:', err.response?.data?.description || err.message);
+    return { ok: false, error: err.response?.data?.description || err.message };
+  }
+}
+
+/**
+ * Responde a uma Callback Query (clique de botão inline) para cessar o spinner no cliente
+ */
+async function answerTelegramCallbackQuery({ callbackQueryId, text = null, showAlert = false }) {
+  const token = process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN;
+  if (!token || token === 'undefined' || !callbackQueryId) {
+    return { ok: false };
+  }
+
+  try {
+    const url = `https://api.telegram.org/bot${token}/answerCallbackQuery`;
+    const payload = {
+      callback_query_id: callbackQueryId,
+      show_alert: showAlert
+    };
+    if (text) payload.text = text;
+
+    await axios.post(url, payload, { timeout: 15000 });
+    return { ok: true };
+  } catch (err) {
+    console.warn('[TELEGRAM CALLBACK ANSWER WARN]:', err.response?.data?.description || err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
+ * Atualiza o texto de uma mensagem existente (ex: após clicar no botão de banimento)
+ */
+async function editTelegramMessageText({ chatId, messageId, text, parseMode = 'Markdown', replyMarkup = null }) {
+  const token = process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN;
+  if (!token || token === 'undefined' || !chatId || !messageId) {
+    return { ok: false };
+  }
+
+  try {
+    const url = `https://api.telegram.org/bot${token}/editMessageText`;
+    const payload = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: parseMode
+    };
+    if (replyMarkup !== undefined) {
+      payload.reply_markup = replyMarkup;
+    }
+
+    const res = await axios.post(url, payload, { timeout: 15000 });
+    return { ok: true, messageId: res.data?.result?.message_id };
+  } catch (err) {
+    console.warn('[TELEGRAM EDIT MESSAGE WARN]:', err.response?.data?.description || err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
 module.exports = {
   sendTelegramAlert,
   notifySystemOutage,
   notifySecurityIncident,
   notifyHighValueOrder,
-  testTelegramConnection
+  testTelegramConnection,
+  sendTelegramDirectMessage,
+  answerTelegramCallbackQuery,
+  editTelegramMessageText
 };
