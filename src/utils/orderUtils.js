@@ -190,3 +190,189 @@ export function matchesShipmentFilters(shipment, {
 
   return true;
 }
+
+/**
+ * Calcula o estágio da Régua de Cobrança (Dunning Milestone) com base na data de criação do pedido.
+ * Regra: D0 (Hoje), D1, D15, D30 e a cada 30 dias subsequentes (D60, D90, etc.).
+ *
+ * @param {string|number|Date} createdAt - Timestamp ou string ISO da criação do pedido
+ * @param {number|Date} [nowRef] - Ponto de referência temporal (padrão: Date.now())
+ * @returns {{
+ *   diffDays: number,
+ *   label: string,
+ *   isMilestone: boolean,
+ *   milestone: string|null,
+ *   milestoneText: string,
+ *   nextMilestoneDay: number,
+ *   daysUntilNext: number
+ * }}
+ */
+export function calculateDunningMilestone(createdAt, nowRef = Date.now()) {
+  if (!createdAt) {
+    return {
+      diffDays: 0,
+      label: 'Hoje',
+      isMilestone: false,
+      milestone: null,
+      milestoneText: 'Aguardando processamento bancário.',
+      nextMilestoneDay: 1,
+      daysUntilNext: 1
+    };
+  }
+
+  const createdTime = new Date(createdAt).getTime();
+  if (isNaN(createdTime)) {
+    return {
+      diffDays: 0,
+      label: 'Hoje',
+      isMilestone: false,
+      milestone: null,
+      milestoneText: 'Aguardando processamento bancário.',
+      nextMilestoneDay: 1,
+      daysUntilNext: 1
+    };
+  }
+
+  const currentTime = typeof nowRef === 'number' ? nowRef : new Date(nowRef).getTime();
+  const diffDays = Math.max(0, Math.floor((currentTime - createdTime) / (1000 * 60 * 60 * 24)));
+
+  if (diffDays === 0) {
+    return {
+      diffDays: 0,
+      label: 'Iniciado hoje',
+      isMilestone: false,
+      milestone: null,
+      milestoneText: 'Pedido realizado hoje. Aguardando compensação da instituição financeira (PIX ou Boleto).',
+      nextMilestoneDay: 1,
+      daysUntilNext: 1
+    };
+  }
+
+  if (diffDays === 1) {
+    return {
+      diffDays: 1,
+      label: 'Há 1 dia (Régua D1)',
+      isMilestone: true,
+      milestone: 'D1',
+      milestoneText: '🔔 Lembrete D1: Seu pedido foi iniciado ontem e está com estoque reservado. Conclua hoje para envio imediato!',
+      nextMilestoneDay: 15,
+      daysUntilNext: 14
+    };
+  }
+
+  if (diffDays === 15) {
+    return {
+      diffDays: 15,
+      label: 'Há 15 dias (Régua D15)',
+      isMilestone: true,
+      milestone: 'D15',
+      milestoneText: '🔔 Lembrete D15: Cotação/pedido há 15 dias em aberto. Converse com seu consultor para manter as condições da proposta.',
+      nextMilestoneDay: 30,
+      daysUntilNext: 15
+    };
+  }
+
+  if (diffDays === 30) {
+    return {
+      diffDays: 30,
+      label: 'Há 30 dias (Régua D30)',
+      isMilestone: true,
+      milestone: 'D30',
+      milestoneText: '🔔 Lembrete D30: Pedido em aberto há 1 mês. Caso precise de 2ª via ou novo prazo de faturamento, avise nossa equipe.',
+      nextMilestoneDay: 60,
+      daysUntilNext: 30
+    };
+  }
+
+  if (diffDays > 30 && (diffDays - 30) % 30 === 0) {
+    const cycle = Math.floor(diffDays / 30);
+    const nextMilestone = diffDays + 30;
+    return {
+      diffDays,
+      label: `Há ${diffDays} dias (${cycle}º mês)`,
+      isMilestone: true,
+      milestone: `D${diffDays}`,
+      milestoneText: `🔔 Lembrete Periódico (${cycle}º mês): Pedido em aberto há ${diffDays} dias. Entre em contato para regularizar.`,
+      nextMilestoneDay: nextMilestone,
+      daysUntilNext: 30
+    };
+  }
+
+  let nextMilestone = 1;
+  if (diffDays >= 30) {
+    nextMilestone = 30 + (Math.floor((diffDays - 30) / 30) + 1) * 30;
+  } else if (diffDays >= 15) {
+    nextMilestone = 30;
+  } else if (diffDays >= 1) {
+    nextMilestone = 15;
+  }
+
+  return {
+    diffDays,
+    label: `Há ${diffDays} dias`,
+    isMilestone: false,
+    milestone: null,
+    milestoneText: `Aguardando confirmação bancária há ${diffDays} dias. Próximo lembrete no marco D${nextMilestone}.`,
+    nextMilestoneDay: nextMilestone,
+    daysUntilNext: Math.max(0, nextMilestone - diffDays)
+  };
+}
+
+/**
+ * Higieniza números de telefone e constrói links de chamada telefônica (tel:) e WhatsApp (wa.me).
+ *
+ * @param {string|number} rawPhone - Número de telefone em qualquer formato
+ * @param {string} [customMessage] - Mensagem opcional pré-formatada para o WhatsApp
+ * @returns {{
+ *   raw: string,
+ *   cleanDigits: string,
+ *   formattedWithCountry: string,
+ *   telLink: string,
+ *   whatsappLink: string,
+ *   hasValidPhone: boolean
+ * }}
+ */
+export function buildContactLinks(rawPhone, customMessage = '') {
+  if (!rawPhone || (typeof rawPhone !== 'string' && typeof rawPhone !== 'number')) {
+    return {
+      raw: '',
+      cleanDigits: '',
+      formattedWithCountry: '',
+      telLink: '',
+      whatsappLink: '',
+      hasValidPhone: false
+    };
+  }
+
+  const raw = String(rawPhone).trim();
+  let clean = raw.replace(/\D/g, '');
+
+  // Remove 0 inicial de DDD se houver (ex: 061 -> 61)
+  if (clean.length === 11 && clean.startsWith('0')) {
+    clean = clean.slice(1);
+  } else if (clean.length === 12 && clean.startsWith('0')) {
+    clean = clean.slice(1);
+  }
+
+  // Se já tiver 55 no início e mais de 12 dígitos, mantém; senão adiciona 55 se tiver DDD brasileiro (10 ou 11 dígitos)
+  let countryPhone = clean;
+  if (clean.length === 10 || clean.length === 11) {
+    countryPhone = `55${clean}`;
+  } else if (clean.length >= 12 && clean.startsWith('55')) {
+    countryPhone = clean;
+  }
+
+  const hasValidPhone = clean.length >= 10;
+  const telLink = hasValidPhone ? `tel:${countryPhone.startsWith('55') ? '+' + countryPhone : clean}` : '';
+  const encodedMsg = customMessage ? `?text=${encodeURIComponent(customMessage)}` : '';
+  const whatsappLink = hasValidPhone ? `https://wa.me/${countryPhone}${encodedMsg}` : '';
+
+  return {
+    raw,
+    cleanDigits: clean,
+    formattedWithCountry: countryPhone,
+    telLink,
+    whatsappLink,
+    hasValidPhone
+  };
+}
