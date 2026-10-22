@@ -57,10 +57,10 @@ describe('Athena OS - Testes de Estresse Concorrente e Race Condition', () => {
     if (!pool) return;
 
     // Saldo inicial é 100 pontos.
-    // Disparamos 10 requisições simultâneas em paralelo querendo gastar 100 pontos cada.
-    // Sem lock pessimista (SELECT ... FOR UPDATE), múltiplos poderiam ler 100 e deixar o saldo negativo (-900).
-    // Com lock pessimista, exatamente 1 DEVE ter sucesso e 9 DEVEM falhar por saldo insuficiente.
-    const concurrentRequests = Array.from({ length: 10 }, (_, i) => {
+    // Disparamos 6 requisições simultâneas em paralelo querendo gastar 100 pontos cada (dentro do limite do pooler).
+    // Sem lock pessimista (SELECT ... FOR UPDATE), múltiplos poderiam ler 100 e deixar o saldo negativo (-500).
+    // Com lock pessimista, exatamente 1 DEVE ter sucesso e 5 DEVEM falhar por saldo insuficiente.
+    const concurrentRequests = Array.from({ length: 6 }, (_, i) => {
       return applyPointsTransaction({
         customerId: testUserId,
         orderId: `ord_race_${testRunId}_${i}`,
@@ -81,9 +81,9 @@ describe('Athena OS - Testes de Estresse Concorrente e Race Condition', () => {
 
     // Validação estrita
     assert.equal(successful.length, 1, 'Exatamente 1 débito deve ser aceito');
-    assert.equal(failed.length, 9, 'Exatamente 9 débitos devem ser rejeitados com saldo insuficiente');
+    assert.equal(failed.length, 5, 'Exatamente 5 débitos devem ser rejeitados com saldo insuficiente');
     
-    // Todos os 9 rejeitados devem ter caído na trava de saldo insuficiente
+    // Todos os 5 rejeitados devem ter caído na trava de saldo insuficiente
     for (const f of failed) {
       assert.match(f.error, /Saldo insuficiente/);
     }
