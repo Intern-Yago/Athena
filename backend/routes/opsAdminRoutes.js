@@ -7,7 +7,7 @@
  */
 
 const express = require('express');
-const { query } = require('../services/db.js');
+const { query, withTransaction } = require('../services/db.js');
 const { 
   createInitialShipment, 
   startPicking, 
@@ -224,6 +224,189 @@ router.get(['/orders/:id', '/ops/orders/:id', '/:id([0-9a-fA-F-]{10,}|[0-9]+)'],
   } catch (err) {
     console.error('[OPS ADMIN ORDER DETAIL ERROR]', err);
     return res.status(500).json({ error: 'Erro ao buscar detalhes do pedido.' });
+  }
+});
+
+// -------------------------------------------------------------
+// EXPURGO EM LOTE DE PEDIDOS DE TESTE (ADMIN ONLY)
+// -------------------------------------------------------------
+const handleCleanupTestOrders = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        error: 'Permissão negada. Apenas administradores do sistema podem limpar pedidos de teste.' 
+      });
+    }
+
+    let deletedOrderIds = [];
+
+    try {
+      const testOrdersRes = await query(`
+        SELECT id, order_number, user_email 
+        FROM orders 
+        WHERE 
+          user_email ILIKE '%@athenatest.com%' 
+          OR customer_snapshot->>'email' ILIKE '%@athenatest.com%'
+          OR order_number LIKE 'N-test_%'
+          OR order_number LIKE 'N-tb_%'
+          OR order_number LIKE 'N-RACE-%'
+          OR id LIKE 'ord_ful_test_%'
+          OR id LIKE 'ord_race_ful_%'
+          OR id LIKE 'test_%'
+      `);
+
+      deletedOrderIds = testOrdersRes.rows.map(o => o.id);
+
+      if (deletedOrderIds.length > 0) {
+        await withTransaction(async (client) => {
+          await client.query(`
+            DELETE FROM activation_attempts 
+            WHERE activation_id IN (SELECT id FROM digital_activations WHERE order_id = ANY($1))
+          `, [deletedOrderIds]);
+          await client.query('DELETE FROM digital_activations WHERE order_id = ANY($1)', [deletedOrderIds]);
+          await client.query('DELETE FROM shipments WHERE order_id = ANY($1)', [deletedOrderIds]);
+          await client.query('DELETE FROM inventory_reservations WHERE order_id = ANY($1)', [deletedOrderIds]);
+          await client.query('DELETE FROM order_items WHERE order_id = ANY($1)', [deletedOrderIds]);
+          await client.query('DELETE FROM order_events WHERE order_id = ANY($1)', [deletedOrderIds]);
+          await client.query('DELETE FROM a_points_ledger WHERE order_id = ANY($1)', [deletedOrderIds]);
+          try {
+            await client.query('DELETE FROM a_points_transactions WHERE order_id = ANY($1)', [deletedOrderIds]);
+          } catch (_) {}
+          await client.query('DELETE FROM orders WHERE id = ANY($1)', [deletedOrderIds]);
+        });
+      }
+    } catch (dbErr) {
+      console.warn('[CLEANUP TEST ORDERS DB WARN]', dbErr.message);
+    }
+
+    // Limpa também do JSON local se houver
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const dbPath = path.join(__dirname, '..', 'data', 'athena-db.json');
+      if (fs.existsSync(dbPath)) {
+        const fileContent = fs.readFileSync(dbPath, 'utf-8');
+        const db = JSON.parse(fileContent);
+        if (Array.isArray(db.orders)) {
+          const prev = db.orders.length;
+          db.orders = db.orders.filter(o => 
+            !String(o.user_email || '').includes('@athenatest.com') &&
+            !String(o.customer_snapshot?.email || '').includes('@athenatest.com') &&
+            !String(o.order_number || '').startsWith('N-test_') &&
+            !String(o.order_number || '').startsWith('N-RACE-') &&
+            !String(o.id || '').startsWith('test_') &&
+            !deletedOrderIds.includes(o.id)
+          );
+          if (db.orders.length < prev) {
+            fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), 'utf-8');
+          }
+        }
+      }
+    } catch (fsErr) {
+      console.warn('[CLEANUP TEST ORDERS FS WARN]', fsErr.message);
+    }
+
+    invalidateOpsServerCache();
+
+    return res.json({
+      success: true,
+      deleted_count: deletedOrderIds.length,
+      message: `${deletedOrderIds.length} pedido(s) de teste removido(s) com sucesso.`
+    });
+  } catch (err) {
+    console.error('[OPS ADMIN CLEANUP TEST ORDERS ERROR]', err);
+    return res.status(500).json({ error: 'Erro ao limpar pedidos de teste: ' + err.message });
+  }
+};
+
+router.post(['/orders/cleanup-tests', '/cleanup-tests'], handleCleanupTestOrders);
+router.delete(['/orders/cleanup-tests', '/cleanup-tests'], handleCleanupTestOrders);
+
+// -------------------------------------------------------------
+// EXCLUSÃO DE PEDIDO INDIVIDUAL (ADMIN ONLY)
+// -------------------------------------------------------------
+router.delete(['/orders/:id', '/ops/orders/:id', '/:id'], async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        error: 'Permissão negada. Apenas administradores do sistema podem excluir pedidos.' 
+      });
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'ID do pedido não informado.' });
+    }
+
+    let targetOrder = null;
+    try {
+      const orderRes = await query(
+        'SELECT id, order_number, user_email FROM orders WHERE id = $1 OR order_number = $1 LIMIT 1',
+        [id]
+      );
+      if (orderRes.rows.length > 0) {
+        targetOrder = orderRes.rows[0];
+      }
+    } catch (errDb) {
+      console.warn('[DELETE ORDER DB QUERY WARN]', errDb.message);
+    }
+
+    if (targetOrder) {
+      const orderId = targetOrder.id;
+
+      await withTransaction(async (client) => {
+        await client.query(`
+          DELETE FROM activation_attempts 
+          WHERE activation_id IN (SELECT id FROM digital_activations WHERE order_id = $1)
+        `, [orderId]);
+        await client.query('DELETE FROM digital_activations WHERE order_id = $1', [orderId]);
+        await client.query('DELETE FROM shipments WHERE order_id = $1', [orderId]);
+        await client.query('DELETE FROM inventory_reservations WHERE order_id = $1', [orderId]);
+        await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+        await client.query('DELETE FROM order_events WHERE order_id = $1', [orderId]);
+        await client.query('DELETE FROM a_points_ledger WHERE order_id = $1', [orderId]);
+        try {
+          await client.query('DELETE FROM a_points_transactions WHERE order_id = $1', [orderId]);
+        } catch (_) {}
+        await client.query('DELETE FROM orders WHERE id = $1', [orderId]);
+      });
+    }
+
+    // Remove do fallback local athena-db.json se existir
+    let removedFromFallback = false;
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const dbPath = path.join(__dirname, '..', 'data', 'athena-db.json');
+      if (fs.existsSync(dbPath)) {
+        const fileContent = fs.readFileSync(dbPath, 'utf-8');
+        const db = JSON.parse(fileContent);
+        if (Array.isArray(db.orders)) {
+          const prev = db.orders.length;
+          db.orders = db.orders.filter(o => o.id !== id && o.order_number !== id && (!targetOrder || o.id !== targetOrder.id));
+          if (db.orders.length < prev) {
+            fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), 'utf-8');
+            removedFromFallback = true;
+          }
+        }
+      }
+    } catch (fsErr) {
+      console.warn('[DELETE ORDER FALLBACK FS WARN]', fsErr.message);
+    }
+
+    if (!targetOrder && !removedFromFallback) {
+      return res.status(404).json({ error: 'Pedido não encontrado para exclusão.' });
+    }
+
+    invalidateOpsServerCache();
+
+    return res.json({
+      success: true,
+      message: `Pedido #${targetOrder?.order_number || id} excluído com sucesso.`
+    });
+  } catch (err) {
+    console.error('[OPS ADMIN DELETE ORDER ERROR]', err);
+    return res.status(500).json({ error: 'Erro ao excluir pedido: ' + err.message });
   }
 });
 

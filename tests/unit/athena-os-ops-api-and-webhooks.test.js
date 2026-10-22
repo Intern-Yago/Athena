@@ -354,4 +354,22 @@ describe('Athena OS v2.1 — Operations API, Webhooks & Logistics (Fases 1C, 1D,
     assert.equal(view.activation_status, 'activated');
     assert.equal(view.license_key, 'LAUNCH-2026-KEY-XYZ');
   });
+
+  after(async () => {
+    if (!pool || !testOrder) return;
+    try {
+      await query('DELETE FROM activation_attempts WHERE activation_id IN (SELECT id FROM digital_activations WHERE order_id = $1)', [testOrder.id]);
+      await query('DELETE FROM digital_activations WHERE order_id = $1', [testOrder.id]);
+      await query('DELETE FROM shipments WHERE order_id = $1', [testOrder.id]);
+      await query('DELETE FROM inventory_reservations WHERE order_id = $1', [testOrder.id]);
+      await query('DELETE FROM order_items WHERE order_id = $1', [testOrder.id]);
+      await query('DELETE FROM order_events WHERE order_id = $1', [testOrder.id]);
+      await query('DELETE FROM a_points_ledger WHERE order_id = $1 OR customer_id = $2', [testOrder.id, testUserId]);
+      await query('DELETE FROM orders WHERE id = $1', [testOrder.id]);
+      await query('DELETE FROM products WHERE id IN ($1, $2)', [`prod_${testRunId}`, `soft_${testRunId}`]);
+      await query('DELETE FROM users WHERE id = $1', [testUserId]);
+    } catch (e) {
+      console.warn('[TEST TEARDOWN WARN]', e.message);
+    }
+  });
 });

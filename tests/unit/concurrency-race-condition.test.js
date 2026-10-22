@@ -159,4 +159,18 @@ describe('Athena OS - Testes de Estresse Concorrente e Race Condition', () => {
     const dbShipment = await pool.query('SELECT status, tracking_code FROM shipments WHERE id = $1', [shipment.id]);
     assert.equal(dbShipment.rows[0].status, 'shipped');
   });
+
+  after(async () => {
+    if (!pool) return;
+    try {
+      const fakeOrderId = `ord_race_ful_${testRunId}`;
+      await pool.query('DELETE FROM shipments WHERE order_id = $1', [fakeOrderId]);
+      await pool.query('DELETE FROM order_items WHERE order_id = $1', [fakeOrderId]);
+      await pool.query('DELETE FROM orders WHERE id = $1', [fakeOrderId]);
+      await pool.query('DELETE FROM a_points_ledger WHERE customer_id = $1', [testUserId]);
+      await pool.query('DELETE FROM users WHERE id = $1', [testUserId]);
+    } catch (e) {
+      console.warn('[RACE CONDITION TEARDOWN WARN]', e.message);
+    }
+  });
 });

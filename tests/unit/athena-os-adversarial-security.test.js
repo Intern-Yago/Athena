@@ -398,4 +398,25 @@ describe('Athena OS v2.1 — Adversarial Security, Concurrency & Abuse Suite', (
 
     assert.equal(secInc.rows.length, 1, 'Incidente de Dead-Letter deve ser gerado no SecurityAudit');
   });
+
+  after(async () => {
+    if (!pool) return;
+    try {
+      if (aliceOrder?.id) {
+        await query('DELETE FROM activation_attempts WHERE activation_id IN (SELECT id FROM digital_activations WHERE order_id = $1)', [aliceOrder.id]);
+        await query('DELETE FROM digital_activations WHERE order_id = $1', [aliceOrder.id]);
+        await query('DELETE FROM shipments WHERE order_id = $1', [aliceOrder.id]);
+        await query('DELETE FROM inventory_reservations WHERE order_id = $1', [aliceOrder.id]);
+        await query('DELETE FROM order_items WHERE order_id = $1', [aliceOrder.id]);
+        await query('DELETE FROM order_events WHERE order_id = $1', [aliceOrder.id]);
+        await query('DELETE FROM a_points_ledger WHERE order_id = $1', [aliceOrder.id]);
+        await query('DELETE FROM orders WHERE id = $1', [aliceOrder.id]);
+      }
+      await query('DELETE FROM a_points_ledger WHERE customer_id IN ($1, $2)', [aliceUserId, bobUserId]);
+      await query('DELETE FROM users WHERE id IN ($1, $2)', [aliceUserId, bobUserId]);
+      await query('DELETE FROM products WHERE id = $1', [`prod_adv_${testRunId}`]);
+    } catch (e) {
+      console.warn('[ADVERSARIAL SECURITY TEARDOWN WARN]', e.message);
+    }
+  });
 });

@@ -20,7 +20,9 @@ import {
   ChevronRight,
   RotateCcw,
   Globe,
-  Building2
+  Building2,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { decodeHtmlEntities, resolveOrderOrigin } from '../../utils/orderUtils';
 import {
@@ -77,6 +79,11 @@ export default function OrdersManagementTab({
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [isCleaningTests, setIsCleaningTests] = useState(false);
+
+  const isAdmin = currentUser?.role === 'admin' || !currentUser?.role;
 
   const fetchOrders = async ({ silent = false } = {}) => {
     if (!currentUser?.token) return;
@@ -206,6 +213,89 @@ export default function OrdersManagementTab({
     setTimeout(() => setCopiedKey(false), 2000);
   };
 
+  const testOrdersCount = useMemo(() => {
+    return orders.filter(o => 
+      String(o.user_email || '').toLowerCase().includes('@athenatest.com') ||
+      String(o.customer_snapshot?.email || '').toLowerCase().includes('@athenatest.com') ||
+      String(o.order_number || '').startsWith('N-test_') ||
+      String(o.order_number || '').startsWith('N-RACE-') ||
+      String(o.id || '').startsWith('test_') ||
+      String(o.id || '').startsWith('ord_ful_test_') ||
+      String(o.id || '').startsWith('ord_race_ful_')
+    ).length;
+  }, [orders]);
+
+  const handleDeleteOrder = async (order) => {
+    if (!order || !currentUser?.token) return;
+    setDeletingId(order.id);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/orders/${order.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
+        }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        showNotification?.(data.message || `Pedido #${order.order_number || order.id} excluído com sucesso.`, 'success');
+        setOrders(prev => {
+          const next = prev.filter(o => o.id !== order.id && o.order_number !== order.order_number);
+          setCachedAdminData(ADMIN_CACHE_KEYS.ADMIN_ORDERS, {
+            orders: next,
+            metrics: {
+              ...metrics,
+              total_orders: Math.max(0, (metrics.total_orders || 1) - 1)
+            }
+          });
+          return next;
+        });
+        if (selectedOrder?.id === order.id) {
+          setSelectedOrder(null);
+        }
+        setOrderToDelete(null);
+      } else {
+        showNotification?.(data.error || 'Erro ao excluir pedido.', 'error');
+      }
+    } catch (e) {
+      console.error('Erro ao excluir pedido:', e);
+      showNotification?.('Falha de conexão ao excluir pedido.', 'error');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleCleanupTestOrders = async () => {
+    if (!currentUser?.token) return;
+    const confirmCleanup = window.confirm(
+      `Deseja realmente excluir todos os ${testOrdersCount} pedido(s) de teste da base de dados? Esta ação é definitiva.`
+    );
+    if (!confirmCleanup) return;
+
+    setIsCleaningTests(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/orders/cleanup-tests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
+        }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        showNotification?.(data.message || `${data.deleted_count || testOrdersCount} pedidos de teste excluídos.`, 'success');
+        fetchOrders({ silent: false });
+      } else {
+        showNotification?.(data.error || 'Erro ao limpar pedidos de teste.', 'error');
+      }
+    } catch (e) {
+      console.error('Erro ao limpar pedidos de teste:', e);
+      showNotification?.('Falha de comunicação com o servidor.', 'error');
+    } finally {
+      setIsCleaningTests(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* HEADER & REFRESH */}
@@ -228,6 +318,43 @@ export default function OrdersManagementTab({
           <span>{isRefreshing ? 'Atualizando...' : 'Atualizar Pedidos'}</span>
         </button>
       </div>
+
+      {/* BANNER DE PEDIDOS DE TESTE DETECTADOS */}
+      {testOrdersCount > 0 && isAdmin && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-extrabold text-xs text-amber-950">
+                {testOrdersCount} pedido(s) de teste detectado(s) na base
+              </p>
+              <p className="text-[11px] text-amber-800">
+                Pedidos gerados em baterias de testes automatizados (@athenatest.com / #N-test_...).
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCleanupTestOrders}
+            disabled={isCleaningTests}
+            className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-colors shadow-2xs disabled:opacity-50"
+          >
+            {isCleaningTests ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Limpando...</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Limpar {testOrdersCount} Pedidos de Teste</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* METRICS CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -543,6 +670,17 @@ export default function OrdersManagementTab({
                               <Eye className="w-3 h-3" />
                               <span>Detalhes</span>
                             </button>
+
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => setOrderToDelete(order)}
+                                className="p-1.5 rounded-lg bg-slate-50 hover:bg-rose-500 hover:text-white text-rose-600 transition-colors inline-flex items-center justify-center cursor-pointer border border-rose-200/80"
+                                title="Excluir este pedido permanentemente"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -810,14 +948,31 @@ export default function OrdersManagementTab({
             </div>
 
             {/* MODAL FOOTER */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedOrder(null)}
-                className="btn-secondary text-xs cursor-pointer"
-              >
-                Fechar
-              </button>
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrder(null)}
+                  className="btn-secondary text-xs cursor-pointer"
+                >
+                  Fechar
+                </button>
+
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ord = selectedOrder;
+                      setSelectedOrder(null);
+                      setOrderToDelete(ord);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Excluir Pedido</span>
+                  </button>
+                )}
+              </div>
 
               {onOpenOrderInFulfillment && (
                 <button
@@ -827,12 +982,68 @@ export default function OrdersManagementTab({
                     setSelectedOrder(null);
                     onOpenOrderInFulfillment(target);
                   }}
-                  className="btn-gold text-xs font-bold py-2 px-4 flex items-center gap-1.5 cursor-pointer"
+                  className="btn-gold text-xs font-bold py-2 px-4 flex items-center gap-1.5 cursor-pointer self-stretch sm:self-auto justify-center"
                 >
                   <Truck className="w-4 h-4" />
                   <span>Abrir Etapa na Mesa de Expedição</span>
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE MODAL */}
+      {orderToDelete && (
+        <div className="fixed inset-0 z-60 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overscroll-none animate-in fade-in">
+          <div 
+            className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <h4 className="font-extrabold text-slate-900 text-base">
+                Excluir Pedido #{orderToDelete.order_number || orderToDelete.id}?
+              </h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Tem certeza de que deseja excluir este pedido? Esta ação removerá definitivamente o pedido, seus itens, reservas e remessas associadas.
+              </p>
+              <div className="mt-2 p-2.5 bg-slate-50 rounded-xl text-left text-[11px] text-slate-600 space-y-0.5 border border-slate-200">
+                <p><strong>Cliente:</strong> {orderToDelete.customer_snapshot?.name || orderToDelete.user_name || 'Cliente'}</p>
+                <p><strong>E-mail:</strong> {orderToDelete.customer_snapshot?.email || orderToDelete.user_email || '-'}</p>
+                <p><strong>Valor:</strong> R$ {Number(orderToDelete.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={deletingId === orderToDelete.id}
+                onClick={() => setOrderToDelete(null)}
+                className="btn-secondary text-xs cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deletingId === orderToDelete.id}
+                onClick={() => handleDeleteOrder(orderToDelete)}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs disabled:opacity-50"
+              >
+                {deletingId === orderToDelete.id ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirmar Exclusão</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
