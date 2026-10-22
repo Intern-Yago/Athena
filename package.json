@@ -10,8 +10,8 @@
     "start": "npm run dev",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/unit/*.test.js",
-    "test:coverage": "node --test --experimental-test-coverage tests/unit/*.test.js"
+    "test": "node --test --test-concurrency=1 tests/unit/*.test.js",
+    "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage tests/unit/*.test.js"
   },
   "dependencies": {
     "lucide-react": "^0.453.0",
