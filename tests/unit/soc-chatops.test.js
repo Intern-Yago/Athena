@@ -398,6 +398,31 @@ describe('Athena OS v2.1 — SOC ChatOps & Telegram Firewall', () => {
       await webhookHandler(mockReq, mockRes, noopNext);
       assert.strictEqual(mockRes.getStatusCode(), 200);
     });
+
+    it('Deve responder ao comando /buscas com os termos pesquisados e origens de tráfego', async () => {
+      process.env.TELEGRAM_CHAT_ID = testChatId;
+
+      await socService.recordSearchLog({
+        searchTerm: 'elevador 4 colunas',
+        resultsCount: 3,
+        trafficSource: 'Google Orgânico'
+      });
+
+      const mockReq = {
+        body: {
+          message: {
+            text: '/buscas',
+            chat: { id: testChatId },
+            from: { username: 'soc_analyst' }
+          }
+        },
+        headers: {}
+      };
+      const mockRes = createMockRes();
+
+      await webhookHandler(mockReq, mockRes, noopNext);
+      assert.strictEqual(mockRes.getStatusCode(), 200);
+    });
   });
 
   describe('5. Housekeeping & Retenção de Dados', () => {
@@ -412,6 +437,23 @@ describe('Athena OS v2.1 — SOC ChatOps & Telegram Firewall', () => {
       assert.strictEqual(typeof result.reservationsDeleted, 'number');
       assert.strictEqual(typeof result.unblockedIpsPruned, 'number');
       assert.strictEqual(typeof result.orphanedEventsDeleted, 'number');
+    });
+  });
+
+  describe('6. Inteligência de Buscas do Catálogo', () => {
+    it('Deve registrar termos pesquisados e retornar estatísticas com origens de tráfego', async () => {
+      await socService.recordSearchLog({
+        searchTerm: 'scanner automotivo crp919',
+        resultsCount: 2,
+        trafficSource: 'Instagram',
+        referrer: 'https://l.instagram.com/'
+      });
+
+      const stats = await socService.getSearchStats({ limit: 5 });
+      assert.ok(stats);
+      assert.ok(Array.isArray(stats.topSearches));
+      assert.ok(Array.isArray(stats.recentSearches));
+      assert.ok(stats.recentSearches.some(s => s.term === 'scanner automotivo crp919'));
     });
   });
 });

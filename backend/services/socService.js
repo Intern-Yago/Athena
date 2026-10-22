@@ -475,7 +475,17 @@ async function runHousekeepingCleanup(actor = 'Telegram SOC') {
       orphanedEventsDeleted = resEvents.rowCount || 0;
     } catch (_) {}
 
-    const totalDeleted = auditLogsDeleted + tokensDeleted + reservationsDeleted + unblockedIpsPruned + orphanedEventsDeleted;
+    // 6. Limpar logs de busca com mais de 60 dias
+    let searchLogsPruned = 0;
+    try {
+      const resSearch = await query(`
+        DELETE FROM catalog_search_logs 
+        WHERE created_at < NOW() - INTERVAL '60 days'
+      `);
+      searchLogsPruned = resSearch.rowCount || 0;
+    } catch (_) {}
+
+    const totalDeleted = auditLogsDeleted + tokensDeleted + reservationsDeleted + unblockedIpsPruned + orphanedEventsDeleted + searchLogsPruned;
 
     // Registra na trilha de auditoria
     try {
@@ -515,6 +525,116 @@ async function runHousekeepingCleanup(actor = 'Telegram SOC') {
   }
 }
 
+// Buffer em memória para consultas rápidas e testes
+const recentSearchesBuffer = [];
+
+/**
+ * Registra um termo de busca e sua origem de tráfego
+ */
+async function recordSearchLog({ searchTerm, resultsCount = 0, trafficSource = 'Direto', referrer = null, ip = null }) {
+  if (!searchTerm || typeof searchTerm !== 'string') return null;
+  const cleanTerm = searchTerm.trim().slice(0, 255);
+  if (!cleanTerm) return null;
+
+  const entry = {
+    searchTerm: cleanTerm,
+    resultsCount: parseInt(resultsCount || 0, 10),
+    trafficSource: String(trafficSource || 'Direto').slice(0, 100),
+    referrer: referrer ? String(referrer).slice(0, 500) : null,
+    ip: ip ? String(ip).slice(0, 64) : null,
+    createdAt: new Date()
+  };
+
+  recentSearchesBuffer.unshift(entry);
+  if (recentSearchesBuffer.length > 50) {
+    recentSearchesBuffer.pop();
+  }
+
+  try {
+    await query(`
+      INSERT INTO catalog_search_logs (search_term, results_count, traffic_source, referrer, ip, created_at)
+      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+    `, [entry.searchTerm, entry.resultsCount, entry.trafficSource, entry.referrer, entry.ip]);
+  } catch (err) {
+    // Continua com o buffer em memória sem crashar
+  }
+
+  return entry;
+}
+
+/**
+ * Consulta estatísticas e termos mais buscados
+ */
+async function getSearchStats({ limit = 10 } = {}) {
+  let topSearches = [];
+  let recentSearches = [];
+
+  try {
+    const resTop = await query(`
+      SELECT 
+        search_term,
+        COUNT(*) as count,
+        MAX(results_count) as results_count,
+        MAX(traffic_source) as last_source,
+        MAX(created_at) as last_searched
+      FROM catalog_search_logs
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY search_term
+      ORDER BY count DESC
+      LIMIT $1
+    `, [limit]);
+
+    topSearches = resTop.rows.map(r => ({
+      term: r.search_term,
+      count: parseInt(r.count, 10),
+      resultsCount: parseInt(r.results_count || 0, 10),
+      source: r.last_source || 'Direto',
+      lastSearched: r.last_searched
+    }));
+
+    const resRecent = await query(`
+      SELECT search_term, results_count, traffic_source, created_at
+      FROM catalog_search_logs
+      ORDER BY created_at DESC
+      LIMIT $1
+    `, [limit]);
+
+    recentSearches = resRecent.rows.map(r => ({
+      term: r.search_term,
+      resultsCount: parseInt(r.results_count || 0, 10),
+      source: r.traffic_source || 'Direto',
+      createdAt: r.created_at,
+      timeFormatted: new Date(r.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+    }));
+  } catch (err) {
+    // Fallback gracioso: usar buffer em memória
+    recentSearches = recentSearchesBuffer.slice(0, limit).map(r => ({
+      term: r.searchTerm,
+      resultsCount: r.resultsCount,
+      source: r.trafficSource,
+      createdAt: r.createdAt,
+      timeFormatted: new Date(r.createdAt).toLocaleString('pt-BR')
+    }));
+
+    const countsMap = new Map();
+    for (const s of recentSearchesBuffer) {
+      const existing = countsMap.get(s.searchTerm) || { count: 0, source: s.trafficSource };
+      existing.count++;
+      countsMap.set(s.searchTerm, existing);
+    }
+    topSearches = Array.from(countsMap.entries())
+      .map(([term, data]) => ({ term, count: data.count, source: data.source }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit);
+  }
+
+  return {
+    topSearches,
+    recentSearches,
+    totalLogged: recentSearches.length
+  };
+}
+
 module.exports = {
   banIp,
   unbanIp,
@@ -524,6 +644,8 @@ module.exports = {
   getTodayOrdersSummary,
   cleanupTestOrders,
   runHousekeepingCleanup,
+  recordSearchLog,
+  getSearchStats,
   setMemoryTracker,
   getMemoryTracker,
   sanitizeIp

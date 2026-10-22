@@ -169,6 +169,7 @@ router.post(['/', '/webhook'], async (req, res) => {
           `• \`/status\` ou \`/saude\` : Diagnóstico em tempo real (Postgres, Latência, RAM, Uptime)\n\n` +
           `📊 *Comandos de Negócio & Manutenção:*\n` +
           `• \`/pedidos\` ou \`/vendas\` : Resumo financeiro e de pedidos de hoje\n` +
+          `• \`/buscas\` : Termos mais pesquisados pelos clientes e origens de tráfego\n` +
           `• \`/limparlogs\` ou \`/faxina\` : Purga preventiva de logs antigos e tokens expirados\n` +
           `• \`/limpartestes\` : Remove com segurança pedidos e dados de teste\n` +
           `• \`/help\` ou \`/ajuda\` : Mostra esta mensagem de ajuda\n\n` +
@@ -392,6 +393,39 @@ router.post(['/', '/webhook'], async (req, res) => {
             text: `⚠️ *Falha ao executar limpeza de logs:* ${result.error}`
           });
         }
+        return;
+      }
+
+      // --- 10. INTELIGÊNCIA DE BUSCAS DO CATÁLOGO ---
+      if (['/buscas', '/pesquisas', '/termos'].includes(rawCommand)) {
+        const stats = await socService.getSearchStats({ limit: 8 });
+
+        if (stats.topSearches.length === 0 && stats.recentSearches.length === 0) {
+          await sendTelegramDirectMessage({
+            chatId,
+            text: `🔍 *[Athena OS — Inteligência de Buscas]*\n\nNenhuma busca registrada no catálogo recentemente.`
+          });
+          return;
+        }
+
+        let reply = `🔍 *[Athena OS — Inteligência de Buscas & Origens]*\n\n`;
+
+        if (stats.topSearches.length > 0) {
+          reply += `🔥 *Termos Mais Pesquisados:*\n`;
+          stats.topSearches.forEach((item, idx) => {
+            reply += `${idx + 1}. \`${item.term}\` — *${item.count}* busca(s) • _${item.source}_\n`;
+          });
+          reply += `\n`;
+        }
+
+        if (stats.recentSearches.length > 0) {
+          reply += `🕒 *Últimas Buscas no Catálogo:*\n`;
+          stats.recentSearches.slice(0, 5).forEach((item) => {
+            reply += `• \`${item.term}\` (${item.resultsCount} itens) • _${item.source}_ • \`${item.timeFormatted}\`\n`;
+          });
+        }
+
+        await sendTelegramDirectMessage({ chatId, text: reply });
         return;
       }
 

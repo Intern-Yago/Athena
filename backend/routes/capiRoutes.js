@@ -29,6 +29,42 @@ function sha256Hash(value) {
 }
 
 /**
+ * Detecta a origem do tráfego (UTM, Google Ads, Meta Ads, TikTok ou Referer Orgânico)
+ */
+function detectTrafficSource(urlStr, refererHeader) {
+  try {
+    const url = new URL(urlStr || 'https://www.athenaconsultoria.com.br');
+    const utmSource = url.searchParams.get('utm_source');
+    const utmMedium = url.searchParams.get('utm_medium');
+    const gclid = url.searchParams.get('gclid');
+    const fbclid = url.searchParams.get('fbclid');
+    const ttclid = url.searchParams.get('ttclid');
+
+    if (gclid) return 'Google Ads (gclid)';
+    if (fbclid) return 'Meta / Instagram Ads';
+    if (ttclid) return 'TikTok Ads';
+    if (utmSource) return `${utmSource}${utmMedium ? ' / ' + utmMedium : ''}`;
+
+    if (refererHeader) {
+      const ref = refererHeader.toLowerCase();
+      if (ref.includes('google.')) return 'Google Orgânico';
+      if (ref.includes('instagram.')) return 'Instagram';
+      if (ref.includes('facebook.') || ref.includes('fb.me')) return 'Facebook';
+      if (ref.includes('tiktok.')) return 'TikTok';
+      if (ref.includes('whatsapp') || ref.includes('wa.me')) return 'WhatsApp';
+      if (ref.includes('youtube.')) return 'YouTube';
+      if (ref.includes('bing.')) return 'Bing';
+      if (!ref.includes('athenaconsultoria.com.br')) {
+        try {
+          return new URL(refererHeader).hostname.replace('www.', '');
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+  return 'Direto / Catálogo';
+}
+
+/**
  * POST /api/analytics/capi
  * Recebe o evento do frontend e retransmite via Server-Side para Meta CAPI e TikTok Events API.
  */
@@ -63,6 +99,25 @@ router.post('/capi', async (req, res) => {
     const finalEventId = eventId || `evt_${Date.now()}`;
     const finalUrl = eventSourceUrl || 'https://www.athenaconsultoria.com.br/';
     const eventTimeSec = Math.floor(Date.now() / 1000);
+
+    // Registro assíncrono de termos pesquisados para o SOC ChatOps
+    if (eventName === 'Search') {
+      const searchTerm = customData.search_string || customData.query || customData.search_term || '';
+      if (searchTerm) {
+        const referer = req.headers['referer'] || '';
+        const trafficSource = detectTrafficSource(finalUrl, referer);
+        try {
+          const { recordSearchLog } = require('../services/socService');
+          recordSearchLog({
+            searchTerm,
+            resultsCount: customData.results_count || 0,
+            trafficSource,
+            referrer: referer,
+            ip: rawIp
+          }).catch(() => {});
+        } catch (_) {}
+      }
+    }
 
     const hashedEmail = userData.email ? sha256Hash(userData.email) : undefined;
     const hashedPhone = userData.phone ? sha256Hash(String(userData.phone).replace(/\D/g, '')) : undefined;

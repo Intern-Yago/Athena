@@ -1269,6 +1269,18 @@ async function initDb() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS catalog_search_logs (
+          id BIGSERIAL PRIMARY KEY,
+          search_term VARCHAR(255) NOT NULL,
+          results_count INTEGER DEFAULT 0,
+          traffic_source VARCHAR(100) DEFAULT 'Direto',
+          referrer VARCHAR(500) DEFAULT NULL,
+          ip VARCHAR(64) DEFAULT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_search_logs_created ON catalog_search_logs (created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_search_logs_term ON catalog_search_logs (search_term);
       `);
 
       // Seed starter home banners if table is empty
