@@ -558,6 +558,8 @@ Para evitar criar categorias infinitas para cada detalhe técnico, a página de 
 ### 8.1 Correções de Segurança na Cloudflare (Security Insights)
 - [x] **Criar `security.txt` e `.well-known/security.txt` (RFC 9116):**
   - Implementado em `public/.well-known/security.txt` e `public/security.txt` com e-mails oficiais de reporte responsável.
+- [x] **Configurar Content-Security-Policy (CSP) Estrito:**
+  - Implementado no `vercel.json` com liberação granular para GTM, Meta Pixel, TikTok Pixel, Cloudflare Turnstile, Clarity, Google Fonts, Model Viewer 3D e ViaCEP, bloqueando injeções arbitrárias de scripts/frames de terceiros.
 - [ ] **Forçar versão mínima TLS 1.2 (SSL/TLS ➔ Edge Certificates):**
   - *Problema:* Subdomínios aceitam TLS 1.0 e 1.1 obsoletos.
   - *Solução:* Configurar "Minimum TLS Version" para `TLS 1.2` no painel da Cloudflare.

@@ -158,6 +158,7 @@ describe('Cloudflare & Edge Architecture Security Audit Suite', () => {
       assert.strictEqual(headerMap['x-frame-options'], 'DENY');
       assert.strictEqual(headerMap['referrer-policy'], 'strict-origin-when-cross-origin');
       assert.ok(headerMap['strict-transport-security']?.includes('max-age=31536000'));
+      assert.ok(headerMap['content-security-policy']?.includes("default-src 'self'"), 'CSP estrito deve estar configurado');
     });
 
     it('Origin Isolation middleware should process requests without ReferenceError on referer', () => {
