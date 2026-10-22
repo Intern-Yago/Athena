@@ -70,16 +70,6 @@ async function sendTelegramAlert({
     return { ok: true, skipped: true, reason: 'Level INFO is filtered out to prevent alert fatigue' };
   }
 
-  const token = process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID || TELEGRAM_CHAT_ID;
-
-  if (!token || !chatId) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[TELEGRAM ALERT DRY-RUN] [${normLevel}] ${title}: ${message}`);
-    }
-    return { ok: true, skipped: true, reason: 'TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured' };
-  }
-
   // Define cooldown padrão baseado no nível de gravidade
   const effectiveCooldown = cooldownMinutes !== null 
     ? cooldownMinutes 
@@ -90,6 +80,16 @@ async function sendTelegramAlert({
 
   if (!throttle.shouldSend) {
     return { ok: true, throttled: true, accumulatedCount: throttle.count };
+  }
+
+  const token = process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID || TELEGRAM_CHAT_ID;
+
+  if (!token || token === 'undefined' || !chatId || chatId === 'undefined') {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[TELEGRAM ALERT DRY-RUN] [${normLevel}] ${title}: ${message}`);
+    }
+    return { ok: true, skipped: true, reason: 'TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured' };
   }
 
   // Ícones e cabeçalhos visuais
@@ -226,7 +226,7 @@ async function testTelegramConnection() {
   const token = process.env.TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID || TELEGRAM_CHAT_ID;
 
-  if (!token || !chatId) {
+  if (!token || token === 'undefined' || !chatId || chatId === 'undefined') {
     return {
       success: false,
       configured: false,

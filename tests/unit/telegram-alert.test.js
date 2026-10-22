@@ -48,8 +48,10 @@ describe('Telegram Alert Service: Classificação Inteligente & Anti-Spam', () =
     assert.strictEqual(res.ok, true);
     assert.strictEqual(res.skipped, true);
 
-    process.env.TELEGRAM_BOT_TOKEN = originalToken;
-    process.env.TELEGRAM_CHAT_ID = originalChatId;
+    if (originalToken !== undefined) process.env.TELEGRAM_BOT_TOKEN = originalToken;
+    else delete process.env.TELEGRAM_BOT_TOKEN;
+    if (originalChatId !== undefined) process.env.TELEGRAM_CHAT_ID = originalChatId;
+    else delete process.env.TELEGRAM_CHAT_ID;
   });
 
   it('Throttling / Cooldown: Deve barrar mensagens duplicadas no intervalo de resfriamento', async () => {
