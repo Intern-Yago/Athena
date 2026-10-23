@@ -40,7 +40,8 @@ async function createOrder({
   shippingAddress = {},
   customerSnapshot = {},
   couponCode = null,
-  notes = null
+  notes = null,
+  equipmentInfo = null
 }) {
   if (!customerId) throw new Error('customerId é obrigatório para criar um pedido.');
   if (!Array.isArray(items) || items.length === 0) throw new Error('O pedido precisa conter ao menos um item.');
@@ -150,9 +151,9 @@ async function createOrder({
         payment_status, fulfillment_status, subtotal_amount,
         discount_amount, shipping_amount, total_amount,
         points_spent, points_earned, payment_method,
-        shipping_address, customer_snapshot, notes, created_at, updated_at
+        shipping_address, customer_snapshot, notes, equipment_info, created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, 'unfulfilled', $6, $7, $8, $9, $10, 0, $11, $12, $13, $14, NOW(), NOW()
+        $1, $2, $3, $4, $5, 'unfulfilled', $6, $7, $8, $9, $10, 0, $11, $12, $13, $14, $15::jsonb, NOW(), NOW()
       )
       RETURNING id, order_number, status, payment_status, total_amount, created_at
     `, [
@@ -169,7 +170,8 @@ async function createOrder({
       paymentMethod,
       JSON.stringify(shippingAddress || {}),
       JSON.stringify(customerSnapshot || {}),
-      notes
+      notes,
+      equipmentInfo ? JSON.stringify(equipmentInfo) : null
     ]);
 
     const createdOrder = orderInsertRes.rows[0];
@@ -177,12 +179,17 @@ async function createOrder({
 
     // 6. Insercao dos itens na tabela order_items
     for (const it of validatedItems) {
+      const itemMetadata = {
+        ...(it.metadata || {}),
+        ...(equipmentInfo ? { equipmentModel: equipmentInfo.model, equipmentSerial: equipmentInfo.serialNumber } : {})
+      };
+
       await client.query(`
         INSERT INTO order_items (
           order_id, product_id, variant_sku, name,
           quantity, unit_price, total_price, points_price,
-          fulfillment_type, fulfillment_status, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', NOW())
+          fulfillment_type, fulfillment_status, metadata, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10::jsonb, NOW())
       `, [
         orderUuid,
         it.productId,
@@ -192,7 +199,8 @@ async function createOrder({
         it.unitPrice,
         it.totalPrice,
         it.pointsPrice,
-        it.fulfillmentType
+        it.fulfillmentType,
+        JSON.stringify(itemMetadata)
       ]);
     }
 

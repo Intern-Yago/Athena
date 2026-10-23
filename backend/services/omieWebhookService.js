@@ -306,8 +306,12 @@ async function processOmieProductWebhook(pool, body) {
         const idx = matchResult.matchedVariantIndex;
         if (idx >= 0 && idx < variants.length) {
           const updatedVar = { ...variants[idx] };
-          if (finalPreco > 0) updatedVar.price = finalPreco;
+          if (finalPreco > 0) {
+            updatedVar.price = finalPreco;
+            updatedVar.priceSource = 'omie';
+          }
           updatedVar.stockQty = finalEstoque;
+          updatedVar.stockSource = 'omie';
           if (codigoProduto) {
             updatedVar.omieProductId = Number(codigoProduto);
             updatedVar.omieCode = updatedVar.omieCode || String(codigoProduto);
@@ -328,7 +332,7 @@ async function processOmieProductWebhook(pool, body) {
             WHERE id = $3::text
           `, [JSON.stringify(variants), hasAnyStock, existing.id]);
 
-          console.log(`[OMIE WEBHOOK] ✅ Variação "${updatedVar.name}" (SKU: ${updatedVar.sku}) do produto "${existing.name}" (ID: ${existing.id}) atualizada via webhook! Preço: R$ ${finalPreco} | Estoque: ${finalEstoque}`);
+          console.log(`[OMIE WEBHOOK] ✅ Variação "${updatedVar.name}" (SKU: ${updatedVar.sku}) do produto "${existing.name}" (ID: ${existing.id}) atualizada via webhook! Preço: R$ ${finalPreco} (Omie) | Estoque: ${finalEstoque} (Omie)`);
           return {
             processed: true,
             action: "variant_updated",
@@ -349,8 +353,10 @@ async function processOmieProductWebhook(pool, body) {
         UPDATE products
         SET 
           preco_venda = CASE WHEN $1::numeric > 0 THEN $1::numeric ELSE preco_venda END,
-          price = CASE WHEN (price IS NULL OR price = 0) AND $1::numeric > 0 THEN $1::numeric ELSE price END,
+          price = CASE WHEN $1::numeric > 0 THEN $1::numeric ELSE price END,
+          price_source = CASE WHEN $1::numeric > 0 THEN 'omie' ELSE price_source END,
           estoque_quantidade = $2::integer,
+          stock_source = 'omie',
           in_stock = ($2::integer > 0),
           omie_codigo_produto = COALESCE(omie_codigo_produto, $3::bigint),
           omie_product_id = COALESCE(omie_product_id, $3::bigint),

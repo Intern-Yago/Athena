@@ -42,6 +42,22 @@ export function isDigitalProduct(product) {
   return false;
 }
 
+export function doesProductRequireEquipmentSerial(product) {
+  if (!product) return false;
+  if (!isDigitalProduct(product)) return false;
+  if (product.requiresEquipmentSerial !== undefined) {
+    return Boolean(product.requiresEquipmentSerial);
+  }
+  if (product.requires_equipment_serial !== undefined) {
+    return Boolean(product.requires_equipment_serial);
+  }
+  const name = String(product.name || '').toLowerCase();
+  if (name.includes('curso') || name.includes('treinamento') || name.includes('ebook') || name.includes('e-book')) {
+    return false;
+  }
+  return true;
+}
+
 export function getVariantStockNumber(variant) {
   if (!variant) return null;
   if (variant.stockQty === '' || variant.stockQty === undefined || variant.stockQty === null) {

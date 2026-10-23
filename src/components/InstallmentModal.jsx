@@ -26,11 +26,15 @@ import {
   Search,
   Truck,
   Sparkles,
-  MapPin
+  MapPin,
+  Key,
+  Eye,
+  EyeOff,
+  Plus
 } from 'lucide-react';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
-import { isDigitalProduct } from '../utils/productVariants';
+import { isDigitalProduct, doesProductRequireEquipmentSerial } from '../utils/productVariants';
 
 export default function InstallmentModal({ 
   isOpen, 
@@ -113,38 +117,95 @@ export default function InstallmentModal({
     return activeItems.length > 0 && activeItems.every(i => isDigitalProduct(i));
   }, [activeItems]);
 
-  const hasSavedAddress = Boolean(
-    currentUser?.address?.street &&
-    currentUser?.address?.city &&
-    currentUser?.address?.cep
-  );
-  const [useSavedAddress, setUseSavedAddress] = useState(hasSavedAddress);
+  const requiresEquipmentInfo = useMemo(() => {
+    return activeItems.some(i => i.requiresEquipmentSerial || i.requires_equipment_serial || doesProductRequireEquipmentSerial(i));
+  }, [activeItems]);
+
+  const [equipmentModel, setEquipmentModel] = useState('');
+  const [equipmentSerial, setEquipmentSerial] = useState('');
+
+  // Idempotency Key Ref para blindagem contra cobranças duplicadas (clique duplo / instabilidade)
+  const idempotencyKeyRef = useRef(null);
+  useEffect(() => {
+    if (isOpen && !idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = `idem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    } else if (!isOpen) {
+      idempotencyKeyRef.current = null;
+    }
+  }, [isOpen]);
+
+  // Guest Account Password State
+  const [guestPassword, setGuestPassword] = useState('');
+  const [showGuestPassword, setShowGuestPassword] = useState(false);
+
+  // Multi-Address from currentUser
+  const savedAddresses = useMemo(() => {
+    if (Array.isArray(currentUser?.addresses) && currentUser.addresses.length > 0) {
+      return currentUser.addresses;
+    }
+    if (currentUser?.address && (currentUser.address.street || currentUser.address.cep)) {
+      return [{
+        id: 'addr_default',
+        label: 'Endereço Principal',
+        isDefault: true,
+        ...currentUser.address
+      }];
+    }
+    return [];
+  }, [currentUser]);
+
+  const [selectedAddressId, setSelectedAddressId] = useState(() => {
+    if (savedAddresses.length > 0) {
+      const def = savedAddresses.find(a => a.isDefault) || savedAddresses[0];
+      return def ? def.id : null;
+    }
+    return null;
+  });
+
+  const hasSavedAddress = savedAddresses.length > 0;
+  const isCustomAddress = !selectedAddressId || selectedAddressId === 'custom';
 
   // Address State for delivery / billing
-  const [address, setAddress] = useState({
-    cep: currentUser?.address?.cep || '',
-    street: currentUser?.address?.street || '',
-    number: currentUser?.address?.number || '',
-    complement: currentUser?.address?.complement || '',
-    neighborhood: currentUser?.address?.neighborhood || '',
-    city: currentUser?.address?.city || '',
-    state: currentUser?.address?.state || ''
+  const [address, setAddress] = useState(() => {
+    if (savedAddresses.length > 0) {
+      const def = savedAddresses.find(a => a.isDefault) || savedAddresses[0];
+      return {
+        cep: def.cep || '',
+        street: def.street || '',
+        number: def.number || '',
+        complement: def.complement || '',
+        neighborhood: def.neighborhood || '',
+        city: def.city || '',
+        state: def.state || ''
+      };
+    }
+    return {
+      cep: currentUser?.address?.cep || '',
+      street: currentUser?.address?.street || '',
+      number: currentUser?.address?.number || '',
+      complement: currentUser?.address?.complement || '',
+      neighborhood: currentUser?.address?.neighborhood || '',
+      city: currentUser?.address?.city || '',
+      state: currentUser?.address?.state || ''
+    };
   });
 
   useEffect(() => {
-    if (currentUser?.address?.street && currentUser?.address?.city) {
-      setUseSavedAddress(true);
-      setAddress({
-        cep: currentUser.address.cep || '',
-        street: currentUser.address.street || '',
-        number: currentUser.address.number || '',
-        complement: currentUser.address.complement || '',
-        neighborhood: currentUser.address.neighborhood || '',
-        city: currentUser.address.city || '',
-        state: currentUser.address.state || ''
-      });
+    if (selectedAddressId && selectedAddressId !== 'custom') {
+      const matched = savedAddresses.find(a => a.id === selectedAddressId);
+      if (matched) {
+        setAddress({
+          cep: matched.cep || '',
+          street: matched.street || '',
+          number: matched.number || '',
+          complement: matched.complement || '',
+          neighborhood: matched.neighborhood || '',
+          city: matched.city || '',
+          state: matched.state || ''
+        });
+      }
     }
-  }, [currentUser]);
+  }, [selectedAddressId, savedAddresses]);
   const [searchingCep, setSearchingCep] = useState(false);
   const [cepError, setCepError] = useState(null);
 
@@ -424,12 +485,28 @@ export default function InstallmentModal({
       return;
     }
 
-    // Physical shipping validation
-    if (hasPhysicalItems) {
-      if (!address.cep?.trim() || !address.street?.trim() || !address.number?.trim() || !address.city?.trim() || !address.state?.trim()) {
-        setErrorMessage('Por favor, informe o endereço de entrega completo (CEP, rua, número, cidade e UF) para o envio dos equipamentos.');
+    // Address validation (Always required for SEFAZ/fiscal invoicing)
+    if (!address.cep?.trim() || !address.street?.trim() || !address.number?.trim() || !address.city?.trim() || !address.state?.trim()) {
+      setErrorMessage('Por favor, informe o endereço completo (CEP, rua, número, cidade e UF) para emissão da Nota Fiscal.');
+      return;
+    }
+
+    // Equipment validation for automotive licenses/SGW
+    if (requiresEquipmentInfo) {
+      if (!equipmentModel.trim()) {
+        setErrorMessage('Por favor, informe o modelo do seu equipamento.');
         return;
       }
+      if (!equipmentSerial.trim()) {
+        setErrorMessage('Por favor, informe o número de série do equipamento.');
+        return;
+      }
+    }
+
+    // Guest password validation
+    if (!currentUser && guestPassword && guestPassword.trim().length < 6) {
+      setErrorMessage('A senha precisa ter no mínimo 6 caracteres.');
+      return;
     }
 
     // Card Specific Validations
@@ -466,7 +543,15 @@ export default function InstallmentModal({
         customerCpfCnpj: customer.cpfCnpj.trim(),
         customerCompanyName: docInfo.isCnpj ? (customer.companyName || '').trim() : undefined,
         customerPhone: customer.phone.trim(),
-        shippingAddress: hasPhysicalItems ? address : {},
+        shippingAddress: address,
+        address: address,
+        equipmentInfo: requiresEquipmentInfo ? {
+          model: equipmentModel.trim(),
+          serialNumber: equipmentSerial.trim()
+        } : undefined,
+        equipmentModel: requiresEquipmentInfo ? equipmentModel.trim() : undefined,
+        equipmentSerial: requiresEquipmentInfo ? equipmentSerial.trim() : undefined,
+        customerPassword: (!currentUser && guestPassword.trim().length >= 6) ? guestPassword.trim() : undefined,
         billingType: isFreeOrder ? 'FREE' : method,
         value: isFreeOrder ? 0 : (
           method === 'PIX' ? gateways.pix.customerAmount :
@@ -496,9 +581,15 @@ export default function InstallmentModal({
         };
       }
 
+      const currentIdempotencyKey = idempotencyKeyRef.current || `idem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      payload.idempotencyKey = currentIdempotencyKey;
+
       const res = await fetch('/api/payments/charge', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-idempotency-key': currentIdempotencyKey
+        },
         body: JSON.stringify(payload)
       });
 
@@ -872,29 +963,13 @@ export default function InstallmentModal({
               <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 pb-2.5">
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    {allDigital ? (
-                      <>
-                        <Zap className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Dados para Faturamento & Envio Digital</span>
-                      </>
-                    ) : (
-                      <>
-                        <Truck className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Dados para Faturamento & Entrega Técnica</span>
-                      </>
-                    )}
+                    <FileText className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Dados para Faturamento</span>
                   </h4>
-                  {allDigital ? (
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/80 w-fit flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-emerald-600" />
-                      <span>Produto Digital: Sem frete</span>
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/80 w-fit flex items-center gap-1">
-                      <Truck className="w-3 h-3 text-sky-600" />
-                      <span>Equipamento Físico: Entrega técnica</span>
-                    </span>
-                  )}
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200 w-fit flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-amber-600" />
+                    <span>Nota Fiscal & Comprovante</span>
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1013,192 +1088,298 @@ export default function InstallmentModal({
                     />
                   </div>
 
-                  {/* ENDEREÇO DE ENTREGA / ATIVAÇÃO DIGITAL */}
-                  {hasPhysicalItems ? (
-                    <div className="sm:col-span-2 pt-3 mt-2 border-t border-slate-200 space-y-3">
+                  {/* DADOS DO EQUIPAMENTO PARA ATIVAÇÃO DIGITAL */}
+                  {requiresEquipmentInfo && (
+                    <div className="sm:col-span-2 pt-3 mt-1 border-t border-slate-200 space-y-3 animate-in fade-in">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <Truck className="w-4 h-4 text-amber-600" />
+                          <Key className="w-4 h-4 text-amber-600" />
                           <h4 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
-                            Endereço de Entrega do Equipamento
+                            Dados do Equipamento para Ativação da Licença
                           </h4>
                         </div>
-                        <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 font-bold px-2 py-0.5 rounded-full">
-                          Envio Físico / Transportadora
+                        <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Zap className="w-3 h-3 text-amber-600" />
+                          <span>Obrigatório</span>
                         </span>
                       </div>
 
-                      {hasSavedAddress && (
-                        <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                              <MapPin className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Endereço Cadastrado na Conta</span>
-                            </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Modelo do Equipamento *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Digite o modelo do seu equipamento"
+                            value={equipmentModel}
+                            onChange={(e) => setEquipmentModel(e.target.value)}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Número de Série do Equipamento *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Digite o número de série do equipamento"
+                            value={equipmentSerial}
+                            onChange={(e) => setEquipmentSerial(e.target.value)}
+                            className="form-input text-xs font-mono"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 leading-relaxed space-y-1">
+                        <p className="font-semibold text-amber-950">
+                          Ativação Digital:
+                        </p>
+                        <p className="text-[11px] text-amber-800">
+                          Com o modelo e o número de série informados, nossa equipe técnica realizará a configuração e liberação do seu acesso. Suas credenciais (login e senha) serão enviadas diretamente para seu e-mail e WhatsApp cadastrados.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ENDEREÇO DE FATURAMENTO E ENTREGA */}
+                  <div className="sm:col-span-2 pt-3 mt-1 border-t border-slate-200 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-amber-600" />
+                        <h4 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                          Endereço para Faturamento e Entrega
+                        </h4>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Utilizado para emissão da nota fiscal e envio quando aplicável
+                      </span>
+                    </div>
+
+                    {/* Caderno de Endereços Salvos para Usuário Logado */}
+                    {savedAddresses.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                            Selecione o endereço cadastrado:
+                          </span>
+                          {isCustomAddress && (
                             <button
                               type="button"
                               onClick={() => {
-                                const nextState = !useSavedAddress;
-                                setUseSavedAddress(nextState);
-                                if (nextState && currentUser?.address) {
-                                  setAddress({ ...currentUser.address });
-                                }
+                                const def = savedAddresses.find(a => a.isDefault) || savedAddresses[0];
+                                if (def) setSelectedAddressId(def.id);
                               }}
-                              className="text-[10px] font-bold text-amber-700 hover:text-amber-800 underline cursor-pointer"
+                              className="text-[10px] font-bold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer"
                             >
-                              {useSavedAddress ? 'Alterar / Usar outro endereço' : 'Usar endereço cadastrado'}
+                              Voltar aos endereços salvos
                             </button>
-                          </div>
-
-                          {useSavedAddress && (
-                            <div 
-                              onClick={() => {
-                                if (currentUser?.address) setAddress({ ...currentUser.address });
-                              }}
-                              className="p-3 rounded-xl bg-white border-2 border-emerald-500 shadow-2xs flex items-center justify-between cursor-pointer"
-                            >
-                              <div className="text-xs text-slate-700 space-y-0.5">
-                                <p className="font-bold text-slate-900">
-                                  {currentUser.address.street}, {currentUser.address.number || 'S/N'}
-                                  {currentUser.address.complement ? ` - ${currentUser.address.complement}` : ''}
-                                </p>
-                                <p className="text-[11px] text-slate-500">
-                                  {currentUser.address.neighborhood} • {currentUser.address.city}/{currentUser.address.state} • CEP {currentUser.address.cep}
-                                </p>
-                              </div>
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 shrink-0 ml-2">
-                                <Check className="w-3 h-3 text-emerald-600" />
-                                <span>Selecionado</span>
-                              </span>
-                            </div>
                           )}
                         </div>
-                      )}
 
-                      {(!hasSavedAddress || !useSavedAddress) && (
-                        <div className="grid grid-cols-1 sm:grid-cols-6 gap-2.5 animate-in fade-in">
-                          <div className="sm:col-span-2">
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="text-[10px] font-bold text-slate-700">CEP *</label>
-                              <button
-                                type="button"
-                                onClick={() => handleCepLookup()}
-                                disabled={searchingCep || (address.cep || '').replace(/\D/g, '').length !== 8}
-                                className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {savedAddresses.map((addr) => {
+                            const isSelected = selectedAddressId === addr.id;
+                            return (
+                              <div
+                                key={addr.id}
+                                onClick={() => setSelectedAddressId(addr.id)}
+                                className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between space-y-1.5 ${
+                                  isSelected
+                                    ? 'bg-amber-50/40 border-amber-500 shadow-xs ring-1 ring-amber-400'
+                                    : 'bg-slate-50/70 border-slate-200 hover:bg-white text-slate-600'
+                                }`}
                               >
-                                {searchingCep ? <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-600" /> : <Search className="w-2.5 h-2.5 text-amber-600" />}
-                                <span>Buscar</span>
-                              </button>
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="00000-000"
-                              value={address.cep}
-                              onChange={(e) => {
-                                let v = e.target.value.replace(/\D/g, '').slice(0, 8);
-                                if (v.length > 5) v = `${v.slice(0, 5)}-${v.slice(5)}`;
-                                setAddress(a => ({ ...a, cep: v }));
-                                if (v.replace(/\D/g, '').length === 8) handleCepLookup(v);
-                              }}
-                              className="form-input text-xs font-mono"
-                              required={hasPhysicalItems}
-                            />
-                            {cepError && <p className="text-[10px] text-rose-500 mt-0.5">{cepError}</p>}
-                          </div>
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-bold text-xs text-slate-900 truncate">
+                                    {addr.label || 'Endereço'}
+                                  </span>
+                                  {isSelected ? (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-200 text-amber-900 flex items-center gap-0.5 shrink-0">
+                                      <Check className="w-2.5 h-2.5" />
+                                      <span>Selecionado</span>
+                                    </span>
+                                  ) : addr.isDefault ? (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-200 text-slate-700 shrink-0">
+                                      Padrão
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="text-[11px] text-slate-700 leading-snug">
+                                  {addr.street}, {addr.number || 'S/N'}{addr.complement ? ` - ${addr.complement}` : ''}
+                                </p>
+                                <p className="text-[10px] text-slate-500">
+                                  {addr.neighborhood} • {addr.city}/{addr.state} • CEP {addr.cep}
+                                </p>
+                              </div>
+                            );
+                          })}
 
-                          <div className="sm:col-span-4">
-                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Logradouro / Rua *</label>
-                            <input
-                              type="text"
-                              placeholder="Ex: Av. das Indústrias"
-                              value={address.street}
-                              onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                              className="form-input text-xs"
-                              required={hasPhysicalItems}
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Número *</label>
-                            <input
-                              type="text"
-                              placeholder="123 ou S/N"
-                              value={address.number}
-                              onChange={(e) => setAddress({ ...address, number: e.target.value })}
-                              className="form-input text-xs"
-                              required={hasPhysicalItems}
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Complemento</label>
-                            <input
-                              type="text"
-                              placeholder="Galpão 4, Sala 1"
-                              value={address.complement}
-                              onChange={(e) => setAddress({ ...address, complement: e.target.value })}
-                              className="form-input text-xs"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Bairro *</label>
-                            <input
-                              type="text"
-                              placeholder="Distrito Industrial"
-                              value={address.neighborhood}
-                              onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
-                              className="form-input text-xs"
-                              required={hasPhysicalItems}
-                            />
-                          </div>
-
-                          <div className="sm:col-span-4">
-                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Cidade *</label>
-                            <input
-                              type="text"
-                              placeholder="Brasília"
-                              value={address.city}
-                              onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                              className="form-input text-xs"
-                              required={hasPhysicalItems}
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-700 block mb-1">UF *</label>
-                            <input
-                              type="text"
-                              placeholder="DF"
-                              maxLength={2}
-                              value={address.state}
-                              onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })}
-                              className="form-input text-xs uppercase"
-                              required={hasPhysicalItems}
-                            />
+                          <div
+                            onClick={() => setSelectedAddressId('custom')}
+                            className={`p-3 rounded-xl border border-dashed text-left cursor-pointer transition-all flex items-center justify-center gap-2 ${
+                              selectedAddressId === 'custom'
+                                ? 'bg-amber-50/40 border-amber-500 shadow-xs ring-1 ring-amber-400 text-amber-900 font-bold'
+                                : 'bg-white border-slate-300 hover:border-amber-400 text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <Plus className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span className="text-xs font-bold">Digitar outro endereço</span>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="sm:col-span-2 pt-3 mt-2 border-t border-slate-200">
-                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50/90 to-teal-50/70 border border-emerald-200/80 flex items-start gap-3 shadow-2xs">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                          <Zap className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h5 className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
-                              Licença / Acesso 100% Digital
-                            </h5>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              Sem Frete Físico
-                            </span>
+                      </div>
+                    )}
+
+                    {/* Formulário de Endereço Manual */}
+                    {(!hasSavedAddress || isCustomAddress) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-6 gap-2.5 pt-1 animate-in fade-in">
+                        <div className="sm:col-span-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-700">CEP *</label>
+                            <button
+                              type="button"
+                              onClick={() => handleCepLookup()}
+                              disabled={searchingCep || (address.cep || '').replace(/\D/g, '').length !== 8}
+                              className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                            >
+                              {searchingCep ? <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-600" /> : <Search className="w-2.5 h-2.5 text-amber-600" />}
+                              <span>Buscar</span>
+                            </button>
                           </div>
-                          <p className="text-xs text-emerald-800 leading-relaxed">
-                            Este pedido contém ativações e desbloqueios remotos. A liberação do Security Gateway (SGW) e o envio dos acessos ocorrem de forma 100% digital diretamente pelo e-mail e WhatsApp cadastrados acima logo após a confirmação do pagamento. Não há necessidade de envio físico.
-                          </p>
+                          <input
+                            type="text"
+                            placeholder="00000-000"
+                            value={address.cep}
+                            onChange={(e) => {
+                              let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+                              if (v.length > 5) v = `${v.slice(0, 5)}-${v.slice(5)}`;
+                              setAddress(a => ({ ...a, cep: v }));
+                              if (v.replace(/\D/g, '').length === 8) handleCepLookup(v);
+                            }}
+                            className="form-input text-xs font-mono"
+                            required
+                          />
+                          {cepError && <p className="text-[10px] text-rose-500 mt-0.5">{cepError}</p>}
                         </div>
+
+                        <div className="sm:col-span-4">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Logradouro / Rua *</label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Av. das Indústrias"
+                            value={address.street}
+                            onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Número *</label>
+                          <input
+                            type="text"
+                            placeholder="123 ou S/N"
+                            value={address.number}
+                            onChange={(e) => setAddress({ ...address, number: e.target.value })}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Complemento</label>
+                          <input
+                            type="text"
+                            placeholder="Galpão 4, Sala 1"
+                            value={address.complement}
+                            onChange={(e) => setAddress({ ...address, complement: e.target.value })}
+                            className="form-input text-xs"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Bairro *</label>
+                          <input
+                            type="text"
+                            placeholder="Distrito Industrial"
+                            value={address.neighborhood}
+                            onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div className="sm:col-span-4">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Cidade *</label>
+                          <input
+                            type="text"
+                            placeholder="Brasília"
+                            value={address.city}
+                            onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">UF *</label>
+                          <input
+                            type="text"
+                            placeholder="DF"
+                            maxLength={2}
+                            value={address.state}
+                            onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })}
+                            className="form-input text-xs uppercase"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CRIAÇÃO DE CONTA INTEGRADA / OPÇÃO B (PARA USUÁRIOS NÃO LOGADOS) */}
+                  {!currentUser && (
+                    <div className="sm:col-span-2 pt-3 mt-1 border-t border-slate-200 space-y-2.5 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Lock className="w-4 h-4 text-amber-600" />
+                          <h4 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                            Acesso à sua Conta Athena
+                          </h4>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-emerald-600" />
+                          <span>Acompanhe seu Pedido & A-Points</span>
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          Crie uma Senha para sua Conta *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showGuestPassword ? 'text' : 'password'}
+                            placeholder="Mínimo 6 caracteres"
+                            value={guestPassword}
+                            onChange={(e) => setGuestPassword(e.target.value)}
+                            className="form-input text-xs !pr-9"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowGuestPassword(!showGuestPassword)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showGuestPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Sua conta será criada para acompanhar a liberação do acesso, consultar pedidos e pontuar no programa A-Points.
+                        </p>
                       </div>
                     </div>
                   )}

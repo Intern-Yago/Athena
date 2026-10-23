@@ -1056,6 +1056,9 @@ export default function AdminPanel({
       priceNegotiable: true,
       aPoints: '',
       productType: 'physical',
+      requiresEquipmentSerial: false,
+      priceSource: 'manual',
+      stockSource: 'manual',
       badge: '',
       tags: [],
       status: 'published',
@@ -1114,6 +1117,7 @@ export default function AdminPanel({
       aPoints: (targetProduct.aPoints != null && Number(targetProduct.aPoints) > 0) ? targetProduct.aPoints : '',
       isFeatured: !!targetProduct.isFeatured,
       productType: targetProduct.productType || 'physical',
+      requiresEquipmentSerial: targetProduct.requiresEquipmentSerial !== undefined ? !!targetProduct.requiresEquipmentSerial : (targetProduct.requires_equipment_serial !== undefined ? !!targetProduct.requires_equipment_serial : (targetProduct.productType === 'digital' || targetProduct.product_type === 'digital')),
       tags: Array.isArray(targetProduct.tags)
         ? [...targetProduct.tags]
         : (typeof targetProduct.tags === 'string' ? targetProduct.tags.split(/[,;\s]+/).map(t => t.trim().replace(/^#/, '')).filter(Boolean) : []),
@@ -1460,6 +1464,9 @@ export default function AdminPanel({
       priceNegotiable: true,
       aPoints: '',
       productType: 'physical',
+      requiresEquipmentSerial: false,
+      priceSource: 'manual',
+      stockSource: 'manual',
       badge: '',
       tags: [],
       status: 'published',
@@ -1505,6 +1512,9 @@ export default function AdminPanel({
       aPoints: (product.aPoints != null && Number(product.aPoints) > 0) ? product.aPoints : '',
       isFeatured: !!product.isFeatured,
       productType: product.productType || 'physical',
+      requiresEquipmentSerial: product.requiresEquipmentSerial !== undefined ? !!product.requiresEquipmentSerial : (product.requires_equipment_serial !== undefined ? !!product.requires_equipment_serial : (product.productType === 'digital' || product.product_type === 'digital')),
+      priceSource: product.priceSource || product.price_source || ((product.omieCodigoProduto || product.omie_codigo_produto || product.omieCode) && product.omieLastSync ? 'omie' : 'manual'),
+      stockSource: product.stockSource || product.stock_source || ((product.omieCodigoProduto || product.omie_codigo_produto || product.omieCode) && product.omieLastSync ? 'omie' : 'manual'),
       tags: Array.isArray(product.tags)
         ? [...product.tags]
         : (typeof product.tags === 'string' ? product.tags.split(/[,;\s]+/).map(t => t.trim().replace(/^#/, '')).filter(Boolean) : []),
@@ -2163,8 +2173,10 @@ export default function AdminPanel({
       sku: v.sku || '',
       colorHex: v.colorHex || '',
       price: v.price !== undefined && v.price !== null ? v.price : '',
+      priceSource: v.priceSource || ((v.omieProductId || v.omieCode) ? 'omie' : 'manual'),
       image: v.image || '',
       stockQty: v.stockQty !== undefined && v.stockQty !== null ? v.stockQty : '',
+      stockSource: v.stockSource || ((v.omieProductId || v.omieCode) ? 'omie' : 'manual'),
       statusControl: initialControl,
       isActive: initialControl !== 'manual_inactive',
       showInCatalog: v.showInCatalog !== false,
@@ -2188,8 +2200,10 @@ export default function AdminPanel({
       sku: (variantModalForm.sku || '').trim(),
       colorHex: (variantModalForm.colorHex || '').trim(),
       price: variantModalForm.price !== '' ? Number(variantModalForm.price) : '',
+      priceSource: variantModalForm.priceSource || 'manual',
       image: (variantModalForm.image || '').trim(),
       stockQty: variantModalForm.stockQty !== '' ? Number(variantModalForm.stockQty) : '',
+      stockSource: variantModalForm.stockSource || 'manual',
       statusControl: control,
       isManualForce: control === 'manual_active',
       isActive: isAct,
@@ -3793,7 +3807,12 @@ export default function AdminPanel({
       description: finalDescription,
       slug: finalSlug,
       status: finalStatus,
+      productType: productForm.productType || 'physical',
+      requiresEquipmentSerial: productForm.productType === 'digital' ? (productForm.requiresEquipmentSerial !== false) : false,
+      requires_equipment_serial: productForm.productType === 'digital' ? (productForm.requiresEquipmentSerial !== false) : false,
       price: parseFloat(productForm.price) || 0,
+      priceSource: productForm.priceSource || 'manual',
+      stockSource: productForm.stockSource || 'manual',
       aPoints: productForm.aPoints !== '' && !isNaN(productForm.aPoints) && Number(productForm.aPoints) > 0 ? parseInt(productForm.aPoints, 10) : null,
       badge: (productForm.badge || '').trim(),
       tags: Array.isArray(mergedTags)
@@ -9406,10 +9425,16 @@ export default function AdminPanel({
                                 setProductForm({ 
                                   ...productForm, 
                                   stock: val === '' ? '' : Math.max(0, isNaN(num) ? 0 : num),
-                                  inStock: val === '' ? false : num > 0
+                                  inStock: val === '' ? false : num > 0,
+                                  stockSource: 'manual'
                                 });
                               }}
-                              className="form-input text-xs font-mono font-bold bg-white"
+                              title={productForm.stockSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
+                              className={`form-input text-xs font-mono font-bold transition-colors ${
+                                productForm.stockSource === 'omie'
+                                  ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
+                                  : 'bg-white text-slate-800'
+                              }`}
                             />
                             <span className="text-[10.5px] text-slate-500 block mt-1 leading-tight">
                               Quando você alterar aqui, atualiza no Omie. Quando alterar no Omie, atualiza aqui automaticamente.
@@ -9528,8 +9553,13 @@ export default function AdminPanel({
                             step="0.01"
                             placeholder="600.00"
                             value={productForm.price}
-                            onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                            className="form-input text-xs font-mono"
+                            onChange={(e) => setProductForm({ ...productForm, price: e.target.value, priceSource: 'manual' })}
+                            title={productForm.priceSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
+                            className={`form-input text-xs font-mono font-bold transition-colors ${
+                              productForm.priceSource === 'omie'
+                                ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
+                                : 'bg-white text-slate-800'
+                            }`}
                           />
                           <span className="text-[11px] text-slate-500 block mt-0.5">
                             {productForm.priceNegotiable
@@ -9656,7 +9686,11 @@ export default function AdminPanel({
 
                             <button
                               type="button"
-                              onClick={() => setProductForm({ ...productForm, productType: 'digital' })}
+                              onClick={() => setProductForm({ 
+                                ...productForm, 
+                                productType: 'digital',
+                                requiresEquipmentSerial: productForm.requiresEquipmentSerial !== false
+                              })}
                               className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
                                 productForm.productType === 'digital'
                                   ? 'bg-white border-amber-500 shadow-xs ring-1 ring-amber-500/50'
@@ -9683,6 +9717,30 @@ export default function AdminPanel({
                               </div>
                             </button>
                           </div>
+
+                          {/* TOGGLE EXIGIR MODELO E NÚMERO DE SÉRIE NO CHECKOUT */}
+                          {productForm.productType === 'digital' && (
+                            <div className="mt-3 p-3.5 bg-emerald-50/70 border border-emerald-200/90 rounded-2xl flex items-center justify-between gap-3 animate-in fade-in">
+                              <div className="space-y-0.5 min-w-0">
+                                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                  <Key className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                  <span>Exigir Modelo e Número de Série do Equipamento no Checkout</span>
+                                </div>
+                                <p className="text-[11px] text-slate-600 leading-snug">
+                                  Ative para licenças e atualizações automotivas (SGW, banco de dados, alinhadores). Desative para cursos, treinamentos e e-books.
+                                </p>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={productForm.requiresEquipmentSerial !== false}
+                                  onChange={(e) => setProductForm({ ...productForm, requiresEquipmentSerial: e.target.checked })}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                              </label>
+                            </div>
+                          )}
                         </div>
 
                         {/* TOGGLEABLE GATEWAY SIMULATION PREVIEW */}
@@ -11619,9 +11677,14 @@ export default function AdminPanel({
                       type="number"
                       min="0"
                       value={variantModalForm.stockQty}
-                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, stockQty: e.target.value }))}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, stockQty: e.target.value, stockSource: 'manual' }))}
                       placeholder="Saldo Omie ou 0"
-                      className="form-input text-xs"
+                      title={variantModalForm.stockSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
+                      className={`form-input text-xs font-mono font-bold transition-colors ${
+                        variantModalForm.stockSource === 'omie'
+                          ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
+                          : 'bg-white text-slate-800'
+                      }`}
                     />
                     <p className="text-[10px] text-slate-400">
                       Deixe vazio para herdar a sincronização pelo SKU do Omie.
@@ -11682,9 +11745,14 @@ export default function AdminPanel({
                       step="0.01"
                       min="0"
                       value={variantModalForm.price}
-                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, price: e.target.value }))}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, price: e.target.value, priceSource: 'manual' }))}
                       placeholder="Opcional (herda padrão)"
-                      className="form-input text-xs font-mono"
+                      title={variantModalForm.priceSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
+                      className={`form-input text-xs font-mono font-bold transition-colors ${
+                        variantModalForm.priceSource === 'omie'
+                          ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
+                          : 'bg-white text-slate-800'
+                      }`}
                     />
                     <p className="text-[10px] text-slate-400">
                       Se vazio, herda o preço base do produto ({productForm.price ? formatBRL(productForm.price) : 'R$ 0,00'}).

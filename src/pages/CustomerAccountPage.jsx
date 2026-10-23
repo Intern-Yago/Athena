@@ -33,7 +33,13 @@ import {
   Check,
   Zap,
   Bell,
-  CreditCard
+  CreditCard,
+  Plus,
+  Trash2,
+  Edit3,
+  Key,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { saveSession } from '../utils/storage';
 import { formatCpfCnpj, fetchCnpjData, formatPhone, getPasswordValidation } from '../utils/documentUtils';
@@ -57,6 +63,38 @@ export default function CustomerAccountPage({
     document: currentUser?.document || '',
     companyName: currentUser?.companyName || currentUser?.company_name || ''
   });
+
+  // Multi-Address Book State
+  const getInitialAddresses = () => {
+    if (Array.isArray(currentUser?.addresses) && currentUser.addresses.length > 0) {
+      return currentUser.addresses;
+    }
+    if (currentUser?.address && (currentUser.address.street || currentUser.address.cep)) {
+      return [{
+        id: 'addr_default',
+        label: 'Endereço Principal',
+        isDefault: true,
+        ...currentUser.address
+      }];
+    }
+    return [];
+  };
+
+  const [addressesList, setAddressesList] = useState(getInitialAddresses);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState(null);
+  const [modalAddressForm, setModalAddressForm] = useState({
+    label: '',
+    cep: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    isDefault: false
+  });
+  const [searchingModalCep, setSearchingModalCep] = useState(false);
 
   // Address State
   const [addressForm, setAddressForm] = useState({
@@ -180,6 +218,17 @@ export default function CustomerAccountPage({
         companyName: currentUser.companyName || currentUser.company_name || ''
       });
 
+      if (Array.isArray(currentUser.addresses) && currentUser.addresses.length > 0) {
+        setAddressesList(currentUser.addresses);
+      } else if (currentUser.address && (currentUser.address.street || currentUser.address.cep)) {
+        setAddressesList([{
+          id: 'addr_default',
+          label: 'Endereço Principal',
+          isDefault: true,
+          ...currentUser.address
+        }]);
+      }
+
       if (currentUser.address) {
         setAddressForm({
           cep: currentUser.address.cep || '',
@@ -243,9 +292,35 @@ export default function CustomerAccountPage({
     }
   };
 
+  // Digital Licenses & Renewals State (SaaS / SGW)
+  const [licenses, setLicenses] = useState([]);
+  const [loadingLicenses, setLoadingLicenses] = useState(false);
+  const [copiedLicenseKey, setCopiedLicenseKey] = useState(null);
+
+  const fetchLicenses = async () => {
+    if (!currentUser?.token) return;
+    setLoadingLicenses(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/customer/licenses`, {
+        headers: {
+          'Authorization': `Bearer ${currentUser.token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLicenses(Array.isArray(data) ? data : (data.licenses || []));
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar licenças digitais:', err);
+    } finally {
+      setLoadingLicenses(false);
+    }
+  };
+
   useEffect(() => {
     fetchCustomerOrders();
     fetchPoints();
+    fetchLicenses();
   }, [currentUser, API_BASE_URL]);
 
   const handleRedeemReward = (reward) => {
@@ -427,6 +502,230 @@ export default function CustomerAccountPage({
       showNotification('Não foi possível conectar ao servidor.', 'error');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  // Multi-Address Actions
+  const openNewAddressModal = () => {
+    setEditingAddressId(null);
+    setModalAddressForm({
+      label: addressesList.length === 0 ? 'Matriz / Principal' : '',
+      cep: '',
+      street: '',
+      number: '',
+      complement: '',
+      neighborhood: '',
+      city: '',
+      state: '',
+      isDefault: addressesList.length === 0
+    });
+    setIsAddressModalOpen(true);
+  };
+
+  const openEditAddressModal = (addr) => {
+    setEditingAddressId(addr.id);
+    setModalAddressForm({
+      label: addr.label || '',
+      cep: addr.cep || '',
+      street: addr.street || '',
+      number: addr.number || '',
+      complement: addr.complement || '',
+      neighborhood: addr.neighborhood || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      isDefault: !!addr.isDefault
+    });
+    setIsAddressModalOpen(true);
+  };
+
+  const handleModalCepBlur = async () => {
+    const cleanCep = (modalAddressForm.cep || '').replace(/\D/g, '');
+    if (cleanCep.length === 8) {
+      setSearchingModalCep(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setModalAddressForm(prev => ({
+            ...prev,
+            street: data.logradouro || prev.street,
+            neighborhood: data.bairro || prev.neighborhood,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state
+          }));
+          showNotification('Endereço localizado via CEP!', 'success');
+        } else {
+          showNotification('CEP não localizado. Preencha manualmente.', 'info');
+        }
+      } catch (e) {
+        console.warn('Erro ao consultar ViaCEP:', e);
+      } finally {
+        setSearchingModalCep(false);
+      }
+    }
+  };
+
+  const handleSaveAddressModal = async (e) => {
+    e.preventDefault();
+    setSavingAddress(true);
+    try {
+      let nextList = [...addressesList];
+      const isFirst = nextList.length === 0;
+      const shouldBeDefault = modalAddressForm.isDefault || isFirst;
+
+      if (shouldBeDefault) {
+        nextList = nextList.map(a => ({ ...a, isDefault: false }));
+      }
+
+      if (editingAddressId) {
+        nextList = nextList.map(a => a.id === editingAddressId ? {
+          ...a,
+          ...modalAddressForm,
+          label: (modalAddressForm.label || '').trim() || 'Endereço',
+          isDefault: shouldBeDefault
+        } : a);
+      } else {
+        nextList.push({
+          id: `addr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          ...modalAddressForm,
+          label: (modalAddressForm.label || '').trim() || `Endereço ${nextList.length + 1}`,
+          isDefault: shouldBeDefault
+        });
+      }
+
+      if (!nextList.some(a => a.isDefault) && nextList.length > 0) {
+        nextList[0].isDefault = true;
+      }
+
+      const defaultAddr = nextList.find(a => a.isDefault) || nextList[0] || null;
+
+      const res = await fetch(`${API_BASE_URL}/customer/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          addresses: nextList,
+          address: defaultAddr ? {
+            cep: defaultAddr.cep,
+            street: defaultAddr.street,
+            number: defaultAddr.number,
+            complement: defaultAddr.complement,
+            neighborhood: defaultAddr.neighborhood,
+            city: defaultAddr.city,
+            state: defaultAddr.state
+          } : null
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setAddressesList(nextList);
+        const updatedUser = {
+          ...currentUser,
+          addresses: nextList,
+          address: defaultAddr
+        };
+        saveSession(updatedUser);
+        if (onUpdateUser) onUpdateUser(updatedUser);
+        setIsAddressModalOpen(false);
+        setEditingAddressId(null);
+        showNotification('Endereço salvo com sucesso!', 'success');
+      } else {
+        showNotification(data.error || 'Erro ao salvar endereço.', 'error');
+      }
+    } catch (err) {
+      showNotification('Não foi possível conectar ao servidor.', 'error');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const handleSetDefaultAddress = async (addressId) => {
+    const nextList = addressesList.map(a => ({
+      ...a,
+      isDefault: a.id === addressId
+    }));
+    const defaultAddr = nextList.find(a => a.id === addressId);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/customer/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          addresses: nextList,
+          address: defaultAddr ? {
+            cep: defaultAddr.cep,
+            street: defaultAddr.street,
+            number: defaultAddr.number,
+            complement: defaultAddr.complement,
+            neighborhood: defaultAddr.neighborhood,
+            city: defaultAddr.city,
+            state: defaultAddr.state
+          } : null
+        })
+      });
+      if (res.ok) {
+        setAddressesList(nextList);
+        const updatedUser = {
+          ...currentUser,
+          addresses: nextList,
+          address: defaultAddr
+        };
+        saveSession(updatedUser);
+        if (onUpdateUser) onUpdateUser(updatedUser);
+        showNotification('Endereço padrão atualizado!', 'success');
+      }
+    } catch (err) {
+      showNotification('Erro ao definir endereço padrão.', 'error');
+    }
+  };
+
+  const handleDeleteAddress = async (addressId) => {
+    if (!window.confirm('Tem certeza de que deseja excluir este endereço?')) return;
+    const nextList = addressesList.filter(a => a.id !== addressId);
+    if (nextList.length > 0 && !nextList.some(a => a.isDefault)) {
+      nextList[0].isDefault = true;
+    }
+    const defaultAddr = nextList.find(a => a.isDefault) || nextList[0] || null;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/customer/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          addresses: nextList,
+          address: defaultAddr ? {
+            cep: defaultAddr.cep,
+            street: defaultAddr.street,
+            number: defaultAddr.number,
+            complement: defaultAddr.complement,
+            neighborhood: defaultAddr.neighborhood,
+            city: defaultAddr.city,
+            state: defaultAddr.state
+          } : null
+        })
+      });
+      if (res.ok) {
+        setAddressesList(nextList);
+        const updatedUser = {
+          ...currentUser,
+          addresses: nextList,
+          address: defaultAddr
+        };
+        saveSession(updatedUser);
+        if (onUpdateUser) onUpdateUser(updatedUser);
+        showNotification('Endereço excluído com sucesso!', 'success');
+      }
+    } catch (err) {
+      showNotification('Erro ao excluir endereço.', 'error');
     }
   };
 
@@ -623,6 +922,22 @@ export default function CustomerAccountPage({
       );
     }
     if (paymentStatus === 'paid' || paymentStatus === 'free' || paymentStatus === 'faturado' || paymentStatus === 'aprovado') {
+      const hasDigital = isObj && Array.isArray(orderOrStatus.items) && orderOrStatus.items.some(i => i.fulfillment_type === 'digital' || i.fulfillmentType === 'digital' || i.productType === 'digital' || i.product_type === 'digital');
+      if (hasDigital) {
+        if (fulfillmentStatus === 'delivered' || orderOrStatus.activation_status === 'activated') {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Acesso Liberado
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-800 border border-amber-200" title="Logo enviaremos seu acesso">
+            <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" /> Aguardando Liberação de Acesso
+          </span>
+        );
+      }
+
       return (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Pagamento Aprovado
@@ -778,6 +1093,26 @@ export default function CustomerAccountPage({
           </button>
 
           <button
+            onClick={() => setActiveTab('licenses')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'licenses'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-100/80'
+            }`}
+          >
+            <Key className="w-4 h-4 text-amber-500" />
+            <span>Minhas Licenças & SGW</span>
+            {licenses.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'licenses' ? 'bg-amber-800 text-white' : 'bg-slate-200 text-slate-800'}`}>
+                {licenses.length}
+              </span>
+            )}
+            {licenses.some(l => l.isExpiringSoon || l.isExpired) && (
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('points')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'points'
@@ -813,7 +1148,12 @@ export default function CustomerAccountPage({
             }`}
           >
             <MapPin className="w-4 h-4" />
-            <span>Endereço de Entrega</span>
+            <span>Meus Endereços</span>
+            {addressesList.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'address' ? 'bg-amber-800 text-white' : 'bg-slate-200 text-slate-800'}`}>
+                {addressesList.length}
+              </span>
+            )}
           </button>
 
           <button
@@ -1083,6 +1423,225 @@ export default function CustomerAccountPage({
           </div>
         )}
 
+
+        {/* TAB: LICENÇAS DIGITAIS & SGW (RECORRÊNCIA E EXPIRAÇÃO) */}
+        {activeTab === 'licenses' && (
+          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                <div>
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700 flex items-center gap-1.5 mb-1">
+                    <Key className="w-3.5 h-3.5 text-amber-600" />
+                    Softwares & Acessos Digitais
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    Minhas Licenças & SGW Multimarcas
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Acompanhe o ciclo de vida, as credenciais e o prazo de renovação das suas liberações técnicas.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchLicenses}
+                  disabled={loadingLicenses}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingLicenses ? 'animate-spin text-amber-600' : ''}`} />
+                  <span>Atualizar</span>
+                </button>
+              </div>
+
+              {loadingLicenses ? (
+                <div className="py-16 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-amber-600 mx-auto mb-3" />
+                  <p className="text-xs font-bold text-slate-600">Carregando suas licenças...</p>
+                </div>
+              ) : licenses.length === 0 ? (
+                <div className="text-center py-16 px-4 bg-slate-50/70 rounded-3xl border border-dashed border-slate-200 space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center">
+                    <Key className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-extrabold text-slate-900 text-sm">Nenhuma licença digital ativa no momento</h3>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      Quando você adquire o SGW Multimarcas ou pacotes de atualização para scanners, seus acessos, prazos e renovações aparecem aqui.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onNavigate('catalog')}
+                    className="btn-gold text-xs font-bold py-2.5 px-5 mx-auto inline-flex items-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    <span>Ver Produtos Digitais no Catálogo</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {licenses.map((lic) => {
+                    const daysRemaining = lic.daysRemaining;
+                    const isExpiringSoon = lic.isExpiringSoon;
+                    const isExpired = lic.isExpired;
+                    const isActivated = lic.status === 'activated';
+
+                    return (
+                      <div
+                        key={lic.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition-all hover:border-amber-300 space-y-4"
+                      >
+                        {/* Top: Software name & Status Badge */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="p-2 rounded-xl bg-amber-50 text-amber-700">
+                                <Key className="w-4 h-4" />
+                              </span>
+                              <div>
+                                <h3 className="font-black text-slate-900 text-sm sm:text-base">
+                                  {lic.software_name}
+                                </h3>
+                                <p className="text-[11px] text-slate-500 font-medium">
+                                  Pedido: <strong>#{lic.order_number || lic.order_id}</strong>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="self-start sm:self-auto">
+                            {!isActivated ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                                <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+                                <span>Aguardando Liberação de Acesso</span>
+                              </span>
+                            ) : isExpired ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-50 text-rose-800 border border-rose-200">
+                                <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                                <span>Licença Expirada</span>
+                              </span>
+                            ) : isExpiringSoon ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-950 border border-amber-300 animate-pulse">
+                                <Clock className="w-3.5 h-3.5 text-amber-700" />
+                                <span>Expira em {daysRemaining} dia{daysRemaining > 1 ? 's' : ''}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Ativa • {daysRemaining !== null ? `${daysRemaining} dias restantes` : 'Vitalícia'}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-100 text-xs">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Equipamento Vinculado
+                            </span>
+                            <div className="font-bold text-slate-800">
+                              {lic.equipment_model || 'Não informado'}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-mono">
+                              SN: {lic.equipment_serial || 'Não informado'}
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Ciclo de Validade
+                            </span>
+                            <div className="text-slate-700">
+                              Ativado em: <strong className="text-slate-900">{lic.activated_at ? new Date(lic.activated_at).toLocaleDateString('pt-BR') : 'Aguardando'}</strong>
+                            </div>
+                            <div className="text-slate-700">
+                              Vencimento: <strong className={isExpired ? 'text-rose-600' : isExpiringSoon ? 'text-amber-700' : 'text-slate-900'}>
+                                {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString('pt-BR') : 'Vitalício / Definitivo'}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* License Key / Credential Display */}
+                        {lic.license_key && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900 text-white">
+                            <div className="space-y-0.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block">
+                                Credenciais / Chave de Acesso Liberada
+                              </span>
+                              <div className="font-mono text-xs font-extrabold text-amber-100 break-all select-all">
+                                {lic.license_key}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(lic.license_key);
+                                setCopiedLicenseKey(lic.id);
+                                setTimeout(() => setCopiedLicenseKey(null), 2500);
+                              }}
+                              className="btn-gold text-xs font-bold py-1.5 px-3 self-start sm:self-auto flex items-center gap-1.5 cursor-pointer"
+                            >
+                              {copiedLicenseKey === lic.id ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Copiado!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>Copiar Chave</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Renewal Action Trigger */}
+                        {(isExpiringSoon || isExpired || isActivated) && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                            <div className="text-[11px] text-slate-500">
+                              {isExpired ? (
+                                <span className="text-rose-700 font-bold flex items-center gap-1">
+                                  <AlertTriangle className="w-3.5 h-3.5" />
+                                  Seu acesso está expirado. Renove agora para reativar seu equipamento na oficina.
+                                </span>
+                              ) : isExpiringSoon ? (
+                                <span className="text-amber-800 font-bold flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  Evite interrupções nos atendimentos da oficina renovando antes do vencimento.
+                                </span>
+                              ) : (
+                                <span>Precisa estender a validade ou renovar antecipadamente?</span>
+                              )}
+                            </div>
+
+                            <a
+                              href={`https://wa.me/5561998888888?text=${encodeURIComponent(
+                                `Olá equipe Athena! Gostaria de renovar minha licença do "${lic.software_name}" para o equipamento ${lic.equipment_model || ''} (Serial: ${lic.equipment_serial || ''}) do Pedido #${lic.order_number || lic.order_id}.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black shadow-xs transition-colors cursor-pointer ${
+                                isExpired
+                                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                                  : isExpiringSoon
+                                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                              }`}
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              <span>{isExpired ? 'Reativar Licença Agora' : isExpiringSoon ? 'Renovar Acesso Imediato' : 'Consultar Renovação'}</span>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* TAB: PROGRAMA DE FIDELIDADE (MEUS A-POINTS) */}
         {activeTab === 'points' && (
@@ -1546,121 +2105,306 @@ export default function CustomerAccountPage({
           </div>
         )}
 
-        {/* TAB 3: ENDEREÇO DE ENTREGA */}
+        {/* TAB 3: MEUS ENDEREÇOS (CADERNO DE ENDEREÇOS MULTI-ENDEREÇO) */}
         {activeTab === 'address' && (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-2xl mx-auto">
-            <form onSubmit={handleSaveAddress} className="space-y-5">
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-amber-600" /> Endereço para Entrega e Instalação
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Informe o local onde as máquinas e ferramentas serão entregues ou instaladas pelos nossos técnicos.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">CEP *</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={addressForm.cep}
-                      onChange={(e) => setAddressForm({ ...addressForm, cep: e.target.value })}
-                      onBlur={handleCepBlur}
-                      placeholder="70000-000"
-                      className="form-input text-xs !pl-10"
-                    />
-                    <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${searchingCep ? 'text-amber-500 animate-spin' : 'text-slate-400'}`} />
-                  </div>
-                  <span className="text-[10px] text-slate-400 mt-1 block">Digite o CEP para autocompletar</span>
+          <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-amber-600" /> Meus Endereços Cadastrados
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Gerencie seus endereços para faturamento de Notas Fiscais (NF-e) e entrega técnica de equipamentos.
+                  </p>
                 </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Rua / Logradouro *</label>
-                  <input
-                    type="text"
-                    required
-                    value={addressForm.street}
-                    onChange={(e) => setAddressForm({ ...addressForm, street: e.target.value })}
-                    placeholder="Av. Principal, Rua 10, etc."
-                    className="form-input text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Número *</label>
-                  <input
-                    type="text"
-                    required
-                    value={addressForm.number}
-                    onChange={(e) => setAddressForm({ ...addressForm, number: e.target.value })}
-                    placeholder="123 ou S/N"
-                    className="form-input text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Complemento</label>
-                  <input
-                    type="text"
-                    value={addressForm.complement}
-                    onChange={(e) => setAddressForm({ ...addressForm, complement: e.target.value })}
-                    placeholder="Galpão 2, Loja 05..."
-                    className="form-input text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Bairro *</label>
-                  <input
-                    type="text"
-                    required
-                    value={addressForm.neighborhood}
-                    onChange={(e) => setAddressForm({ ...addressForm, neighborhood: e.target.value })}
-                    placeholder="Centro, Setor Industrial..."
-                    className="form-input text-xs"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Cidade *</label>
-                  <input
-                    type="text"
-                    required
-                    value={addressForm.city}
-                    onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                    placeholder="Brasília, São Paulo..."
-                    className="form-input text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Estado (UF) *</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={2}
-                    value={addressForm.state}
-                    onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value.toUpperCase() })}
-                    placeholder="DF, SP, MG..."
-                    className="form-input text-xs uppercase"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2">
                 <button
-                  type="submit"
-                  disabled={savingAddress}
-                  className="btn-gold text-xs font-bold py-3 px-6 inline-flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+                  type="button"
+                  onClick={openNewAddressModal}
+                  className="btn-gold text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
                 >
-                  <Save className="w-4 h-4" />
-                  <span>{savingAddress ? 'Gravando Endereço...' : 'Salvar Endereço de Entrega'}</span>
+                  <Plus className="w-4 h-4" />
+                  <span>Novo Endereço</span>
                 </button>
               </div>
-            </form>
+
+              {addressesList.length === 0 ? (
+                <div className="p-8 sm:p-12 text-center rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
+                    <MapPin className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-slate-900">Nenhum endereço cadastrado ainda</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Cadastre seu endereço principal para agilizar o fechamento de pedidos e emissão da Nota Fiscal.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openNewAddressModal}
+                    className="btn-gold text-xs font-bold py-2.5 px-4 rounded-xl inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Cadastrar Primeiro Endereço</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {addressesList.map((addr) => {
+                    const isDefault = Boolean(addr.isDefault);
+                    return (
+                      <div
+                        key={addr.id}
+                        className={`rounded-2xl p-5 border transition-all flex flex-col justify-between space-y-3 ${
+                          isDefault
+                            ? 'bg-amber-50/30 border-amber-400 ring-1 ring-amber-300/50 shadow-xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 truncate">
+                              <Building className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <span>{addr.label || 'Endereço'}</span>
+                            </span>
+                            {isDefault ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 shrink-0">
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span>Padrão</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefaultAddress(addr.id)}
+                                className="text-[10px] font-bold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer"
+                              >
+                                Tornar Padrão
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="text-xs text-slate-600 space-y-0.5 leading-relaxed">
+                            <p className="font-semibold text-slate-900">
+                              {addr.street}, {addr.number || 'S/N'}
+                              {addr.complement ? ` • ${addr.complement}` : ''}
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              {addr.neighborhood} — {addr.city}/{addr.state}
+                            </p>
+                            <p className="text-[11px] font-mono text-slate-500">
+                              CEP: {addr.cep}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEditAddressModal(addr)}
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Editar este endereço"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Editar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAddress(addr.id)}
+                            className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Excluir este endereço"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Excluir</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* MODAL ADICIONAR / EDITAR ENDEREÇO */}
+            {isAddressModalOpen && (
+              <div
+                className="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-3 sm:p-4 overscroll-none animate-in fade-in duration-150"
+                onClick={() => setIsAddressModalOpen(false)}
+              >
+                <div
+                  className="relative bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-150"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <h4 className="font-extrabold text-sm sm:text-base">
+                        {editingAddressId ? 'Editar Endereço' : 'Cadastrar Novo Endereço'}
+                      </h4>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddressModalOpen(false)}
+                      className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSaveAddressModal} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Apelido do Endereço *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: Matriz, Filial Vicente Pires, Oficina 2"
+                        value={modalAddressForm.label}
+                        onChange={(e) => setModalAddressForm({ ...modalAddressForm, label: e.target.value })}
+                        className="form-input text-xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold text-slate-700">CEP *</label>
+                          {searchingModalCep && <Loader2 className="w-3 h-3 text-amber-600 animate-spin" />}
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          placeholder="00000-000"
+                          value={modalAddressForm.cep}
+                          onChange={(e) => {
+                            let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            if (v.length > 5) v = `${v.slice(0, 5)}-${v.slice(5)}`;
+                            setModalAddressForm({ ...modalAddressForm, cep: v });
+                          }}
+                          onBlur={handleModalCepBlur}
+                          className="form-input text-xs font-mono"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Logradouro / Rua *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ex: Av. das Indústrias"
+                          value={modalAddressForm.street}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, street: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Número *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="123 ou S/N"
+                          value={modalAddressForm.number}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, number: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Complemento</label>
+                        <input
+                          type="text"
+                          placeholder="Galpão 4, Sala 1, Lote 12"
+                          value={modalAddressForm.complement}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, complement: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Bairro *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Distrito Industrial"
+                          value={modalAddressForm.neighborhood}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, neighborhood: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Cidade *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Brasília"
+                          value={modalAddressForm.city}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, city: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">UF *</label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={2}
+                          placeholder="DF"
+                          value={modalAddressForm.state}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, state: e.target.value.toUpperCase() })}
+                          className="form-input text-xs uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={modalAddressForm.isDefault}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, isDefault: e.target.checked })}
+                          className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-800">
+                          Definir este endereço como padrão para novos pedidos
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddressModalOpen(false)}
+                        className="btn-secondary text-xs font-bold py-2 px-4 cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingAddress}
+                        className="btn-gold text-xs font-bold py-2 px-5 flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        {savingAddress ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Salvando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3.5 h-3.5" />
+                            <span>Salvar Endereço</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

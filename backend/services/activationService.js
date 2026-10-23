@@ -16,7 +16,7 @@ async function createActivationQueues(orderId) {
 
   // Busca itens digitais do pedido
   const itemsRes = await query(`
-    SELECT oi.id, oi.name, o.customer_snapshot, o.order_number
+    SELECT oi.id, oi.name, oi.metadata, o.customer_snapshot, o.order_number, o.equipment_info
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
     WHERE oi.order_id = $1 AND oi.fulfillment_type = 'digital'
@@ -29,13 +29,15 @@ async function createActivationQueues(orderId) {
   let createdCount = 0;
   for (const item of itemsRes.rows) {
     const custPhone = item.customer_snapshot?.phone || 'Não informado';
+    const eqModel = item.metadata?.equipmentModel || item.metadata?.model || item.equipment_info?.model || item.equipment_info?.equipmentModel || '';
+    const eqSerial = item.metadata?.equipmentSerial || item.metadata?.serialNumber || item.equipment_info?.serialNumber || item.equipment_info?.equipmentSerial || '';
 
     await query(`
       INSERT INTO digital_activations (
-        order_id, order_item_id, software_name, customer_phone,
+        order_id, order_item_id, software_name, customer_phone, equipment_model, equipment_serial,
         status, created_at
-      ) VALUES ($1, $2, $3, $4, 'awaiting_activation', NOW())
-    `, [orderId, item.id, item.name, custPhone]);
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'awaiting_activation', NOW())
+    `, [orderId, item.id, item.name, custPhone, eqModel || null, eqSerial || null]);
 
     createdCount++;
   }
@@ -149,25 +151,30 @@ async function completeActivation({
   technicianName = 'Suporte Técnico',
   staffName,
   notes = null,
-  note = null
+  note = null,
+  validityDays = 365
 }) {
   const techId = technicianId || staffId;
   const techName = staffName || technicianName || 'Suporte Técnico';
   const finalNotes = notes || note || null;
+  const duration = parseInt(validityDays || 365, 10);
   if (!activationId || !techId) throw new Error('activationId e technicianId são obrigatórios.');
 
   return await withTransaction(async (client) => {
-    // 1. Marca ativacao como concluida
+    // 1. Marca ativacao como concluida e define data de expiracao (SaaS / Recorrencia)
     const actRes = await client.query(`
       UPDATE digital_activations
       SET status = 'activated',
           license_key = COALESCE($1, license_key),
           activated_at = NOW(),
           assigned_technician_id = $2,
-          notes = COALESCE($3, notes)
-      WHERE id = $4
-      RETURNING id, order_id, order_item_id, software_name
-    `, [licenseKey, techId, finalNotes, activationId]);
+          notes = COALESCE($3, notes),
+          validity_days = $4::integer,
+          expires_at = NOW() + ($4::integer * INTERVAL '1 day'),
+          renewal_status = 'active'
+      WHERE id = $5
+      RETURNING id, order_id, order_item_id, software_name, validity_days, expires_at
+    `, [licenseKey, techId, finalNotes, duration, activationId]);
 
     if (actRes.rows.length === 0) throw new Error(`Ativação ${activationId} não encontrada.`);
     const act = actRes.rows[0];
@@ -197,14 +204,101 @@ async function completeActivation({
     `, [
       `evt_actcomp_${activationId}_${Date.now()}`,
       act.order_id,
-      technicianId,
-      technicianName,
-      `Ativação técnica do software "${act.software_name}" concluída com sucesso por ${technicianName}.`
+      techId,
+      techName,
+      `Ativação técnica do software "${act.software_name}" concluída com sucesso por ${techName}. Validade: ${duration} dias (expira em ${new Date(act.expires_at).toLocaleDateString('pt-BR')}).`
     ]);
 
-    console.log(`[ACTIVATION COMPLETED] Licença #${act.software_name} ativada com sucesso por ${technicianName}`);
-    return { success: true, status: 'activated', softwareName: act.software_name, license_key: licenseKey };
+    console.log(`[ACTIVATION COMPLETED] Licença #${act.software_name} ativada com sucesso por ${techName} (Validade: ${duration} dias)`);
+    return { 
+      success: true, 
+      status: 'activated', 
+      softwareName: act.software_name, 
+      license_key: licenseKey,
+      validityDays: duration,
+      expiresAt: act.expires_at
+    };
   });
+}
+
+/**
+ * Consulta licencas ativas e historico de licencas de um cliente
+ */
+async function getCustomerLicenses({ userId, email }) {
+  const res = await query(`
+    SELECT 
+      da.id,
+      da.order_id,
+      da.software_name,
+      da.status,
+      da.license_key,
+      da.equipment_model,
+      da.equipment_serial,
+      da.validity_days,
+      da.expires_at,
+      da.renewal_status,
+      da.activated_at,
+      da.created_at,
+      o.order_number,
+      CASE 
+        WHEN da.expires_at IS NULL THEN NULL
+        ELSE GREATEST(0, CEIL(EXTRACT(EPOCH FROM (da.expires_at - NOW())) / 86400))::int
+      END as days_remaining
+    FROM digital_activations da
+    JOIN orders o ON o.id = da.order_id
+    WHERE (o.customer_id = $1 OR o.customer_snapshot->>'email' = $2)
+    ORDER BY da.created_at DESC
+  `, [userId || '', (email || '').toLowerCase().trim()]);
+
+  return res.rows.map(row => {
+    const daysRemaining = row.days_remaining !== null ? Number(row.days_remaining) : null;
+    let computedStatus = row.renewal_status || 'active';
+    if (row.expires_at) {
+      if (new Date(row.expires_at) < new Date()) {
+        computedStatus = 'expired';
+      } else if (daysRemaining !== null && daysRemaining <= 30) {
+        computedStatus = 'expiring_soon';
+      }
+    }
+    return {
+      ...row,
+      daysRemaining,
+      computedStatus,
+      isExpiringSoon: daysRemaining !== null && daysRemaining <= 30 && daysRemaining > 0,
+      isExpired: row.expires_at ? new Date(row.expires_at) < new Date() : false
+    };
+  });
+}
+
+/**
+ * Consulta licencas que estao vencendo para envio de lembretes e controle administrativo
+ */
+async function getExpiringLicenses({ withinDays = 30 } = {}) {
+  const days = parseInt(withinDays, 10);
+  const res = await query(`
+    SELECT 
+      da.id,
+      da.order_id,
+      da.software_name,
+      da.customer_phone,
+      da.equipment_model,
+      da.equipment_serial,
+      da.validity_days,
+      da.expires_at,
+      da.renewal_status,
+      da.renewal_reminders_sent,
+      o.customer_id,
+      o.customer_snapshot,
+      GREATEST(0, CEIL(EXTRACT(EPOCH FROM (da.expires_at - NOW())) / 86400))::int as days_remaining
+    FROM digital_activations da
+    JOIN orders o ON o.id = da.order_id
+    WHERE da.status = 'activated'
+      AND da.expires_at IS NOT NULL
+      AND da.expires_at <= (NOW() + ($1::integer * INTERVAL '1 day'))
+    ORDER BY da.expires_at ASC
+  `, [days]);
+
+  return res.rows;
 }
 
 /**
@@ -244,5 +338,7 @@ module.exports = {
   startActivating,
   startRemoteSession: startActivating,
   completeActivation,
+  getCustomerLicenses,
+  getExpiringLicenses,
   getActivationsByOrder
 };

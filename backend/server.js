@@ -1077,11 +1077,15 @@ async function initDb() {
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS recommended_product_ids JSONB DEFAULT '[]'::jsonb;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'::jsonb;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS model_3d JSONB DEFAULT NULL;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS requires_equipment_serial BOOLEAN DEFAULT FALSE;
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price_source VARCHAR(20) DEFAULT 'manual';
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS stock_source VARCHAR(20) DEFAULT 'manual';
 
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS document VARCHAR(50);
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS address JSONB;
+        ALTER TABLE public.users ADD COLUMN IF NOT EXISTS addresses JSONB DEFAULT '[]'::jsonb;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS a_points INTEGER DEFAULT 0;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE;
@@ -1151,6 +1155,28 @@ async function initDb() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS equipment_info JSONB;
+        ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS shipping_address JSONB;
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS equipment_model VARCHAR(255);
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS equipment_serial VARCHAR(255);
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS validity_days INT DEFAULT 365;
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS renewal_status VARCHAR(50) DEFAULT 'active';
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS renewal_reminders_sent JSONB DEFAULT '[]'::jsonb;
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS renewed_from_id INT;
+
+        CREATE TABLE IF NOT EXISTS payment_idempotency_keys (
+          key VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255),
+          request_hash VARCHAR(64) NOT NULL,
+          billing_type VARCHAR(50),
+          amount NUMERIC(12, 2),
+          status VARCHAR(50) NOT NULL DEFAULT 'PROCESSING',
+          response_status INT,
+          response_body JSONB,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours')
+        );
       `);
 
       // Create Coupons Table
@@ -1178,6 +1204,28 @@ async function initDb() {
           status VARCHAR(20) DEFAULT 'active',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS equipment_info JSONB;
+        ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS shipping_address JSONB;
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS equipment_model VARCHAR(255);
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS equipment_serial VARCHAR(255);
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS validity_days INT DEFAULT 365;
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE;
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS renewal_status VARCHAR(50) DEFAULT 'active';
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS renewal_reminders_sent JSONB DEFAULT '[]'::jsonb;
+        ALTER TABLE public.digital_activations ADD COLUMN IF NOT EXISTS renewed_from_id INT;
+
+        CREATE TABLE IF NOT EXISTS payment_idempotency_keys (
+          key VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255),
+          request_hash VARCHAR(64) NOT NULL,
+          billing_type VARCHAR(50),
+          amount NUMERIC(12, 2),
+          status VARCHAR(50) NOT NULL DEFAULT 'PROCESSING',
+          response_status INT,
+          response_body JSONB,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours')
         );
       `);
 
@@ -3234,7 +3282,7 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
       try {
         const result = await pool.query(
           `SELECT id, name, email, password_hash as "passwordHash", role, phone, document, 
-                  company_name as "companyName", address, is_verified as "isVerified", 
+                  company_name as "companyName", address, addresses, is_verified as "isVerified", 
                   COALESCE(must_change_password, false) as "mustChangePassword", 
                   COALESCE(failed_login_attempts, 0) as "failedAttempts", 
                   COALESCE(is_locked, false) as "isLocked",
@@ -3268,6 +3316,7 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
           document: user.document || '',
           companyName: user.companyName || user.company_name || '',
           address: user.address || null,
+          addresses: user.addresses || (user.address ? [{ id: 'addr_default', label: 'Endereço Principal', isDefault: true, ...user.address }] : []),
           isVerified: Boolean(user.isVerified || user.is_verified || false),
           mustChangePassword: Boolean(user.mustChangePassword || user.must_change_password || false),
           failedAttempts: user.failed_login_attempts || user.failedAttempts || 0,
@@ -3441,6 +3490,7 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
         document: authUser.document || '',
         companyName: authUser.companyName || '',
         address: authUser.address || null,
+        addresses: authUser.addresses || (authUser.address ? [{ id: 'addr_default', label: 'Endereço Principal', isDefault: true, ...authUser.address }] : []),
         isVerified,
         mustChangePassword: Boolean(authUser.mustChangePassword || authUser.must_change_password || false),
         token,
@@ -4355,7 +4405,7 @@ app.post('/api/auth/verify-email-code', authenticateToken, async (req, res) => {
 app.put('/api/customer/profile', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, phone, document, companyName, address, currentPassword, newPassword } = req.body;
+    const { name, phone, document, companyName, address, addresses, currentPassword, newPassword } = req.body;
 
     const db = readDbJson();
     let existingUser = (db.users || []).find(u => u.id === userId);
@@ -4410,20 +4460,46 @@ app.put('/api/customer/profile', authenticateToken, async (req, res) => {
     const updatedPhone = phone !== undefined ? phone.trim() : (existingUser.phone || '');
     const updatedDocument = document !== undefined ? document.trim() : (existingUser.document || '');
     const updatedCompanyName = companyName !== undefined ? companyName.trim() : (existingUser.company_name || existingUser.companyName || '');
-    const updatedAddress = address !== undefined ? address : (existingUser.address || null);
+    let updatedAddress = address !== undefined ? address : (existingUser.address || null);
+    let updatedAddresses = addresses !== undefined ? addresses : (existingUser.addresses || []);
+
+    if (Array.isArray(updatedAddresses) && updatedAddresses.length > 0) {
+      const defaultAddr = updatedAddresses.find(a => a.isDefault) || updatedAddresses[0];
+      if (defaultAddr && (!address || Object.keys(address).length === 0)) {
+        updatedAddress = {
+          cep: defaultAddr.cep || '',
+          street: defaultAddr.street || '',
+          number: defaultAddr.number || '',
+          complement: defaultAddr.complement || '',
+          neighborhood: defaultAddr.neighborhood || '',
+          city: defaultAddr.city || '',
+          state: defaultAddr.state || ''
+        };
+      }
+    } else if (updatedAddress && (!updatedAddresses || updatedAddresses.length === 0)) {
+      if (updatedAddress.street || updatedAddress.cep) {
+        updatedAddresses = [{
+          id: 'addr_default',
+          label: 'Endereço Principal',
+          isDefault: true,
+          ...updatedAddress
+        }];
+      }
+    }
 
     if (pool) {
       try {
         await pool.query(`
           UPDATE users 
-          SET name = $1, phone = $2, document = $3, company_name = $4, address = $5, password_hash = $6
-          WHERE id = $7
+          SET name = $1, phone = $2, document = $3, company_name = $4, address = $5, addresses = $6::jsonb, password_hash = $7
+          WHERE id = $8
         `, [
           updatedName,
           updatedPhone,
           updatedDocument,
           updatedCompanyName,
           updatedAddress ? JSON.stringify(updatedAddress) : null,
+          JSON.stringify(updatedAddresses || []),
           updatedHash,
           userId
         ]);
@@ -4442,6 +4518,7 @@ app.put('/api/customer/profile', authenticateToken, async (req, res) => {
         companyName: updatedCompanyName,
         company_name: updatedCompanyName,
         address: updatedAddress,
+        addresses: updatedAddresses,
         passwordHash: updatedHash
       };
       writeDbJson(db);
@@ -4458,6 +4535,7 @@ app.put('/api/customer/profile', authenticateToken, async (req, res) => {
         document: updatedDocument,
         companyName: updatedCompanyName,
         address: updatedAddress,
+        addresses: updatedAddresses,
         role: existingUser.role || 'cliente',
         isVerified: Boolean(existingUser.is_verified || existingUser.isVerified || existingUser.role === 'admin')
       }
@@ -4497,6 +4575,41 @@ app.get('/api/customer/orders', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Erro ao buscar pedidos:', err);
     return res.status(500).json({ error: 'Erro ao buscar pedidos.' });
+  }
+});
+
+// -------------------------------------------------------------
+// RECORRÊNCIA E GESTÃO DE EXPIRAÇÃO DE LICENÇAS DIGITAIS (SAAS)
+// -------------------------------------------------------------
+
+// Consulta licenças digitais do cliente logado (SGW, Scanners, etc)
+app.get('/api/customer/licenses', authenticateToken, async (req, res) => {
+  try {
+    const activationService = require('./services/activationService');
+    const licenses = await activationService.getCustomerLicenses({
+      userId: req.user.id,
+      email: req.user.email
+    });
+    return res.json(licenses);
+  } catch (err) {
+    console.error('Erro ao buscar licenças do cliente:', err.message);
+    return res.status(500).json({ error: 'Falha ao consultar licenças digitais do cliente.' });
+  }
+});
+
+// Painel administrativo: consulta licenças a vencer em X dias (D-30, D-15, D-7)
+app.get('/api/admin/licenses/expiring', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'gerente' && req.user.role !== 'operador') {
+      return res.status(403).json({ error: 'Acesso restrito ao time operacional.' });
+    }
+    const activationService = require('./services/activationService');
+    const withinDays = req.query.days ? parseInt(req.query.days, 10) : 30;
+    const expiring = await activationService.getExpiringLicenses({ withinDays });
+    return res.json(expiring);
+  } catch (err) {
+    console.error('Erro ao buscar licenças a expirar:', err.message);
+    return res.status(500).json({ error: 'Falha ao buscar licenças próximas do vencimento.' });
   }
 });
 
@@ -5095,6 +5208,10 @@ app.post(['/api/shipping/calculate', '/api/frete/calcular'], async (req, res) =>
 
 // 1. Create Payment Charge on Asaas or Free Order (PIX, BOLETO, CREDIT_CARD, FREE)
 app.post('/api/payments/charge', async (req, res) => {
+  const crypto = require('crypto');
+  const idempotencyKey = req.headers['x-idempotency-key'] || req.body.idempotencyKey || null;
+  let idempotencyRowCreated = false;
+
   try {
     const { 
       customerName, 
@@ -5123,33 +5240,108 @@ app.post('/api/payments/charge', async (req, res) => {
     const orderId = clientOrderId || `athena_ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
     // ---------------------------------------------------------
+    // 0. BLINDAGEM DE PAGAMENTO: VERIFICAÇÃO DE IDEMPOTÊNCIA
+    // ---------------------------------------------------------
+    const parsedValue = Number(value);
+    const itemFingerprint = (items || []).map(i => `${i.id || i.productId}-${i.quantity || 1}`).sort().join('|');
+    const reqPayloadStr = `${cleanEmail}:${cleanDoc}:${billingType}:${parsedValue}:${itemFingerprint}`;
+    const requestHash = crypto.createHash('sha256').update(reqPayloadStr).digest('hex');
+
+    if (pool && idempotencyKey) {
+      try {
+        const existingKeyRes = await pool.query(
+          'SELECT status, response_status, response_body, created_at FROM payment_idempotency_keys WHERE key = $1',
+          [idempotencyKey]
+        );
+        if (existingKeyRes.rows.length > 0) {
+          const row = existingKeyRes.rows[0];
+          if (row.status === 'COMPLETED' && row.response_body) {
+            console.log(`[IDEMPOTENCY] Replaying completed response for key: ${idempotencyKey}`);
+            return res.status(row.response_status || 200).json({
+              ...row.response_body,
+              isIdempotentReplay: true
+            });
+          }
+          if (row.status === 'PROCESSING') {
+            console.warn(`[IDEMPOTENCY CONFLICT] Charge already in process for key: ${idempotencyKey}`);
+            return res.status(409).json({
+              error: 'Uma cobrança idêntica já está sendo processada neste exato momento. Por favor, aguarde alguns instantes.'
+            });
+          }
+        } else {
+          await pool.query(
+            `INSERT INTO payment_idempotency_keys (key, user_id, request_hash, billing_type, amount, status)
+             VALUES ($1, $2, $3, $4, $5, 'PROCESSING')
+             ON CONFLICT (key) DO NOTHING`,
+            [idempotencyKey, cleanEmail, requestHash, billingType, isNaN(parsedValue) ? 0 : parsedValue]
+          );
+          idempotencyRowCreated = true;
+        }
+      } catch (idemErr) {
+        console.warn('[IDEMPOTENCY INIT WARNING]:', idemErr.message);
+      }
+    }
+
+    // ---------------------------------------------------------
     // A. CRM & USER ACCOUNT AUTO-SYNC
     // ---------------------------------------------------------
     let userId = null;
     const db = readDbJson();
+    const clientAddress = req.body.shippingAddress || req.body.address || null;
+    const clientAddresses = (clientAddress && (clientAddress.street || clientAddress.cep)) ? [{
+      id: 'addr_default',
+      label: 'Endereço Principal',
+      isDefault: true,
+      ...clientAddress
+    }] : [];
 
     if (pool) {
       try {
-        const userRes = await pool.query('SELECT id, password_hash FROM users WHERE email = $1', [cleanEmail]);
+        const userRes = await pool.query('SELECT id, password_hash, address, addresses FROM users WHERE email = $1', [cleanEmail]);
         if (userRes.rows && userRes.rows.length > 0) {
           userId = userRes.rows[0].id;
+          const shouldUpdatePass = Boolean(customerPassword && !userRes.rows[0].password_hash);
+          const newPassHash = shouldUpdatePass ? bcrypt.hashSync(customerPassword, 10) : null;
+
           await pool.query(`
             UPDATE users SET 
               name = COALESCE(NULLIF($1, ''), name),
               phone = COALESCE(NULLIF($2, ''), phone),
               document = COALESCE(NULLIF($3, ''), document),
               company_name = COALESCE(NULLIF($4, ''), company_name),
+              address = COALESCE(address, $5::jsonb),
+              addresses = CASE WHEN addresses IS NULL OR addresses = '[]'::jsonb THEN $6::jsonb ELSE addresses END,
+              password_hash = COALESCE($7, password_hash),
               updated_at = NOW()
-            WHERE id = $5
-          `, [customerName, cleanPhone, cleanDoc, cleanCompanyName, userId]);
+            WHERE id = $8
+          `, [
+            customerName, 
+            cleanPhone, 
+            cleanDoc, 
+            cleanCompanyName, 
+            clientAddress ? JSON.stringify(clientAddress) : null,
+            JSON.stringify(clientAddresses),
+            newPassHash,
+            userId
+          ]);
         } else {
           userId = `user_cust_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
           const initialPass = customerPassword || 'ClienteAthena2026!';
           const passHash = bcrypt.hashSync(initialPass, 10);
           await pool.query(`
-            INSERT INTO users (id, name, email, password_hash, role, phone, document, company_name, created_at)
-            VALUES ($1, $2, $3, $4, 'cliente', $5, $6, $7, NOW())
-          `, [userId, customerName || 'Cliente Athena', cleanEmail, passHash, cleanPhone, cleanDoc, cleanCompanyName]);
+            INSERT INTO users (id, name, email, password_hash, role, phone, document, company_name, address, addresses, created_at)
+            VALUES ($1, $2, $3, $4, 'cliente', $5, $6, $7, $8::jsonb, $9::jsonb, NOW())
+          `, [
+            userId, 
+            customerName || 'Cliente Athena', 
+            cleanEmail, 
+            passHash, 
+            cleanPhone, 
+            cleanDoc, 
+            cleanCompanyName,
+            clientAddress ? JSON.stringify(clientAddress) : null,
+            JSON.stringify(clientAddresses)
+          ]);
         }
       } catch (userErr) {
         console.warn('Aviso no sync de usuário PG:', userErr.message);
@@ -5362,7 +5554,7 @@ app.post('/api/payments/charge', async (req, res) => {
         billingType: 'FREE'
       }).catch(e => console.error('[NOTIF PEDIDO GRATUITO ERRO]:', e.message));
 
-      return res.status(201).json({
+      const freeResponse = {
         id: orderId,
         status: 'CONFIRMED',
         value: 0,
@@ -5370,7 +5562,18 @@ app.post('/api/payments/charge', async (req, res) => {
         billingType: 'FREE',
         isFreeOrder: true,
         message: 'Pedido 100% Gratuito confirmado e faturado com sucesso!'
-      });
+      };
+
+      if (pool && idempotencyKey) {
+        await pool.query(
+          `UPDATE payment_idempotency_keys 
+           SET status = 'COMPLETED', response_status = 201, response_body = $1::jsonb 
+           WHERE key = $2`,
+          [JSON.stringify(freeResponse), idempotencyKey]
+        ).catch(e => console.warn('Falha ao atualizar idempotencia free:', e.message));
+      }
+
+      return res.status(201).json(freeResponse);
     }
 
     // ---------------------------------------------------------
@@ -5447,6 +5650,12 @@ app.post('/api/payments/charge', async (req, res) => {
 
     // Save Order in Database via Athena OS Engine
     const shippingAddress = req.body.shippingAddress || req.body.shipping_address || {};
+    const equipmentInfo = req.body.equipmentInfo || (req.body.equipmentModel ? {
+      model: req.body.equipmentModel,
+      serialNumber: req.body.equipmentSerial || ''
+    } : null);
+    const orderNotes = `Cobrança Asaas ID: ${paymentData.id} (${billingType})${equipmentInfo ? ` | Equipamento: ${equipmentInfo.model || 'N/A'} (SN: ${equipmentInfo.serialNumber || 'N/A'})` : ''}`;
+
     let athenaOrder = null;
     try {
       athenaOrder = await orderService.createOrder({
@@ -5463,7 +5672,8 @@ app.post('/api/payments/charge', async (req, res) => {
           companyName: cleanCompanyName
         },
         couponCode: appliedCoupon ? appliedCoupon.code : null,
-        notes: `Cobrança Asaas ID: ${paymentData.id} (${billingType})`
+        notes: orderNotes,
+        equipmentInfo
       });
 
       if (athenaOrder && paymentData.id && pool) {
@@ -5484,18 +5694,23 @@ app.post('/api/payments/charge', async (req, res) => {
       discount_amount: discountAmount,
       coupon_code: appliedCoupon ? appliedCoupon.code : null,
       status: 'em_analise',
-      notes: `Cobrança Asaas ID: ${paymentData.id} (${billingType})`,
+      notes: orderNotes,
+      equipment_info: equipmentInfo,
+      equipmentInfo: equipmentInfo,
+      shipping_address: shippingAddress,
       created_at: new Date().toISOString()
     };
 
     if (pool) {
       try {
         await pool.query(`
-          INSERT INTO orders (id, user_id, user_email, user_name, items, total_amount, discount_amount, coupon_code, status, notes)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          INSERT INTO orders (id, user_id, user_email, user_name, items, total_amount, discount_amount, coupon_code, status, notes, equipment_info, shipping_address)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb)
         `, [
           orderRecord.id, orderRecord.user_id, orderRecord.user_email, orderRecord.user_name,
-          JSON.stringify(orderRecord.items), finalPayable, discountAmount, appliedCoupon ? appliedCoupon.code : null, 'em_analise', orderRecord.notes
+          JSON.stringify(orderRecord.items), finalPayable, discountAmount, appliedCoupon ? appliedCoupon.code : null, 'em_analise', orderRecord.notes,
+          equipmentInfo ? JSON.stringify(equipmentInfo) : null,
+          JSON.stringify(shippingAddress || {})
         ]);
       } catch (e) {}
     }
@@ -5538,7 +5753,7 @@ app.post('/api/payments/charge', async (req, res) => {
       invoiceUrl: paymentData.invoiceUrl
     }).catch(e => console.error('[NOTIF PEDIDO ONLINE ERRO]:', e.message));
 
-    return res.status(201).json({
+    const paidResponse = {
       id: paymentData.id,
       orderId,
       status: paymentData.status,
@@ -5550,9 +5765,26 @@ app.post('/api/payments/charge', async (req, res) => {
       pix: pixData,
       dueDate: paymentData.dueDate,
       externalReference: paymentData.externalReference
-    });
+    };
+
+    if (pool && idempotencyKey) {
+      await pool.query(
+        `UPDATE payment_idempotency_keys 
+         SET status = 'COMPLETED', response_status = 201, response_body = $1::jsonb 
+         WHERE key = $2`,
+        [JSON.stringify(paidResponse), idempotencyKey]
+      ).catch(e => console.warn('Falha ao atualizar idempotencia pago:', e.message));
+    }
+
+    return res.status(201).json(paidResponse);
 
   } catch (err) {
+    if (pool && idempotencyKey && idempotencyRowCreated) {
+      await pool.query(
+        `UPDATE payment_idempotency_keys SET status = 'FAILED' WHERE key = $1`,
+        [idempotencyKey]
+      ).catch(() => {});
+    }
     console.error('Erro ao processar cobrança Asaas:', err.response?.data || err.message);
     const errMsg = err.response?.data?.errors?.[0]?.description || 'Erro ao processar pagamento via Asaas.';
     return res.status(err.response?.status || 500).json({ error: errMsg });
@@ -8903,6 +9135,10 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
           p.video_url as "videoUrl", 
           p.custom_tabs as "customTabs", 
           p.product_type as "productType", 
+          COALESCE(p.requires_equipment_serial, CASE WHEN p.product_type = 'digital' THEN true ELSE false END) as "requiresEquipmentSerial",
+          COALESCE(p.price_source, 'manual') as "priceSource",
+          COALESCE(p.stock_source, 'manual') as "stockSource",
+          p.omie_last_sync as "omieLastSync",
           p.a_points as "aPoints", 
           p.model_3d as "model3d",
           COALESCE(p.variants, '[]'::jsonb) as "variants",
@@ -9021,6 +9257,10 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
           p.video_url as "videoUrl", 
           p.custom_tabs as "customTabs", 
           p.product_type as "productType", 
+          COALESCE(p.requires_equipment_serial, CASE WHEN p.product_type = 'digital' THEN true ELSE false END) as "requiresEquipmentSerial",
+          COALESCE(p.price_source, 'manual') as "priceSource",
+          COALESCE(p.stock_source, 'manual') as "stockSource",
+          p.omie_last_sync as "omieLastSync",
           p.a_points as "aPoints", 
           p.model_3d as "model3d",
           COALESCE(p.variants, '[]'::jsonb) as "variants",
@@ -9120,6 +9360,10 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
     }
   }
 
+  const reqSerial = req.body.requiresEquipmentSerial !== undefined 
+    ? Boolean(req.body.requiresEquipmentSerial) 
+    : (req.body.requires_equipment_serial !== undefined ? Boolean(req.body.requires_equipment_serial) : (req.body.productType === 'digital' || req.body.product_type === 'digital'));
+
   const newProduct = { 
     id: assignedId || `prod_${Date.now()}`, 
     ...req.body,
@@ -9128,7 +9372,9 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
     omieCode: finalSku,
     stock: stockQty,
     estoqueQuantidade: stockQty,
-    inStock
+    inStock,
+    requiresEquipmentSerial: reqSerial,
+    requires_equipment_serial: reqSerial
   };
 
   if (pool) {
@@ -9139,14 +9385,14 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           price_negotiable, badge, tags, compatible_product_ids, recommended_product_ids, 
           status, is_featured, image, images, alt_text, description, specs, 
           attachments, in_stock, video_url, custom_tabs, product_type, a_points,
-          sku, estoque_quantidade, omie_code, variants, model_3d
+          sku, estoque_quantidade, omie_code, variants, model_3d, requires_equipment_serial, price_source, stock_source
         )
         VALUES (
           $1, $2, $3, $4, $5, $6::numeric, $6::numeric, 
           $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, 
           $12, $13, $14, $15::jsonb, $16, $17, $18::jsonb, 
           $19::jsonb, $20, $21, $22::jsonb, $23, $24,
-          $25, $26, $27, $28::jsonb, $29::jsonb
+          $25, $26, $27, $28::jsonb, $29::jsonb, $30, $31, $32
         )
         ON CONFLICT (id) DO UPDATE SET 
           name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6::numeric, preco_venda=$6::numeric, 
@@ -9155,7 +9401,8 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           images=$15::jsonb, alt_text=$16, description=$17, specs=$18::jsonb, 
           attachments=$19::jsonb, in_stock=$20, video_url=$21, custom_tabs=$22::jsonb, 
           product_type=$23, a_points=$24, sku=$25, estoque_quantidade=$26, omie_code=$27,
-          variants=$28::jsonb, model_3d=$29::jsonb, updated_at=NOW()
+          variants=$28::jsonb, model_3d=$29::jsonb, requires_equipment_serial=$30,
+          price_source=$31, stock_source=$32, updated_at=NOW()
       `, [
         newProduct.id,
         newProduct.name,
@@ -9185,7 +9432,10 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
         stockQty,
         finalSku,
         JSON.stringify(Array.isArray(newProduct.variants) ? newProduct.variants : []),
-        newProduct.model3d ? JSON.stringify(newProduct.model3d) : null
+        newProduct.model3d ? JSON.stringify(newProduct.model3d) : null,
+        reqSerial,
+        req.body.priceSource || 'manual',
+        req.body.stockSource || 'manual'
       ]);
 
       // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,
@@ -9261,6 +9511,10 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
     finalStatus = 'draft';
   }
 
+  const reqSerial = req.body.requiresEquipmentSerial !== undefined 
+    ? Boolean(req.body.requiresEquipmentSerial) 
+    : (req.body.requires_equipment_serial !== undefined ? Boolean(req.body.requires_equipment_serial) : (req.body.productType === 'digital' || req.body.product_type === 'digital'));
+
   const updatedProduct = { 
     id: req.params.id, 
     ...req.body,
@@ -9269,7 +9523,9 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
     omieCode: finalSku,
     stock: stockQty,
     estoqueQuantidade: stockQty,
-    inStock
+    inStock,
+    requiresEquipmentSerial: reqSerial,
+    requires_equipment_serial: reqSerial
   };
 
   if (pool) {
@@ -9286,8 +9542,11 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
           omie_code=COALESCE(NULLIF($26, ''), omie_code),
           variants=$27::jsonb,
           model_3d=$28::jsonb,
+          requires_equipment_serial=$29,
+          price_source=COALESCE($31, price_source, 'manual'),
+          stock_source=COALESCE($32, stock_source, 'manual'),
           updated_at=NOW()
-        WHERE id=$29
+        WHERE id=$30
       `, [
         updatedProduct.name,
         updatedProduct.slug || '',
@@ -9317,7 +9576,10 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
         finalSku,
         JSON.stringify(Array.isArray(updatedProduct.variants) ? updatedProduct.variants : []),
         updatedProduct.model3d ? JSON.stringify(updatedProduct.model3d) : null,
-        req.params.id
+        reqSerial,
+        req.params.id,
+        req.body.priceSource || (req.body.price !== undefined ? 'manual' : null),
+        req.body.stockSource || (req.body.stock !== undefined || req.body.estoqueQuantidade !== undefined ? 'manual' : null)
       ]);
 
       // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,

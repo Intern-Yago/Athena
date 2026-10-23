@@ -628,4 +628,66 @@ Para evitar criar categorias infinitas para cada detalhe técnico, a página de 
 - [x] **Integrar TikTok Pixel (`DBCEG2JC77UASCMGEM1G`):**
   - Pixel criado no TikTok Ads Manager (`DBCEG2JC77UASCMGEM1G`) e ativado em `index.html` + `src/utils/metaPixel.js` com bloqueio de Staff/Admin, Advanced Matching de clientes e envio automático de todos os eventos ricos (`PageView`, `ViewContent`, `AddToCart`, `Search`, `InitiateCheckout`, `Contact`, `SubmitForm`, `FindLocation`, `CalculateShipping`, `ViewCategory`, `ViewBrand`).
 
+---
+
+## 🤖 10. [AUTOMAÇÃO & IA FUTURA] Coleta e Entrega de Credenciais com Iris (Secretária no Hermes)
+
+- [ ] **10.1 Coleta e Entrega Automatizada de Credenciais via WhatsApp:**
+  - Integrar a agente **Iris** (perfil de secretária do Hermes Agent no WhatsApp) para automatizar a comunicação de produtos digitais.
+  - Quando um pedido digital for faturado/aprovado, a Iris pode acionar o cliente para confirmar modelo/número de série e, assim que o login e senha forem emitidos, realizar o envio automático seguro das credenciais por WhatsApp.
+- [ ] **10.2 Ponte Webhook entre Athena OS e Hermes / Iris:**
+  - Conectar a esteira administrativa de ativações digitais (`DigitalActivationsTab.jsx`) diretamente com a API do Hermes, permitindo disparar a entrega com 1 clique ou via gatilho de status.
+
+---
+
+## 💎 11. [E-COMMERCE AVANÇADO B2B] Arquitetura de Conversão, Fiscal e Operações
+
+> Este módulo reúne conceitos essenciais de e-commerce e faturamento B2B automotivo mapeados para expansão da Athena Soluções Automotivas.
+
+### 🔥 11.1 [ALTA PRIORIDADE] Multi-Pagamento (Split de Pagamento por Pedido)
+- [ ] **Divisão de Pagamento em Múltiplos Cartões ou Cartão + Pix:**
+  - *Problema:* Em equipamentos de alto valor (scanners de R$ 8.000 a R$ 25.000, elevadores e alinhadores 3D), o cliente frequentemente não tem limite integral em um único cartão de crédito.
+  - *Solução:* Permitir dividir o total da compra em **2 cartões de crédito diferentes** (ex: R$ 5.000 em um e R$ 7.000 em outro) ou **Entrada no Pix + Restante no Cartão de Crédito**.
+  - *Implementação:*
+    - Interface no checkout para definir valor do Método 1 e valor do Método 2.
+    - Orquestração de cobranças parciais no gateway Asaas e confirmação do pedido somente após a quitação de ambas as fatias.
+
+### 🛡️ 11.2 [EM EXECUÇÃO] Blindagem Financeira & Idempotência em Pagamentos (Idempotency Keys)
+- [x] **Prevenção de Duplo Débito por Repetição de Requisição:**
+  - Envio de chave de idempotência (`x-idempotency-key`) no header e corpo da cobrança a partir do frontend.
+  - Tabela `payment_idempotency_keys` no PostgreSQL para registrar hashes de requisição, status de processamento (`PROCESSING`, `COMPLETED`, `FAILED`) e replay de resposta idêntica sem duplicar chamada no Asaas.
+  - Bloqueio imediato de cliques duplos e instabilidades de rede durante o processamento de cartões de crédito e Pix.
+
+### 🔄 11.3 [EM EXECUÇÃO] Recorrência & Gestão de Expiração de Licenças (SaaS / Assinaturas de SGW & Scanners)
+- [x] **Ciclo de Vida de Validade das Licenças Digitais:**
+  - Atribuição de validade padrão (ex: 365 dias para SGW Multimarcas e atualizações de scanner).
+  - Campos no banco: `validity_days`, `expires_at`, `renewal_status` (`active`, `expiring_soon`, `expired`, `renewed`).
+  - Painel do Cliente com contador de dias restantes e botão de "Renovar Licença com 1 Clique".
+  - Fila de renovações com réguas D-30, D-15 e D-7 para retenção proativa de oficinas e previsibilidade de receita recorrente.
+
+### 📑 11.4 Inteligência Fiscal B2B: Matriz DIFAL & Substituição Tributária (ICMS-ST)
+- [ ] **Auditoria de Inscrição Estadual e Regras Interestaduais:**
+  - Validação de contribuinte de ICMS (PJ com IE ativa) vs. não-contribuinte na venda de equipamentos.
+  - Alerta transparente de faturamento interestadual (DIFAL / ST) para evitar surpresas fiscais em barreiras estaduais.
+  - Integração dos dados cadastrais completos com o emissor de notas fiscais (Omie / Asaas Fiscal).
+
+### 🚛 11.5 Gestão de Frete Pesado & Logística Especializada (Cubagem, Carga Pesada & Doca)
+- [ ] **Cálculo de Frete Fracionado e Infraestrutura de Descarga:**
+  - Cálculo de cubagem volumétrica `(C x L x A) / 300` para transportadoras de carga pesada (Braspress, Jadlog Cargo, Rodonaves).
+  - Pergunta técnica no checkout de equipamentos pesados (> 100kg): *"A sua oficina possui rampa/doca ou precisa de caminhão com plataforma hidráulica elevatória?"*.
+  - Notificação de agendamento de entrega técnica para montagem no local.
+
+### 🛒 11.6 Recuperação de Carrinho Abandonado via WhatsApp (Lead Recovery)
+- [ ] **Régua Automatizada de Recuperação de Vendas Pendentes:**
+  - Captura imediata de Nome, WhatsApp e E-mail no passo 1 do checkout antes de selecionar pagamento.
+  - Rotina de background: após 30 a 45 minutos sem pagamento confirmado, disparo amigável no WhatsApp perguntando se o cliente precisa de suporte técnico ou auxílio com o número de série.
+  - Link direto de retomada de carrinho com 1 clique.
+
+### 🔧 11.7 Gestão de Pós-Venda, Garantia & RMA (Logística Reversa & Assistência)
+- [ ] **Módulo de Suporte & Troca de Equipamentos:**
+  - Aba na área do cliente para abertura de chamados de garantia e suporte técnico.
+  - Emissão de código de postagem reversa e checklist de envio de scanners com manuais e cabos.
+  - Histórico de calibração e laudo técnico vinculado ao número de série do equipamento.
+
+
 

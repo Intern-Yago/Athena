@@ -500,6 +500,7 @@ router.get(['/kanban', '/fulfillment/kanban', '/ops/kanban'], async (req, res) =
         da.*,
         o.order_number,
         o.customer_snapshot,
+        o.equipment_info,
         o.created_at AS order_created_at
       FROM digital_activations da
       JOIN orders o ON da.order_id = o.id
@@ -796,7 +797,7 @@ router.post(['/start-session', '/activations/start-session', '/activations/activ
 // -------------------------------------------------------------
 router.post(['/complete', '/activations/complete', '/activations/activations/complete'], async (req, res) => {
   try {
-    const { activationId, licenseKey, machineId, notes } = req.body;
+    const { activationId, licenseKey, machineId, notes, validityDays } = req.body;
     if (!activationId) {
       return res.status(400).json({ error: 'activationId é obrigatório.' });
     }
@@ -810,6 +811,7 @@ router.post(['/complete', '/activations/complete', '/activations/activations/com
       machineId: machineId || '',
       staffId,
       staffName,
+      validityDays: validityDays ? parseInt(validityDays, 10) : 365,
       note: notes || 'Software ativado e validado com sucesso no cliente.'
     });
 

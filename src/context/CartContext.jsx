@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { safeStorageGet, safeStorageSet } from '../utils/storage';
-import { isProductQuoteOnly, getVariantAvailability, isDigitalProduct } from '../utils/productVariants';
+import { isProductQuoteOnly, getVariantAvailability, isDigitalProduct, doesProductRequireEquipmentSerial } from '../utils/productVariants';
 import { trackMetaEvent } from '../utils/metaPixel';
 
 const CartContext = createContext();
@@ -83,6 +83,7 @@ export function CartProvider({ children, showNotification, brands = [], categori
         price: effectivePrice,
         isQuote: isQuoteItem,
         productType: isDigitalProduct(product) ? 'digital' : (product.productType || product.product_type || 'physical'),
+        requiresEquipmentSerial: doesProductRequireEquipmentSerial(product),
         image: effectiveImage,
         brandId: product.brandId,
         brandName: brandObj?.name || 'Athena',
@@ -314,6 +315,7 @@ export function CartProvider({ children, showNotification, brands = [], categori
         slug: product.slug || product.id,
         price: effectivePrice,
         productType: isDigitalProduct(product) ? 'digital' : (product.productType || product.product_type || 'physical'),
+        requiresEquipmentSerial: doesProductRequireEquipmentSerial(product),
         image: effectiveImage,
         brandId: product.brandId,
         brandName: brandObj?.name || 'Athena',

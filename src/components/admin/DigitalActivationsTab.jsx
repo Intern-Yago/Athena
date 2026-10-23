@@ -52,7 +52,8 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
   const [completeForm, setCompleteForm] = useState({
     licenseKey: '',
     machineId: '',
-    notes: ''
+    notes: '',
+    validityDays: '365'
   });
 
   const [copiedKey, setCopiedKey] = useState(false);
@@ -187,6 +188,7 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
           activationId: completeModalActivation.id,
           licenseKey: completeForm.licenseKey.trim(),
           machineId: completeForm.machineId.trim(),
+          validityDays: parseInt(completeForm.validityDays || '365', 10),
           notes: completeForm.notes.trim()
         })
       });
@@ -304,6 +306,21 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
                     )}
                   </div>
 
+                  {(da.equipment_model || da.equipment_serial || da.metadata?.equipmentModel || da.metadata?.equipmentSerial) && (
+                    <div className="bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/90 space-y-1">
+                      <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                        <Key className="w-3 h-3 text-amber-600" />
+                        <span>Equipamento Informado</span>
+                      </span>
+                      <p className="text-xs font-bold text-slate-800">
+                        Modelo: <span className="font-medium text-slate-700">{da.equipment_model || da.metadata?.equipmentModel || 'Não informado'}</span>
+                      </p>
+                      <p className="text-xs font-mono font-bold text-slate-800">
+                        S/N: <span className="font-medium text-slate-700">{da.equipment_serial || da.metadata?.equipmentSerial || 'Não informado'}</span>
+                      </p>
+                    </div>
+                  )}
+
                   {da.license_key && (
                     <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 space-y-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Chave de Licença:</span>
@@ -344,7 +361,12 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
                         type="button"
                         onClick={() => {
                           setCompleteModalActivation(da);
-                          setCompleteForm({ licenseKey: '', machineId: '', notes: '' });
+                          setCompleteForm({ 
+                            licenseKey: '', 
+                            machineId: da.equipment_serial || da.metadata?.equipmentSerial || '', 
+                            notes: '',
+                            validityDays: '365'
+                          });
                         }}
                         className="col-span-2 btn-gold text-xs font-bold py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer"
                       >
@@ -353,9 +375,22 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-emerald-700 py-1">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>Licença Ativada e Entregue</span>
+                    <div className="space-y-1 text-center py-1">
+                      <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-emerald-700">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Licença Ativada e Entregue</span>
+                      </div>
+                      {da.expires_at && (
+                        <div className="text-[10px] text-slate-500 font-medium flex items-center justify-center gap-1">
+                          <Clock className="w-3 h-3 text-amber-500" />
+                          <span>Expira em: <strong>{new Date(da.expires_at).toLocaleDateString('pt-BR')}</strong></span>
+                          {new Date(da.expires_at) < new Date() ? (
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-100 text-rose-700">Expirada</span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700">Ativa</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -523,6 +558,23 @@ export default function DigitalActivationsTab({ API_BASE_URL, currentUser, showN
                   onChange={(e) => setCompleteForm({ ...completeForm, machineId: e.target.value })}
                   className="form-input text-xs w-full font-mono"
                 />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                  Período de Validade (Recorrência SaaS) *
+                </label>
+                <select
+                  value={completeForm.validityDays}
+                  onChange={(e) => setCompleteForm({ ...completeForm, validityDays: e.target.value })}
+                  className="form-input text-xs w-full bg-white font-medium"
+                >
+                  <option value="365">1 Ano (365 dias) — Padrão SGW / Scanners</option>
+                  <option value="730">2 Anos (730 dias)</option>
+                  <option value="180">6 Meses (180 dias)</option>
+                  <option value="90">3 Meses (90 dias)</option>
+                  <option value="3650">Vitalício / Definitivo</option>
+                </select>
               </div>
 
               <div>
