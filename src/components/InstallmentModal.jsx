@@ -25,10 +25,12 @@ import {
   Building,
   Search,
   Truck,
-  Sparkles
+  Sparkles,
+  MapPin
 } from 'lucide-react';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
+import { isDigitalProduct } from '../utils/productVariants';
 
 export default function InstallmentModal({ 
   isOpen, 
@@ -104,14 +106,21 @@ export default function InstallmentModal({
   }, [customer.cpfCnpj]);
 
   const hasPhysicalItems = useMemo(() => {
-    return activeItems.some(i => (i.productType || 'physical') === 'physical');
+    return activeItems.some(i => !isDigitalProduct(i));
   }, [activeItems]);
 
   const allDigital = useMemo(() => {
-    return activeItems.length > 0 && activeItems.every(i => i.productType === 'digital');
+    return activeItems.length > 0 && activeItems.every(i => isDigitalProduct(i));
   }, [activeItems]);
 
-  // Address State for physical delivery
+  const hasSavedAddress = Boolean(
+    currentUser?.address?.street &&
+    currentUser?.address?.city &&
+    currentUser?.address?.cep
+  );
+  const [useSavedAddress, setUseSavedAddress] = useState(hasSavedAddress);
+
+  // Address State for delivery / billing
   const [address, setAddress] = useState({
     cep: currentUser?.address?.cep || '',
     street: currentUser?.address?.street || '',
@@ -121,6 +130,21 @@ export default function InstallmentModal({
     city: currentUser?.address?.city || '',
     state: currentUser?.address?.state || ''
   });
+
+  useEffect(() => {
+    if (currentUser?.address?.street && currentUser?.address?.city) {
+      setUseSavedAddress(true);
+      setAddress({
+        cep: currentUser.address.cep || '',
+        street: currentUser.address.street || '',
+        number: currentUser.address.number || '',
+        complement: currentUser.address.complement || '',
+        neighborhood: currentUser.address.neighborhood || '',
+        city: currentUser.address.city || '',
+        state: currentUser.address.state || ''
+      });
+    }
+  }, [currentUser]);
   const [searchingCep, setSearchingCep] = useState(false);
   const [cepError, setCepError] = useState(null);
 
@@ -989,8 +1013,8 @@ export default function InstallmentModal({
                     />
                   </div>
 
-                  {/* ENDEREÇO DE ENTREGA (PARA PRODUTOS FÍSICOS) */}
-                  {hasPhysicalItems && (
+                  {/* ENDEREÇO DE ENTREGA / ATIVAÇÃO DIGITAL */}
+                  {hasPhysicalItems ? (
                     <div className="sm:col-span-2 pt-3 mt-2 border-t border-slate-200 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
@@ -1004,106 +1028,176 @@ export default function InstallmentModal({
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-6 gap-2.5">
-                        <div className="sm:col-span-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] font-bold text-slate-700">CEP *</label>
+                      {hasSavedAddress && (
+                        <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Endereço Cadastrado na Conta</span>
+                            </span>
                             <button
                               type="button"
-                              onClick={() => handleCepLookup()}
-                              disabled={searchingCep || (address.cep || '').replace(/\D/g, '').length !== 8}
-                              className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                              onClick={() => {
+                                const nextState = !useSavedAddress;
+                                setUseSavedAddress(nextState);
+                                if (nextState && currentUser?.address) {
+                                  setAddress({ ...currentUser.address });
+                                }
+                              }}
+                              className="text-[10px] font-bold text-amber-700 hover:text-amber-800 underline cursor-pointer"
                             >
-                              {searchingCep ? <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-600" /> : <Search className="w-2.5 h-2.5 text-amber-600" />}
-                              <span>Buscar</span>
+                              {useSavedAddress ? 'Alterar / Usar outro endereço' : 'Usar endereço cadastrado'}
                             </button>
                           </div>
-                          <input
-                            type="text"
-                            placeholder="00000-000"
-                            value={address.cep}
-                            onChange={(e) => {
-                              let v = e.target.value.replace(/\D/g, '').slice(0, 8);
-                              if (v.length > 5) v = `${v.slice(0, 5)}-${v.slice(5)}`;
-                              setAddress(a => ({ ...a, cep: v }));
-                              if (v.replace(/\D/g, '').length === 8) handleCepLookup(v);
-                            }}
-                            className="form-input text-xs font-mono"
-                            required={hasPhysicalItems}
-                          />
-                          {cepError && <p className="text-[10px] text-rose-500 mt-0.5">{cepError}</p>}
-                        </div>
 
-                        <div className="sm:col-span-4">
-                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Logradouro / Rua *</label>
-                          <input
-                            type="text"
-                            placeholder="Ex: Av. das Indústrias"
-                            value={address.street}
-                            onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                            className="form-input text-xs"
-                            required={hasPhysicalItems}
-                          />
+                          {useSavedAddress && (
+                            <div 
+                              onClick={() => {
+                                if (currentUser?.address) setAddress({ ...currentUser.address });
+                              }}
+                              className="p-3 rounded-xl bg-white border-2 border-emerald-500 shadow-2xs flex items-center justify-between cursor-pointer"
+                            >
+                              <div className="text-xs text-slate-700 space-y-0.5">
+                                <p className="font-bold text-slate-900">
+                                  {currentUser.address.street}, {currentUser.address.number || 'S/N'}
+                                  {currentUser.address.complement ? ` - ${currentUser.address.complement}` : ''}
+                                </p>
+                                <p className="text-[11px] text-slate-500">
+                                  {currentUser.address.neighborhood} • {currentUser.address.city}/{currentUser.address.state} • CEP {currentUser.address.cep}
+                                </p>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 shrink-0 ml-2">
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span>Selecionado</span>
+                              </span>
+                            </div>
+                          )}
                         </div>
+                      )}
 
-                        <div className="sm:col-span-2">
-                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Número *</label>
-                          <input
-                            type="text"
-                            placeholder="123 ou S/N"
-                            value={address.number}
-                            onChange={(e) => setAddress({ ...address, number: e.target.value })}
-                            className="form-input text-xs"
-                            required={hasPhysicalItems}
-                          />
+                      {(!hasSavedAddress || !useSavedAddress) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-6 gap-2.5 animate-in fade-in">
+                          <div className="sm:col-span-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[10px] font-bold text-slate-700">CEP *</label>
+                              <button
+                                type="button"
+                                onClick={() => handleCepLookup()}
+                                disabled={searchingCep || (address.cep || '').replace(/\D/g, '').length !== 8}
+                                className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                              >
+                                {searchingCep ? <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-600" /> : <Search className="w-2.5 h-2.5 text-amber-600" />}
+                                <span>Buscar</span>
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="00000-000"
+                              value={address.cep}
+                              onChange={(e) => {
+                                let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+                                if (v.length > 5) v = `${v.slice(0, 5)}-${v.slice(5)}`;
+                                setAddress(a => ({ ...a, cep: v }));
+                                if (v.replace(/\D/g, '').length === 8) handleCepLookup(v);
+                              }}
+                              className="form-input text-xs font-mono"
+                              required={hasPhysicalItems}
+                            />
+                            {cepError && <p className="text-[10px] text-rose-500 mt-0.5">{cepError}</p>}
+                          </div>
+
+                          <div className="sm:col-span-4">
+                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Logradouro / Rua *</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Av. das Indústrias"
+                              value={address.street}
+                              onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                              className="form-input text-xs"
+                              required={hasPhysicalItems}
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Número *</label>
+                            <input
+                              type="text"
+                              placeholder="123 ou S/N"
+                              value={address.number}
+                              onChange={(e) => setAddress({ ...address, number: e.target.value })}
+                              className="form-input text-xs"
+                              required={hasPhysicalItems}
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Complemento</label>
+                            <input
+                              type="text"
+                              placeholder="Galpão 4, Sala 1"
+                              value={address.complement}
+                              onChange={(e) => setAddress({ ...address, complement: e.target.value })}
+                              className="form-input text-xs"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Bairro *</label>
+                            <input
+                              type="text"
+                              placeholder="Distrito Industrial"
+                              value={address.neighborhood}
+                              onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
+                              className="form-input text-xs"
+                              required={hasPhysicalItems}
+                            />
+                          </div>
+
+                          <div className="sm:col-span-4">
+                            <label className="text-[10px] font-bold text-slate-700 block mb-1">Cidade *</label>
+                            <input
+                              type="text"
+                              placeholder="Brasília"
+                              value={address.city}
+                              onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                              className="form-input text-xs"
+                              required={hasPhysicalItems}
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-700 block mb-1">UF *</label>
+                            <input
+                              type="text"
+                              placeholder="DF"
+                              maxLength={2}
+                              value={address.state}
+                              onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })}
+                              className="form-input text-xs uppercase"
+                              required={hasPhysicalItems}
+                            />
+                          </div>
                         </div>
-
-                        <div className="sm:col-span-2">
-                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Complemento</label>
-                          <input
-                            type="text"
-                            placeholder="Galpão 4, Sala 1"
-                            value={address.complement}
-                            onChange={(e) => setAddress({ ...address, complement: e.target.value })}
-                            className="form-input text-xs"
-                          />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="sm:col-span-2 pt-3 mt-2 border-t border-slate-200">
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50/90 to-teal-50/70 border border-emerald-200/80 flex items-start gap-3 shadow-2xs">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                          <Zap className="w-4 h-4 text-white" />
                         </div>
-
-                        <div className="sm:col-span-2">
-                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Bairro *</label>
-                          <input
-                            type="text"
-                            placeholder="Distrito Industrial"
-                            value={address.neighborhood}
-                            onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
-                            className="form-input text-xs"
-                            required={hasPhysicalItems}
-                          />
-                        </div>
-
-                        <div className="sm:col-span-4">
-                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Cidade *</label>
-                          <input
-                            type="text"
-                            placeholder="Brasília"
-                            value={address.city}
-                            onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                            className="form-input text-xs"
-                            required={hasPhysicalItems}
-                          />
-                        </div>
-
-                        <div className="sm:col-span-2">
-                          <label className="text-[10px] font-bold text-slate-700 block mb-1">UF *</label>
-                          <input
-                            type="text"
-                            placeholder="DF"
-                            maxLength={2}
-                            value={address.state}
-                            onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })}
-                            className="form-input text-xs uppercase"
-                            required={hasPhysicalItems}
-                          />
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h5 className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                              Licença / Acesso 100% Digital
+                            </h5>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              Sem Frete Físico
+                            </span>
+                          </div>
+                          <p className="text-xs text-emerald-800 leading-relaxed">
+                            Este pedido contém ativações e desbloqueios remotos. A liberação do Security Gateway (SGW) e o envio dos acessos ocorrem de forma 100% digital diretamente pelo e-mail e WhatsApp cadastrados acima logo após a confirmação do pagamento. Não há necessidade de envio físico.
+                          </p>
                         </div>
                       </div>
                     </div>

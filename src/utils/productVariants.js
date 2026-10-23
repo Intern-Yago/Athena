@@ -27,6 +27,21 @@ export function isProductQuoteOnly(product) {
   return Boolean(isNegotiable || !baseHasPrice);
 }
 
+export function isDigitalProduct(product) {
+  if (!product) return false;
+  const pType = product.productType || product.product_type;
+  if (pType === 'digital') return true;
+  if (pType === 'physical') return false;
+  if (product.isDigital) return true;
+  const cat = String(product.categoryId || product.categorySlug || product.categoryName || '').toLowerCase();
+  if (cat.includes('licen') || cat.includes('atualiza')) return true;
+  const name = String(product.name || '').toLowerCase();
+  if (name.includes('sgw') || name.includes('desbloqueio') || name.includes('atualização') || name.includes('licença')) {
+    return true;
+  }
+  return false;
+}
+
 export function getVariantStockNumber(variant) {
   if (!variant) return null;
   if (variant.stockQty === '' || variant.stockQty === undefined || variant.stockQty === null) {
