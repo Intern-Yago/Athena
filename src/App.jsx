@@ -199,7 +199,6 @@ export default function App() {
       setIsVerificationModalOpen(true);
       return true; // Action gated for verification
     }
-    if (actionCallback) actionCallback();
     return false;
   };
 
