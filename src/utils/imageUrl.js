@@ -33,8 +33,12 @@ export function normalizeProduct(p) {
     (p.priceNegotiable !== false && p.price_negotiable !== false)
   );
 
+  const normType = p.productType || p.product_type || 'physical';
+
   return {
     ...p,
+    productType: normType,
+    product_type: normType,
     priceNegotiable: isNegotiable,
     price_negotiable: isNegotiable,
     model3d: parsedModel3d,

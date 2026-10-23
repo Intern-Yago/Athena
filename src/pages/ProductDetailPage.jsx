@@ -272,26 +272,35 @@ export default function ProductDetailPage({
     return products.find((p) => p.slug === productSlugOrId || p.id === productSlugOrId) || null;
   }, [products, productSlugOrId]);
 
-  const product = draftProduct || matchedProductInCatalog || directProduct;
+  // directProduct takes priority over matchedProductInCatalog so fresh background revalidations immediately update stale cache
+  const product = draftProduct || directProduct || matchedProductInCatalog;
 
-  // Direct fetch for cold visits / direct links when product is not found in initial products list
+  // Reset directProduct when navigating to a different product
   useEffect(() => {
-    if (draftProduct || matchedProductInCatalog || !productSlugOrId || productSlugOrId === 'preview') {
+    setDirectProduct(null);
+  }, [productSlugOrId]);
+
+  // Direct fetch / background revalidation for cold visits, direct links and fresh updates
+  useEffect(() => {
+    if (draftProduct || !productSlugOrId || productSlugOrId === 'preview') {
       setIsDirectFetching(false);
       setHasAttemptedDirectFetch(true);
       return;
     }
 
     let isMounted = true;
-    setIsDirectFetching(true);
+    if (!matchedProductInCatalog) {
+      setIsDirectFetching(true);
+    }
     setDirectFetch404(false);
-    setHasAttemptedDirectFetch(false);
 
     const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'https://athena-backend-hu1m.onrender.com/api';
 
     const fetchDirectProduct = async () => {
       try {
-        const res = await fetch(`${apiUrl}/products/${encodeURIComponent(productSlugOrId)}`);
+        const res = await fetch(`${apiUrl}/products/${encodeURIComponent(productSlugOrId)}`, {
+          cache: 'no-store'
+        });
         if (!isMounted) return;
         if (res.ok) {
           const data = await res.json();
@@ -306,7 +315,7 @@ export default function ProductDetailPage({
             return;
           }
         }
-        if (res.status === 404) {
+        if (res.status === 404 && !matchedProductInCatalog) {
           setDirectFetch404(true);
         }
       } catch (err) {
@@ -324,7 +333,7 @@ export default function ProductDetailPage({
     return () => {
       isMounted = false;
     };
-  }, [productSlugOrId, matchedProductInCatalog, draftProduct, API_BASE_URL]);
+  }, [productSlugOrId, draftProduct, API_BASE_URL]);
 
   // Determining if we are currently waiting to confirm if product exists
   const isVerifyingProduct = !product && (
@@ -400,6 +409,16 @@ export default function ProductDetailPage({
   );
   const brand = (product ? brands.find((b) => b.id === product.brandId) : null) || (
     product?.brandName ? { id: product.brandId, name: product.brandName, slug: product.brandSlug } : null
+  );
+
+  const isDigitalProduct = Boolean(
+    product?.productType === 'digital' ||
+    product?.product_type === 'digital' ||
+    product?.isDigital ||
+    category?.id === 'cat_licencas' ||
+    category?.slug === 'licencas-atualizacoes' ||
+    category?.name?.toLowerCase().includes('licença') ||
+    category?.name?.toLowerCase().includes('atualizaç')
   );
 
   const canBuyOnline = !isQuoteOnly && Number(activePrice) > 0;
@@ -1053,13 +1072,23 @@ export default function ProductDetailPage({
                 </div>
               </div>
 
-              <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-2.5">
-                <Truck className="w-5 h-5 text-sky-600 shrink-0" />
-                <div className="text-[11px]">
-                  <span className="font-bold text-slate-900 block">Envio Nacional</span>
-                  <span className="text-slate-500">Entregas no Brasil</span>
+              {isDigitalProduct ? (
+                <div className="bg-white p-3.5 rounded-2xl border border-emerald-200/80 shadow-xs flex items-center gap-2.5 bg-gradient-to-br from-emerald-50/40 to-white">
+                  <Zap className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <div className="text-[11px]">
+                    <span className="font-bold text-emerald-950 block">Ativação Digital</span>
+                    <span className="text-emerald-700">Envio 100% Online</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-2.5">
+                  <Truck className="w-5 h-5 text-sky-600 shrink-0" />
+                  <div className="text-[11px]">
+                    <span className="font-bold text-slate-900 block">Envio Nacional</span>
+                    <span className="text-slate-500">Entregas no Brasil</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1398,13 +1427,34 @@ export default function ProductDetailPage({
               )}
             </div>
 
-            {/* COTAÇÃO DE FRETE INTEGRADA MELHOR ENVIO */}
+            {/* COTAÇÃO DE FRETE INTEGRADA MELHOR ENVIO OU ATIVAÇÃO DIGITAL */}
             <div className="pt-1">
-              <ShippingCalculator 
-                product={{ ...product, price: activePrice, sku: selectedVariant?.sku || product.sku }} 
-                quantity={selectedQuantity}
-                onSelectShipping={(opt) => setSelectedShipping(opt)}
-              />
+              {isDigitalProduct ? (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50/80 via-teal-50/60 to-emerald-50/80 border border-emerald-200/80 shadow-xs flex items-start gap-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                    <Zap className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                        Entrega 100% Digital & Sem Frete
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Envio Imediato / Online
+                      </span>
+                    </div>
+                    <p className="text-xs text-emerald-800 leading-relaxed">
+                      Este item é uma licença / atualização de software. O envio dos arquivos de instalação e chave de ativação é realizado de forma 100% remota via WhatsApp e e-mail imediatamente após a confirmação. Não há custo de frete físico.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ShippingCalculator 
+                  product={{ ...product, price: activePrice, sku: selectedVariant?.sku || product.sku }} 
+                  quantity={selectedQuantity}
+                  onSelectShipping={(opt) => setSelectedShipping(opt)}
+                />
+              )}
             </div>
 
 
