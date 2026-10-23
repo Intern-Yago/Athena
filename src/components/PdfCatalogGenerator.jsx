@@ -156,7 +156,12 @@ export default function PdfCatalogGenerator({ products = [], categories = [], br
         if (catProds.length === 0) return '';
 
         const productsGridHtml = catProds.map((p) => {
-          const priceText = showPrices && p.price > 0 && !p.priceNegotiable
+          const isQuoteOnly = Boolean(
+            p.priceNegotiable === true ||
+            p.price_negotiable === true ||
+            (p.priceNegotiable !== false && p.price_negotiable !== false)
+          );
+          const priceText = showPrices && Number(p.price) > 0 && !isQuoteOnly
             ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.price)
             : 'Sob Consulta';
 

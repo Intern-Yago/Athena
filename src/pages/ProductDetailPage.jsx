@@ -1594,7 +1594,9 @@ export default function ProductDetailPage({
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {compatibleProductsList.map((cProd) => {
                             const cBrand = brands.find(b => b.id === cProd.brandId);
-                            const cPrice = cProd.price 
+                            const isCQuoteOnly = isProductQuoteOnly(cProd);
+                            const canCBuyOnline = !isCQuoteOnly && Number(cProd.price) > 0;
+                            const cPrice = canCBuyOnline 
                               ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cProd.price)
                               : 'Sob Consulta';
 
@@ -1623,9 +1625,17 @@ export default function ProductDetailPage({
                                     <h5 className="font-bold text-xs text-slate-900 leading-snug line-clamp-2 mt-0.5 group-hover:text-amber-900 transition-colors">
                                       {cProd.name}
                                     </h5>
-                                    <span className="text-xs font-extrabold text-amber-800 block mt-1">
-                                      {cPrice}
-                                    </span>
+                                    <div className="mt-1">
+                                      {canCBuyOnline ? (
+                                        <span className="text-xs font-extrabold text-amber-800 block">
+                                          {cPrice}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md inline-block">
+                                          Sob Consulta
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
 
@@ -1755,7 +1765,9 @@ export default function ProductDetailPage({
               {relatedProducts.map((relProduct) => {
                 const relCat = categories.find((c) => c.id === relProduct.categoryId);
                 const relBrand = brands.find((b) => b.id === relProduct.brandId);
-                const relPrice = relProduct.price 
+                const isRelQuoteOnly = isProductQuoteOnly(relProduct);
+                const canRelBuyOnline = !isRelQuoteOnly && Number(relProduct.price) > 0;
+                const relPrice = canRelBuyOnline 
                   ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(relProduct.price)
                   : 'Sob Consulta';
 
@@ -1799,8 +1811,16 @@ export default function ProductDetailPage({
 
                     {/* Price & Action */}
                     <div className="p-2.5 pt-0 space-y-1.5">
-                      <div className="text-xs font-extrabold text-amber-700">
-                        {relPrice}
+                      <div className="min-h-[22px] flex items-center">
+                        {canRelBuyOnline ? (
+                          <span className="text-xs font-extrabold text-amber-700">
+                            {relPrice}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md inline-block">
+                            Sob Consulta
+                          </span>
+                        )}
                       </div>
                       <button className="w-full py-1.5 rounded-lg bg-slate-100 group-hover:bg-amber-600 group-hover:text-white text-slate-700 text-[10px] font-bold transition-colors flex items-center justify-center gap-1">
                         <span>Ver Ficha</span>

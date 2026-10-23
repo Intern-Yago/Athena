@@ -89,6 +89,40 @@ describe('Frontend Utils: Image & Product Normalization (imageUrl.js)', () => {
     assert.strictEqual(p4.priceNegotiable, true);
     assert.strictEqual(p4.price_negotiable, true);
   });
+
+  it('isProductQuoteOnly: deve proteger equipamentos Sob Consulta mesmo que tenham preço numérico no banco', async () => {
+    const { isProductQuoteOnly } = await import('../../src/utils/productVariants.js');
+
+    // Equipamento grande (ex: Elevador 4 Colunas) com preço no banco mas Sob Consulta ativo
+    const elevador = {
+      id: 'elevador_4c',
+      name: 'Elevador Automotivo 4 Colunas',
+      price: 45000,
+      priceNegotiable: true,
+      price_negotiable: true
+    };
+    assert.strictEqual(isProductQuoteOnly(elevador), true, 'Elevador deve ser Sob Consulta');
+
+    // Produto de venda direta online (ex: Liberação SGW / Atualização de Sistema)
+    const liberacaoSgw = {
+      id: 'prod_sgw_fca',
+      name: 'Liberação SGW FCA / Stellantis Anual',
+      price: 1200,
+      priceNegotiable: false,
+      price_negotiable: false
+    };
+    assert.strictEqual(isProductQuoteOnly(liberacaoSgw), false, 'Liberação SGW deve permitir venda direta com preço exibido');
+
+    // Produto sem preço cadastrado (price = 0 ou null)
+    const semPreco = {
+      id: 'prod_sem_preco',
+      name: 'Equipamento Sob Encomenda',
+      price: 0,
+      priceNegotiable: false,
+      price_negotiable: false
+    };
+    assert.strictEqual(isProductQuoteOnly(semPreco), true, 'Produto com preço zerado deve ficar Sob Consulta');
+  });
 });
 
 describe('Frontend Utils: Order & Fulfillment Domain Utilities (orderUtils.js)', () => {

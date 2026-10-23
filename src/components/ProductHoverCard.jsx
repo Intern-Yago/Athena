@@ -43,7 +43,13 @@ export default function ProductHoverCard({
     return <>{children}</>;
   }
 
-  const formattedPrice = product.price
+  const isQuoteOnly = Boolean(
+    product.priceNegotiable === true ||
+    product.price_negotiable === true ||
+    (product.priceNegotiable !== false && product.price_negotiable !== false)
+  );
+  const canBuyOnline = Number(product.price) > 0 && !isQuoteOnly;
+  const formattedPrice = canBuyOnline
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
     : 'Sob Consulta';
 
@@ -121,10 +127,18 @@ export default function ProductHoverCard({
           {/* Price & Action Buttons */}
           <div className="flex items-center justify-between pt-1 border-t border-slate-100">
             <div>
-              <span className="text-[9px] font-bold uppercase text-slate-400 block">Preço</span>
-              <span className="text-xs font-black text-amber-800 font-display">
-                {formattedPrice}
+              <span className="text-[9px] font-bold uppercase text-slate-400 block">
+                {canBuyOnline ? 'Preço' : 'Condição'}
               </span>
+              {canBuyOnline ? (
+                <span className="text-xs font-black text-amber-800 font-display">
+                  {formattedPrice}
+                </span>
+              ) : (
+                <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100/90 border border-amber-300 px-1.5 py-0.5 rounded-md inline-block">
+                  Sob Consulta
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-1.5">

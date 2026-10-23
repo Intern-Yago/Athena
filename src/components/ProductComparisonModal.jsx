@@ -69,7 +69,13 @@ export default function ProductComparisonModal({
               const category = safeCategories.find((c) => c.id === prod.categoryId);
               const brand = safeBrands.find((b) => b.id === prod.brandId);
 
-              const formattedPrice = prod.price 
+              const isQuoteOnly = Boolean(
+                prod.priceNegotiable === true ||
+                prod.price_negotiable === true ||
+                (prod.priceNegotiable !== false && prod.price_negotiable !== false)
+              );
+              const canBuyOnline = Number(prod.price) > 0 && !isQuoteOnly;
+              const formattedPrice = canBuyOnline 
                 ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.price)
                 : 'Sob Consulta';
 
@@ -135,7 +141,7 @@ export default function ProductComparisonModal({
                   {/* Price Block */}
                   <div className="bg-white p-3 rounded-xl border border-slate-200">
                     <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                      {prod.price > 0 ? (prod.priceNegotiable ? 'Preço Estimado' : 'Valor Comercial') : 'Condição Comercial'}
+                      {canBuyOnline ? 'Valor Comercial' : 'Condição Comercial'}
                     </span>
                     <span className="text-sm sm:text-base font-extrabold text-amber-800 font-display">
                       {formattedPrice}
