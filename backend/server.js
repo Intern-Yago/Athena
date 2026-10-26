@@ -5371,7 +5371,6 @@ app.post('/api/payments/charge', async (req, res) => {
     // ---------------------------------------------------------
     // B. SERVER-SIDE PRICE VALIDATION & COUPON EVALUATION
     // ---------------------------------------------------------
-    const parsedValue = Number(value);
     if (isNaN(parsedValue) || parsedValue < 0) {
       return res.status(400).json({ error: 'Valor da transação inválido.' });
     }

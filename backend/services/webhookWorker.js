@@ -17,10 +17,11 @@ const { recordSecurityEvent } = require('./securityAuditService.js');
 const { confirmPayment, cancelOrder } = require('./orderService.js');
 const axios = require('axios');
 
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY || process.env.ASAAS_ACCESS_TOKEN || '';
-const ASAAS_BASE_URL = (process.env.ASAAS_ENVIRONMENT === 'production' || process.env.NODE_ENV === 'production')
-  ? 'https://api.asaas.com/v3'
-  : (process.env.ASAAS_BASE_URL || 'https://api-sandbox.asaas.com/v3');
+const ASAAS_API_KEY = process.env.ASAAS_API_KEY || process.env.VITE_ASAAS_API_KEY || process.env.ASAAS_ACCESS_TOKEN || '';
+const ASAAS_IS_SANDBOX = (process.env.ASAAS_SANDBOX === 'true' || process.env.VITE_ASAAS_SANDBOX === 'true') && !ASAAS_API_KEY.startsWith('$aact_prod_');
+const ASAAS_BASE_URL = ASAAS_IS_SANDBOX
+  ? 'https://sandbox.asaas.com/api/v3'
+  : 'https://api.asaas.com/v3';
 
 /**
  * Validação Reversa Server-to-Server na API do Asaas (Dupla Checagem Anti-Fraude)
