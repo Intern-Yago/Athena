@@ -291,9 +291,9 @@ async function confirmPayment(orderIdOrParams, paymentMetadata = {}) {
     const orderRes = await client.query(`
       SELECT id, order_number, customer_id, status, payment_status, total_amount, order_type
       FROM orders
-      WHERE id::text = $1 OR order_number = $1
+      WHERE id::text = $1 OR order_number = $1 OR (asaas_payment_id IS NOT NULL AND asaas_payment_id = $2)
       FOR UPDATE
-    `, [String(orderId)]);
+    `, [String(orderId), String(paymentMeta.paymentId || '')]);
 
     if (orderRes.rows.length === 0) {
       throw new Error(`Pedido ${orderId} não foi encontrado.`);
@@ -359,6 +359,14 @@ async function confirmPayment(orderIdOrParams, paymentMetadata = {}) {
     ]);
 
     console.log(`[PAYMENT CONFIRMED] Pedido #${order.order_number} liquidado com sucesso. Fulfillment roteado!`);
+
+    // 7. Envio do Pedido ao Omie ERP (com autocadastro de cliente e reserva fiscal)
+    try {
+      const { createOmieSalesOrder } = require('./omieOrderService');
+      createOmieSalesOrder(order.id).catch(err => {
+        console.warn(`[OMIE BACKGROUND DISPATCH WARN] Pedido #${order.order_number}:`, err.message);
+      });
+    } catch (e) {}
 
     return {
       success: true,

@@ -15,6 +15,41 @@
 const { getPool, withTransaction, query } = require('./db.js');
 const { recordSecurityEvent } = require('./securityAuditService.js');
 const { confirmPayment, cancelOrder } = require('./orderService.js');
+const axios = require('axios');
+
+const ASAAS_API_KEY = process.env.ASAAS_API_KEY || process.env.ASAAS_ACCESS_TOKEN || '';
+const ASAAS_BASE_URL = (process.env.ASAAS_ENVIRONMENT === 'production' || process.env.NODE_ENV === 'production')
+  ? 'https://api.asaas.com/v3'
+  : (process.env.ASAAS_BASE_URL || 'https://api-sandbox.asaas.com/v3');
+
+/**
+ * Validação Reversa Server-to-Server na API do Asaas (Dupla Checagem Anti-Fraude)
+ */
+async function verifyPaymentOnAsaasApi(paymentId) {
+  if (!ASAAS_API_KEY || !paymentId) {
+    return { verified: false, reason: 'credentials_missing' };
+  }
+
+  try {
+    const res = await axios.get(`${ASAAS_BASE_URL}/payments/${paymentId}`, {
+      headers: { 'access_token': ASAAS_API_KEY },
+      timeout: 7000
+    });
+
+    if (res.data && res.data.id === paymentId) {
+      const isConfirmed = ['CONFIRMED', 'RECEIVED', 'RECEIVED_IN_CASH'].includes(res.data.status);
+      return {
+        verified: true,
+        isConfirmed,
+        data: res.data
+      };
+    }
+  } catch (err) {
+    console.error(`[ASAAS RECHECK ERROR] Falha ao verificar pagamento #${paymentId} na API do Asaas:`, err.response?.data?.errors?.[0]?.description || err.message);
+  }
+
+  return { verified: false };
+}
 
 let workerTimer = null;
 let isRunningBatch = false;
@@ -44,23 +79,81 @@ async function processSingleEvent(event) {
 
   if (provider === 'asaas') {
     const payment = parsedPayload.payment || {};
-    const orderId = payment.externalReference;
+    const orderId = payment.externalReference || null;
 
     if (event_type === 'PAYMENT_RECEIVED' || event_type === 'PAYMENT_CONFIRMED') {
-      if (orderId) {
+      try {
         await confirmPayment({
-          orderId,
+          orderId: orderId || payment.id,
           asaasPaymentId: payment.id,
           paidAmount: payment.value,
           paymentMethod: payment.billingType?.toLowerCase() || 'asaas'
         });
+      } catch (err) {
+        if (err.message && err.message.includes('não foi encontrado')) {
+          // Double-Validation: Validação Reversa na API do Asaas
+          const asaasCheck = await verifyPaymentOnAsaasApi(payment.id);
+
+          if (!asaasCheck.verified || !asaasCheck.isConfirmed) {
+            // Se o Asaas não confirmar que a transação existe e está paga: Fraude!
+            await recordSecurityEvent({
+              eventType: 'PAYMENT_FRAUD_DETECTED',
+              severity: 'CRITICAL',
+              actorId: 'webhook_worker',
+              details: {
+                paymentId: payment.id,
+                externalReference: orderId,
+                value: payment.value,
+                reason: 'Webhook recebido, mas a transação não foi validada como confirmada na API oficial do Asaas.'
+              }
+            });
+            throw new Error(`[FRAUD ALERT] Pagamento #${payment.id} rejeitado na validação reversa da API Asaas.`);
+          }
+
+          // A transação é 100% autêntica e liquidada na conta Asaas da Athena!
+          // Verifica se possui o padrão de assinatura de pedido da loja virtual:
+          const isStoreOrderPattern = orderId && (
+            orderId.startsWith('athena_ord_') ||
+            orderId.startsWith('ord_') ||
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId) ||
+            /^\d{4,7}$/.test(orderId)
+          );
+
+          if (isStoreOrderPattern) {
+            // Era um pedido da loja virtual que realmente sumiu do banco de dados: mantém o erro para retentar e acionar o SOC!
+            throw err;
+          }
+
+          // É um pagamento legítimo de Canal Externo da Athena (Rifa, Link Avulso, Sorteio, Cobrança Direta)
+          console.log(`[WEBHOOK WORKER] ℹ️ Pagamento verificado de Canal Externo da Athena: #${payment.id} ("${payment.description || 'Cobrança Avulsa'}") - R$ ${payment.value}`);
+
+          await recordSecurityEvent({
+            eventType: 'EXTERNAL_CHANNEL_PAYMENT_ACKNOWLEDGED',
+            severity: 'INFO',
+            actorId: 'webhook_worker',
+            details: {
+              paymentId: payment.id,
+              externalReference: orderId,
+              value: payment.value,
+              description: payment.description,
+              billingType: payment.billingType,
+              note: 'Transação confirmada no Asaas pertencente a link avulso/rifa fora do catálogo de máquinas do e-commerce.'
+            }
+          });
+        } else {
+          throw err;
+        }
       }
     } else if (event_type === 'PAYMENT_REFUNDED' || event_type === 'PAYMENT_DELETED') {
       if (orderId) {
-        await cancelOrder({
-          orderId,
-          reason: `Cancelamento ou Estorno registrado via Asaas Webhook (Evento: ${event_type})`
-        });
+        try {
+          await cancelOrder({
+            orderId,
+            reason: `Cancelamento ou Estorno registrado via Asaas Webhook (Evento: ${event_type})`
+          });
+        } catch (e) {
+          console.warn('[WEBHOOK CANCEL WARN]:', e.message);
+        }
       }
     }
   } else if (provider === 'omie') {
