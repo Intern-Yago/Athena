@@ -9,6 +9,9 @@
     "migrate:r2": "node migrateCloudinaryToR2.js",
     "test": "node --test ../tests/unit/*.test.js"
   },
+  "engines": {
+    "node": ">=22.23.4"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1118.0",
     "axios": "^1.20.0",

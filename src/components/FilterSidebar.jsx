@@ -43,13 +43,19 @@ export default function FilterSidebar({
   }, [products]);
 
   // Min and Max price bounds calculated from products with valid prices (> 0)
+  // Single-pass loop prevents RangeError: Maximum call stack size exceeded on large catalogs
   const priceBounds = useMemo(() => {
-    const validPrices = products.filter(p => p.price > 0).map(p => p.price);
-    if (validPrices.length === 0) return { min: 0, max: 100000 };
-    return {
-      min: Math.min(...validPrices),
-      max: Math.max(...validPrices)
-    };
+    let min = Infinity;
+    let max = -Infinity;
+    for (let i = 0; i < (products || []).length; i++) {
+      const price = Number(products[i]?.price);
+      if (price > 0) {
+        if (price < min) min = price;
+        if (price > max) max = price;
+      }
+    }
+    if (min === Infinity || max === -Infinity) return { min: 0, max: 100000 };
+    return { min, max };
   }, [products]);
 
   const currentMaxPrice = maxPriceFilter !== null ? maxPriceFilter : priceBounds.max;
