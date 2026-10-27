@@ -354,6 +354,7 @@ async function listLeads({ funnelId, stageId, search = '', ra = '' } = {}) {
 async function createLead({
   funnelId,
   stageId,
+  document = '',
   name,
   phone = '',
   email = '',
@@ -381,13 +382,13 @@ async function createLead({
 
     const res = await crmPool.query(`
       INSERT INTO crm_leads (
-        id, funnel_id, stage_id, name, phone, email, company, address,
+        id, funnel_id, stage_id, document, name, phone, email, company, address,
         ra_df, estimated_value, priority, notes, assigned_to, source
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [
-      id, funnelId, targetStage, name.trim(), phone.trim(), email.trim(),
+      id, funnelId, targetStage, document.trim(), name.trim(), phone.trim(), email.trim(),
       company.trim(), address.trim(), ra_df.trim(), parseFloat(estimated_value) || 0,
       priority, notes.trim(), assigned_to.trim(), source
     ]);
@@ -401,6 +402,7 @@ async function createLead({
     id,
     funnel_id: funnelId,
     stage_id: targetStage,
+    document: document.trim(),
     name: name.trim(),
     phone: phone.trim(),
     email: email.trim(),
@@ -447,7 +449,7 @@ async function updateLead(id, data) {
   if (crmPool) {
     const fields = [];
     const params = [];
-    const allowed = ['name', 'phone', 'email', 'company', 'address', 'ra_df', 'estimated_value', 'priority', 'status', 'notes', 'assigned_to'];
+    const allowed = ['name', 'phone', 'email', 'company', 'address', 'ra_df', 'estimated_value', 'priority', 'status', 'notes', 'assigned_to', 'document'];
 
     for (const key of allowed) {
       if (data[key] !== undefined) {

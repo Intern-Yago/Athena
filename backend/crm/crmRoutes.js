@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crmService = require('./crmService');
+const { lookupCustomerByDoc } = require('./customerLookupService');
 const { isCrmDbAvailable } = require('./db');
 
 // Healthcheck do módulo CRM
@@ -11,6 +12,22 @@ router.get('/health', (req, res) => {
     dbConnected: isCrmDbAvailable,
     timestamp: new Date().toISOString()
   });
+});
+
+// -------------------------------------------------------------
+// CONSULTA CADASTRAL UNIFICADA (OMIE -> PLOOMES -> BRASILAPI)
+// -------------------------------------------------------------
+router.get('/lookup', async (req, res) => {
+  try {
+    const { doc } = req.query;
+    if (!doc) {
+      return res.status(400).json({ success: false, error: 'Documento (CPF ou CNPJ) não informado.' });
+    }
+    const result = await lookupCustomerByDoc(doc);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
 });
 
 // -------------------------------------------------------------

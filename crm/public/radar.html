@@ -798,6 +798,93 @@ svg.leaflet-image-layer.leaflet-interactive path {
             --accent: #8b5cf6;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        /* THEME LIGHT SUPPORT */
+        html.light, body.light {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+        }
+        body.light .header-title h1,
+        body.light .kpi-value,
+        body.light .chart-header,
+        body.light .modal-header h3,
+        body.light .map-legend span {
+            color: #0f172a !important;
+        }
+        body.light .search-box input,
+        body.light .select-box select,
+        body.light .status-tab,
+        body.light .map-toolbar,
+        body.light .page-btn,
+        body.light .form-control,
+        body.light #mapa-filtro-ra,
+        body.light #mapa-filtro-st {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.light th {
+            background: #f1f5f9 !important;
+            color: #475569 !important;
+            border-bottom: 1px solid #cbd5e1 !important;
+        }
+        body.light tr:hover td {
+            background: rgba(15, 23, 42, 0.03) !important;
+        }
+        body.light td div[style*="color: #fff"],
+        body.light td div[style*="color:#fff"] {
+            color: #0f172a !important;
+        }
+        body.light .leaflet-popup-content-wrapper {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.12) !important;
+        }
+        body.light .leaflet-popup-tip {
+            background: #ffffff !important;
+        }
+        body.light .popup-title {
+            color: #0f172a !important;
+        }
+        body.light .status-select {
+            background: #ffffff !important;
+            color: #0f172a !important;
+        }
+        body.light .action-link[style*="background:#0f172a"] {
+            background: #f1f5f9 !important;
+            color: #2563eb !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.light .btn-outline {
+            border-color: #cbd5e1 !important;
+            color: #334155 !important;
+        }
+        body.light .btn-outline:hover {
+            background: #f1f5f9 !important;
+        }
+        body.light .btn-edit {
+            background: #f1f5f9 !important;
+            color: #334155 !important;
+            border-color: #cbd5e1 !important;
+        }
+        body.light .btn-edit:hover {
+            background: #e2e8f0 !important;
+        }
+        body.light .custom-pin-athena {
+            border-color: #4f46e5 !important;
+        }
+        svg.btn-icon {
+            display: inline-block;
+            vertical-align: -2px;
+            margin-right: 4px;
+        }
+
         body { background-color: var(--bg); color: var(--text); padding: 20px; line-height: 1.5; }
         
         .container { max-width: 1480px; margin: 0 auto; }
@@ -951,20 +1038,20 @@ svg.leaflet-image-layer.leaflet-interactive path {
             <p>Mapeamento de 9.211 Oficinas e Acompanhamento da Meta de 50% por Região Administrativa</p>
         </div>
         <div class="header-actions">
-            <button class="btn btn-outline" onclick="resetarFiltros()">🔄 Limpar Filtros</button>
-            <button class="btn btn-outline" id="btn-restaurar" style="display:none;" onclick="restaurarExcluidos()">♻️ Restaurar Excluídos (<span id="count-excluidos">0</span>)</button>
-            <a href="plano_expansao_athena_df.xlsx" download class="btn btn-excel">📊 Baixar Excel (.XLSX)</a>
-            <button class="btn btn-success" onclick="exportarCSV()">📥 Baixar CSV Atualizado</button>
+            <button class="btn btn-outline" onclick="resetarFiltros()"><svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>Limpar Filtros</button>
+            <button class="btn btn-outline" id="btn-restaurar" style="display:none;" onclick="restaurarExcluidos()"><svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>Restaurar Excluídos (<span id="count-excluidos">0</span>)</button>
+            <a href="plano_expansao_athena_df.xlsx" download class="btn btn-excel"><svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Baixar Excel (.XLSX)</a>
+            <button class="btn btn-success" onclick="exportarCSV()"><svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Baixar CSV Atualizado</button>
         </div>
     </header>
 
     <!-- NAVEGAÇÃO POR ABAS -->
     <div class="main-nav">
         <div class="nav-tab active" onclick="trocarAbaPrincipal('dash')">
-            <span>📊</span> Dashboard & Tabela de Oficinas
+            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Dashboard & Tabela de Oficinas
         </div>
         <div class="nav-tab" onclick="trocarAbaPrincipal('mapa')">
-            <span>🗺️</span> Mapa Geográfico de Brasília (Pins & Rotas)
+            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Mapa Geográfico de Brasília (Pins & Rotas)
         </div>
     </div>
 
@@ -981,17 +1068,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
             <div class="kpi-sub">Objetivo de presença no DF</div>
         </div>
         <div class="kpi-card amber">
-            <div class="kpi-label">🔴 Faltam Visitar (Pins Vermelhos)</div>
+            <div class="kpi-label"><span class="dot dot-red"></span> Faltam Visitar (Pins Vermelhos)</div>
             <div class="kpi-value" id="kpi-pendentes">9.211</div>
             <div class="kpi-sub">Oportunidades em aberto</div>
         </div>
         <div class="kpi-card rose">
-            <div class="kpi-label">🟢 Já Visitadas (Pins Verdes)</div>
+            <div class="kpi-label"><span class="dot dot-green"></span> Já Visitadas (Pins Verdes)</div>
             <div class="kpi-value" id="kpi-visitados">0</div>
             <div class="kpi-sub">Visitas de prospecção feitas</div>
         </div>
         <div class="kpi-card emerald">
-            <div class="kpi-label">🛡️ Clientes Athena (Logo)</div>
+            <div class="kpi-label"><span class="dot-athena" style="display:inline-block; vertical-align:middle; width:14px; height:14px;"></span> Clientes Athena (Logo)</div>
             <div class="kpi-value" id="kpi-clientes">0</div>
             <div class="kpi-sub">Oficinas ativas na base</div>
         </div>
@@ -1024,7 +1111,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="filter-panel">
             <div class="filter-row">
                 <div class="search-box">
-                    <input type="text" id="filtro-busca" placeholder="🔍 Buscar por nome da oficina, CNPJ, telefone, endereço..." oninput="aplicarFiltros(true)">
+                    <input type="text" id="filtro-busca" placeholder="Buscar por nome da oficina, CNPJ, telefone, endereço..." oninput="aplicarFiltros(true)">
                 </div>
                 <div class="select-box">
                     <select id="filtro-ra" onchange="aplicarFiltros(true)">
@@ -1039,10 +1126,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
             </div>
 
             <div class="status-tabs">
-                <div class="status-tab active" data-status="TODOS" onclick="setStatusTab('TODOS')">📋 Todos (<span id="count-todos">0</span>)</div>
-                <div class="status-tab warning" data-status="FALTA" onclick="setStatusTab('FALTA')">⚠️ Faltam Visitar (<span id="count-falta">0</span>)</div>
-                <div class="status-tab" data-status="VISITADO" onclick="setStatusTab('VISITADO')">🚗 Já Visitados (<span id="count-visitados">0</span>)</div>
-                <div class="status-tab success" data-status="CLIENTE" onclick="setStatusTab('CLIENTE')">🏆 Clientes Athena (<span id="count-clientes">0</span>)</div>
+                <div class="status-tab active" data-status="TODOS" onclick="setStatusTab('TODOS')">Todos (<span id="count-todos">0</span>)</div>
+                <div class="status-tab warning" data-status="FALTA" onclick="setStatusTab('FALTA')">Faltam Visitar (<span id="count-falta">0</span>)</div>
+                <div class="status-tab" data-status="VISITADO" onclick="setStatusTab('VISITADO')">Já Visitados (<span id="count-visitados">0</span>)</div>
+                <div class="status-tab success" data-status="CLIENTE" onclick="setStatusTab('CLIENTE')">Clientes Athena (<span id="count-clientes">0</span>)</div>
             </div>
         </div>
 
@@ -1054,7 +1141,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     <span id="label-filtrados">Exibindo 0 de 9.211 registros</span>
                 </div>
                 <div style="font-size: 13px; color: var(--text-muted);">
-                    💡 Dica: Use <strong>✏️</strong> para corrigir dados ou <strong>🗑️</strong> para excluir empresas que fecharam.
+                    Dica: Use os botões de ação na tabela para atualizar dados cadastrais ou excluir empresas encerradas.
                 </div>
             </div>
 
@@ -1090,7 +1177,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="map-wrapper">
             <div class="map-toolbar">
                 <div class="map-legend">
-                    <span style="color: #fff; font-size: 14px;">📍 Legenda do Mapa:</span>
+                    <span style="color: #fff; font-size: 14px;">Legenda do Mapa:</span>
                     <div class="legend-item"><span class="dot dot-red"></span> Não Visitado</div>
                     <div class="legend-item"><span class="dot dot-green"></span> Já Visitado</div>
                     <div class="legend-item"><span class="dot-athena"></span> Cliente Athena (Logo)</div>
@@ -1103,12 +1190,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
                     
                     <select id="mapa-filtro-st" style="background:#1e293b; color:#fff; border:1px solid #334155; padding:8px 12px; border-radius:6px; font-size:13px;" onchange="renderizarMapa()">
                         <option value="TODOS">Todos os Pins</option>
-                        <option value="FALTA">🔴 Apenas Faltam Visitar</option>
-                        <option value="VISITADO">🟢 Apenas Já Visitados</option>
-                        <option value="CLIENTE">🛡️ Apenas Clientes Athena</option>
+                        <option value="FALTA">Apenas Faltam Visitar</option>
+                        <option value="VISITADO">Apenas Já Visitados</option>
+                        <option value="CLIENTE">Apenas Clientes Athena</option>
                     </select>
 
-                    <button class="btn btn-outline" style="padding: 8px 12px; font-size: 13px;" onclick="centralizarDF()">🎯 Centralizar DF</button>
+                    <button class="btn btn-outline" style="padding: 8px 12px; font-size: 13px;" onclick="centralizarDF()"><svg class="btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Centralizar DF</button>
                 </div>
             </div>
 
@@ -1121,7 +1208,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <div class="modal-overlay" id="editModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>✏️ Editar Informações da Oficina</h3>
+            <h3>Editar Informações da Oficina</h3>
             <button class="modal-close" onclick="fecharModal()">&times;</button>
         </div>
         <form id="editForm" onsubmit="salvarEdicao(event)">
@@ -1159,10 +1246,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
                 <div class="form-group">
                     <label>Status de Visita</label>
                     <select id="edit-st" class="form-control">
-                        <option value="Não Visitado">⏳ Não Visitado</option>
-                        <option value="Visitado">🚗 Já Visitado</option>
-                        <option value="Cliente Athena">🏆 Cliente Athena</option>
-                        <option value="Sem Interesse">❌ Sem Interesse</option>
+                        <option value="Não Visitado">Não Visitado</option>
+                        <option value="Visitado">Já Visitado</option>
+                        <option value="Cliente Athena">Cliente Athena</option>
+                        <option value="Sem Interesse">Sem Interesse</option>
                     </select>
                 </div>
             </div>
@@ -1178,10 +1265,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="excluirPeloModal()">🗑️ Excluir (Fechou)</button>
+                <button type="button" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="excluirPeloModal()">Excluir Empresa</button>
                 <div class="modal-footer-right">
                     <button type="button" class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">💾 Salvar Alterações</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
                 </div>
             </div>
         </form>
@@ -1376,8 +1463,8 @@ function inicializarMapa() {
     
     // Controle para alternar o mapa de fundo caso prefira estilo OSM ou Satélite/Ruas
     L.control.layers({
-        "🗺️ Mapa de Ruas (Esri HD - Recomendado)": esriStreets,
-        "🌍 OpenStreetMap (Padrão)": osmMirror
+        "Mapa de Ruas (Esri HD)": esriStreets,
+        "OpenStreetMap (Padrão)": osmMirror
     }, null, { position: 'topright' }).addTo(leafletMap);
     
     markerClusterGroup = L.markerClusterGroup({
@@ -1444,7 +1531,7 @@ function renderizarMapa() {
         const telLimpo = (item.tel || "").replace(/\D/g, "");
         let waLink = "";
         if (telLimpo.length >= 10) {
-            waLink = `<a href="https://wa.me/55${telLimpo}" target="_blank" class="whatsapp-btn" style="margin-left:6px;">💬 WhatsApp</a>`;
+            waLink = `<a href="https://wa.me/55${telLimpo}" target="_blank" class="whatsapp-btn" style="margin-left:6px;">WhatsApp</a>`;
         }
         
         const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.nome + " " + item.end + " DF")}`;
@@ -1475,15 +1562,15 @@ function renderizarMapa() {
                 <div class="popup-row" style="margin-top: 8px;">
                     <span class="popup-label">Alterar Status</span>
                     <select class="status-select" style="width:100%; margin-top:4px;" onchange="atualizarStatusItem(${item.id}, this.value)">
-                        <option value="Não Visitado" ${item.st === 'Não Visitado' ? 'selected' : ''}>🔴 ⏳ Não Visitado</option>
-                        <option value="Visitado" ${item.st === 'Visitado' ? 'selected' : ''}>🟢 🚗 Já Visitado</option>
-                        <option value="Cliente Athena" ${item.st === 'Cliente Athena' ? 'selected' : ''}>🛡️ 🏆 Cliente Athena</option>
-                        <option value="Sem Interesse" ${item.st === 'Sem Interesse' ? 'selected' : ''}>❌ Sem Interesse</option>
+                        <option value="Não Visitado" ${item.st === 'Não Visitado' ? 'selected' : ''}>Não Visitado</option>
+                        <option value="Visitado" ${item.st === 'Visitado' ? 'selected' : ''}>Já Visitado</option>
+                        <option value="Cliente Athena" ${item.st === 'Cliente Athena' ? 'selected' : ''}>Cliente Athena</option>
+                        <option value="Sem Interesse" ${item.st === 'Sem Interesse' ? 'selected' : ''}>Sem Interesse</option>
                     </select>
                 </div>
                 
                 <div class="popup-actions">
-                    <a href="${mapsLink}" target="_blank" class="action-link" style="width:100%; justify-content:center; padding:6px; background:#0f172a; border-radius:6px; border:1px solid #334155;">📍 Rota no Google Maps</a>
+                    <a href="${mapsLink}" target="_blank" class="action-link" style="width:100%; justify-content:center; padding:6px; background:#0f172a; border-radius:6px; border:1px solid #334155;">Rota no Google Maps</a>
                 </div>
             </div>
         `;
@@ -1623,7 +1710,7 @@ function renderizarTabela() {
         let waBtn = "";
         const telLimpo = (item.tel || "").replace(/\D/g, "");
         if (telLimpo.length >= 10) {
-            waBtn = `<a href="https://wa.me/55${telLimpo}" target="_blank" class="whatsapp-btn">💬 Whats</a>`;
+            waBtn = `<a href="https://wa.me/55${telLimpo}" target="_blank" class="whatsapp-btn">Whats</a>`;
         }
         
         const queryBusca = encodeURIComponent(item.nome + " " + item.end + " DF");
@@ -1649,20 +1736,20 @@ function renderizarTabela() {
             </td>
             <td>
                 <div>${item.end}</div>
-                <a href="${mapsLink}" target="_blank" class="action-link">📍 Abrir no Mapa</a>
+                <a href="${mapsLink}" target="_blank" class="action-link">Abrir no Google Maps</a>
             </td>
             <td>
                 <select class="status-select ${stClass}" onchange="atualizarStatusItem(${item.id}, this.value)">
-                    <option value="Não Visitado" ${item.st === 'Não Visitado' ? 'selected' : ''}>⏳ Não Visitado</option>
-                    <option value="Visitado" ${item.st === 'Visitado' ? 'selected' : ''}>🚗 Já Visitado</option>
-                    <option value="Cliente Athena" ${item.st === 'Cliente Athena' ? 'selected' : ''}>🏆 Cliente Athena</option>
-                    <option value="Sem Interesse" ${item.st === 'Sem Interesse' ? 'selected' : ''}>❌ Sem Interesse</option>
+                    <option value="Não Visitado" ${item.st === 'Não Visitado' ? 'selected' : ''}>Não Visitado</option>
+                    <option value="Visitado" ${item.st === 'Visitado' ? 'selected' : ''}>Já Visitado</option>
+                    <option value="Cliente Athena" ${item.st === 'Cliente Athena' ? 'selected' : ''}>Cliente Athena</option>
+                    <option value="Sem Interesse" ${item.st === 'Sem Interesse' ? 'selected' : ''}>Sem Interesse</option>
                 </select>
             </td>
             <td style="text-align: center;">
                 <div style="display: flex; gap: 6px; justify-content: center;">
-                    <button class="btn-edit" onclick="abrirModalEdicao(${item.id})" title="Editar dados da oficina">✏️</button>
-                    <button class="btn-delete" onclick="excluirOficina(${item.id})" title="Excluir da lista (empresa fechou)">🗑️</button>
+                    <button class="btn-edit" onclick="abrirModalEdicao(${item.id})" title="Editar dados da oficina"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                    <button class="btn-delete" onclick="excluirOficina(${item.id})" title="Excluir da lista (empresa fechou)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                 </div>
             </td>
         `;
@@ -1853,6 +1940,28 @@ function exportarCSV() {
     URL.revokeObjectURL(url);
     mostrarToast("Planilha CSV com dados e edições baixada com sucesso!");
 }
+
+// SINCRONIZAÇÃO DE TEMA (CLARO / ESCURO)
+function aplicarTema(tema) {
+    if (tema === "light") {
+        document.documentElement.classList.add("light");
+        document.body.classList.add("light");
+    } else {
+        document.documentElement.classList.remove("light");
+        document.body.classList.remove("light");
+    }
+}
+
+const params = new URLSearchParams(window.location.search);
+const temaInicial = params.get("theme") || localStorage.getItem("athena_crm_theme") || "dark";
+aplicarTema(temaInicial);
+
+window.addEventListener("message", function(e) {
+    if (e.data && e.data.type === "THEME_CHANGE") {
+        aplicarTema(e.data.theme);
+    }
+});
+
 </script>
 </body>
 </html>

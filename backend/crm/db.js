@@ -78,6 +78,7 @@ async function initCrmSchema() {
         id VARCHAR(64) PRIMARY KEY,
         funnel_id VARCHAR(64) NOT NULL REFERENCES crm_funnels(id) ON DELETE CASCADE,
         stage_id VARCHAR(64) NOT NULL REFERENCES crm_stages(id) ON DELETE CASCADE,
+        document VARCHAR(40),
         name VARCHAR(180) NOT NULL,
         phone VARCHAR(40),
         email VARCHAR(180),
@@ -94,6 +95,7 @@ async function initCrmSchema() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+      ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS document VARCHAR(40);
     `);
 
     // 4. Histórico e Atividades dos Leads

@@ -43,7 +43,7 @@ export default function FunnelsListPage({
           className="px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer shrink-0 active:scale-95"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
-          <span>+ Criar Novo Funil</span>
+          <span>Criar Novo Funil</span>
         </button>
       </div>
 

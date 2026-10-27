@@ -25,6 +25,17 @@ export default function RadarView({ onConvertWorkshopToLead }) {
   const [activeTab, setActiveTab] = useState('map'); // 'map' | 'list'
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
+  const iframeRef = React.useRef(null);
+
+  // Sincroniza tema com o iframe do radar em tempo real
+  useEffect(() => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ 
+        type: 'THEME_CHANGE', 
+        theme: isDark ? 'dark' : 'light' 
+      }, '*');
+    }
+  }, [isDark]);
 
   // Estados da lista de oficinas via Supabase
   const [workshops, setWorkshops] = useState([]);
@@ -126,8 +137,8 @@ export default function RadarView({ onConvertWorkshopToLead }) {
               onClick={() => setActiveTab('map')}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'map'
-                  ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-emerald-500 text-slate-950 font-black shadow-xs'
+                  : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-950'
               }`}
             >
               Mapa Interativo
@@ -137,8 +148,8 @@ export default function RadarView({ onConvertWorkshopToLead }) {
               onClick={() => setActiveTab('list')}
               className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'list'
-                  ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-emerald-500 text-slate-950 font-black shadow-xs'
+                  : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-950'
               }`}
             >
               Lista Supabase ({stats.total || 9212})
@@ -195,10 +206,13 @@ export default function RadarView({ onConvertWorkshopToLead }) {
 
       {/* Conteúdo: Mapa Visual vs Lista */}
       {activeTab === 'map' ? (
-        <div className="flex-1 w-full h-full relative bg-slate-950 overflow-hidden">
+        <div className={`flex-1 w-full h-full relative overflow-hidden ${
+          isDark ? 'bg-slate-950' : 'bg-slate-100'
+        }`}>
           <iframe
-            key={iframeKey}
-            src="/radar.html"
+            ref={iframeRef}
+            key={`${iframeKey}-${isDark ? 'dark' : 'light'}`}
+            src={`/radar.html?theme=${isDark ? 'dark' : 'light'}`}
             title="Radar de Expansão de Oficinas DF"
             className="w-full h-full border-0 absolute inset-0"
             loading="lazy"
