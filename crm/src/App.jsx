@@ -14,6 +14,7 @@ import StageModal from './components/StageModal';
 import TeamManagementView from './components/TeamManagementView';
 import CreateEmployeeModal from './components/CreateEmployeeModal';
 import AccountSettingsModal from './components/AccountSettingsModal';
+import ForceChangePasswordModal from './components/ForceChangePasswordModal';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
 function CRMContent() {
@@ -304,6 +305,50 @@ function CRMContent() {
     // Optimistic update
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage_id: targetStageId } : l));
 
+    // Sincronização automática com o Radar de Expansão DF se o lead pertencer ao funil de expansão
+    const movedLead = leads.find(l => l.id === leadId);
+    const isExpansao = movedLead && (movedLead.funnel_id === 'fun_expansao_df' || activeFunnelId === 'fun_expansao_df');
+    if (isExpansao) {
+      let radarStatus = 'Não Visitado';
+      if (targetStageId === 'stg_exp_1') radarStatus = 'Não Visitado';
+      else if (targetStageId === 'stg_exp_2') radarStatus = 'Visita Agendada';
+      else if (targetStageId === 'stg_exp_3') radarStatus = 'Visitado';
+      else if (targetStageId === 'stg_exp_4') radarStatus = 'Visitado';
+      else if (targetStageId === 'stg_exp_5') radarStatus = 'Cliente Athena';
+
+      // Identifica ID da oficina no Radar
+      let workshopId = null;
+      const match = movedLead.notes?.match(/\[Radar ID:\s*(\d+)\]/);
+      if (match) workshopId = match[1];
+
+      // Atualiza localStorage compartilhado entre CRM e radar.html
+      try {
+        const stored = localStorage.getItem('athena_edicoes_v3');
+        const edicoes = stored ? JSON.parse(stored) : {};
+        if (workshopId) {
+          if (!edicoes[workshopId]) edicoes[workshopId] = {};
+          edicoes[workshopId].st = radarStatus;
+        }
+        localStorage.setItem('athena_edicoes_v3', JSON.stringify(edicoes));
+      } catch (e) {
+        console.error('Erro ao sincronizar localStorage com radar:', e);
+      }
+
+      // Envia notificação em tempo real caso o iframe do radar esteja montado
+      const iframes = document.querySelectorAll('iframe');
+      iframes.forEach(ifr => {
+        try {
+          ifr.contentWindow?.postMessage({
+            type: 'SYNC_LEAD_TO_RADAR',
+            workshopId,
+            cnpj: movedLead.cnpj,
+            name: movedLead.name,
+            status: radarStatus
+          }, '*');
+        } catch (_) {}
+      });
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/crm/leads/${leadId}/stage`, {
         method: 'PUT',
@@ -319,23 +364,60 @@ function CRMContent() {
     }
   };
 
-  // Conversão de oficina do Radar direto para lead do funil
-  const handleConvertWorkshopToLead = (workshop) => {
-    const targetFunnel = activeFunnel || funnels[0];
-    const defaultStageId = targetFunnel?.stages?.[0]?.id || '';
+  // Sincronização bidirecional: Oficina do Radar de Expansão -> Lead do Funil de Expansão DF
+  const handleConvertWorkshopToLead = async (workshop) => {
+    // Mapeia status do Radar para estágio correspondente no Funil de Expansão DF
+    let targetStageId = 'stg_exp_1';
+    if (workshop.st === 'Visita Agendada' || workshop.st === 'Agendado') targetStageId = 'stg_exp_2';
+    else if (workshop.st === 'Visitado' || workshop.st === 'Já Visitado' || workshop.st === 'Visita Realizada') targetStageId = 'stg_exp_3';
+    else if (workshop.st === 'Negociação') targetStageId = 'stg_exp_4';
+    else if (workshop.st === 'Cliente Athena' || workshop.st === 'Parceria Fechada') targetStageId = 'stg_exp_5';
 
-    setEditingLead({
-      name: workshop.nome_fantasia || workshop.razao_social,
-      company: workshop.razao_social || workshop.nome_fantasia,
-      phone: workshop.telefone_principal || workshop.telefone_secundario || '',
-      email: workshop.email || '',
-      address: workshop.endereco_completo || '',
-      ra_df: workshop.regiao_administrativa || 'Taguatinga',
-      notes: `Origem: Radar DF • Categoria: ${workshop.categoria || 'Mecânica'} • CNPJ: ${workshop.cnpj || ''}`,
-      stage_id: defaultStageId,
-      funnel_id: targetFunnel?.id
-    });
-    setIsLeadModalOpen(true);
+    // Procura se já existe lead correspondente a esta oficina no CRM
+    const existingLead = leads.find(l => 
+      (l.funnel_id === 'fun_expansao_df') &&
+      ((workshop.id && l.notes?.includes(`[Radar ID: ${workshop.id}]`)) ||
+       (workshop.cnpj && l.cnpj && l.cnpj.replace(/\D/g, '') === String(workshop.cnpj).replace(/\D/g, '')) ||
+       (l.name && workshop.nome && l.name.trim().toLowerCase() === workshop.nome.trim().toLowerCase()))
+    );
+
+    if (existingLead) {
+      // Se já existe e mudou de estágio, move o lead
+      if (existingLead.stage_id !== targetStageId) {
+        await handleMoveLeadStage(existingLead.id, targetStageId);
+        showNotification(`Lead "${workshop.nome}" atualizado para o estágio correspondente no Funil.`);
+      }
+    } else {
+      // Cria o lead automaticamente na etapa correta do Funil de Expansão DF
+      try {
+        const leadPayload = {
+          name: workshop.nome || 'Oficina DF',
+          company: workshop.rz || workshop.nome,
+          cnpj: workshop.cnpj || '',
+          phone: workshop.tel || '',
+          email: '',
+          address: workshop.end || '',
+          ra_df: workshop.ra || 'DF',
+          value: 0,
+          notes: `Oficina sincronizada via Radar de Expansão DF • Categoria: ${workshop.cat || 'Mecânica Geral'} [Radar ID: ${workshop.id}]`,
+          funnel_id: 'fun_expansao_df',
+          stage_id: targetStageId
+        };
+
+        const res = await fetch(`${API_BASE_URL}/crm/leads`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(leadPayload)
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          setLeads(prev => [data.data, ...prev]);
+          showNotification(`Oficina "${workshop.nome}" sincronizada no Funil de Expansão!`);
+        }
+      } catch (err) {
+        console.error('Erro ao sincronizar oficina para o funil de expansão:', err);
+      }
+    }
   };
 
   if (authLoading) {
@@ -509,6 +591,11 @@ function CRMContent() {
       <AccountSettingsModal
         isOpen={isAccountSettingsOpen}
         onClose={() => setIsAccountSettingsOpen(false)}
+      />
+
+      {/* Modal Obrigatório para Usuário com Senha Inicial / Temporária */}
+      <ForceChangePasswordModal
+        isOpen={Boolean(user?.mustChangePassword)}
       />
     </div>
   );

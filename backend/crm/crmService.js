@@ -174,6 +174,10 @@ async function updateFunnel(id, { name, description, color }) {
 }
 
 async function deleteFunnel(id) {
+  if (id === 'fun_expansao_df') {
+    throw new Error('O Funil de Expansão de Oficinas DF é protegido pelo sistema e não pode ser excluído.');
+  }
+
   if (crmPool) {
     const res = await crmPool.query('DELETE FROM crm_funnels WHERE id = $1 RETURNING id', [id]);
     if (res.rows.length === 0) throw new Error('Funil não encontrado.');

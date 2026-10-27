@@ -155,7 +155,12 @@ export default function FunnelModal({
           <div className={`flex items-center justify-between pt-3 border-t gap-2 ${
             isDark ? 'border-slate-800' : 'border-slate-100'
           }`}>
-            {funnel && onDelete ? (
+            {funnel?.id === 'fun_expansao_df' ? (
+              <span className="text-[11px] font-bold text-amber-500/90 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Funil Protegido pelo Sistema (Integrado ao Radar)</span>
+              </span>
+            ) : funnel && onDelete ? (
               <button
                 type="button"
                 onClick={handleDeleteClick}

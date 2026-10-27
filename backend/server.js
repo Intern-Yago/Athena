@@ -3469,12 +3469,15 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
       const userRole = authUser.role || 'cliente';
       const isVerified = Boolean(authUser.isVerified || authUser.is_verified || userRole === 'admin');
 
+      const mustChangePassword = Boolean(authUser.mustChangePassword || authUser.must_change_password || false);
+
       const { token, expiresAt } = generateToken({
         id: authUser.id,
         name: authUser.name,
         email: authUser.email,
         role: userRole,
-        isVerified
+        isVerified,
+        mustChangePassword
       });
 
       logSecurityEvent({

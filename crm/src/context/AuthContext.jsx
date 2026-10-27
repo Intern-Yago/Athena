@@ -38,7 +38,8 @@ export function AuthProvider({ children }) {
           id: decoded.id || decoded.userId,
           name: decoded.name || 'Membro da Equipe',
           email: decoded.email,
-          role
+          role,
+          mustChangePassword: Boolean(decoded.mustChangePassword)
         });
       } else {
         // Token expirado
@@ -76,19 +77,26 @@ export function AuthProvider({ children }) {
         throw new Error('Acesso negado. Apenas membros da equipe comercial ou administradores podem acessar o CRM.');
       }
 
+      const mustChange = Boolean(data.mustChangePassword || decoded?.mustChangePassword);
+
       localStorage.setItem('athena_crm_token', receivedToken);
       setToken(receivedToken);
       setUser({
-        id: decoded?.id || data.user?.id,
-        name: data.user?.name || decoded?.name || 'Membro da Equipe',
-        email: data.user?.email || decoded?.email,
-        role
+        id: decoded?.id || data.id || data.user?.id,
+        name: data.name || data.user?.name || decoded?.name || 'Membro da Equipe',
+        email: data.email || data.user?.email || decoded?.email,
+        role,
+        mustChangePassword: mustChange
       });
 
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
     }
+  };
+
+  const clearMustChangePassword = () => {
+    setUser(prev => prev ? { ...prev, mustChangePassword: false } : null);
   };
 
   const logout = () => {
@@ -111,6 +119,7 @@ export function AuthProvider({ children }) {
       loading,
       login,
       logout,
+      clearMustChangePassword,
       getAuthHeaders,
       API_BASE_URL
     }}>
