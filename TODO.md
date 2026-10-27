@@ -689,5 +689,63 @@ Para evitar criar categorias infinitas para cada detalhe técnico, a página de 
   - Emissão de código de postagem reversa e checklist de envio de scanners com manuais e cabos.
   - Histórico de calibração e laudo técnico vinculado ao número de série do equipamento.
 
+---
+
+## 📰 12. [CONTEÚDO & SEO AUTOMATIZADO] Motor Autônomo de Blog & Artigos Técnicos com IA (Gemini + Imagen 3 / Flux + R2)
+
+> Este módulo estrutura uma máquina autônoma de geração de tráfego orgânico qualificado para a Athena, capturando mecânicos, funileiros e donos de autocenter no momento exato de suas dúvidas técnicas (SEO de Cauda Longa), convertendo leitores em leads comerciais para o WhatsApp e vendas diretas.
+
+### 📌 12.1 Arquitetura & Fluxo Autônomo de Publicação Diária
+
+```mermaid
+flowchart TD
+    Trends["1. Coleta de Dúvidas & Tendências<br/>(Google Trends / Dores de Oficina / Perguntas Frequentes)"] --> TextAI["2. Motor de Redação Técnica (Gemini API)<br/>(Voz de Especialista Athena, Normas Técnicas, FAQs)"]
+    TextAI --> ImageAI["3. Pipeline de Imagens Automatizado<br/>(Google Imagen 3 / Flux 1 + Branding Sharp + Produtos Reais)"]
+    ImageAI --> Storage["4. Upload Otimizado WebP no Cloudflare R2<br/>(CDN de Alta Velocidade)"]
+    Storage --> Publish["5. Persistência no PostgreSQL & Renderização SPA<br/>(Rota /blog/:slug + Schema.org Article)"]
+    Publish --> SEO["6. Atualização Automática de Sitemap & Notificação<br/>(sitemap.xml + Alerta Telegram com 1 clique de aprovação)"]
+```
+
+---
+
+### 🧠 12.2 Diretrizes de Conteúdo & Proteção Contra Penalizações do Google (Helpful Content)
+- **Tom de Voz de Especialista Técnico:**
+  - A IA não deve produzir textos genéricos de enciclopédia; cada artigo deve ter a persona de um Engenheiro Mecânico / Consultor Técnico da Athena.
+  - Inclusão mandatória de parâmetros reais de oficina: torques (Nm / kgf.m), vazão de ar (PCM), amperagem, bitolas, normas (DIN, ABNT, ISO) e procedimentos de segurança.
+- **Linkagem Interna Inteligente (Internal Linking):**
+  - A IA consulta o banco de dados da Athena (`products`) e insere automaticamente links e cards interativos para os equipamentos relacionados àquele tema (com botão *"Cotar no WhatsApp"* e foto real do item).
+- **Dados Estruturados para o Google:**
+  - Injeção automática de Schema.org `Article`, `FAQPage` (para aparecer nos rich snippets de perguntas do Google) e `BreadcrumbList`.
+
+---
+
+### 🎨 12.3 Pipeline Híbrido de Geração de Imagens Fotorrealistas
+- **1. Capa Fotorrealista por IA (Google Imagen 3 / Flux 1):**
+  - Ao concluir o artigo, o Gemini gera um prompt descritivo em inglês com foco em fotorrealismo de oficina profissional (iluminação de estúdio automotivo, mecânico utilizando a ferramenta, profundidade de campo, 8k).
+  - O backend chama a API de imagem, baixa o buffer, converte para `.webp` compactado e sobe para o bucket **Cloudflare R2** da Athena.
+- **2. Camada de Branding Automatizada (Sharp / Canvas):**
+  - Aplicação opcional de marca d'água sutil ou moldura estilizada com logotipo da Athena Soluções Automotivas e título do post em destaque (otimizando a taxa de cliques para compartilhamentos no WhatsApp, LinkedIn e Google Discover).
+- **3. Injeção de Fotos Oficiais de Produtos do Catálogo:**
+  - No corpo do texto, produtos citados puxam suas fotos oficiais do catálogo da Athena (Sigma Tools, Mahovi, Delta, Lapek, Stärkx) em carrosséis interativos.
+
+---
+
+### 📝 12.4 Checklist de Implementação:
+- [ ] **12.4.1 Modelagem de Dados no PostgreSQL:**
+  - Criar tabela `blog_posts`: `id`, `title`, `slug`, `excerpt`, `content` (Markdown/HTML), `cover_image`, `author`, `category`, `tags` (jsonb), `related_product_ids` (jsonb), `faq_schema` (jsonb), `reading_time_minutes`, `status` (`draft`, `published`), `published_at`, `created_at`.
+- [ ] **12.4.2 Serviço Backend de Geração de Artigo & Imagem (`blogGenerationService.js`):**
+  - Função para selecionar temas de alta busca (balanceamento, alinhamento 3D, politrizes, elevadores, scanners).
+  - Integração com Gemini API para estruturação de título, introdução, passos práticos, tabela técnica, FAQs e chamada comercial (CTA).
+  - Integração com API de geração de imagem (Google Imagen 3 ou Flux 1) + upload no Cloudflare R2 via `r2Service.js`.
+- [ ] **12.4.3 Frontend do Blog (Página de Listagem & Detalhes):**
+  - Rota `/blog` com grid de artigos, filtro por categorias (Oficina & Elétrica, Detalhamento & Pintura, Pneus & Alinhamento), busca e barra de artigos em destaque.
+  - Rota `/blog/:slug` com leitura limpa, barra de progresso de leitura, sumário interativo, cards de produtos citados integrados ao carrinho/cotação e botão de compartilhamento no WhatsApp.
+- [ ] **12.4.4 SEO & Sitemap Automático:**
+  - Atualização do `backend/generateSitemap.js` para incluir todas as URLs de posts publicados dinamicamente.
+  - Metatags dinâmicas (`og:title`, `og:image`, `og:description`, `article:published_time`).
+- [ ] **12.4.5 Fluxo Human-in-the-Loop via Telegram:**
+  - Agendador diário (cron) que gera o post como `draft` e envia um card no Telegram da equipe com prévia da foto, título e botão inline *"Aprovar & Publicar Agora"* ou *"Editar"*.
+
+
 
 

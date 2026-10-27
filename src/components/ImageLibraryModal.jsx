@@ -489,10 +489,14 @@ export default function ImageLibraryModal({
           reader.readAsDataURL(file);
         });
 
+        const authHeaders = getAuthHeadersRef.current ? getAuthHeadersRef.current() : {};
         const cleanFilename = (file.name || 'foto').replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
         const res = await fetch(`${apiUrl}/upload`, {
           method: 'POST',
-          headers,
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders
+          },
           body: JSON.stringify({ file: base64, folder: 'athena_produtos', filename: cleanFilename })
         });
 

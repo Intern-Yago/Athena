@@ -148,12 +148,10 @@ export function safeStorageSet(key, value) {
     const serialized = typeof value === 'string' ? value : JSON.stringify(value);
     localStorage.setItem(key, serialized);
   } catch (err) {
-    // Quota exceeded: clean up obsolete keys and keep data safely in IndexedDB
+    // Quota exceeded: clean up key from localStorage and keep data safely in IndexedDB
     console.warn(`[Athena Storage] localStorage quota exceeded for "${key}". Data safely stored in IndexedDB.`);
     try {
-      if (key === 'athena_products') {
-        localStorage.removeItem('athena_products');
-      }
+      localStorage.removeItem(key);
     } catch (e) {}
   }
 }
