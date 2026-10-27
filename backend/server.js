@@ -946,6 +946,12 @@ app.use('/api/customer/orders', authenticateToken, customerOrderRoutes);
 app.use('/api/customer/orders-v2', authenticateToken, customerOrderRoutes);
 
 // -------------------------------------------------------------
+// ATHENA CRM & FUNIS (MÓDULO COMERCIAL DEDICADO)
+// -------------------------------------------------------------
+const crmRoutes = require('./crm/crmRoutes');
+app.use('/api/crm', crmRoutes);
+
+// -------------------------------------------------------------
 // POSTGRESQL POOL SETUP & USERS TABLE (IPV4 COMPLIANT POOLER)
 // -------------------------------------------------------------
 const dbConnectionString = process.env.DATABASE_URL;
