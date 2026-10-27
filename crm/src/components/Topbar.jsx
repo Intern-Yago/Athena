@@ -1,136 +1,99 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { 
+  Menu, 
   ShieldCheck, 
-  Layers, 
-  MapPin, 
-  Plus, 
-  LogOut, 
-  ChevronDown,
-  Sparkles,
-  ExternalLink
+  Sun, 
+  Moon, 
+  LogOut,
+  ChevronLeft
 } from 'lucide-react';
 
 export default function Topbar({ 
-  funnels = [], 
-  activeFunnelId, 
-  onSelectFunnel, 
-  activeView, 
-  onChangeView, 
-  onOpenNewFunnelModal 
+  onOpenMenu, 
+  currentRoute = '/', 
+  onBack,
+  pageTitle = ''
 }) {
   const { user, logout } = useAuth();
-  const activeFunnel = funnels.find(f => f.id === activeFunnelId) || funnels[0];
+  const { toggleTheme, isDark } = useTheme();
 
   return (
-    <header className="h-16 bg-slate-900 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 z-30 select-none">
-      {/* Left: Brand + View Switcher */}
-      <div className="flex items-center gap-4 sm:gap-6 min-w-0">
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-400/30 flex items-center justify-center shadow-xs">
-            <ShieldCheck className="w-5 h-5" />
+    <header className={`h-16 px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 z-30 select-none border-b transition-colors ${
+      isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-2xs'
+    }`}>
+      {/* Left: Hamburguer Menu Button + Brand */}
+      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+        <button
+          type="button"
+          onClick={onOpenMenu}
+          className={`p-2.5 rounded-xl transition cursor-pointer border flex items-center justify-center ${
+            isDark 
+              ? 'bg-slate-950 text-slate-300 hover:text-white border-slate-800 hover:bg-slate-800' 
+              : 'bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-200 hover:bg-slate-200'
+          }`}
+          title="Abrir Menu Lateral"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className={`p-2 rounded-xl transition cursor-pointer text-xs font-bold flex items-center gap-1 border ${
+              isDark 
+                ? 'bg-slate-950 text-slate-300 hover:text-amber-400 border-slate-800' 
+                : 'bg-slate-100 text-slate-700 hover:text-amber-700 border-slate-200'
+            }`}
+            title="Voltar"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Voltar</span>
+          </button>
+        )}
+
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 border border-amber-400/30 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-4 h-4" />
           </div>
-          <div>
+          <div className="truncate">
             <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-sm tracking-tight text-white">Athena</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black text-[10px] tracking-wider uppercase">CRM</span>
+              <span className={`font-black text-sm tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {pageTitle || 'Athena Interno'}
+              </span>
+              <span className="px-1.5 py-0.2 rounded-md bg-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-wider shrink-0">
+                CRM
+              </span>
             </div>
-            <span className="text-[10px] text-slate-400 font-medium hidden sm:block">Operações & Expansão</span>
           </div>
-        </div>
-
-        {/* View Switcher (Kanban vs Radar DF) */}
-        <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 shrink-0">
-          <button
-            type="button"
-            onClick={() => onChangeView('kanban')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeView === 'kanban'
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Funis Kanban</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onChangeView('radar')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeView === 'radar'
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            <span>Radar Oficinas DF</span>
-          </button>
         </div>
       </div>
 
-      {/* Middle: Funnel Selector (Only when in Kanban view) */}
-      {activeView === 'kanban' && (
-        <div className="hidden md:flex items-center gap-2 max-w-md truncate">
-          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
-            Funil:
-          </label>
-          <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-            {funnels.map(funnel => {
-              const isSelected = funnel.id === activeFunnelId;
-              return (
-                <button
-                  key={funnel.id}
-                  type="button"
-                  onClick={() => onSelectFunnel(funnel.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
-                    isSelected
-                      ? 'bg-slate-800 text-amber-400 border border-amber-400/40 shadow-xs'
-                      : 'bg-slate-950/60 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent'
-                  }`}
-                >
-                  <span 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: funnel.color || '#f59e0b' }} 
-                  />
-                  <span>{funnel.name}</span>
-                </button>
-              );
-            })}
-
-            <button
-              type="button"
-              onClick={onOpenNewFunnelModal}
-              className="p-1.5 rounded-xl bg-slate-950 text-slate-400 hover:text-amber-400 hover:bg-slate-800 border border-slate-800 transition cursor-pointer"
-              title="Criar Novo Funil"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Right: User Profile & Actions */}
-      <div className="flex items-center gap-3 shrink-0">
-        <a
-          href="https://www.athenaconsultoria.com.br"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hidden lg:flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-amber-400 transition"
-          title="Abrir Loja Athena"
+      {/* Right: Theme Toggle + User Info */}
+      <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className={`p-2 rounded-xl transition cursor-pointer border flex items-center justify-center ${
+            isDark 
+              ? 'bg-slate-950 text-amber-400 border-slate-800 hover:bg-slate-800' 
+              : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+          }`}
+          title={isDark ? "Mudar para Tema Claro" : "Mudar para Tema Escuro"}
         >
-          <span>Loja Online</span>
-          <ExternalLink className="w-3 h-3" />
-        </a>
+          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
 
-        <div className="h-4 w-px bg-slate-800 hidden lg:block" />
+        <div className={`h-4 w-px hidden sm:block ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
 
         <div className="flex items-center gap-2.5">
           <div className="text-right hidden sm:block">
-            <div className="text-xs font-bold text-white truncate max-w-[130px]">
-              {user?.name || 'Vendedor'}
+            <div className={`text-xs font-bold truncate max-w-[140px] ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              {user?.name || 'Membro da Equipe'}
             </div>
-            <div className="text-[10px] text-amber-400 uppercase font-mono">
+            <div className="text-[10px] text-amber-500 font-mono font-semibold uppercase">
               {user?.role || 'Staff'}
             </div>
           </div>
@@ -138,8 +101,12 @@ export default function Topbar({
           <button
             type="button"
             onClick={logout}
-            className="p-2 rounded-xl bg-slate-950 text-slate-400 hover:text-red-400 hover:bg-red-500/10 border border-slate-800 transition cursor-pointer"
-            title="Sair do CRM"
+            className={`p-2 rounded-xl transition cursor-pointer ${
+              isDark 
+                ? 'bg-slate-950 text-slate-400 hover:text-red-400 hover:bg-red-500/10 border border-slate-800' 
+                : 'bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200'
+            }`}
+            title="Sair do sistema"
           >
             <LogOut className="w-4 h-4" />
           </button>

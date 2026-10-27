@@ -151,4 +151,37 @@ router.delete('/leads/:id', async (req, res) => {
   }
 });
 
+// -------------------------------------------------------------
+// RADAR DE OFICINAS DF
+// -------------------------------------------------------------
+
+router.get('/workshops', async (req, res) => {
+  try {
+    const { ra, search, status, page, limit } = req.query;
+    const result = await crmService.listWorkshops({ ra, search, status, page, limit });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/workshops/stats', async (req, res) => {
+  try {
+    const stats = await crmService.getWorkshopStats();
+    res.json({ success: true, ...stats });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/workshops/:id/status', async (req, res) => {
+  try {
+    const { status, observacoes } = req.body;
+    const updated = await crmService.updateWorkshopStatus(req.params.id, { status, observacoes });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

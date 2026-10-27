@@ -484,6 +484,93 @@ async function deleteLead(id) {
   return { success: true, id };
 }
 
+// -------------------------------------------------------------
+// RADAR DE OFICINAS DF (Workshops Database)
+// -------------------------------------------------------------
+
+async function listWorkshops({ ra = '', search = '', status = '', page = 1, limit = 50 } = {}) {
+  const p = Math.max(1, parseInt(page, 10) || 1);
+  const l = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+  const offset = (p - 1) * l;
+
+  if (crmPool) {
+    let where = 'WHERE 1=1';
+    const params = [];
+
+    if (ra && ra !== 'all') {
+      params.push(ra.trim());
+      where += ` AND regiao_administrativa = $${params.length}`;
+    }
+    if (status && status !== 'all') {
+      params.push(status.trim());
+      where += ` AND status_visita = $${params.length}`;
+    }
+    if (search && search.trim()) {
+      params.push(`%${search.trim()}%`);
+      const pIdx = params.length;
+      where += ` AND (nome_fantasia ILIKE $${pIdx} OR razao_social ILIKE $${pIdx} OR telefone_principal ILIKE $${pIdx} OR endereco_completo ILIKE $${pIdx} OR cnpj ILIKE $${pIdx})`;
+    }
+
+    const countRes = await crmPool.query(`SELECT COUNT(*) FROM crm_workshops ${where}`, params);
+    const total = parseInt(countRes.rows[0].count, 10);
+
+    params.push(l, offset);
+    const dataRes = await crmPool.query(`
+      SELECT id, regiao_administrativa, categoria, nome_fantasia, razao_social, cnpj,
+             telefone_principal, telefone_secundario, email, endereco_completo, bairro, cep,
+             status_visita, observacoes, latitude, longitude
+      FROM crm_workshops
+      ${where}
+      ORDER BY regiao_administrativa ASC, nome_fantasia ASC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
+
+    return {
+      workshops: dataRes.rows,
+      total,
+      page: p,
+      totalPages: Math.ceil(total / l)
+    };
+  }
+
+  return { workshops: [], total: 0, page: 1, totalPages: 0 };
+}
+
+async function getWorkshopStats() {
+  if (crmPool) {
+    const totalRes = await crmPool.query('SELECT COUNT(*) FROM crm_workshops');
+    const raStatsRes = await crmPool.query(`
+      SELECT regiao_administrativa as ra, 
+             COUNT(*) as total,
+             COUNT(*) FILTER (WHERE status_visita = 'Visitado') as visitados,
+             COUNT(*) FILTER (WHERE status_visita = 'Agendado') as agendados
+      FROM crm_workshops
+      GROUP BY regiao_administrativa
+      ORDER BY total DESC
+    `);
+    return {
+      total: parseInt(totalRes.rows[0].count, 10),
+      byRa: raStatsRes.rows
+    };
+  }
+  return { total: 0, byRa: [] };
+}
+
+async function updateWorkshopStatus(id, { status, observacoes }) {
+  if (crmPool) {
+    const res = await crmPool.query(`
+      UPDATE crm_workshops
+      SET status_visita = COALESCE($1, status_visita),
+          observacoes = COALESCE($2, observacoes)
+      WHERE id = $3
+      RETURNING *
+    `, [status, observacoes, id]);
+    if (res.rows.length === 0) throw new Error('Oficina não encontrada.');
+    return res.rows[0];
+  }
+  return null;
+}
+
 module.exports = {
   listFunnels,
   createFunnel,
@@ -497,5 +584,8 @@ module.exports = {
   createLead,
   moveLeadStage,
   updateLead,
-  deleteLead
+  deleteLead,
+  listWorkshops,
+  getWorkshopStats,
+  updateWorkshopStatus
 };

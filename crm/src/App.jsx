@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import LoginPage from './components/LoginPage';
 import Topbar from './components/Topbar';
+import SidebarDrawer from './components/SidebarDrawer';
+import HomeDashboard from './components/HomeDashboard';
+import FunnelsListPage from './components/FunnelsListPage';
 import KanbanBoard from './components/KanbanBoard';
 import RadarView from './components/RadarView';
 import LeadModal from './components/LeadModal';
@@ -11,15 +15,21 @@ import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
 function CRMContent() {
   const { user, loading: authLoading, API_BASE_URL, getAuthHeaders } = useAuth();
-  
+  const { isDark } = useTheme();
+
+  // Rotas: '/' | '/funil' | '/funil?id=...' | '/radar'
+  const [currentPath, setCurrentPath] = useState(() => {
+    return window.location.pathname + window.location.search || '/';
+  });
+
   const [funnels, setFunnels] = useState([]);
   const [activeFunnelId, setActiveFunnelId] = useState('');
   const [leads, setLeads] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
-  const [activeView, setActiveView] = useState('kanban'); // 'kanban' | 'radar'
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [notification, setNotification] = useState(null);
 
-  // Modals state
+  // Modais
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
   const [leadTargetStageId, setLeadTargetStageId] = useState('');
@@ -29,6 +39,33 @@ function CRMContent() {
 
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState(null);
+
+  // Sincroniza rota com URL do navegador
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname + window.location.search);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Extrai id do funil da URL (ex: /funil?id=fun_123)
+  useEffect(() => {
+    if (currentPath.startsWith('/funil')) {
+      const params = new URLSearchParams(window.location.search);
+      const urlId = params.get('id');
+      if (urlId) {
+        setActiveFunnelId(urlId);
+      } else {
+        setActiveFunnelId('');
+      }
+    }
+  }, [currentPath]);
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ msg, type });
@@ -44,22 +81,19 @@ function CRMContent() {
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setFunnels(data.data);
-        if (data.data.length > 0 && !activeFunnelId) {
-          setActiveFunnelId(data.data[0].id);
-        }
       }
     } catch (err) {
       console.error('Erro ao carregar funis:', err);
     }
-  }, [API_BASE_URL, getAuthHeaders, activeFunnelId]);
+  }, [API_BASE_URL, getAuthHeaders]);
 
-  // Carrega Leads do Funil Ativo
-  const loadLeads = useCallback(async (funnelId) => {
-    if (!funnelId) return;
+  // Carrega Todos os Leads ou Leads do Funil Ativo
+  const loadLeads = useCallback(async (funnelId = '') => {
     try {
-      const res = await fetch(`${API_BASE_URL}/crm/leads?funnelId=${funnelId}`, {
-        headers: getAuthHeaders()
-      });
+      const url = funnelId 
+        ? `${API_BASE_URL}/crm/leads?funnelId=${funnelId}` 
+        : `${API_BASE_URL}/crm/leads`;
+      const res = await fetch(url, { headers: getAuthHeaders() });
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setLeads(data.data);
@@ -69,25 +103,19 @@ function CRMContent() {
     }
   }, [API_BASE_URL, getAuthHeaders]);
 
-  // Initial load
   useEffect(() => {
     if (user) {
       setLoadingData(true);
-      loadFunnels().finally(() => setLoadingData(false));
+      loadFunnels()
+        .then(() => loadLeads(activeFunnelId))
+        .finally(() => setLoadingData(false));
     }
-  }, [user, loadFunnels]);
+  }, [user, loadFunnels, activeFunnelId, loadLeads]);
 
-  // When activeFunnelId changes
-  useEffect(() => {
-    if (activeFunnelId) {
-      loadLeads(activeFunnelId);
-    }
-  }, [activeFunnelId, loadLeads]);
-
-  const activeFunnel = funnels.find(f => f.id === activeFunnelId) || funnels[0];
+  const activeFunnel = funnels.find(f => f.id === activeFunnelId) || null;
 
   // -------------------------------------------------------------
-  // HANDLERS: FUNIL
+  // HANDLERS: FUNIS
   // -------------------------------------------------------------
   const handleSaveFunnel = async (formData) => {
     try {
@@ -105,12 +133,13 @@ function CRMContent() {
 
       if (!res.ok || !data.success) throw new Error(data.error || 'Falha ao salvar funil.');
 
-      showNotification(editingFunnel ? 'Funil atualizado!' : 'Novo funil criado com sucesso!');
+      showNotification(editingFunnel ? 'Funil atualizado!' : 'Novo funil criado!');
       setIsFunnelModalOpen(false);
       setEditingFunnel(null);
       await loadFunnels();
+
       if (!editingFunnel && data.data?.id) {
-        setActiveFunnelId(data.data.id);
+        navigateTo(`/funil?id=${data.data.id}`);
       }
     } catch (err) {
       showNotification(err.message, 'error');
@@ -126,10 +155,10 @@ function CRMContent() {
       });
       if (!res.ok) throw new Error('Falha ao excluir funil.');
 
-      showNotification('Funil excluído.');
+      showNotification('Funil excluído com sucesso.');
       setIsFunnelModalOpen(false);
       setEditingFunnel(null);
-      setActiveFunnelId('');
+      navigateTo('/funil');
       await loadFunnels();
     } catch (err) {
       showNotification(err.message, 'error');
@@ -230,7 +259,7 @@ function CRMContent() {
   };
 
   const handleMoveLeadStage = async (leadId, targetStageId) => {
-    // Optimistic UI update
+    // Optimistic update
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage_id: targetStageId } : l));
 
     try {
@@ -240,13 +269,31 @@ function CRMContent() {
         body: JSON.stringify({ stageId: targetStageId })
       });
       if (!res.ok) {
-        // Rollback
         loadLeads(activeFunnelId);
       }
     } catch (err) {
       console.error('Erro ao mover lead:', err);
       loadLeads(activeFunnelId);
     }
+  };
+
+  // Conversão de oficina do Radar direto para lead do funil
+  const handleConvertWorkshopToLead = (workshop) => {
+    const targetFunnel = activeFunnel || funnels[0];
+    const defaultStageId = targetFunnel?.stages?.[0]?.id || '';
+
+    setEditingLead({
+      name: workshop.nome_fantasia || workshop.razao_social,
+      company: workshop.razao_social || workshop.nome_fantasia,
+      phone: workshop.telefone_principal || workshop.telefone_secundario || '',
+      email: workshop.email || '',
+      address: workshop.endereco_completo || '',
+      ra_df: workshop.regiao_administrativa || 'Taguatinga',
+      notes: `Origem: Radar DF • Categoria: ${workshop.categoria || 'Mecânica'} • CNPJ: ${workshop.cnpj || ''}`,
+      stage_id: defaultStageId,
+      funnel_id: targetFunnel?.id
+    });
+    setIsLeadModalOpen(true);
   };
 
   if (authLoading) {
@@ -261,8 +308,19 @@ function CRMContent() {
     return <LoginPage />;
   }
 
+  // Define título do Header de acordo com a tela
+  const getHeaderTitle = () => {
+    if (currentPath === '/') return 'Painel de Controle';
+    if (currentPath === '/radar') return 'Radar de Expansão DF';
+    if (currentPath.startsWith('/funil') && activeFunnel) return activeFunnel.name;
+    if (currentPath.startsWith('/funil')) return 'Funis de Vendas';
+    return 'Athena CRM';
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans">
+    <div className={`min-h-screen flex flex-col transition-colors overflow-hidden font-sans ${
+      isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+    }`}>
       {/* Toast Notification */}
       {notification && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold border transition-all animate-in fade-in slide-in-from-top-4 ${
@@ -277,23 +335,43 @@ function CRMContent() {
 
       {/* Top Header */}
       <Topbar
-        funnels={funnels}
-        activeFunnelId={activeFunnelId}
-        onSelectFunnel={(id) => setActiveFunnelId(id)}
-        activeView={activeView}
-        onChangeView={(v) => setActiveView(v)}
-        onOpenNewFunnelModal={() => {
-          setEditingFunnel(null);
-          setIsFunnelModalOpen(true);
-        }}
+        onOpenMenu={() => setIsMenuOpen(true)}
+        currentRoute={currentPath}
+        pageTitle={getHeaderTitle()}
+        onBack={
+          currentPath.startsWith('/funil') && activeFunnelId
+            ? () => navigateTo('/funil')
+            : currentPath !== '/'
+            ? () => navigateTo('/')
+            : null
+        }
       />
 
-      {/* Main View Area */}
-      {activeView === 'kanban' ? (
+      {/* Menu Lateral Retrátil (Overlay por cima da tela sem empurrar) */}
+      <SidebarDrawer
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        currentRoute={currentPath}
+        onNavigate={navigateTo}
+      />
+
+      {/* Roteador Visual Principal */}
+      {currentPath === '/' ? (
+        <HomeDashboard
+          funnels={funnels}
+          leads={leads}
+          onNavigate={navigateTo}
+        />
+      ) : currentPath === '/radar' ? (
+        <RadarView
+          onConvertWorkshopToLead={handleConvertWorkshopToLead}
+        />
+      ) : currentPath.startsWith('/funil') && activeFunnel ? (
         <KanbanBoard
           funnel={activeFunnel}
           leads={leads}
           onMoveLeadStage={handleMoveLeadStage}
+          onBackToFunnels={() => navigateTo('/funil')}
           onOpenLeadModal={(lead) => {
             setEditingLead(lead);
             setIsLeadModalOpen(true);
@@ -313,10 +391,23 @@ function CRMContent() {
           }}
         />
       ) : (
-        <RadarView />
+        /* /funil (Lista com todos os funis) */
+        <FunnelsListPage
+          funnels={funnels}
+          leads={leads}
+          onSelectFunnel={(id) => navigateTo(`/funil?id=${id}`)}
+          onOpenNewFunnelModal={() => {
+            setEditingFunnel(null);
+            setIsFunnelModalOpen(true);
+          }}
+          onOpenEditFunnelModal={(f) => {
+            setEditingFunnel(f);
+            setIsFunnelModalOpen(true);
+          }}
+        />
       )}
 
-      {/* Modals */}
+      {/* Modais Compartilhados */}
       <LeadModal
         isOpen={isLeadModalOpen}
         onClose={() => {
@@ -326,8 +417,8 @@ function CRMContent() {
         onSave={handleSaveLead}
         onDelete={handleDeleteLead}
         lead={editingLead}
-        stages={activeFunnel?.stages || []}
-        funnelId={activeFunnelId}
+        stages={activeFunnel?.stages || funnels[0]?.stages || []}
+        funnelId={activeFunnelId || funnels[0]?.id || ''}
       />
 
       <FunnelModal
@@ -358,8 +449,10 @@ function CRMContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CRMContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <CRMContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
