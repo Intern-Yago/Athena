@@ -46,8 +46,8 @@ export default function SidebarDrawer({ isOpen, onClose, currentRoute, onNavigat
             isDark ? 'border-slate-800' : 'border-slate-100'
           }`}>
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-slate-900 border border-amber-500/30 flex items-center justify-center p-1.5 shadow-xs">
-                <img src="/favicon.svg" alt="Athena Logo" className="w-full h-full object-contain" />
+              <div className="w-9 h-9 rounded-xl bg-slate-900 border border-amber-500/30 flex items-center justify-center overflow-hidden shadow-xs">
+                <img src="/logo.jpg" alt="Athena Logo" className="w-full h-full object-cover" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">

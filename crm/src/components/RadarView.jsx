@@ -38,6 +38,28 @@ export default function RadarView({ onConvertWorkshopToLead }) {
   }, []);
 
   const toggleFullscreen = () => {
+    try {
+      const iframeDoc = iframeRef.current?.contentDocument;
+      const mapEl = iframeDoc?.getElementById('mapaDF');
+      if (mapEl) {
+        if (!document.fullscreenElement && !iframeDoc.fullscreenElement) {
+          const req = mapEl.requestFullscreen || mapEl.webkitRequestFullscreen || mapEl.msRequestFullscreen;
+          if (req) {
+            req.call(mapEl);
+            return;
+          }
+        } else {
+          const exit = document.exitFullscreen || iframeDoc.exitFullscreen || document.webkitExitFullscreen;
+          if (exit) {
+            exit.call(iframeDoc.fullscreenElement ? iframeDoc : document);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Fullscreen direto no iframe não permitido, fallback:", e);
+    }
+
     if (!document.fullscreenElement) {
       if (containerRef.current?.requestFullscreen) {
         containerRef.current.requestFullscreen().catch(() => {
@@ -246,6 +268,8 @@ export default function RadarView({ onConvertWorkshopToLead }) {
             title="Radar de Expansão de Oficinas DF"
             className="w-full h-full border-0 absolute inset-0"
             loading="lazy"
+            allow="fullscreen"
+            allowFullScreen
           />
         </div>
       ) : (

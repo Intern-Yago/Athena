@@ -55,8 +55,8 @@ export default function Topbar({
         )}
 
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-slate-900 border border-amber-500/30 flex items-center justify-center shrink-0 p-1">
-            <img src="/favicon.svg" alt="Athena Logo" className="w-full h-full object-contain" />
+          <div className="w-8 h-8 rounded-xl bg-slate-900 border border-amber-500/30 flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+            <img src="/logo.jpg" alt="Athena Logo" className="w-full h-full object-cover" />
           </div>
           <div className="truncate">
             <div className="flex items-center gap-1.5">

@@ -24,3 +24,13 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #f59e0b;
 }
+
+.light ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+.light ::-webkit-scrollbar-thumb:hover {
+  background: #d97706;
+}

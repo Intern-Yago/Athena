@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { 
   Plus, 
@@ -42,6 +42,75 @@ export default function KanbanBoard({
 
   // Controle de Zoom do Kanban para arrastar do 1º ao último card facilmente
   const [zoomLevel, setZoomLevel] = useState(1); // 1, 0.85, 0.7, 0.55
+
+  // Canvas Panning (arrastar para os lados segurando o mouse no fundo)
+  const boardRef = useRef(null);
+  const isPanningRef = useRef(false);
+  const startPosRef = useRef({ x: 0, scrollLeft: 0 });
+  const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
+
+  const handleCanvasMouseDown = (e) => {
+    if (e.button !== 0) return;
+    const interactive = e.target.closest('button, input, select, textarea, a, [draggable="true"]');
+    if (interactive) return;
+
+    isPanningRef.current = true;
+    setIsDraggingCanvas(true);
+    startPosRef.current = {
+      x: e.pageX,
+      scrollLeft: boardRef.current ? boardRef.current.scrollLeft : 0
+    };
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isPanningRef.current || !boardRef.current) return;
+      e.preventDefault();
+      const dx = e.pageX - startPosRef.current.x;
+      boardRef.current.scrollLeft = startPosRef.current.scrollLeft - dx;
+    };
+
+    const handleMouseUp = () => {
+      if (isPanningRef.current) {
+        isPanningRef.current = false;
+        setIsDraggingCanvas(false);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  // Rolagem horizontal com a roda do mouse quando fora de listas com overflow vertical
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
+
+    const handleWheel = (e) => {
+      const cardList = e.target.closest('.kanban-card-list');
+      if (cardList && cardList.scrollHeight > cardList.clientHeight) {
+        const atTop = cardList.scrollTop <= 0 && e.deltaY < 0;
+        const atBottom = cardList.scrollTop + cardList.clientHeight >= cardList.scrollHeight - 2 && e.deltaY > 0;
+        if (!atTop && !atBottom) {
+          return;
+        }
+      }
+
+      if (Math.abs(e.deltaY) > 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
 
   const stages = useMemo(() => {
     return [...(funnel?.stages || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -282,8 +351,14 @@ export default function KanbanBoard({
         </div>
       </div>
 
-      {/* Kanban Columns Horizontal Canvas com Zoom Adaptativo */}
-      <div className="flex-1 overflow-x-auto p-4 sm:p-6 overflow-y-hidden">
+      {/* Kanban Columns Horizontal Canvas com Zoom Adaptativo e Panning */}
+      <div 
+        ref={boardRef}
+        onMouseDown={handleCanvasMouseDown}
+        className={`flex-1 overflow-x-auto p-4 sm:p-6 overflow-y-hidden min-h-0 select-none ${
+          isDraggingCanvas ? 'cursor-grabbing' : 'cursor-grab'
+        }`}
+      >
         <div 
           className="flex items-start gap-4 h-full pb-14 transition-all duration-200 origin-top-left"
           style={{ 
@@ -310,7 +385,7 @@ export default function KanbanBoard({
                     handleDropLead(e, stage.id);
                   }
                 }}
-                className={`w-72 sm:w-80 shrink-0 border rounded-2xl flex flex-col max-h-full shadow-lg transition-all ${
+                className={`w-72 sm:w-80 shrink-0 border rounded-2xl flex flex-col max-h-full min-h-0 shadow-lg transition-all ${
                   isDark 
                     ? 'bg-slate-900/80 border-slate-800' 
                     : 'bg-white border-slate-200'
@@ -391,7 +466,7 @@ export default function KanbanBoard({
 
                 {/* Stage Sub-total */}
                 {stageTotal > 0 && (
-                  <div className={`px-3.5 py-1.5 text-[10px] font-mono border-b flex items-center justify-between ${
+                  <div className={`px-3.5 py-1.5 text-[10px] font-mono border-b shrink-0 flex items-center justify-between ${
                     isDark ? 'bg-slate-950/40 text-slate-400 border-slate-800/40' : 'bg-slate-50 text-slate-600 border-slate-100'
                   }`}>
                     <span>Valor na etapa:</span>
@@ -401,8 +476,8 @@ export default function KanbanBoard({
                   </div>
                 )}
 
-                {/* Lead Cards List */}
-                <div className="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-[140px]">
+                {/* Lead Cards List com scroll próprio quando cheio (estilo Trello) */}
+                <div className="kanban-card-list flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
                   {stageLeads.map(lead => (
                     <div
                       key={lead.id}
