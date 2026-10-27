@@ -302,6 +302,38 @@ function CRMContent() {
   };
 
   const handleMoveLeadStage = async (leadId, targetStageId) => {
+    // Se for um card do radar_workshops.json ainda sem ID no banco
+    if (String(leadId).startsWith('radar_lead_')) {
+      const workshopId = Number(leadId.replace('radar_lead_', ''));
+      let radarStatus = 'Não Visitado';
+      if (targetStageId === 'stg_exp_1') radarStatus = 'Não Visitado';
+      else if (targetStageId === 'stg_exp_2') radarStatus = 'Visita Agendada';
+      else if (targetStageId === 'stg_exp_3') radarStatus = 'Visitado';
+      else if (targetStageId === 'stg_exp_4') radarStatus = 'Negociação';
+      else if (targetStageId === 'stg_exp_5') radarStatus = 'Cliente Athena';
+
+      try {
+        const stored = localStorage.getItem('athena_edicoes_v3');
+        const edicoes = stored ? JSON.parse(stored) : {};
+        if (!edicoes[workshopId]) edicoes[workshopId] = {};
+        edicoes[workshopId].st = radarStatus;
+        localStorage.setItem('athena_edicoes_v3', JSON.stringify(edicoes));
+      } catch (_) {}
+
+      document.querySelectorAll('iframe').forEach(ifr => {
+        try {
+          ifr.contentWindow?.postMessage({
+            type: 'SYNC_LEAD_TO_RADAR',
+            workshopId,
+            status: radarStatus
+          }, '*');
+        } catch (_) {}
+      });
+
+      await handleConvertWorkshopToLead({ id: workshopId, st: radarStatus });
+      return;
+    }
+
     // Optimistic update
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage_id: targetStageId } : l));
 
@@ -444,7 +476,7 @@ function CRMContent() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors overflow-hidden font-sans ${
+    <div className={`h-screen max-h-screen flex flex-col transition-colors overflow-hidden font-sans ${
       isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
       {/* Toast Notification */}
@@ -483,62 +515,64 @@ function CRMContent() {
         onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
       />
 
-      {/* Roteador Visual Principal */}
-      {currentPath === '/' ? (
-        <HomeDashboard
-          funnels={funnels}
-          leads={leads}
-          onNavigate={navigateTo}
-        />
-      ) : currentPath === '/radar' ? (
-        <RadarView
-          onConvertWorkshopToLead={handleConvertWorkshopToLead}
-        />
-      ) : currentPath === '/equipe' ? (
-        <TeamManagementView
-          onOpenCreateModal={() => setIsCreateEmployeeOpen(true)}
-        />
-      ) : currentPath.startsWith('/funil') && activeFunnel ? (
-        <KanbanBoard
-          funnel={activeFunnel}
-          leads={leads}
-          onMoveLeadStage={handleMoveLeadStage}
-          onReorderStages={handleReorderStages}
-          onBackToFunnels={() => navigateTo('/funil')}
-          onOpenLeadModal={(lead) => {
-            setEditingLead(lead);
-            setIsLeadModalOpen(true);
-          }}
-          onOpenStageModal={(stage) => {
-            setEditingStage(stage);
-            setIsStageModalOpen(true);
-          }}
-          onOpenNewStageModal={() => {
-            setEditingStage(null);
-            setIsStageModalOpen(true);
-          }}
-          onOpenNewLeadModal={(stageId) => {
-            setEditingLead(null);
-            setLeadTargetStageId(stageId || '');
-            setIsLeadModalOpen(true);
-          }}
-        />
-      ) : (
-        /* /funil (Lista com todos os funis) */
-        <FunnelsListPage
-          funnels={funnels}
-          leads={leads}
-          onSelectFunnel={(id) => navigateTo(`/funil?id=${id}`)}
-          onOpenNewFunnelModal={() => {
-            setEditingFunnel(null);
-            setIsFunnelModalOpen(true);
-          }}
-          onOpenEditFunnelModal={(f) => {
-            setEditingFunnel(f);
-            setIsFunnelModalOpen(true);
-          }}
-        />
-      )}
+      {/* Roteador Visual Principal com Altura Fixada (Sem rolagem vertical da página inteira) */}
+      <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        {currentPath === '/' ? (
+          <HomeDashboard
+            funnels={funnels}
+            leads={leads}
+            onNavigate={navigateTo}
+          />
+        ) : currentPath === '/radar' ? (
+          <RadarView
+            onConvertWorkshopToLead={handleConvertWorkshopToLead}
+          />
+        ) : currentPath === '/equipe' ? (
+          <TeamManagementView
+            onOpenCreateModal={() => setIsCreateEmployeeOpen(true)}
+          />
+        ) : currentPath.startsWith('/funil') && activeFunnel ? (
+          <KanbanBoard
+            funnel={activeFunnel}
+            leads={leads}
+            onMoveLeadStage={handleMoveLeadStage}
+            onReorderStages={handleReorderStages}
+            onBackToFunnels={() => navigateTo('/funil')}
+            onOpenLeadModal={(lead) => {
+              setEditingLead(lead);
+              setIsLeadModalOpen(true);
+            }}
+            onOpenStageModal={(stage) => {
+              setEditingStage(stage);
+              setIsStageModalOpen(true);
+            }}
+            onOpenNewStageModal={() => {
+              setEditingStage(null);
+              setIsStageModalOpen(true);
+            }}
+            onOpenNewLeadModal={(stageId) => {
+              setEditingLead(null);
+              setLeadTargetStageId(stageId || '');
+              setIsLeadModalOpen(true);
+            }}
+          />
+        ) : (
+          /* /funil (Lista com todos os funis) */
+          <FunnelsListPage
+            funnels={funnels}
+            leads={leads}
+            onSelectFunnel={(id) => navigateTo(`/funil?id=${id}`)}
+            onOpenNewFunnelModal={() => {
+              setEditingFunnel(null);
+              setIsFunnelModalOpen(true);
+            }}
+            onOpenEditFunnelModal={(f) => {
+              setEditingFunnel(f);
+              setIsFunnelModalOpen(true);
+            }}
+          />
+        )}
+      </main>
 
       {/* Modais Compartilhados */}
       <LeadModal

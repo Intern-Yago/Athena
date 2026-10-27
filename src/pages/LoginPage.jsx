@@ -584,22 +584,24 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
                   Esqueci minha senha
                 </button>
               </div>
-              <div className="relative">
+              <div className="relative flex items-center">
                 <input
                   type={showLoginPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  className="form-input text-xs !pl-10 !pr-10"
+                  className="form-input text-xs !pl-10 !pr-10 w-full"
                   required
                 />
                 <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <button
                   type="button"
                   onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                  tabIndex={-1}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 p-1.5 cursor-pointer z-20 rounded-lg hover:bg-slate-100 transition-colors"
+                  title={showLoginPassword ? "Ocultar senha" : "Ver senha"}
                 >
-                  {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showLoginPassword ? <EyeOff className="w-4 h-4 text-slate-700" /> : <Eye className="w-4 h-4 text-slate-500" />}
                 </button>
               </div>
             </div>

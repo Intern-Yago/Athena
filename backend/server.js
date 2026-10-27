@@ -7652,6 +7652,39 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
   });
 });
 
+// List Commercial Team & Employees for CRM (Restricted to Staff)
+app.get('/api/crm/team', authenticateToken, requireStaff, async (req, res) => {
+  try {
+    let rows = [];
+    if (pool) {
+      const result = await pool.query(`
+        SELECT id, name, email, role, phone, 
+               COALESCE(is_locked, false) as "isLocked",
+               created_at as "createdAt"
+        FROM users
+        WHERE role IN ('admin', 'vendedor', 'staff', 'operacoes', 'edicao') OR role != 'cliente'
+        ORDER BY created_at DESC
+      `);
+      rows = result.rows || [];
+    }
+    if (rows.length === 0) {
+      const db = readDbJson();
+      rows = (db.users || []).filter(u => u.role !== 'cliente').map(u => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role || 'staff',
+        phone: u.phone || '',
+        isLocked: Boolean(u.isLocked || u.is_locked),
+        createdAt: u.createdAt || new Date().toISOString()
+      }));
+    }
+    return res.json({ success: true, data: rows });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // List Users (Restricted to Staff: Admin, Vendedor, Editor)
 app.get('/api/users', authenticateToken, requireStaff, async (req, res) => {
   const isPaginated = req.query.page !== undefined || req.query.limit !== undefined;

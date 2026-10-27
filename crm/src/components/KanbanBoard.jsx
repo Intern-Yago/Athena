@@ -9,16 +9,18 @@ import {
   MapPin, 
   MessageCircle, 
   Edit2, 
-  ArrowLeft,
-  Flame,
-  ArrowRight,
-  GripVertical,
-  Trophy,
-  XCircle,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  CheckCircle2
+  ArrowLeft, 
+  Flame, 
+  ArrowRight, 
+  GripVertical, 
+  Trophy, 
+  XCircle, 
+  ZoomIn, 
+  ZoomOut, 
+  Maximize2, 
+  CheckCircle2, 
+  X, 
+  Loader2 
 } from 'lucide-react';
 
 export default function KanbanBoard({
@@ -36,6 +38,29 @@ export default function KanbanBoard({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRa, setSelectedRa] = useState('all');
   const [draggedLeadId, setDraggedLeadId] = useState(null);
+
+  // Filtros individuais por coluna e controle de cards visíveis por performance
+  const [columnFilters, setColumnFilters] = useState({});
+  const [visibleCounts, setVisibleCounts] = useState({});
+
+  // Carga das 9.211 oficinas do Radar quando no Funil de Expansão DF
+  const [radarWorkshops, setRadarWorkshops] = useState([]);
+  const [loadingRadarWorkshops, setLoadingRadarWorkshops] = useState(false);
+
+  useEffect(() => {
+    if (funnel?.id === 'fun_expansao_df' && radarWorkshops.length === 0) {
+      setLoadingRadarWorkshops(true);
+      fetch('/radar_workshops.json')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setRadarWorkshops(data);
+          }
+        })
+        .catch(err => console.warn('Aviso ao carregar radar_workshops.json:', err))
+        .finally(() => setLoadingRadarWorkshops(false));
+    }
+  }, [funnel?.id, radarWorkshops.length]);
 
   // Reordenação de Colunas (Drag & Drop estilo Trello)
   const [draggedColumnIndex, setDraggedColumnIndex] = useState(null);
@@ -116,20 +141,81 @@ export default function KanbanBoard({
     return [...(funnel?.stages || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [funnel]);
 
-  // Filtra leads por busca e por Região Administrativa do DF
+  // Combina leads cadastrados com todas as 9.211 oficinas do Radar quando no Funil de Expansão
+  const combinedLeads = useMemo(() => {
+    if (funnel?.id !== 'fun_expansao_df' || radarWorkshops.length === 0) {
+      return leads;
+    }
+
+    let edicoes = {};
+    try {
+      const stored = localStorage.getItem('athena_edicoes_v3');
+      if (stored) edicoes = JSON.parse(stored);
+    } catch (_) {}
+
+    // Identifica leads criados no CRM para não duplicar com os dados brutos do radar
+    const crmLeadsByWorkshopId = new Map();
+    leads.forEach(l => {
+      if (l.funnel_id === 'fun_expansao_df') {
+        const match = l.notes?.match(/\[Radar ID:\s*(\d+)\]/);
+        if (match) {
+          crmLeadsByWorkshopId.set(Number(match[1]), l);
+        }
+      }
+    });
+
+    const allCards = radarWorkshops.map(w => {
+      if (crmLeadsByWorkshopId.has(w.id)) {
+        return crmLeadsByWorkshopId.get(w.id);
+      }
+
+      const currentSt = edicoes[w.id]?.st || w.st || 'Não Visitado';
+
+      let stageId = 'stg_exp_1';
+      if (currentSt === 'Visita Agendada' || currentSt === 'Agendado') stageId = 'stg_exp_2';
+      else if (currentSt === 'Visitado' || currentSt === 'Já Visitado' || currentSt === 'Visita Realizada') stageId = 'stg_exp_3';
+      else if (currentSt === 'Negociação') stageId = 'stg_exp_4';
+      else if (currentSt === 'Cliente Athena' || currentSt === 'Parceria Fechada') stageId = 'stg_exp_5';
+
+      return {
+        id: `radar_lead_${w.id}`,
+        radarWorkshopId: w.id,
+        name: edicoes[w.id]?.nome || w.nome || 'Oficina DF',
+        company: w.rz || w.nome,
+        cnpj: w.cnpj || '',
+        phone: edicoes[w.id]?.tel || w.tel || '',
+        address: edicoes[w.id]?.end || w.end || '',
+        ra_df: edicoes[w.id]?.ra || w.ra || 'DF',
+        category: edicoes[w.id]?.cat || w.cat || 'Mecânica Geral',
+        estimated_value: 0,
+        notes: edicoes[w.id]?.obs || w.obs || `Oficina sincronizada via Radar de Expansão DF [Radar ID: ${w.id}]`,
+        stage_id: stageId,
+        funnel_id: 'fun_expansao_df'
+      };
+    });
+
+    return allCards;
+  }, [funnel?.id, radarWorkshops, leads]);
+
+  // Filtra leads por busca global e por Região Administrativa do DF
   const filteredLeads = useMemo(() => {
-    return leads.filter(lead => {
-      const matchesSearch = !searchTerm.trim() || 
-        (lead.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (lead.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (lead.phone || '').includes(searchTerm) ||
-        (lead.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return combinedLeads.filter(lead => {
+      const cleanTerm = searchTerm.trim().toLowerCase();
+      const numTerm = cleanTerm.replace(/\D/g, '');
+
+      const matchesSearch = !cleanTerm || 
+        (lead.name || '').toLowerCase().includes(cleanTerm) ||
+        (lead.company || '').toLowerCase().includes(cleanTerm) ||
+        (numTerm && (lead.cnpj || '').replace(/\D/g, '').includes(numTerm)) ||
+        (numTerm && (lead.phone || '').replace(/\D/g, '').includes(numTerm)) ||
+        (lead.address || '').toLowerCase().includes(cleanTerm) ||
+        (lead.notes || '').toLowerCase().includes(cleanTerm);
 
       const matchesRa = selectedRa === 'all' || lead.ra_df === selectedRa;
 
       return matchesSearch && matchesRa;
     });
-  }, [leads, searchTerm, selectedRa]);
+  }, [combinedLeads, searchTerm, selectedRa]);
 
   // Agrupa leads por estágio
   const leadsByStage = useMemo(() => {
@@ -149,9 +235,9 @@ export default function KanbanBoard({
   // Lista única de RAs encontradas nos leads
   const availableRas = useMemo(() => {
     const set = new Set();
-    leads.forEach(l => { if (l.ra_df) set.add(l.ra_df); });
+    combinedLeads.forEach(l => { if (l.ra_df) set.add(l.ra_df); });
     return Array.from(set).sort();
-  }, [leads]);
+  }, [combinedLeads]);
 
   // Métricas do Funil
   const totalValue = useMemo(() => {
@@ -222,7 +308,7 @@ export default function KanbanBoard({
   };
 
   return (
-    <div className={`flex-1 flex flex-col min-h-0 select-none relative ${
+    <div className={`flex-1 flex flex-col h-full max-h-full min-h-0 overflow-hidden select-none relative ${
       isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
       {/* Header do Funil */}
@@ -360,7 +446,7 @@ export default function KanbanBoard({
         }`}
       >
         <div 
-          className="flex items-start gap-4 h-full pb-14 transition-all duration-200 origin-top-left"
+          className="flex items-stretch gap-4 h-full pb-2 transition-all duration-200 origin-top-left"
           style={{ 
             transform: zoomLevel !== 1 ? `scale(${zoomLevel})` : undefined,
             width: zoomLevel < 1 ? `${(100 / zoomLevel)}%` : undefined,
@@ -374,6 +460,25 @@ export default function KanbanBoard({
             const isWon = Boolean(stage.is_won);
             const isLost = Boolean(stage.is_lost);
 
+            // Filtro específico desta coluna
+            const colFilter = (columnFilters[stage.id] || '').trim().toLowerCase();
+            const cleanNum = colFilter.replace(/\D/g, '');
+
+            const stageFilteredLeads = colFilter
+              ? stageLeads.filter(l => 
+                  (l.name || '').toLowerCase().includes(colFilter) ||
+                  (l.company || '').toLowerCase().includes(colFilter) ||
+                  (cleanNum && (l.cnpj || '').replace(/\D/g, '').includes(cleanNum)) ||
+                  (cleanNum && (l.phone || '').replace(/\D/g, '').includes(cleanNum)) ||
+                  (l.address || '').toLowerCase().includes(colFilter) ||
+                  (l.ra_df || '').toLowerCase().includes(colFilter) ||
+                  (l.notes || '').toLowerCase().includes(colFilter)
+                )
+              : stageLeads;
+
+            const visibleLimit = visibleCounts[stage.id] || 40;
+            const visibleLeads = colFilter ? stageFilteredLeads : stageFilteredLeads.slice(0, visibleLimit);
+
             return (
               <div
                 key={stage.id}
@@ -385,7 +490,7 @@ export default function KanbanBoard({
                     handleDropLead(e, stage.id);
                   }
                 }}
-                className={`w-72 sm:w-80 shrink-0 border rounded-2xl flex flex-col max-h-full min-h-0 shadow-lg transition-all ${
+                className={`w-72 sm:w-80 shrink-0 border rounded-2xl flex flex-col h-full max-h-full min-h-0 shadow-lg transition-all ${
                   isDark 
                     ? 'bg-slate-900/80 border-slate-800' 
                     : 'bg-white border-slate-200'
@@ -418,7 +523,7 @@ export default function KanbanBoard({
                     
                     <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold ${
                       isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                    }`}>
+                    }`} title={`${stageLeads.length} oportunidades no total`}>
                       {stageLeads.length}
                     </span>
 
@@ -464,6 +569,41 @@ export default function KanbanBoard({
                   </div>
                 </div>
 
+                {/* Input de Filtro Específico da Coluna */}
+                <div className={`px-3 py-2 border-b shrink-0 ${
+                  isDark ? 'bg-slate-950/70 border-slate-800/80' : 'bg-slate-50/90 border-slate-100'
+                }`}>
+                  <div className="relative flex items-center">
+                    <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={columnFilters[stage.id] || ''}
+                      onChange={(e) => setColumnFilters(prev => ({ ...prev, [stage.id]: e.target.value }))}
+                      placeholder="Filtrar nesta etapa (nome, cnpj, tel)..."
+                      className={`w-full pl-7 pr-7 py-1 text-[11px] rounded-lg border outline-none transition-colors ${
+                        isDark 
+                          ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-500 focus:border-amber-400' 
+                          : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-amber-500'
+                      }`}
+                    />
+                    {columnFilters[stage.id] && (
+                      <button
+                        type="button"
+                        onClick={() => setColumnFilters(prev => ({ ...prev, [stage.id]: '' }))}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 cursor-pointer"
+                        title="Limpar filtro da coluna"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                  {colFilter && (
+                    <div className="text-[10px] text-amber-500 font-bold mt-1 px-0.5">
+                      {stageFilteredLeads.length} {stageFilteredLeads.length === 1 ? 'encontrado' : 'encontrados'}
+                    </div>
+                  )}
+                </div>
+
                 {/* Stage Sub-total */}
                 {stageTotal > 0 && (
                   <div className={`px-3.5 py-1.5 text-[10px] font-mono border-b shrink-0 flex items-center justify-between ${
@@ -478,7 +618,7 @@ export default function KanbanBoard({
 
                 {/* Lead Cards List com scroll próprio quando cheio (estilo Trello) */}
                 <div className="kanban-card-list flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
-                  {stageLeads.map(lead => (
+                  {visibleLeads.map(lead => (
                     <div
                       key={lead.id}
                       draggable
@@ -561,6 +701,22 @@ export default function KanbanBoard({
                       </div>
                     </div>
                   ))}
+
+                  {colFilter && visibleLeads.length === 0 && (
+                    <div className="py-8 text-center text-slate-500 text-[11px] border border-dashed border-slate-800/40 rounded-xl">
+                      Nenhuma oportunidade encontrada para "{columnFilters[stage.id]}".
+                    </div>
+                  )}
+
+                  {!colFilter && stageFilteredLeads.length > visibleLeads.length && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCounts(prev => ({ ...prev, [stage.id]: (prev[stage.id] || 40) + 40 }))}
+                      className="w-full py-2.5 px-3 text-center text-[11px] font-bold text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition cursor-pointer border border-amber-500/20"
+                    >
+                      Carregar mais (+40) • {stageFilteredLeads.length - visibleLeads.length} restantes
+                    </button>
+                  )}
 
                   {stageLeads.length === 0 && (
                     <div className="py-8 text-center text-slate-500 text-[11px] border border-dashed border-slate-800/40 rounded-xl">

@@ -58,7 +58,7 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSaved }) {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/crm/team`, {
+      let res = await fetch(`${API_BASE_URL}/crm/team`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
@@ -69,13 +69,27 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSaved }) {
         })
       });
 
+      if (!res.ok) {
+        // Fallback para endpoint principal do site /api/users
+        res = await fetch(`${API_BASE_URL}/users`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            role,
+            password
+          })
+        });
+      }
+
       const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!res.ok || (!data.success && !data.id && !data.user)) {
         throw new Error(data.error || 'Erro ao cadastrar funcionário.');
       }
 
       setSuccessMsg(data.message || 'Funcionário cadastrado com sucesso!');
-      if (onSaved) onSaved(data.data);
+      if (onSaved) onSaved(data.data || data.user || data);
 
       setTimeout(() => {
         setName('');

@@ -43,15 +43,55 @@ export default function TeamManagementView({ onOpenCreateModal }) {
   const loadTeam = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/crm/team`, {
+      let res = await fetch(`${API_BASE_URL}/crm/team`, {
         headers: getAuthHeaders()
       });
-      const data = await res.json();
-      if (data.success) {
-        setTeam(data.data || []);
+      // Fallback para /users caso o endpoint /crm/team ainda esteja propagando
+      if (!res.ok) {
+        res = await fetch(`${API_BASE_URL}/users`, {
+          headers: getAuthHeaders()
+        });
       }
+
+      if (!res.ok) {
+        throw new Error(`Falha HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      let list = [];
+      if (Array.isArray(data)) list = data;
+      else if (data.success && Array.isArray(data.data)) list = data.data;
+      else if (Array.isArray(data.data)) list = data.data;
+
+      // Filtra clientes comuns, mantendo apenas a equipe comercial e administradores
+      const teamList = list.filter(u => u.role !== 'cliente');
+
+      // Garante que a conta do administrador logado sempre conste na lista
+      if (currentUser && !teamList.some(u => String(u.id) === String(currentUser.id) || (u.email && u.email.toLowerCase() === currentUser.email?.toLowerCase()))) {
+        teamList.unshift({
+          id: currentUser.id,
+          name: currentUser.name || 'Você (Administrador)',
+          email: currentUser.email,
+          role: currentUser.role || 'admin',
+          isLocked: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      setTeam(teamList);
     } catch (err) {
-      console.error('Erro ao consultar equipe:', err);
+      console.warn('Erro ao consultar equipe na nuvem, aplicando fallback local:', err);
+      // Fallback resiliente: se falhar a requisição, exibe pelo menos o usuário atual logado
+      if (currentUser) {
+        setTeam([{
+          id: currentUser.id,
+          name: currentUser.name || 'Você (Administrador)',
+          email: currentUser.email,
+          role: currentUser.role || 'admin',
+          isLocked: false,
+          createdAt: new Date().toISOString()
+        }]);
+      }
     } finally {
       setLoading(false);
     }

@@ -586,6 +586,7 @@ export default function AdminPanel({
     password: '',
     role: 'vendedor'
   });
+  const [showUserModalPassword, setShowUserModalPassword] = useState(false);
 
   // Clients & Password Support State
   const [clientSearch, setClientSearch] = useState('');
@@ -1005,6 +1006,9 @@ export default function AdminPanel({
     newPassword: '',
     confirmPassword: ''
   });
+  const [showAdminCurrentPass, setShowAdminCurrentPass] = useState(false);
+  const [showAdminNewPass, setShowAdminNewPass] = useState(false);
+  const [showAdminConfirmPass, setShowAdminConfirmPass] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || 'Administrador Geral',
     email: currentUser?.email || 'administracao@athenaconsultoria.com.br'
@@ -7532,14 +7536,23 @@ export default function AdminPanel({
                     </label>
                     <div className="relative">
                       <input
-                        type="password"
+                        type={showAdminCurrentPass ? 'text' : 'password'}
                         placeholder="Digite sua senha atual"
                         value={passwordForm.currentPassword}
                         onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                         required
-                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-4 py-3 outline-none"
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-10 py-3 outline-none"
                       />
                       <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminCurrentPass(!showAdminCurrentPass)}
+                        tabIndex={-1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer z-10"
+                        title={showAdminCurrentPass ? 'Ocultar senha' : 'Ver senha'}
+                      >
+                        {showAdminCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
 
@@ -7549,15 +7562,24 @@ export default function AdminPanel({
                     </label>
                     <div className="relative">
                       <input
-                        type="password"
+                        type={showAdminNewPass ? 'text' : 'password'}
                         placeholder="Digite a nova senha (mínimo 4 caracteres)"
                         value={passwordForm.newPassword}
                         onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                         required
                         minLength={4}
-                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-4 py-3 outline-none"
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-10 py-3 outline-none"
                       />
                       <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminNewPass(!showAdminNewPass)}
+                        tabIndex={-1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer z-10"
+                        title={showAdminNewPass ? 'Ocultar senha' : 'Ver senha'}
+                      >
+                        {showAdminNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
 
@@ -7567,15 +7589,24 @@ export default function AdminPanel({
                     </label>
                     <div className="relative">
                       <input
-                        type="password"
+                        type={showAdminConfirmPass ? 'text' : 'password'}
                         placeholder="Repita a nova senha"
                         value={passwordForm.confirmPassword}
                         onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                         required
                         minLength={4}
-                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-4 py-3 outline-none"
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-10 py-3 outline-none"
                       />
                       <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminConfirmPass(!showAdminConfirmPass)}
+                        tabIndex={-1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer z-10"
+                        title={showAdminConfirmPass ? 'Ocultar senha' : 'Ver senha'}
+                      >
+                        {showAdminConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
 
@@ -7711,14 +7742,25 @@ export default function AdminPanel({
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">Senha Inicial *</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    value={userForm.password}
-                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                    className="form-input text-xs font-mono"
-                    required
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type={showUserModalPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                      className="form-input text-xs font-mono w-full !pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowUserModalPassword(!showUserModalPassword)}
+                      tabIndex={-1}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer z-10"
+                      title={showUserModalPassword ? 'Ocultar senha' : 'Ver senha digitada'}
+                    >
+                      {showUserModalPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
