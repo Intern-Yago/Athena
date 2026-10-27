@@ -107,7 +107,8 @@ export default function ImageLibraryModal({
   API_BASE_URL,
   getAuthHeaders,
   showNotification,
-  isStandalone = false
+  isStandalone = false,
+  initialUsageFilter = 'all'
 }) {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
@@ -117,7 +118,7 @@ export default function ImageLibraryModal({
   const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [usageFilter, setUsageFilter] = useState('all'); // 'all' | 'in_use' | 'brands' | 'banners' | 'unused' | 'current_product'
+  const [usageFilter, setUsageFilter] = useState(initialUsageFilter || 'all'); // 'all' | 'in_use' | 'brands' | 'banners' | 'unused' | 'current_product'
   const [expandedImage, setExpandedImage] = useState(null);
   const [deletingKey, setDeletingKey] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -216,6 +217,58 @@ export default function ImageLibraryModal({
 
     return registry;
   }, [isOpen, products, brands, categories, banners]);
+
+  // Pré-carrega instantaneamente banners e marcas cadastrados no banco de dados (Zero Scroll / Zero Latência)
+  const instantMediaItems = useMemo(() => {
+    const list = [];
+    const seenUrls = new Set();
+
+    const addMedia = (url, folderHint, labelHint) => {
+      if (!url || typeof url !== 'string' || !url.startsWith('http')) return;
+      const cleanUrl = url.trim();
+      if (seenUrls.has(cleanUrl)) return;
+      seenUrls.add(cleanUrl);
+
+      let key = '';
+      try {
+        const u = new URL(cleanUrl);
+        key = u.pathname.replace(/^\/+/, '');
+      } catch {
+        key = cleanUrl.split('/').slice(-2).join('/');
+      }
+      const parts = key.split('/');
+      const filename = parts[parts.length - 1] || 'media.webp';
+      const folder = parts.length > 1 ? parts[0] : (folderHint || '');
+
+      list.push({
+        key: key || filename,
+        filename,
+        folder,
+        url: cleanUrl,
+        size: 0,
+        lastModified: new Date().toISOString(),
+        isInstant: true,
+        label: labelHint
+      });
+    };
+
+    // Indexa todos os banners (desktop e mobile)
+    (banners || []).forEach((b, idx) => {
+      const title = b.title || `Banner #${idx + 1}`;
+      const desktop = b.desktopImage || b.desktop_image;
+      const mobile = b.mobileImage || b.mobile_image;
+      if (desktop) addMedia(desktop, 'banners', `${title} (Desktop)`);
+      if (mobile) addMedia(mobile, 'banners', `${title} (Mobile)`);
+    });
+
+    // Indexa todas as marcas
+    (brands || []).forEach((brand) => {
+      const logo = brand.logo || brand.image || brand.logo_url || brand.logoUrl;
+      if (logo) addMedia(logo, 'marcas', brand.name || 'Marca');
+    });
+
+    return list;
+  }, [banners, brands]);
 
   // Pre-tokenized sets for instant O(1) membership checks without repeated string parsing
   const currentImagesTokensSet = useMemo(() => {
@@ -368,12 +421,37 @@ export default function ImageLibraryModal({
 
       if (append) {
         setItems(prev => {
-          const existingKeys = new Set(prev.map(i => i.key));
-          const filtered = newItems.filter(i => !existingKeys.has(i.key));
-          return [...prev, ...filtered];
+          const combined = [...prev];
+          const existingKeys = new Set(combined.map(i => (i.key || '').toLowerCase()));
+          const existingUrls = new Set(combined.map(i => (i.url || '').toLowerCase()));
+          for (const item of newItems) {
+            const k = (item.key || '').toLowerCase();
+            const u = (item.url || '').toLowerCase();
+            if (!existingKeys.has(k) && !existingUrls.has(u)) {
+              existingKeys.add(k);
+              existingUrls.add(u);
+              combined.push(item);
+            }
+          }
+          return combined;
         });
       } else {
-        setItems(newItems);
+        // Primeira página ou busca: mescla com instantMediaItems
+        setItems(() => {
+          const combined = debouncedSearch ? [] : [...instantMediaItems];
+          const existingKeys = new Set(combined.map(i => (i.key || '').toLowerCase()));
+          const existingUrls = new Set(combined.map(i => (i.url || '').toLowerCase()));
+          for (const item of newItems) {
+            const k = (item.key || '').toLowerCase();
+            const u = (item.url || '').toLowerCase();
+            if (!existingKeys.has(k) && !existingUrls.has(u)) {
+              existingKeys.add(k);
+              existingUrls.add(u);
+              combined.push(item);
+            }
+          }
+          return combined;
+        });
       }
 
       setPage(data.page || pageNum);
@@ -386,11 +464,32 @@ export default function ImageLibraryModal({
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [apiUrl]);
+  }, [apiUrl, debouncedSearch, instantMediaItems]);
 
   // Initial load or search query change (preserves loaded items in memory across modal opens)
   useEffect(() => {
     if (isOpen) {
+      if (initialUsageFilter && initialUsageFilter !== 'all') {
+        setUsageFilter(initialUsageFilter);
+      }
+
+      // Injeta imediatamente os itens conhecidos para não depender de scroll
+      setItems(prev => {
+        const combined = [...instantMediaItems];
+        const existingKeys = new Set(combined.map(i => (i.key || '').toLowerCase()));
+        const existingUrls = new Set(combined.map(i => (i.url || '').toLowerCase()));
+        for (const item of prev) {
+          const k = (item.key || '').toLowerCase();
+          const u = (item.url || '').toLowerCase();
+          if (!existingKeys.has(k) && !existingUrls.has(u)) {
+            existingKeys.add(k);
+            existingUrls.add(u);
+            combined.push(item);
+          }
+        }
+        return combined;
+      });
+
       const isSilent = items.length > 0 && !debouncedSearch;
       fetchLibrary(1, debouncedSearch, false, isSilent);
     } else {
@@ -400,7 +499,7 @@ export default function ImageLibraryModal({
       setIsConfirmingBulkDelete(false);
       setIsBulkDeleting(false);
     }
-  }, [isOpen, debouncedSearch, fetchLibrary]);
+  }, [isOpen, initialUsageFilter, debouncedSearch, fetchLibrary, instantMediaItems]);
 
   // Close submodals on ESC and navigate expanded image with Arrow keys
   const displayedItemsRef = useRef([]);

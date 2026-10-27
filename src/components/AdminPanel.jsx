@@ -12086,6 +12086,9 @@ export default function AdminPanel({
           brands={brands}
           categories={categories}
           banners={banners}
+          initialUsageFilter={
+            isSelectingBannerMedia ? 'banners' : isSelectingBrandMedia ? 'brands' : 'all'
+          }
           currentImages={
             isSelectingVariantMedia
               ? (variantModalForm.image ? [variantModalForm.image] : [])
