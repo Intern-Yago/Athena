@@ -110,7 +110,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
   return (
     <div className="w-full select-none overflow-hidden bg-slate-950 border-b border-slate-800/80">
       <div
-        className="relative w-full overflow-hidden group"
+        className="relative w-full max-w-[1920px] mx-auto overflow-hidden group"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onTouchStart={handleTouchStart}
@@ -135,7 +135,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
             return (
               <div
                 key={banner.id || idx}
-                className={`w-full shrink-0 relative overflow-hidden flex items-center justify-center ${
+                className={`w-full shrink-0 relative overflow-hidden flex items-center justify-center max-h-[360px] sm:max-h-[400px] md:max-h-[440px] 2xl:max-h-[480px] ${
                   hasLink ? 'cursor-pointer' : ''
                 }`}
                 onClick={() => hasLink && handleBannerClick(banner)}
@@ -154,7 +154,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
                     alt={banner.title || `Banner ${idx + 1}`}
                     loading={idx === 0 ? 'eager' : 'lazy'}
                     decoding="async"
-                    className="w-full h-auto max-h-[560px] 2xl:max-h-[680px] object-cover object-center block"
+                    className="w-full h-auto max-h-[360px] sm:max-h-[400px] md:max-h-[440px] 2xl:max-h-[480px] object-cover object-center block"
                     style={{
                       imageRendering: 'auto',
                       WebkitFontSmoothing: 'subpixel-antialiased',
