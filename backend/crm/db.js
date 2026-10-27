@@ -117,6 +117,15 @@ async function initCrmSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_leads_stage ON crm_leads(stage_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_leads_ra ON crm_leads(ra_df);`);
 
+    // Ativação mandatória de Row Level Security (RLS) nas tabelas do CRM (Segurança Supabase)
+    await client.query(`
+      ALTER TABLE crm_funnels ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_stages ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_leads ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_activities ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_workshops ENABLE ROW LEVEL SECURITY;
+    `);
+
     // Semente inicial de Funis padrões se a tabela estiver vazia
     const countCheck = await client.query('SELECT COUNT(*) FROM crm_funnels');
     if (parseInt(countCheck.rows[0].count, 10) === 0) {

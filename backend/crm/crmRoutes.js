@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const crmService = require('./crmService');
 const { lookupCustomerByDoc } = require('./customerLookupService');
+const { requireCrmAuth, rateLimitLookup } = require('./crmAuthMiddleware');
 const { isCrmDbAvailable } = require('./db');
 
-// Healthcheck do módulo CRM
+// Healthcheck do módulo CRM (público para monitoramento)
 router.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -14,10 +15,13 @@ router.get('/health', (req, res) => {
   });
 });
 
+// Guardião de Autenticação e Autorização (apenas membros autorizados da equipe)
+router.use(requireCrmAuth);
+
 // -------------------------------------------------------------
 // CONSULTA CADASTRAL UNIFICADA (OMIE -> PLOOMES -> BRASILAPI)
 // -------------------------------------------------------------
-router.get('/lookup', async (req, res) => {
+router.get('/lookup', rateLimitLookup, async (req, res) => {
   try {
     const { doc } = req.query;
     if (!doc) {
