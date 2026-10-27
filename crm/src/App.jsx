@@ -11,6 +11,9 @@ import RadarView from './components/RadarView';
 import LeadModal from './components/LeadModal';
 import FunnelModal from './components/FunnelModal';
 import StageModal from './components/StageModal';
+import TeamManagementView from './components/TeamManagementView';
+import CreateEmployeeModal from './components/CreateEmployeeModal';
+import AccountSettingsModal from './components/AccountSettingsModal';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
 function CRMContent() {
@@ -39,6 +42,10 @@ function CRMContent() {
 
   const [isStageModalOpen, setIsStageModalOpen] = useState(false);
   const [editingStage, setEditingStage] = useState(null);
+
+  // Modais de Equipe e Configurações de Conta
+  const [isCreateEmployeeOpen, setIsCreateEmployeeOpen] = useState(false);
+  const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
 
   // Sincroniza rota com URL do navegador
   const navigateTo = (path) => {
@@ -347,6 +354,8 @@ function CRMContent() {
   const getHeaderTitle = () => {
     if (currentPath === '/') return 'Painel de Controle';
     if (currentPath === '/radar') return 'Radar de Expansão DF';
+    if (currentPath === '/equipe') return 'Equipe Comercial & Acessos';
+    if (currentPath === '/configuracoes') return 'Minha Conta & Segurança';
     if (currentPath.startsWith('/funil') && activeFunnel) return activeFunnel.name;
     if (currentPath.startsWith('/funil')) return 'Funis de Vendas';
     return 'Athena CRM';
@@ -373,6 +382,7 @@ function CRMContent() {
         onOpenMenu={() => setIsMenuOpen(true)}
         currentRoute={currentPath}
         pageTitle={getHeaderTitle()}
+        onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
         onBack={
           currentPath.startsWith('/funil') && activeFunnelId
             ? () => navigateTo('/funil')
@@ -388,6 +398,7 @@ function CRMContent() {
         onClose={() => setIsMenuOpen(false)}
         currentRoute={currentPath}
         onNavigate={navigateTo}
+        onOpenAccountSettings={() => setIsAccountSettingsOpen(true)}
       />
 
       {/* Roteador Visual Principal */}
@@ -400,6 +411,10 @@ function CRMContent() {
       ) : currentPath === '/radar' ? (
         <RadarView
           onConvertWorkshopToLead={handleConvertWorkshopToLead}
+        />
+      ) : currentPath === '/equipe' ? (
+        <TeamManagementView
+          onOpenCreateModal={() => setIsCreateEmployeeOpen(true)}
         />
       ) : currentPath.startsWith('/funil') && activeFunnel ? (
         <KanbanBoard
@@ -479,6 +494,21 @@ function CRMContent() {
         stage={editingStage}
         allStages={activeFunnel?.stages || []}
         funnelId={activeFunnelId}
+      />
+
+      {/* Modal de Cadastro de Novo Funcionário (com olho para ver a senha digitada) */}
+      <CreateEmployeeModal
+        isOpen={isCreateEmployeeOpen}
+        onClose={() => setIsCreateEmployeeOpen(false)}
+        onSaved={() => {
+          showNotification('Novo funcionário cadastrado com sucesso!');
+        }}
+      />
+
+      {/* Modal de Configuração da Conta & Troca de Senha */}
+      <AccountSettingsModal
+        isOpen={isAccountSettingsOpen}
+        onClose={() => setIsAccountSettingsOpen(false)}
       />
     </div>
   );

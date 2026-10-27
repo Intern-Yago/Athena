@@ -84,6 +84,7 @@ function requireCrmAuth(req, res, next) {
   }
 
   req.crmUser = user;
+  req.user = user;
   next();
 }
 

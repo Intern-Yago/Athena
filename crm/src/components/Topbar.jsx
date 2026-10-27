@@ -7,14 +7,16 @@ import {
   Sun, 
   Moon, 
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  Settings
 } from 'lucide-react';
 
 export default function Topbar({ 
   onOpenMenu, 
   currentRoute = '/', 
   onBack,
-  pageTitle = ''
+  pageTitle = '',
+  onOpenAccountSettings
 }) {
   const { user, logout } = useAuth();
   const { toggleTheme, isDark } = useTheme();
@@ -88,15 +90,29 @@ export default function Topbar({
 
         <div className={`h-4 w-px hidden sm:block ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
 
-        <div className="flex items-center gap-2.5">
-          <div className="text-right hidden sm:block">
-            <div className={`text-xs font-bold truncate max-w-[140px] ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {user?.name || 'Membro da Equipe'}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenAccountSettings}
+            className={`flex items-center gap-2 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition cursor-pointer text-left ${
+              isDark 
+                ? 'bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-200' 
+                : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
+            }`}
+            title="Minha Conta & Alterar Senha"
+          >
+            <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-black text-[10px] shrink-0 border border-amber-500/30">
+              {(user?.name || 'A')[0].toUpperCase()}
             </div>
-            <div className="text-[10px] text-amber-500 font-mono font-semibold uppercase">
-              {user?.role || 'Staff'}
+            <div className="hidden sm:block min-w-0">
+              <div className={`text-xs font-bold truncate max-w-[120px] ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {user?.name || 'Membro da Equipe'}
+              </div>
+              <div className="text-[9px] text-amber-500 font-mono font-semibold uppercase leading-tight">
+                {user?.role || 'Staff'} • Ajustes
+              </div>
             </div>
-          </div>
+          </button>
 
           <button
             type="button"

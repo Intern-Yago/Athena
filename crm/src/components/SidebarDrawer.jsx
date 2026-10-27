@@ -12,10 +12,18 @@ import {
   LogOut, 
   ShieldCheck, 
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Users,
+  Settings
 } from 'lucide-react';
 
-export default function SidebarDrawer({ isOpen, onClose, currentRoute, onNavigate }) {
+export default function SidebarDrawer({ 
+  isOpen, 
+  onClose, 
+  currentRoute, 
+  onNavigate,
+  onOpenAccountSettings
+}) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme, isDark } = useTheme();
 
@@ -134,6 +142,23 @@ export default function SidebarDrawer({ isOpen, onClose, currentRoute, onNavigat
               </span>
             </button>
 
+            {/* Gestão de Equipe & Funcionários */}
+            <button
+              type="button"
+              onClick={() => handleNav('/equipe')}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                currentRoute === '/equipe'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-amber-500" />
+                <span>Equipe & Funcionários</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
+
             <div className="pt-4 pb-2">
               <div className={`h-px w-full ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
             </div>
@@ -142,12 +167,32 @@ export default function SidebarDrawer({ isOpen, onClose, currentRoute, onNavigat
               Acesso Rápido
             </div>
 
+            {/* Configurações da Minha Conta */}
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenAccountSettings) onOpenAccountSettings();
+                onClose();
+              }}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer border ${
+                isDark 
+                  ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-amber-400 hover:border-amber-400/40' 
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:text-amber-700 hover:border-amber-400'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Settings className="w-4 h-4 text-amber-500" />
+                <span>Minha Conta & Senha</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
+
             {/* Botão de Loja Online no Menu */}
             <a
               href="https://www.athenaconsultoria.com.br"
               target="_blank"
               rel="noopener noreferrer"
-              className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer border ${
+              className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer border mt-2 ${
                 isDark 
                   ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-amber-400 hover:border-amber-400/40' 
                   : 'bg-slate-50 border-slate-200 text-slate-700 hover:text-amber-700 hover:border-amber-400'
@@ -185,14 +230,22 @@ export default function SidebarDrawer({ isOpen, onClose, currentRoute, onNavigat
           {/* Footer: Usuário + Sair */}
           <div className={`p-4 border-t ${isDark ? 'border-slate-800 bg-slate-950/60' : 'border-slate-100 bg-slate-50'}`}>
             <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
+              <button 
+                type="button"
+                onClick={() => {
+                  if (onOpenAccountSettings) onOpenAccountSettings();
+                  onClose();
+                }}
+                className="min-w-0 text-left hover:opacity-80 transition cursor-pointer"
+                title="Configurar perfil e senha"
+              >
                 <div className={`text-xs font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {user?.name || 'Membro da Equipe'}
                 </div>
                 <div className="text-[10px] text-amber-500 font-mono font-semibold uppercase">
-                  {user?.role || 'Staff'} • Conectado
+                  {user?.role || 'Staff'} • Ajustes da Conta
                 </div>
-              </div>
+              </button>
 
               <button
                 type="button"

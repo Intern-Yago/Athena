@@ -6,6 +6,20 @@
     <link rel="shortcut icon" href="/logo.jpg" />
     <link rel="apple-touch-icon" href="/logo.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Diretivas de Privacidade Estritas: Bloqueio Total de Indexação e Crawlers -->
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
+    <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet" />
+    
+    <!-- Bloqueador Defensivo: Impede qualquer rastreamento de Analytics, Clarity, Meta Pixel ou TikTok Pixel no CRM -->
+    <script>
+      (function() {
+        window['ga-disable-default'] = true;
+        window['clarity'] = function() {};
+        window['fbq'] = function() {};
+        window['ttq'] = { track: function(){}, page: function(){}, identify: function(){} };
+        window['dataLayer'] = [];
+      })();
+    </script>
     <title>Athena CRM & Radar de Expansão DF</title>
     <meta name="description" content="Sistema Operacional Comercial da Athena - Gestão de Funis, Vendas e Radar de Expansão" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
