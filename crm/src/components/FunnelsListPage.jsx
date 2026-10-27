@@ -144,10 +144,10 @@ export default function FunnelsListPage({
                   <ArrowRight className="w-4 h-4" />
                 </span>
 
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                   isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'
                 }`}>
-                  /funil?id={funnel.id}
+                  Acessar
                 </span>
               </div>
             </div>

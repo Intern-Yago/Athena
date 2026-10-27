@@ -26,6 +26,33 @@ export default function RadarView({ onConvertWorkshopToLead }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const iframeRef = React.useRef(null);
+  const containerRef = React.useRef(null);
+
+  // Sincroniza evento nativo de fullscreen
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (containerRef.current?.requestFullscreen) {
+        containerRef.current.requestFullscreen().catch(() => {
+          setIsFullscreen(true);
+        });
+      } else {
+        setIsFullscreen(true);
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      setIsFullscreen(false);
+    }
+  };
 
   // Sincroniza tema com o iframe do radar em tempo real
   useEffect(() => {
@@ -113,9 +140,12 @@ export default function RadarView({ onConvertWorkshopToLead }) {
   };
 
   return (
-    <div className={`flex-1 flex flex-col min-h-0 select-none ${
-      isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
-    } ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+    <div 
+      ref={containerRef}
+      className={`flex-1 flex flex-col min-h-0 select-none ${
+        isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      } ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}
+    >
       {/* Top Header do Radar */}
       <div className={`px-4 sm:px-6 py-3 border-b flex flex-wrap items-center justify-between gap-3 shrink-0 ${
         isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
@@ -177,7 +207,7 @@ export default function RadarView({ onConvertWorkshopToLead }) {
 
               <button
                 type="button"
-                onClick={() => setIsFullscreen(!isFullscreen)}
+                onClick={toggleFullscreen}
                 className={`p-1.5 rounded-xl border text-xs flex items-center gap-1.5 transition cursor-pointer ${
                   isDark 
                     ? 'bg-slate-950 text-slate-400 hover:text-white border-slate-800' 

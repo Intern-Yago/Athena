@@ -147,7 +147,6 @@ function CRMContent() {
   };
 
   const handleDeleteFunnel = async (funnelId) => {
-    if (!window.confirm('Tem certeza que deseja excluir este funil e todas as suas etapas e leads?')) return;
     try {
       const res = await fetch(`${API_BASE_URL}/crm/funnels/${funnelId}`, {
         method: 'DELETE',
@@ -184,6 +183,21 @@ function CRMContent() {
 
       if (!res.ok || !data.success) throw new Error(data.error || 'Falha ao salvar etapa.');
 
+      // Se informou targetOrder e temos as etapas carregadas, reordena
+      if (formData.targetOrder !== undefined && activeFunnel) {
+        const currentStages = [...(activeFunnel.stages || [])];
+        const savedId = editingStage?.id || data.data?.id;
+        const filtered = currentStages.filter(s => s.id !== savedId);
+        filtered.splice(formData.targetOrder, 0, { id: savedId });
+        const newOrderIds = filtered.map(s => s.id);
+
+        await fetch(`${API_BASE_URL}/crm/stages/reorder`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ funnelId: activeFunnelId, stageIds: newOrderIds })
+        });
+      }
+
       showNotification(editingStage ? 'Coluna atualizada!' : 'Nova coluna criada!');
       setIsStageModalOpen(false);
       setEditingStage(null);
@@ -193,8 +207,30 @@ function CRMContent() {
     }
   };
 
+  const handleReorderStages = async (reorderedStageIds) => {
+    try {
+      // Atualização otimista no estado local
+      setFunnels(prev => prev.map(f => {
+        if (f.id === activeFunnelId) {
+          const stageMap = new Map((f.stages || []).map(s => [s.id, s]));
+          const newStages = reorderedStageIds.map((id, idx) => ({ ...stageMap.get(id), order: idx }));
+          return { ...f, stages: newStages };
+        }
+        return f;
+      }));
+
+      await fetch(`${API_BASE_URL}/crm/stages/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ funnelId: activeFunnelId, stageIds: reorderedStageIds })
+      });
+    } catch (err) {
+      console.warn('Erro ao salvar reordenação de colunas:', err.message);
+      await loadFunnels();
+    }
+  };
+
   const handleDeleteStage = async (stageId) => {
-    if (!window.confirm('Excluir esta coluna? Os leads nela também serão excluídos.')) return;
     try {
       const res = await fetch(`${API_BASE_URL}/crm/stages/${stageId}`, {
         method: 'DELETE',
@@ -241,7 +277,6 @@ function CRMContent() {
   };
 
   const handleDeleteLead = async (leadId) => {
-    if (!window.confirm('Deseja excluir este lead?')) return;
     try {
       const res = await fetch(`${API_BASE_URL}/crm/leads/${leadId}`, {
         method: 'DELETE',
@@ -371,6 +406,7 @@ function CRMContent() {
           funnel={activeFunnel}
           leads={leads}
           onMoveLeadStage={handleMoveLeadStage}
+          onReorderStages={handleReorderStages}
           onBackToFunnels={() => navigateTo('/funil')}
           onOpenLeadModal={(lead) => {
             setEditingLead(lead);
@@ -441,6 +477,7 @@ function CRMContent() {
         onSave={handleSaveStage}
         onDelete={handleDeleteStage}
         stage={editingStage}
+        allStages={activeFunnel?.stages || []}
         funnelId={activeFunnelId}
       />
     </div>

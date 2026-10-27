@@ -88,9 +88,11 @@ async function listFunnels() {
 
 async function createFunnel({ name, description = '', color = '#f59e0b' }) {
   if (!name || !name.trim()) throw new Error('Nome do funil é obrigatório.');
-  const id = generateId('fun');
+  const uniqueSuffix = Math.floor(1000 + Math.random() * 9000);
+  const id = `fun_${Date.now()}_${uniqueSuffix}`;
   const cleanName = name.trim();
-  const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || id;
+  const slugBase = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'funil';
+  const slug = `${slugBase}-${uniqueSuffix}`;
 
   if (crmPool) {
     const client = await crmPool.connect();

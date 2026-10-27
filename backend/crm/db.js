@@ -48,13 +48,14 @@ async function initCrmSchema() {
       CREATE TABLE IF NOT EXISTS crm_funnels (
         id VARCHAR(64) PRIMARY KEY,
         name VARCHAR(120) NOT NULL,
-        slug VARCHAR(120) UNIQUE NOT NULL,
+        slug VARCHAR(120),
         description TEXT,
         color VARCHAR(32) DEFAULT '#f59e0b',
         is_default BOOLEAN DEFAULT false,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
+      ALTER TABLE crm_funnels DROP CONSTRAINT IF EXISTS crm_funnels_slug_key;
     `);
 
     // 2. Etapas / Colunas do Kanban

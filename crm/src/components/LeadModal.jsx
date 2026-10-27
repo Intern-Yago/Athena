@@ -74,8 +74,10 @@ export default function LeadModal({
   const [searchingDoc, setSearchingDoc] = useState(false);
   const [lookupSource, setLookupSource] = useState(null);
   const [lookupMessage, setLookupMessage] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
+    setConfirmDelete(false);
     if (lead) {
       setForm({
         name: lead.name || '',
@@ -163,6 +165,17 @@ export default function LeadModal({
     const clean = val.replace(/\D/g, '');
     if (clean.length === 11 || clean.length === 14) {
       handleLookup(val);
+    }
+  };
+
+  const handleDeleteClick = () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 5000);
+      return;
+    }
+    if (lead && onDelete) {
+      onDelete(lead.id);
     }
   };
 
@@ -505,11 +518,15 @@ export default function LeadModal({
             {lead && onDelete ? (
               <button
                 type="button"
-                onClick={() => onDelete(lead.id)}
-                className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                onClick={handleDeleteClick}
+                className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
+                  confirmDelete 
+                    ? 'bg-red-600 text-white animate-pulse' 
+                    : 'bg-red-500/10 hover:bg-red-500/20 text-red-500'
+                }`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Excluir</span>
+                <span>{confirmDelete ? 'Certeza? Clique para confirmar' : 'Excluir Lead'}</span>
               </button>
             ) : <div />}
 

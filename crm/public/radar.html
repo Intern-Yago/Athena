@@ -879,6 +879,66 @@ svg.leaflet-image-layer.leaflet-interactive path {
         body.light .custom-pin-athena {
             border-color: #4f46e5 !important;
         }
+        
+        /* POPUP & MODAL THEME SYNC */
+        body.light .leaflet-popup-content-wrapper {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
+        }
+        body.light .leaflet-popup-tip {
+            background: #ffffff !important;
+        }
+        body.light .popup-title {
+            color: #0f172a !important;
+        }
+        body.light .popup-sub {
+            color: #64748b !important;
+        }
+        body.light .popup-label {
+            color: #64748b !important;
+        }
+        body.light .popup-val {
+            color: #1e293b !important;
+        }
+        body.light .popup-actions {
+            border-top: 1px solid #e2e8f0 !important;
+        }
+        body.light .modal-overlay {
+            background: rgba(15, 23, 42, 0.6) !important;
+            backdrop-filter: blur(4px);
+        }
+        body.light .modal-content {
+            background: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+        }
+        body.light .modal-header {
+            border-bottom: 1px solid #f1f5f9 !important;
+        }
+        body.light .modal-header h3 {
+            color: #0f172a !important;
+        }
+        body.light .modal-close {
+            color: #64748b !important;
+        }
+        body.light .modal-close:hover {
+            color: #0f172a !important;
+        }
+        body.light .form-group label {
+            color: #334155 !important;
+        }
+        body.light .form-control {
+            background: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        body.light .form-control:focus {
+            background: #ffffff !important;
+            border-color: #4f46e5 !important;
+        }
+
         svg.btn-icon {
             display: inline-block;
             vertical-align: -2px;
@@ -1195,7 +1255,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
                         <option value="CLIENTE">Apenas Clientes Athena</option>
                     </select>
 
-                    <button class="btn btn-outline" style="padding: 8px 12px; font-size: 13px;" onclick="centralizarDF()"><svg class="btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Centralizar DF</button>
+                    <button class="btn btn-outline" style="padding: 8px 12px; font-size: 13px;" onclick="centralizarDF()">
+                    <button class="btn btn-outline" style="padding: 8px 12px; font-size: 13px;" onclick="alternarTelaCheia()" title="Abrir em Tela Cheia"><svg class="btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>Tela Cheia</button><svg class="btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Centralizar DF</button>
                 </div>
             </div>
 
@@ -1939,6 +2000,19 @@ function exportarCSV() {
     a.click();
     URL.revokeObjectURL(url);
     mostrarToast("Planilha CSV com dados e edições baixada com sucesso!");
+}
+
+
+function alternarTelaCheia() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.warn("Fullscreen não suportado ou bloqueado:", err.message);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
 }
 
 // SINCRONIZAÇÃO DE TEMA (CLARO / ESCURO)
