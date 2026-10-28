@@ -77,6 +77,11 @@ function downloadIcsCalendar(appointments) {
       icsLines.push(`DTSTART:${dtStart}`);
       icsLines.push(`DTEND:${dtEnd}`);
       icsLines.push('STATUS:CONFIRMED');
+      icsLines.push('BEGIN:VALARM');
+      icsLines.push('ACTION:DISPLAY');
+      icsLines.push('DESCRIPTION:Lembrete de Visita Comercial Athena');
+      icsLines.push('TRIGGER:-PT1H');
+      icsLines.push('END:VALARM');
       icsLines.push('END:VEVENT');
     } catch (_) {}
   });
@@ -338,7 +343,13 @@ export default function AgendaView() {
                 description: apt.description || 'Agendamento sincronizado via Athena CRM',
                 location: apt.location || 'Brasília - DF',
                 start: { dateTime: sDate.toISOString() },
-                end: { dateTime: eDate.toISOString() }
+                end: { dateTime: eDate.toISOString() },
+                reminders: {
+                  useDefault: false,
+                  overrides: [
+                    { method: 'popup', minutes: 60 }
+                  ]
+                }
               })
             }).catch(() => {});
           } catch (_) {}

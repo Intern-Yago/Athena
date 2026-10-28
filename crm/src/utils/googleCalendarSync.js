@@ -35,6 +35,12 @@ export async function autoSyncEventToGoogle(appointment) {
       },
       end: { 
         dateTime: !isNaN(eDate.getTime()) ? eDate.toISOString() : new Date(Date.now() + 3600000).toISOString() 
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'popup', minutes: 60 } // Notificação push/popup 1 hora antes
+        ]
       }
     };
 
