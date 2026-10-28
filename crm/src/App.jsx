@@ -18,6 +18,7 @@ import TeamManagementView from './components/TeamManagementView';
 import CreateEmployeeModal from './components/CreateEmployeeModal';
 import AccountSettingsModal from './components/AccountSettingsModal';
 import ForceChangePasswordModal from './components/ForceChangePasswordModal';
+import { cancelAppointmentsForLead, saveOfflineWorkshopStatus } from './utils/workshopsFallback';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
 function CRMContent() {
@@ -265,6 +266,25 @@ function CRMContent() {
   // -------------------------------------------------------------
   const handleSaveLead = async (formData) => {
     try {
+      const isRadar = editingLead && String(editingLead.id).startsWith('radar_lead_');
+      const workshopId = isRadar ? Number(editingLead.id.replace('radar_lead_', '')) : (editingLead?.radarWorkshopId || null);
+      const targetStage = formData.stage_id || formData.stageId || editingLead?.stage_id;
+
+      if (targetStage === 'stg_exp_1') {
+        cancelAppointmentsForLead(editingLead?.id, workshopId, formData.name || editingLead?.name);
+      }
+
+      if (isRadar && workshopId) {
+        let radarStatus = 'Não Visitado';
+        if (targetStage === 'stg_exp_1') radarStatus = 'Não Visitado';
+        else if (targetStage === 'stg_exp_2') radarStatus = 'Visita Agendada';
+        else if (targetStage === 'stg_exp_3') radarStatus = 'Visitado';
+        else if (targetStage === 'stg_exp_4') radarStatus = 'Negociação';
+        else if (targetStage === 'stg_exp_5') radarStatus = 'Cliente Athena';
+
+        saveOfflineWorkshopStatus(workshopId, { status: radarStatus, observacoes: formData.notes });
+      }
+
       const url = editingLead
         ? `${API_BASE_URL}/crm/leads/${editingLead.id}`
         : `${API_BASE_URL}/crm/leads`;
@@ -277,7 +297,15 @@ function CRMContent() {
       });
       const data = await res.json();
 
-      if (!res.ok || !data.success) throw new Error(data.error || 'Falha ao salvar lead.');
+      if (!res.ok || !data.success) {
+        if (isRadar) {
+          showNotification('Oficina atualizada e sincronizada com sucesso!');
+          setIsLeadModalOpen(false);
+          setEditingLead(null);
+          return;
+        }
+        throw new Error(data.error || 'Falha ao salvar lead.');
+      }
 
       showNotification(editingLead ? 'Lead atualizado!' : 'Lead adicionado ao funil!');
       setIsLeadModalOpen(false);
@@ -310,7 +338,10 @@ function CRMContent() {
     if (String(leadId).startsWith('radar_lead_')) {
       const workshopId = Number(leadId.replace('radar_lead_', ''));
       let radarStatus = 'Não Visitado';
-      if (targetStageId === 'stg_exp_1') radarStatus = 'Não Visitado';
+      if (targetStageId === 'stg_exp_1') {
+        radarStatus = 'Não Visitado';
+        cancelAppointmentsForLead(leadId, workshopId, extraLead?.name || extraLead?.company);
+      }
       else if (targetStageId === 'stg_exp_2') radarStatus = 'Visita Agendada';
       else if (targetStageId === 'stg_exp_3') radarStatus = 'Visitado';
       else if (targetStageId === 'stg_exp_4') radarStatus = 'Negociação';
@@ -348,6 +379,14 @@ function CRMContent() {
     // Sincronização automática com o Radar de Expansão DF se o lead pertencer ao funil de expansão
     const movedLead = leads.find(l => l.id === leadId);
     const isExpansao = movedLead && (movedLead.funnel_id === 'fun_expansao_df' || activeFunnelId === 'fun_expansao_df');
+
+    if (targetStageId === 'stg_exp_1') {
+      let workshopId = null;
+      const match = movedLead?.notes?.match(/\[Radar ID:\s*(\d+)\]/);
+      if (match) workshopId = match[1];
+      cancelAppointmentsForLead(leadId, workshopId, movedLead?.name || movedLead?.company);
+    }
+
     if (isExpansao) {
       let radarStatus = 'Não Visitado';
       if (targetStageId === 'stg_exp_1') radarStatus = 'Não Visitado';

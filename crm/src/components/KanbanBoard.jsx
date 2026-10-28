@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { crmApiFetch } from '../utils/api';
-import { fetchOfflineWorkshops, getOfflineWorkshopStats, saveOfflineWorkshopStatus } from '../utils/workshopsFallback';
+import { fetchOfflineWorkshops, getOfflineWorkshopStats, saveOfflineWorkshopStatus, cancelAppointmentsForLead } from '../utils/workshopsFallback';
 import ScheduleVisitModal from './ScheduleVisitModal';
 import { 
   Plus, 
@@ -362,9 +362,15 @@ export default function KanbanBoard({
 
   const executeMoveLead = (leadId, targetStage, leadObj = null) => {
     const targetStageId = targetStage.id;
+    const isReturningToUnvisited = targetStageId === 'stg_exp_1' || 
+      (targetStage.title && (targetStage.title.toLowerCase().includes('a visitar') || targetStage.title.toLowerCase().includes('não visitado')));
 
     if (isExpansionFunnel) {
       const workshopId = leadObj?.radarWorkshopId || (String(leadId).startsWith('radar_lead_') ? Number(leadId.replace('radar_lead_', '')) : null);
+
+      if (isReturningToUnvisited) {
+        cancelAppointmentsForLead(leadId, workshopId, leadObj?.name || leadObj?.company || leadObj?.nome);
+      }
 
       if (workshopId) {
         const newStatus = getWorkshopStatusToSave(targetStageId, targetStage.title);

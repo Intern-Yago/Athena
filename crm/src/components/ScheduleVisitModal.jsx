@@ -41,7 +41,14 @@ export default function ScheduleVisitModal({
   if (!isOpen || !lead) return null;
 
   const leadName = lead.name || lead.company || lead.nome || 'Oficina DF';
-  const leadAddress = lead.address || lead.end || lead.ra_df || 'Brasília - DF';
+  const rawAddress = lead.address || lead.end || '';
+  const leadRa = lead.ra_df || lead.ra || '';
+  const leadAddress = rawAddress 
+    ? (rawAddress.includes('DF') || rawAddress.includes('Brasília') ? rawAddress : `${rawAddress}${leadRa ? `, ${leadRa}` : ''} - DF, Brasil`)
+    : `${leadName}${leadRa ? `, ${leadRa}` : ''} - DF, Brasil`;
+
+  const workshopId = lead.radarWorkshopId || (String(lead.id).startsWith('radar_lead_') ? Number(lead.id.replace('radar_lead_', '')) : null);
+  const mapsQueryUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(leadAddress)}`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,13 +60,14 @@ export default function ScheduleVisitModal({
     const appointmentObj = {
       id: `apt_${Date.now()}`,
       title: `${visitType}: ${leadName}`,
-      description: notes ? `${notes} (Responsável: ${consultant})` : `Visita comercial com ${leadName}. Responsável: ${consultant}`,
+      description: `Visita Comercial com ${leadName}\n📍 Endereço: ${leadAddress}\n🔗 Abrir no Google Maps: ${mapsQueryUrl}\n\n${notes ? `Pauta: ${notes}\n` : ''}Responsável: ${consultant}`,
       date: date,
       start_time: startDateTime,
       end_time: endDateTime,
       type: 'visita',
       location: leadAddress,
       customer_id: lead.id || '',
+      workshop_id: workshopId,
       created_at: new Date().toISOString()
     };
 

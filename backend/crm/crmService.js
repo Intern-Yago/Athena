@@ -431,7 +431,10 @@ async function createLead(payload) {
 
 async function moveLeadStage(leadId, newStageId, newOrder = null) {
   if (crmPool) {
-    const res = await crmPool.query(`
+    const isRadar = String(leadId).startsWith('radar_lead_');
+    const workshopId = isRadar ? parseInt(leadId.replace('radar_lead_', ''), 10) : null;
+
+    let res = await crmPool.query(`
       UPDATE crm_leads
       SET stage_id = $1,
           "order" = COALESCE($2, "order"),
@@ -439,12 +442,65 @@ async function moveLeadStage(leadId, newStageId, newOrder = null) {
       WHERE id = $3
       RETURNING *
     `, [newStageId, newOrder, leadId]);
-    if (res.rows.length === 0) throw new Error('Lead não encontrado.');
+
+    if (res.rows.length === 0 && isRadar && workshopId) {
+      let ws = null;
+      try {
+        const wsRes = await crmPool.query('SELECT * FROM crm_workshops WHERE id = $1', [workshopId]);
+        if (wsRes.rows.length > 0) ws = wsRes.rows[0];
+      } catch (_) {}
+
+      res = await crmPool.query(`
+        INSERT INTO crm_leads (id, funnel_id, stage_id, name, company, phone, email, address, ra_df, notes, created_at, updated_at)
+        VALUES ($1, 'fun_expansao_df', $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        ON CONFLICT (id) DO UPDATE SET stage_id = EXCLUDED.stage_id, updated_at = NOW()
+        RETURNING *
+      `, [
+        leadId,
+        newStageId,
+        ws?.nome || 'Oficina DF',
+        ws?.razao_social || ws?.nome || 'Oficina DF',
+        ws?.telefone || '',
+        ws?.email || '',
+        ws?.endereco || '',
+        ws?.ra || 'DF',
+        ws ? `Oficina DF [Radar ID: ${ws.id}]` : ''
+      ]);
+
+      let wsStatus = 'Não Visitado';
+      if (newStageId === 'stg_exp_2') wsStatus = 'Visita Agendada';
+      else if (newStageId === 'stg_exp_3') wsStatus = 'Visitado';
+      else if (newStageId === 'stg_exp_4') wsStatus = 'Negociação';
+      else if (newStageId === 'stg_exp_5') wsStatus = 'Cliente Athena';
+
+      try {
+        await crmPool.query('UPDATE crm_workshops SET status_visita = $1, updated_at = NOW() WHERE id = $2', [wsStatus, workshopId]);
+      } catch (_) {}
+    }
+
+    if (res.rows.length === 0) {
+      if (isRadar) return { id: leadId, stage_id: newStageId };
+      throw new Error('Lead não encontrado.');
+    }
     return res.rows[0];
   }
 
-  const lead = memoryLeads.find(l => l.id === leadId);
-  if (!lead) throw new Error('Lead não encontrado.');
+  let lead = memoryLeads.find(l => l.id === leadId);
+  if (!lead) {
+    if (String(leadId).startsWith('radar_lead_')) {
+      lead = {
+        id: leadId,
+        funnel_id: 'fun_expansao_df',
+        stage_id: newStageId,
+        name: 'Oficina DF',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      memoryLeads.push(lead);
+      return lead;
+    }
+    throw new Error('Lead não encontrado.');
+  }
   lead.stage_id = newStageId;
   if (newOrder !== null) lead.order = newOrder;
   lead.updated_at = new Date().toISOString();
@@ -453,9 +509,47 @@ async function moveLeadStage(leadId, newStageId, newOrder = null) {
 
 async function updateLead(id, data) {
   if (crmPool) {
+    const isRadar = String(id).startsWith('radar_lead_');
+    const workshopId = isRadar ? parseInt(id.replace('radar_lead_', ''), 10) : null;
+
+    if (isRadar && workshopId) {
+      let ws = null;
+      try {
+        const wsRes = await crmPool.query('SELECT * FROM crm_workshops WHERE id = $1', [workshopId]);
+        if (wsRes.rows.length > 0) ws = wsRes.rows[0];
+      } catch (_) {}
+
+      await crmPool.query(`
+        INSERT INTO crm_leads (id, funnel_id, stage_id, name, company, phone, email, address, ra_df, notes, created_at, updated_at)
+        VALUES ($1, 'fun_expansao_df', $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        ON CONFLICT (id) DO NOTHING
+      `, [
+        id,
+        data.stage_id || 'stg_exp_1',
+        data.name || ws?.nome || 'Oficina DF',
+        data.company || ws?.razao_social || ws?.nome || 'Oficina DF',
+        data.phone || ws?.telefone || '',
+        data.email || ws?.email || '',
+        data.address || ws?.endereco || '',
+        data.ra_df || ws?.ra || 'DF',
+        data.notes || (ws ? `Oficina DF [Radar ID: ${ws.id}]` : '')
+      ]);
+
+      if (data.stage_id || data.status) {
+        let wsStatus = 'Não Visitado';
+        if (data.stage_id === 'stg_exp_2' || data.status === 'Visita Agendada') wsStatus = 'Visita Agendada';
+        else if (data.stage_id === 'stg_exp_3' || data.status === 'Visitado' || data.status === 'Visita Realizada') wsStatus = 'Visitado';
+        else if (data.stage_id === 'stg_exp_4' || data.status === 'Negociação') wsStatus = 'Negociação';
+        else if (data.stage_id === 'stg_exp_5' || data.status === 'Cliente Athena') wsStatus = 'Cliente Athena';
+        try {
+          await crmPool.query('UPDATE crm_workshops SET status_visita = $1, updated_at = NOW() WHERE id = $2', [wsStatus, workshopId]);
+        } catch (_) {}
+      }
+    }
+
     const fields = [];
     const params = [];
-    const allowed = ['name', 'phone', 'email', 'company', 'address', 'ra_df', 'estimated_value', 'priority', 'status', 'notes', 'assigned_to', 'document'];
+    const allowed = ['name', 'phone', 'email', 'company', 'address', 'ra_df', 'estimated_value', 'priority', 'status', 'notes', 'assigned_to', 'document', 'stage_id', 'funnel_id'];
 
     for (const key of allowed) {
       if (data[key] !== undefined) {
@@ -464,17 +558,31 @@ async function updateLead(id, data) {
       }
     }
 
-    if (fields.length === 0) return (await crmPool.query('SELECT * FROM crm_leads WHERE id = $1', [id])).rows[0];
+    if (fields.length === 0) {
+      const selectRes = await crmPool.query('SELECT * FROM crm_leads WHERE id = $1', [id]);
+      if (selectRes.rows.length > 0) return selectRes.rows[0];
+      return { id, ...data };
+    }
 
     params.push(id);
     const query = `UPDATE crm_leads SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${params.length} RETURNING *`;
     const res = await crmPool.query(query, params);
-    if (res.rows.length === 0) throw new Error('Lead não encontrado.');
+    if (res.rows.length === 0) {
+      if (isRadar) return { id, ...data };
+      throw new Error('Lead não encontrado.');
+    }
     return res.rows[0];
   }
 
   const idx = memoryLeads.findIndex(l => l.id === id);
-  if (idx < 0) throw new Error('Lead não encontrado.');
+  if (idx < 0) {
+    if (String(id).startsWith('radar_lead_')) {
+      const newLead = { id, funnel_id: 'fun_expansao_df', stage_id: 'stg_exp_1', ...data, updated_at: new Date().toISOString() };
+      memoryLeads.push(newLead);
+      return newLead;
+    }
+    throw new Error('Lead não encontrado.');
+  }
   memoryLeads[idx] = { ...memoryLeads[idx], ...data, updated_at: new Date().toISOString() };
   return memoryLeads[idx];
 }

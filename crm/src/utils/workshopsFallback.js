@@ -175,3 +175,43 @@ export function saveOfflineWorkshopStatus(id, { status, observacoes }) {
     console.warn('Erro ao salvar edição local de oficina:', e);
   }
 }
+
+/**
+ * Cancela e remove automaticamente agendamentos da Agenda ao tirar o lead de "Visita Agendada"
+ */
+export function cancelAppointmentsForLead(leadId, workshopId = null, leadName = '') {
+  try {
+    const stored = localStorage.getItem('athena_crm_appointments');
+    if (!stored) return;
+    const list = JSON.parse(stored);
+    if (!Array.isArray(list)) return;
+
+    const toRemove = [];
+    const remaining = list.filter(apt => {
+      const matchCustomerId = apt.customer_id && (
+        apt.customer_id === leadId || 
+        (workshopId && apt.customer_id === `radar_lead_${workshopId}`) ||
+        (workshopId && String(apt.customer_id) === String(workshopId))
+      );
+      const matchWorkshopId = workshopId && apt.workshop_id && Number(apt.workshop_id) === Number(workshopId);
+      const cleanLeadName = (leadName || '').toLowerCase().trim();
+      const matchName = cleanLeadName && cleanLeadName.length > 3 && apt.title && apt.title.toLowerCase().includes(cleanLeadName);
+
+      if (matchCustomerId || matchWorkshopId || matchName) {
+        toRemove.push(apt.id);
+        return false;
+      }
+      return true;
+    });
+
+    if (toRemove.length > 0) {
+      localStorage.setItem('athena_crm_appointments', JSON.stringify(remaining));
+      toRemove.forEach(aptId => {
+        fetch(`/api/crm/appointments/${aptId}`, { method: 'DELETE' }).catch(() => {});
+      });
+    }
+  } catch (e) {
+    console.warn('Erro ao cancelar agendamentos do lead:', e);
+  }
+}
+
