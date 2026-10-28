@@ -89,7 +89,8 @@ export async function fetchOfflineWorkshops({
         return itemStatus === st ||
                (st === 'visita realizada' && (itemStatus === 'visitado' || itemStatus === 'já visitado')) ||
                (st === 'visita agendada' && itemStatus === 'agendado') ||
-               (st === 'cliente athena' && itemStatus === 'parceria fechada');
+               (st === 'cliente athena' && (itemStatus === 'parceria fechada' || itemStatus === 'cliente athena')) ||
+               (st === 'parceria fechada' && (itemStatus === 'cliente athena' || itemStatus === 'parceria fechada'));
       });
       if (!matches) return false;
     }
