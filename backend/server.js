@@ -1009,6 +1009,7 @@ async function initDb() {
         );
         ALTER TABLE users ADD COLUMN IF NOT EXISTS first_login_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS birth_date VARCHAR(20) DEFAULT NULL;
       `);
 
       // Initialize Super Admin User if no users exist
@@ -7676,6 +7677,7 @@ app.get('/api/crm/team', authenticateToken, requireStaff, async (req, res) => {
     if (pool) {
       const result = await pool.query(`
         SELECT id, name, email, role, phone, 
+               birth_date as "birthDate",
                COALESCE(is_locked, false) as "isLocked",
                first_login_at as "firstLoginAt",
                last_login_at as "lastLoginAt",
@@ -7694,6 +7696,7 @@ app.get('/api/crm/team', authenticateToken, requireStaff, async (req, res) => {
         email: u.email,
         role: u.role || 'staff',
         phone: u.phone || '',
+        birthDate: u.birthDate || u.birth_date || null,
         isLocked: Boolean(u.isLocked || u.is_locked),
         firstLoginAt: u.firstLoginAt || u.first_login_at || null,
         lastLoginAt: u.lastLoginAt || u.last_login_at || null,
@@ -7705,6 +7708,7 @@ app.get('/api/crm/team', authenticateToken, requireStaff, async (req, res) => {
       const isPending = !u.firstLoginAt && !u.lastLoginAt && u.role !== 'admin';
       return {
         ...u,
+        birthDate: u.birthDate || null,
         status: isLocked ? 'bloqueado' : (isPending ? 'pendente' : 'ativo')
       };
     });
@@ -7716,7 +7720,7 @@ app.get('/api/crm/team', authenticateToken, requireStaff, async (req, res) => {
 
 // Create Employee / Team Member for CRM (Restricted to Administrator)
 app.post('/api/crm/team', authenticateToken, requireAdmin, async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, birthDate, phone } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Nome, E-mail e Senha são obrigatórios.' });
   }
@@ -7726,12 +7730,16 @@ app.post('/api/crm/team', authenticateToken, requireAdmin, async (req, res) => {
   }
 
   const hashedPassword = bcrypt.hashSync(password, 10);
+  const formattedBirthDate = birthDate ? String(birthDate).trim() : null;
+
   const newUser = {
     id: `user_${Date.now()}`,
     name: name.trim(),
     email: email.trim().toLowerCase(),
     passwordHash: hashedPassword,
     role: role || 'vendedor',
+    birthDate: formattedBirthDate,
+    phone: phone ? String(phone).trim() : '',
     firstLoginAt: null,
     lastLoginAt: null,
     isLocked: false,
@@ -7749,8 +7757,8 @@ app.post('/api/crm/team', authenticateToken, requireAdmin, async (req, res) => {
   if (pool) {
     try {
       await pool.query(
-        'INSERT INTO users (id, name, email, password_hash, role, first_login_at, last_login_at) VALUES ($1, $2, $3, $4, $5, NULL, NULL)',
-        [newUser.id, newUser.name, newUser.email, newUser.passwordHash, newUser.role]
+        'INSERT INTO users (id, name, email, password_hash, role, birth_date, first_login_at, last_login_at) VALUES ($1, $2, $3, $4, $5, $6, NULL, NULL)',
+        [newUser.id, newUser.name, newUser.email, newUser.passwordHash, newUser.role, newUser.birthDate]
       );
     } catch (e) {
       console.error('Aviso ao sincronizar usuário no PostgreSQL:', e.message);
@@ -7767,10 +7775,133 @@ app.post('/api/crm/team', authenticateToken, requireAdmin, async (req, res) => {
       name: newUser.name, 
       email: newUser.email, 
       role: newUser.role, 
+      birthDate: newUser.birthDate,
       status: 'pendente',
       isLocked: false 
     } 
   });
+});
+
+// Update Team Member / Employee Profile (Restricted to Administrator)
+app.put('/api/crm/team/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const { name, role, birthDate, phone } = req.body;
+    const db = readDbJson();
+    const userIdx = (db.users || []).findIndex(u => u.id === targetId);
+
+    const formattedBirthDate = birthDate !== undefined ? (birthDate ? String(birthDate).trim() : null) : undefined;
+
+    if (userIdx !== -1) {
+      if (name) db.users[userIdx].name = name.trim();
+      if (role) db.users[userIdx].role = role;
+      if (formattedBirthDate !== undefined) db.users[userIdx].birthDate = formattedBirthDate;
+      if (phone !== undefined) db.users[userIdx].phone = phone ? String(phone).trim() : '';
+      writeDbJson(db);
+    }
+
+    if (pool) {
+      try {
+        await pool.query(`
+          UPDATE users 
+          SET name = COALESCE($1, name),
+              role = COALESCE($2, role),
+              birth_date = CASE WHEN $3::text IS NOT NULL THEN $3::text ELSE birth_date END,
+              phone = CASE WHEN $4::text IS NOT NULL THEN $4::text ELSE phone END
+          WHERE id = $5
+        `, [
+          name ? name.trim() : null,
+          role || null,
+          formattedBirthDate !== undefined ? formattedBirthDate : null,
+          phone !== undefined ? phone : null,
+          targetId
+        ]);
+      } catch (e) {
+        console.error('Aviso ao atualizar membro da equipe no PostgreSQL:', e.message);
+      }
+    }
+
+    return res.json({ success: true, message: 'Dados do funcionário atualizados com sucesso.' });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Update Current User's Own Account Profile (Staff or Authenticated CRM User)
+app.put('/api/crm/account/me', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, birthDate, currentPassword, newPassword } = req.body;
+    const db = readDbJson();
+    let existingUser = null;
+    let userIdx = (db.users || []).findIndex(u => u.id === userId);
+
+    if (pool) {
+      try {
+        const uRes = await pool.query('SELECT id, name, email, password_hash as "passwordHash", role, birth_date as "birthDate" FROM users WHERE id = $1', [userId]);
+        if (uRes.rows && uRes.rows.length > 0) {
+          existingUser = uRes.rows[0];
+        }
+      } catch (e) {}
+    }
+
+    if (!existingUser && userIdx !== -1) {
+      existingUser = db.users[userIdx];
+    }
+
+    if (!existingUser) {
+      return res.status(404).json({ success: false, error: 'Usuário não encontrado.' });
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ success: false, error: 'A senha atual é obrigatória para definir uma nova senha.' });
+      }
+      const currentHash = existingUser.passwordHash || existingUser.password_hash;
+      if (!currentHash || !checkPassword(currentPassword, currentHash)) {
+        return res.status(400).json({ success: false, error: 'Senha atual incorreta.' });
+      }
+    }
+
+    const updatedName = name ? name.trim() : existingUser.name;
+    const formattedBirthDate = birthDate !== undefined ? (birthDate ? String(birthDate).trim() : null) : (existingUser.birthDate || existingUser.birth_date || null);
+    const updatedPassword = newPassword ? bcrypt.hashSync(newPassword, 10) : (existingUser.passwordHash || existingUser.password_hash);
+
+    if (userIdx !== -1) {
+      db.users[userIdx] = {
+        ...db.users[userIdx],
+        name: updatedName,
+        birthDate: formattedBirthDate,
+        passwordHash: updatedPassword
+      };
+      writeDbJson(db);
+    }
+
+    if (pool) {
+      try {
+        await pool.query(
+          'UPDATE users SET name = $1, birth_date = $2, password_hash = $3 WHERE id = $4',
+          [updatedName, formattedBirthDate, updatedPassword, userId]
+        );
+      } catch (e) {
+        console.error('Aviso ao atualizar perfil no PostgreSQL:', e.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Perfil atualizado com sucesso!',
+      user: {
+        id: userId,
+        name: updatedName,
+        email: existingUser.email,
+        role: existingUser.role,
+        birthDate: formattedBirthDate
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // List Users (Restricted to Staff: Admin, Vendedor, Editor)

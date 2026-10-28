@@ -216,4 +216,55 @@ describe('Athena CRM - Testes Unitários de Domínio, Regras de Negócio e Segur
     // Coluna 5: Cliente Athena (JAMAIS DEVE CASAR)
     assert.equal(matchStatus(itemStatus, ['cliente athena', 'parceria fechada']), false);
   });
+
+  test('Aniversários de Funcionários na Agenda: deve reconhecer aniversários no dia e mês corretos ignorando ano', () => {
+    const getBirthdaysForDate = (date, members) => {
+      if (!date || !members || members.length === 0) return [];
+      const targetMonth = date.getMonth() + 1;
+      const targetDay = date.getDate();
+
+      return members.filter(m => {
+        const bStr = m.birthDate || m.birth_date;
+        if (!bStr) return false;
+        if (bStr.includes('-')) {
+          const parts = bStr.split('-');
+          if (parts.length >= 3) {
+            return parseInt(parts[1], 10) === targetMonth && parseInt(parts[2], 10) === targetDay;
+          }
+        } else if (bStr.includes('/')) {
+          const parts = bStr.split('/');
+          if (parts.length >= 2) {
+            return parseInt(parts[1], 10) === targetMonth && parseInt(parts[0], 10) === targetDay;
+          }
+        }
+        return false;
+      });
+    };
+
+    const team = [
+      { id: '1', name: 'Yago Intern', birthDate: '1998-10-28' },
+      { id: '2', name: 'Ana Souza', birthDate: '2001-03-15' },
+      { id: '3', name: 'Carlos Consultor', birthDate: '1995-10-28' },
+      { id: '4', name: 'Mariana Sem Data', birthDate: null }
+    ];
+
+    // Data alvo: 28 de Outubro de 2026
+    const today = new Date(2026, 9, 28); // Mês 9 = Outubro (0-indexed)
+    const todayBirthdays = getBirthdaysForDate(today, team);
+
+    assert.equal(todayBirthdays.length, 2, 'Deve encontrar exatamente 2 aniversariantes em 28/10');
+    assert.ok(todayBirthdays.some(u => u.name === 'Yago Intern'));
+    assert.ok(todayBirthdays.some(u => u.name === 'Carlos Consultor'));
+
+    // Outro dia: 15 de Março
+    const marchDay = new Date(2026, 2, 15); // Mês 2 = Março
+    const marchBirthdays = getBirthdaysForDate(marchDay, team);
+    assert.equal(marchBirthdays.length, 1);
+    assert.equal(marchBirthdays[0].name, 'Ana Souza');
+
+    // Dia sem aniversários
+    const emptyDay = new Date(2026, 0, 1);
+    const noBirthdays = getBirthdaysForDate(emptyDay, team);
+    assert.equal(noBirthdays.length, 0);
+  });
 });

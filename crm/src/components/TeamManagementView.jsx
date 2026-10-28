@@ -19,8 +19,24 @@ import {
   UserX,
   Clock,
   Eye,
-  EyeOff
+  EyeOff,
+  Edit2,
+  Calendar,
+  X
 } from 'lucide-react';
+
+function formatBirthday(dateStr) {
+  if (!dateStr) return null;
+  if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length >= 3) return `${parts[2]}/${parts[1]}`;
+  }
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length >= 2) return `${parts[0]}/${parts[1]}`;
+  }
+  return dateStr;
+}
 
 export default function TeamManagementView({ onOpenCreateModal }) {
   const { user: currentUser, API_BASE_URL, getAuthHeaders } = useAuth();
@@ -40,6 +56,60 @@ export default function TeamManagementView({ onOpenCreateModal }) {
   const [resetPasswordVal, setResetPasswordVal] = useState('');
   const [showResetPass, setShowResetPass] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+
+  // Estado para modal de edição do funcionário (nome, cargo, aniversário)
+  const [editModalUser, setEditModalUser] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState('vendedor');
+  const [editBirthDate, setEditBirthDate] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+
+  const handleOpenEditUser = (member) => {
+    setEditModalUser(member);
+    setEditName(member.name || '');
+    setEditRole(member.role || 'vendedor');
+    setEditBirthDate(member.birthDate || member.birth_date || '');
+  };
+
+  const handleSaveEditUser = async (e) => {
+    e.preventDefault();
+    if (!editModalUser) return;
+    setEditLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/crm/team/${editModalUser.id}`, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: editName.trim(),
+          role: editRole,
+          birthDate: editBirthDate || null
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error('Falha ao atualizar dados do funcionário.');
+      }
+
+      setTeam(prev => prev.map(u => u.id === editModalUser.id ? {
+        ...u,
+        name: editName.trim(),
+        role: editRole,
+        birthDate: editBirthDate || null
+      } : u));
+
+      setFeedback({ text: 'Funcionário e aniversário atualizados com sucesso!', type: 'success' });
+      setEditModalUser(null);
+      setTimeout(() => setFeedback({ text: '', type: '' }), 3500);
+    } catch (err) {
+      setFeedback({ text: err.message || 'Erro ao salvar alterações.', type: 'error' });
+      setTimeout(() => setFeedback({ text: '', type: '' }), 3500);
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   const loadTeam = async () => {
     setLoading(true);
@@ -316,6 +386,7 @@ export default function TeamManagementView({ onOpenCreateModal }) {
                   <th className="py-3 px-4">Funcionário</th>
                   <th className="py-3 px-4">E-mail Corporativo</th>
                   <th className="py-3 px-4">Cargo / Nível</th>
+                  <th className="py-3 px-4">Aniversário</th>
                   <th className="py-3 px-4">Status de Acesso</th>
                   <th className="py-3 px-4 text-right">Ações de Gestão</th>
                 </tr>
@@ -384,6 +455,18 @@ export default function TeamManagementView({ onOpenCreateModal }) {
                         </span>
                       </td>
 
+                      {/* Aniversário */}
+                      <td className="py-3.5 px-4 font-mono">
+                        {member.birthDate ? (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20 font-bold text-[11px]" title={`Aniversário: ${formatBirthday(member.birthDate)}`}>
+                            <span>🎂</span>
+                            <span>{formatBirthday(member.birthDate)}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 text-[11px]">—</span>
+                        )}
+                      </td>
+
                       {/* Status */}
                       <td className="py-3.5 px-4">
                         {isLocked ? (
@@ -407,6 +490,20 @@ export default function TeamManagementView({ onOpenCreateModal }) {
                       {/* Ações */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Editar Dados e Aniversário */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditUser(member)}
+                            className={`p-1.5 rounded-lg border text-xs transition cursor-pointer ${
+                              isDark 
+                                ? 'bg-slate-950 text-slate-400 hover:text-amber-400 border-slate-800 hover:border-amber-400/30' 
+                                : 'bg-slate-100 text-slate-600 hover:text-amber-700 border-slate-200 hover:border-amber-400'
+                            }`}
+                            title="Editar dados e aniversário do funcionário"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
                           {/* Redefinir Senha */}
                           <button
                             type="button"
@@ -472,7 +569,7 @@ export default function TeamManagementView({ onOpenCreateModal }) {
 
                 {filteredTeam.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="py-12 text-center text-slate-500">
+                    <td colSpan="6" className="py-12 text-center text-slate-500">
                       Nenhum funcionário encontrado com os filtros atuais.
                     </td>
                   </tr>
@@ -482,6 +579,97 @@ export default function TeamManagementView({ onOpenCreateModal }) {
           </div>
         </div>
       </div>
+
+      {/* Modal de Editar Funcionário e Aniversário */}
+      {editModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className={`w-full max-w-sm rounded-2xl border p-5 shadow-2xl space-y-4 ${
+            isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-amber-500" />
+                <h3 className="font-extrabold text-sm">Editar Funcionário</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setEditModalUser(null)} 
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Atualize as informações de <strong className="text-amber-400">{editModalUser.name}</strong> ({editModalUser.email}):
+            </p>
+
+            <form onSubmit={handleSaveEditUser} className="space-y-3">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-400">Nome Completo</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className={`w-full rounded-xl px-3 py-2 text-xs border focus:outline-none ${
+                    isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-100 border-slate-200 text-slate-900'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-400">Cargo / Acesso</label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className={`w-full rounded-xl px-3 py-2 text-xs border focus:outline-none cursor-pointer ${
+                    isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-100 border-slate-200 text-slate-900'
+                  }`}
+                >
+                  <option value="vendedor">Vendedor Comercial</option>
+                  <option value="admin">Administrador</option>
+                  <option value="staff">Operações / Staff</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-400">
+                  Data de Aniversário <span className="text-amber-400">🎂 (Agenda)</span>
+                </label>
+                <div className="relative">
+                  <Calendar className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="date"
+                    value={editBirthDate}
+                    onChange={(e) => setEditBirthDate(e.target.value)}
+                    className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs border focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-100 border-slate-200 text-slate-900'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditModalUser(null)}
+                  className="px-3 py-1.5 rounded-xl border text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs"
+                >
+                  {editLoading ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Redefinir Senha do Funcionário */}
       {resetModalUser && (

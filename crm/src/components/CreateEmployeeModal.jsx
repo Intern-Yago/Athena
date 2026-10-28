@@ -13,7 +13,8 @@ import {
   KeyRound, 
   Loader2, 
   CheckCircle2, 
-  AlertCircle 
+  AlertCircle,
+  Calendar 
 } from 'lucide-react';
 
 export default function CreateEmployeeModal({ isOpen, onClose, onSaved }) {
@@ -23,6 +24,7 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSaved }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('admathenas2026@gmail.com');
   const [role, setRole] = useState('vendedor');
+  const [birthDate, setBirthDate] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -65,6 +67,7 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSaved }) {
           name: name.trim(),
           email: email.trim().toLowerCase(),
           role,
+          birthDate: birthDate || undefined,
           password
         })
       });
@@ -78,6 +81,7 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSaved }) {
             name: name.trim(),
             email: email.trim().toLowerCase(),
             role,
+            birthDate: birthDate || undefined,
             password
           })
         });
@@ -93,6 +97,7 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSaved }) {
 
       setTimeout(() => {
         setName('');
+        setBirthDate('');
         setPassword('');
         setSuccessMsg('');
         onClose();
@@ -217,6 +222,26 @@ export default function CreateEmployeeModal({ isOpen, onClose, onSaved }) {
                 <option value="admin">Administrador (Controle total de equipe, funis e configurações)</option>
                 <option value="staff">Operações & Atendimento (Gestão de leads e pedidos)</option>
               </select>
+            </div>
+          </div>
+
+          {/* Data de Nascimento / Aniversário */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-400">
+              Data de Aniversário <span className="text-slate-500 font-normal">(Exibido na Agenda Comercial)</span>
+            </label>
+            <div className="relative">
+              <Calendar className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className={`w-full rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none border transition-colors ${
+                  isDark 
+                    ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus:border-amber-400' 
+                    : 'bg-slate-100 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-amber-500'
+                }`}
+              />
             </div>
           </div>
 

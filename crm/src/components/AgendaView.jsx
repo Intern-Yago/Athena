@@ -93,12 +93,36 @@ function downloadIcsCalendar(appointments) {
   URL.revokeObjectURL(url);
 }
 
+function getBirthdaysForDate(date, members) {
+  if (!date || !members || members.length === 0) return [];
+  const targetMonth = date.getMonth() + 1;
+  const targetDay = date.getDate();
+
+  return members.filter(m => {
+    const bStr = m.birthDate || m.birth_date;
+    if (!bStr) return false;
+    if (bStr.includes('-')) {
+      const parts = bStr.split('-');
+      if (parts.length >= 3) {
+        return parseInt(parts[1], 10) === targetMonth && parseInt(parts[2], 10) === targetDay;
+      }
+    } else if (bStr.includes('/')) {
+      const parts = bStr.split('/');
+      if (parts.length >= 2) {
+        return parseInt(parts[1], 10) === targetMonth && parseInt(parts[0], 10) === targetDay;
+      }
+    }
+    return false;
+  });
+}
+
 export default function AgendaView() {
   const { isDark } = useTheme();
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState('semanal'); // 'mensal' | 'semanal' | 'diario'
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Sincronização Google Agenda Pessoal
@@ -237,6 +261,21 @@ export default function AgendaView() {
   useEffect(() => {
     loadAppointments();
   }, [currentDate]);
+
+  // Carrega aniversários da equipe para exibição na Agenda
+  useEffect(() => {
+    async function loadTeamMembers() {
+      try {
+        const res = await crmApiFetch('/crm/team');
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+          setTeamMembers(list);
+        }
+      } catch (_) {}
+    }
+    loadTeamMembers();
+  }, []);
 
   // Navegação no tempo
   const handlePrev = () => {
@@ -716,6 +755,17 @@ export default function AgendaView() {
                           {d.getDate()}
                         </span>
                       </div>
+                      {/* Aniversariantes no Topo do Cabeçalho */}
+                      {getBirthdaysForDate(d, teamMembers).map((bUser, idx) => (
+                        <div 
+                          key={`hb_${bUser.id || idx}`}
+                          className="mt-1 px-1.5 py-0.5 rounded-full bg-pink-500/15 border border-pink-500/30 text-[9px] font-extrabold text-pink-400 flex items-center justify-center gap-1 mx-auto max-w-[95%] truncate shadow-xs"
+                          title={`🎂 Aniversário de ${bUser.name}!`}
+                        >
+                          <span>🎂</span>
+                          <span className="truncate">{bUser.name}</span>
+                        </div>
+                      ))}
                     </div>
                   );
                 })}
@@ -759,6 +809,18 @@ export default function AgendaView() {
                       key={colIdx} 
                       className={`relative ${today ? (isDark ? 'bg-amber-500/5' : 'bg-amber-50/40') : ''}`}
                     >
+                      {/* Banner de Aniversário no Topo do Dia */}
+                      {getBirthdaysForDate(d, teamMembers).map((bUser, idx) => (
+                        <div 
+                          key={`col_b_${bUser.id || idx}`}
+                          className="sticky top-0 z-20 px-2 py-1 bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-amber-500/15 border-b border-pink-500/40 backdrop-blur-xs flex items-center justify-center gap-1 text-[11px] font-black text-pink-400 shadow-xs"
+                          title={`Hoje é o aniversário de ${bUser.name}!`}
+                        >
+                          <span>🎂</span>
+                          <span className="truncate">Hoje é níver de {bUser.name}! 🎉</span>
+                        </div>
+                      ))}
+
                       {/* Slots Horários Clicáveis para abrir o modal pré-preenchido */}
                       {HOURS.map((h) => (
                         <div 
@@ -860,10 +922,27 @@ export default function AgendaView() {
                     }`}>
                       {dObj.getDate()}
                     </span>
+                    {getBirthdaysForDate(dObj, teamMembers).length > 0 && (
+                      <span className="text-xs" title="Aniversário de funcionário da equipe">🎂</span>
+                    )}
                   </div>
 
-                  {/* Lista de eventos no dia */}
+                  {/* Lista de aniversários e eventos no dia */}
                   <div className="space-y-1 mt-1 overflow-hidden">
+                    {/* Aniversariantes da Equipe */}
+                    {getBirthdaysForDate(dObj, teamMembers).map((bUser, idx) => (
+                      <div
+                        key={`bday_${bUser.id || idx}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-1.5 py-0.5 bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-amber-500/15 border border-pink-500/35 text-pink-400 dark:text-pink-300 text-[10px] font-black rounded-md truncate shadow-xs flex items-center gap-1 cursor-default"
+                        title={`🎂 Aniversário de ${bUser.name}!`}
+                      >
+                        <span className="text-[10px]">🎂</span>
+                        <span className="truncate">{bUser.name}</span>
+                      </div>
+                    ))}
+
+                    {/* Agendamentos Comerciais */}
                     {dayApts.slice(0, 3).map((apt) => (
                       <div 
                         key={apt.id}

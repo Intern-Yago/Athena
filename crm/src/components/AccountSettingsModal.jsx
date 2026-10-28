@@ -14,7 +14,8 @@ import {
   CheckCircle2, 
   AlertCircle, 
   KeyRound,
-  ShieldCheck
+  ShieldCheck,
+  Calendar
 } from 'lucide-react';
 
 export default function AccountSettingsModal({ isOpen, onClose }) {
@@ -22,6 +23,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
   const { isDark } = useTheme();
 
   const [name, setName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -37,6 +39,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
   useEffect(() => {
     if (user) {
       setName(user.name || '');
+      setBirthDate(user.birthDate || user.birth_date || '');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -79,6 +82,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
         headers: getAuthHeaders(),
         body: JSON.stringify({
           name: name.trim(),
+          birthDate: birthDate || null,
           currentPassword: currentPassword || undefined,
           newPassword: newPassword || undefined
         })
@@ -87,6 +91,16 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Erro ao atualizar dados da conta.');
+      }
+
+      if (data.user) {
+        try {
+          const storedUser = localStorage.getItem('athena_crm_user');
+          if (storedUser) {
+            const parsed = JSON.parse(storedUser);
+            localStorage.setItem('athena_crm_user', JSON.stringify({ ...parsed, ...data.user }));
+          }
+        } catch (_) {}
       }
 
       setSuccessMsg('Configurações e credenciais salvas com sucesso!');
@@ -198,6 +212,25 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Seu nome"
+                  className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none border transition-colors ${
+                    isDark 
+                      ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus:border-amber-400' 
+                      : 'bg-slate-100 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-amber-500'
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-slate-400">
+                Data de Aniversário <span className="text-slate-500 font-normal">(Exibido na Agenda Comercial Athena)</span>
+              </label>
+              <div className="relative">
+                <Calendar className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
                   className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none border transition-colors ${
                     isDark 
                       ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-600 focus:border-amber-400' 
