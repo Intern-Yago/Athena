@@ -4,9 +4,26 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'public/**.txt'
+      - 'public/sitemap.xml'
+      - 'crm/public/robots.txt'
+      - 'docs/**'
+      - '.gitignore'
+      - 'public/images/**'
+      - 'public/brands/**'
+      - 'public/products/**'
+      - 'public/black-friday-*.png'
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - '**.md'
+      - 'public/**.txt'
+      - 'public/sitemap.xml'
+      - 'docs/**'
+      - '.gitignore'
   workflow_dispatch:
 
 concurrency:
