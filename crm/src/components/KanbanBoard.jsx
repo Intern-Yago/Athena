@@ -121,8 +121,10 @@ export default function KanbanBoard({
   useEffect(() => {
     if (prevFunnelIdRef.current !== funnel?.id) {
       prevFunnelIdRef.current = funnel?.id;
+      setExpansionStagesData({});
+      setColumnFilters({});
       setIsChangingFunnel(true);
-      const timer = setTimeout(() => setIsChangingFunnel(false), 250);
+      const timer = setTimeout(() => setIsChangingFunnel(false), 300);
       return () => clearTimeout(timer);
     }
   }, [funnel?.id]);
@@ -247,6 +249,11 @@ export default function KanbanBoard({
     if (isExpansionFunnel) return [];
 
     return leads.filter(lead => {
+      // O lead DEVE pertencer estritamente a este funil para evitar cartões fantasmas de outros funis
+      if (lead.funnel_id && funnel?.id && lead.funnel_id !== funnel.id) {
+        return false;
+      }
+
       const cleanTerm = searchTerm.trim().toLowerCase();
       const numTerm = cleanTerm.replace(/\D/g, '');
 
@@ -262,7 +269,7 @@ export default function KanbanBoard({
 
       return matchesSearch && matchesRa;
     });
-  }, [isExpansionFunnel, leads, searchTerm, selectedRa]);
+  }, [isExpansionFunnel, funnel?.id, leads, searchTerm, selectedRa]);
 
   const standardLeadsByStage = useMemo(() => {
     if (isExpansionFunnel) return {};
@@ -270,11 +277,9 @@ export default function KanbanBoard({
     const map = {};
     stages.forEach(stg => { map[stg.id] = []; });
     filteredStandardLeads.forEach(lead => {
+      // Insere o card APENAS se o stage_id corresponder exatamente a esta coluna
       if (map[lead.stage_id]) {
         map[lead.stage_id].push(lead);
-      } else if (stages.length > 0) {
-        map[stages[0].id] = map[stages[0].id] || [];
-        map[stages[0].id].push(lead);
       }
     });
     return map;
@@ -892,7 +897,7 @@ export default function KanbanBoard({
 
                 {/* Lead Cards List com scroll próprio quando cheio (estilo Trello) */}
                 <div className="kanban-card-list flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
-                  {isStageLoading && stageLeads.length === 0 ? (
+                  {(isStageLoading || isBoardLoading) ? (
                     <div className="space-y-2.5">
                       <KanbanCardSkeleton />
                       <KanbanCardSkeleton />

@@ -1356,6 +1356,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <script>
 let TODOS_DADOS = [];
 let DADOS_ORIGINAIS = [];
+let dadosFiltrados = [];
 let dadosCarregados = false;
 
 async function carregarOficinasDoSupabase() {
@@ -1454,8 +1455,8 @@ TODOS_DADOS.forEach(item => {
     }
 });
 
-let DADOS_ORIGINAIS = TODOS_DADOS.filter(item => !idsExcluidos.has(item.id));
-let dadosFiltrados = [...DADOS_ORIGINAIS];
+DADOS_ORIGINAIS = TODOS_DADOS.filter(item => !idsExcluidos.has(item.id));
+dadosFiltrados = [...DADOS_ORIGINAIS];
 let paginaAtual = 1;
 const itensPorPagina = 50;
 let statusFiltroAtual = "TODOS";

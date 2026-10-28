@@ -54,9 +54,15 @@ export default function EquipmentsView() {
     setTimeout(() => setToastMessage(''), 3500);
   };
 
-  // Carrega lista de equipamentos
+  // Carrega lista de equipamentos com fallback resiliente
   const loadEquipments = async () => {
     setLoading(true);
+    let localEqps = [];
+    try {
+      const stored = localStorage.getItem('athena_crm_equipments');
+      if (stored) localEqps = JSON.parse(stored);
+    } catch (_) {}
+
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -66,14 +72,23 @@ export default function EquipmentsView() {
       const res = await crmApiFetch(`/crm/equipments?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setEquipments(data.equipments || []);
+        const items = data.equipments || [];
+        setEquipments(items);
         setTotalPages(data.totalPages || 1);
-        setTotalCount(data.total || 0);
+        setTotalCount(data.total || items.length);
+        localStorage.setItem('athena_crm_equipments', JSON.stringify(items));
+        setLoading(false);
+        return;
       }
-    } catch (e) {
-      console.warn('Erro ao carregar equipamentos:', e);
-    } finally {
+    } catch (_) {}
+    finally {
       setLoading(false);
+    }
+
+    if (localEqps.length > 0) {
+      setEquipments(localEqps);
+      setTotalPages(1);
+      setTotalCount(localEqps.length);
     }
   };
 
@@ -85,9 +100,7 @@ export default function EquipmentsView() {
         const data = await res.json();
         setSyncStatus(data.status);
       }
-    } catch (e) {
-      console.warn('Erro ao carregar status do sync:', e);
-    }
+    } catch (_) {}
   };
 
   useEffect(() => {

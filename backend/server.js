@@ -445,6 +445,7 @@ const isPrivateOrInternalIp = isInfrastructureOrPrivateIp;
 const ALLOWED_CORS_ORIGINS = [
   'https://www.athenaconsultoria.com.br',
   'https://athenaconsultoria.com.br',
+  'https://interno.athenaconsultoria.com.br',
   'https://athena-backend-hu1m.onrender.com',
   'http://localhost:5173',
   'http://localhost:3000',
@@ -457,7 +458,7 @@ function isOriginAllowed(origin) {
   return ALLOWED_CORS_ORIGINS.includes(origin) ||
     /^https?:\/\/(.*\.)?athenaconsultoria\.com\.br(:\d+)?$/.test(origin) ||
     /^https?:\/\/athena-[a-zA-Z0-9-]+\.onrender\.com(:\d+)?$/.test(origin) ||
-    /^https?:\/\/athena-[a-zA-Z0-9-]+\.vercel\.app(:\d+)?$/.test(origin) ||
+    /^https?:\/\/(.*\.)?vercel\.app(:\d+)?$/.test(origin) ||
     /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
     /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
 }

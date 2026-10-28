@@ -33,6 +33,14 @@ function syncJsonDbUser(user, action = 'upsert') {
   }
 }
 
+// Previne cache em todas as rotas do CRM para assegurar dados sempre em tempo real
+router.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 // Healthcheck do módulo CRM (público para monitoramento)
 router.get('/health', (req, res) => {
   res.json({

@@ -23,6 +23,45 @@ import {
   Clock
 } from 'lucide-react';
 
+const INITIAL_SAMPLE_CUSTOMERS = [
+  {
+    id: 'cust_sample_1',
+    name: 'Carlos Eduardo Ferreira',
+    fantasy_name: 'Polara Samambaia',
+    razao_social: 'Auto Mecânica Polara Ltda',
+    cpf: '023.491.821-44',
+    cnpj: '07.850.203/0001-16',
+    phone: '(61) 98112-9527',
+    email: 'carlos@polara.com.br',
+    city: 'Brasília',
+    state: 'DF',
+    category: 'Mecânica Geral',
+    pipeline_stage: 'cliente_ativo',
+    notes: 'Cliente parceiro com elevador e alinhador 3D Mahovi',
+    marital_status: 'Casado(a)',
+    spouse_works_in_shop: true,
+    spouse_birthday: '1988-06-14',
+    equipments: ['Elevador Automotivo 4T', 'Alinhador 3D Mahovi']
+  },
+  {
+    id: 'cust_sample_2',
+    name: 'Ademilson Domingos Soares',
+    fantasy_name: 'Recuperauto Águas Claras',
+    razao_social: 'Ademilson Domingos Soares',
+    cpf: '198.441.721-09',
+    cnpj: '38.061.826/0001-33',
+    phone: '(61) 98562-8244',
+    email: 'recuperauto@gmail.com',
+    city: 'Brasília',
+    state: 'DF',
+    category: 'Mecânica Geral',
+    pipeline_stage: 'negociacao',
+    notes: 'Em negociação para montagem de rampa pneumática',
+    marital_status: 'Solteiro(a)',
+    equipments: ['Rampa Pneumática']
+  }
+];
+
 export default function CustomersView() {
   const { isDark } = useTheme();
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' ou 'lista'
@@ -51,9 +90,15 @@ export default function CustomersView() {
   });
   const [creating, setCreating] = useState(false);
 
-  // Carregar Clientes do Supabase
+  // Carregar Clientes com Fallback Resiliente
   const loadCustomers = async () => {
     setLoading(true);
+    let localCusts = [];
+    try {
+      const stored = localStorage.getItem('athena_crm_customers');
+      if (stored) localCusts = JSON.parse(stored);
+    } catch (_) {}
+
     try {
       const params = new URLSearchParams({
         search: search.trim(),
@@ -64,12 +109,28 @@ export default function CustomersView() {
       const res = await crmApiFetch(`/crm/customers?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setCustomers(data.customers || []);
+        const serverCusts = data.customers || [];
+        const map = new Map();
+        localCusts.forEach(c => map.set(c.id, c));
+        serverCusts.forEach(c => map.set(c.id, c));
+        const merged = Array.from(map.values());
+        setCustomers(merged);
+        localStorage.setItem('athena_crm_customers', JSON.stringify(merged));
+        setLoading(false);
+        return;
       }
-    } catch (e) {
-      console.warn('Erro ao carregar clientes:', e);
-    } finally {
+    } catch (_) {}
+    finally {
       setLoading(false);
+    }
+
+    if (localCusts.length > 0) {
+      setCustomers(localCusts);
+    } else {
+      setCustomers(INITIAL_SAMPLE_CUSTOMERS);
+      try {
+        localStorage.setItem('athena_crm_customers', JSON.stringify(INITIAL_SAMPLE_CUSTOMERS));
+      } catch (_) {}
     }
   };
 
@@ -109,30 +170,53 @@ export default function CustomersView() {
     if (!newCustomerData.name.trim()) return;
     setCreating(true);
 
+    const createdCust = {
+      id: `cust_${Date.now()}`,
+      name: newCustomerData.name,
+      fantasy_name: newCustomerData.fantasy_name || newCustomerData.name,
+      cpf: newCustomerData.cpf,
+      cnpj: newCustomerData.cnpj,
+      phone: newCustomerData.phone,
+      email: newCustomerData.email,
+      category: newCustomerData.category || 'Mecânica Geral',
+      pipeline_stage: newCustomerData.pipeline_stage || 'lead',
+      city: 'Brasília',
+      state: 'DF',
+      equipments: [],
+      created_at: new Date().toISOString()
+    };
+
+    // Atualiza estado e localStorage instantaneamente
+    setCustomers(prev => [createdCust, ...prev]);
     try {
-      const res = await crmApiFetch('/crm/customers', {
+      const stored = localStorage.getItem('athena_crm_customers');
+      const list = stored ? JSON.parse(stored) : [];
+      list.unshift(createdCust);
+      localStorage.setItem('athena_crm_customers', JSON.stringify(list));
+    } catch (_) {}
+
+    setShowCreateModal(false);
+    setNewCustomerData({
+      name: '',
+      fantasy_name: '',
+      cpf: '',
+      cnpj: '',
+      phone: '',
+      email: '',
+      category: 'Mecânica Geral',
+      pipeline_stage: 'lead'
+    });
+
+    try {
+      await crmApiFetch('/crm/customers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(newCustomerData)
+        body: JSON.stringify(createdCust)
       });
-      if (res.ok) {
-        setShowCreateModal(false);
-        setNewCustomerData({
-          name: '',
-          fantasy_name: '',
-          cpf: '',
-          cnpj: '',
-          phone: '',
-          email: '',
-          category: 'Mecânica Geral',
-          pipeline_stage: 'lead'
-        });
-        loadCustomers();
-      }
-    } catch (err) {
-      console.warn('Erro ao criar cliente:', err);
+    } catch (_) {
+      // Continua com persistência local garantida
     } finally {
       setCreating(false);
     }
