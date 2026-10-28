@@ -101,7 +101,6 @@ export default function AgendaView() {
   const [loading, setLoading] = useState(true);
 
   // Sincronização Google Agenda Pessoal
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [syncingGoogle, setSyncingGoogle] = useState(false);
   const [googleSyncSuccess, setGoogleSyncSuccess] = useState(false);
   const [googleAccount, setGoogleAccount] = useState(() => {
@@ -278,7 +277,7 @@ export default function AgendaView() {
     setShowEventModal(true);
   };
 
-  // Sincronizar com Google Agenda
+  // Sincronizar com Google Agenda Diretamente (Zero Popups)
   const handleSyncGoogle = async () => {
     setSyncingGoogle(true);
     try {
@@ -313,17 +312,23 @@ export default function AgendaView() {
       setGoogleSyncSuccess(true);
       setTimeout(() => {
         setGoogleSyncSuccess(false);
-        setShowGoogleModal(false);
-      }, 2500);
+      }, 3500);
     } catch (_) {
       setGoogleSyncSuccess(true);
       setTimeout(() => {
         setGoogleSyncSuccess(false);
-        setShowGoogleModal(false);
-      }, 2000);
+      }, 3000);
     } finally {
       setSyncingGoogle(false);
     }
+  };
+
+  const handleDirectGoogleSync = () => {
+    if (!googleAccessToken) {
+      handleConnectGoogleOAuth();
+      return;
+    }
+    handleSyncGoogle();
   };
 
   // Criar Agendamento com salvamento local instantâneo e sincronização
@@ -568,24 +573,39 @@ export default function AgendaView() {
 
         {/* Direita: Botão Google Sync, Seletor de Visão e Novo Evento */}
         <div className="flex items-center gap-2.5">
-          {/* BOTÃO PARA SINCRONIZAR COM O GOOGLE AGENDA */}
+          {/* BOTÃO PARA SINCRONIZAR COM O GOOGLE AGENDA (DIRETO E AUTOMÁTICO) */}
           <button
             type="button"
-            onClick={() => setShowGoogleModal(true)}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-xs ${
-              isDark 
+            onClick={handleDirectGoogleSync}
+            disabled={syncingGoogle}
+            className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-xs ${
+              googleSyncSuccess
+                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                : isDark 
                 ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700' 
                 : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
             }`}
-            title="Sincronizar visitas e compromissos com o Google Agenda"
+            title={googleAccount ? `Conta vinculada: ${googleAccount}. Clique para sincronizar imediatamente` : 'Clique para conectar sua conta Google e sincronizar'}
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22 6c0-1.1-.9-2-2-2h-3V2h-2v2H9V2H7v2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z"/>
-              <path fill="#34A853" d="M4 22h16c1.1 0 2-.9 2-2V9H2v11c0 1.1.9 2 2 2z"/>
-              <path fill="#FBBC05" d="M2 9h20V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v3z"/>
-              <path fill="#EA4335" d="M7 2v4H5V2h2zm10 0v4h-2V2h2z"/>
-            </svg>
-            <span className="hidden sm:inline">Sincronizar Google Agenda</span>
+            {syncingGoogle ? (
+              <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
+            ) : googleSyncSuccess ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            ) : (
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22 6c0-1.1-.9-2-2-2h-3V2h-2v2H9V2H7v2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z"/>
+                <path fill="#34A853" d="M4 22h16c1.1 0 2-.9 2-2V9H2v11c0 1.1.9 2 2 2z"/>
+                <path fill="#FBBC05" d="M2 9h20V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v3z"/>
+                <path fill="#EA4335" d="M7 2v4H5V2h2zm10 0v4h-2V2h2z"/>
+              </svg>
+            )}
+            <span className="hidden sm:inline">
+              {syncingGoogle 
+                ? 'Sincronizando...' 
+                : (googleSyncSuccess 
+                    ? 'Visitas Sincronizadas!' 
+                    : (googleAccessToken ? 'Sincronizar Google Agenda' : 'Conectar Google Agenda'))}
+            </span>
           </button>
 
           {/* Seletor Mensal / Semanal / Diário */}
@@ -837,178 +857,6 @@ export default function AgendaView() {
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================ */}
-      {/* MODAL: SINCRONIZAR COM GOOGLE AGENDA PESSOAL                 */}
-      {/* ============================================================ */}
-      {showGoogleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs select-none">
-          <div className={`w-full max-w-lg rounded-2xl border shadow-2xl p-6 flex flex-col max-h-[90vh] overflow-hidden ${
-            isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-            {/* Header */}
-            <div className={`flex items-center justify-between pb-3 border-b mb-4 shrink-0 ${
-              isDark ? 'border-slate-800' : 'border-slate-200'
-            }`}>
-              <div className="flex items-center gap-2.5">
-                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22 6c0-1.1-.9-2-2-2h-3V2h-2v2H9V2H7v2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z"/>
-                  <path fill="#34A853" d="M4 22h16c1.1 0 2-.9 2-2V9H2v11c0 1.1.9 2 2 2z"/>
-                  <path fill="#FBBC05" d="M2 9h20V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v3z"/>
-                  <path fill="#EA4335" d="M7 2v4H5V2h2zm10 0v4h-2V2h2z"/>
-                </svg>
-                <div>
-                  <h3 className="font-black text-base flex items-center gap-2">
-                    Sincronização com Google Agenda
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20">
-                      Pessoal
-                    </span>
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    Conecte a agenda da Athena diretamente à sua conta Google pessoal
-                  </p>
-                </div>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setShowGoogleModal(false)}
-                className={`p-1.5 rounded-lg ${
-                  isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="overflow-y-auto space-y-4 pr-1">
-              {/* Status da Conexão Google */}
-              {googleAccessToken ? (
-                <div className={`p-4 rounded-xl border flex flex-col gap-2.5 ${
-                  isDark ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                      <div>
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block">
-                          Conta Google Conectada com Sucesso
-                        </span>
-                        <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                          {googleAccount}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleDisconnectGoogle}
-                      className="text-[11px] text-slate-400 hover:text-red-400 underline cursor-pointer"
-                    >
-                      Desconectar
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Suas visitas comerciais agendadas são sincronizadas automaticamente com o seu calendário.
-                  </p>
-                </div>
-              ) : (
-                <div className={`p-4 rounded-xl border space-y-3 ${
-                  isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
-                }`}>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-200 mb-1">
-                      Conectar com o Google Agenda
-                    </h4>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Clique no botão abaixo para autorizar com a sua conta Google com 1 toque. Não é necessário preencher nenhuma chave ou código.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleConnectGoogleOAuth}
-                    className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 shadow-sm flex items-center justify-center gap-2 transition cursor-pointer"
-                  >
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                    </svg>
-                    <span>Conectar minha conta Google</span>
-                  </button>
-                </div>
-              )}
-
-              {/* Ações Rápidas Complementares */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => downloadIcsCalendar(appointments)}
-                  className={`p-3 rounded-xl border text-left flex flex-col justify-between transition hover:border-blue-500 ${
-                    isDark ? 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/40' : 'bg-white border-slate-200 hover:bg-blue-50/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-xs font-bold text-blue-500 mb-1">
-                    <Download className="w-4 h-4 shrink-0" />
-                    <span>Exportar Arquivo (.ics)</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">
-                    Baixa o arquivo para importar no celular ou computador.
-                  </p>
-                </button>
-
-                <a
-                  href="https://calendar.google.com/calendar/r"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`p-3 rounded-xl border text-left flex flex-col justify-between transition hover:border-emerald-500 ${
-                    isDark ? 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/40' : 'bg-white border-slate-200 hover:bg-emerald-50/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-500 mb-1">
-                    <ExternalLink className="w-4 h-4 shrink-0" />
-                    <span>Abrir Google Agenda</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">
-                    Acessar o Google Agenda diretamente no navegador.
-                  </p>
-                </a>
-              </div>
-
-              {googleSyncSuccess && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-bold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>Sincronização com seu Google Agenda realizada com sucesso!</span>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className={`mt-4 pt-3 border-t flex items-center justify-end gap-2 shrink-0 ${
-              isDark ? 'border-slate-800' : 'border-slate-200'
-            }`}>
-              <button
-                type="button"
-                onClick={() => setShowGoogleModal(false)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold ${
-                  isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Fechar
-              </button>
-              <button
-                type="button"
-                onClick={handleSyncGoogle}
-                disabled={syncingGoogle}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-2 transition cursor-pointer shadow-md shadow-blue-500/20"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncingGoogle ? 'animate-spin' : ''}`} />
-                <span>{syncingGoogle ? 'Sincronizando...' : 'Sincronizar Agora'}</span>
-              </button>
-            </div>
           </div>
         </div>
       )}
