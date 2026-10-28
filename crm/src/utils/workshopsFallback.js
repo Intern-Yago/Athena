@@ -4,6 +4,7 @@
  * Garante que mesmo durante deploys, reinicializações ou instabilidades do Render/Supabase,
  * o Funil de Expansão e o Radar continuem 100% funcionais com todos os 9.211 registros.
  */
+import { autoRemoveEventFromGoogle } from './googleCalendarSync';
 
 let memoryCache = null;
 let fetchPromise = null;
@@ -199,6 +200,9 @@ export function cancelAppointmentsForLead(leadId, workshopId = null, leadName = 
 
       if (matchCustomerId || matchWorkshopId || matchName) {
         toRemove.push(apt.id);
+        if (apt.google_event_id) {
+          autoRemoveEventFromGoogle(apt.google_event_id);
+        }
         return false;
       }
       return true;

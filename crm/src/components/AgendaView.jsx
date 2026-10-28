@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { crmApiFetch } from '../utils/api';
+import { autoSyncEventToGoogle, autoRemoveEventFromGoogle } from '../utils/googleCalendarSync';
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -357,6 +358,13 @@ export default function AgendaView() {
       localStorage.setItem('athena_crm_appointments', JSON.stringify(list));
     } catch (_) {}
 
+    // Auto-Sync em segundo plano para o Google Agenda do usuário conectado (espelho em tempo real)
+    autoSyncEventToGoogle(createdObj).then(synced => {
+      if (synced?.google_event_id) {
+        setAppointments(prev => prev.map(a => a.id === synced.id ? synced : a));
+      }
+    }).catch(() => {});
+
     setShowEventModal(false);
     setNewEvent({
       title: '',
@@ -428,6 +436,13 @@ export default function AgendaView() {
     setSelectedAppointment(updatedObj);
     setIsEditingAppointment(false);
 
+    // Auto-Sync em segundo plano para atualizar no Google Agenda do usuário conectado
+    autoSyncEventToGoogle(updatedObj).then(synced => {
+      if (synced?.google_event_id) {
+        setAppointments(prev => prev.map(a => a.id === synced.id ? synced : a));
+      }
+    }).catch(() => {});
+
     try {
       await crmApiFetch(`/crm/appointments/${updatedObj.id}`, {
         method: 'PUT',
@@ -440,6 +455,8 @@ export default function AgendaView() {
   // Excluir Agendamento
   const handleDeleteAppointment = async (id) => {
     if (!id) return;
+    const targetApt = appointments.find(a => a.id === id);
+
     setAppointments(prev => prev.filter(a => a.id !== id));
     try {
       const stored = localStorage.getItem('athena_crm_appointments');
@@ -450,6 +467,11 @@ export default function AgendaView() {
 
     setSelectedAppointment(null);
     setIsEditingAppointment(false);
+
+    // Remove do Google Agenda em segundo plano caso possua ID sincronizado
+    if (targetApt?.google_event_id) {
+      autoRemoveEventFromGoogle(targetApt.google_event_id).catch(() => {});
+    }
 
     try {
       await crmApiFetch(`/crm/appointments/${id}`, { method: 'DELETE' });
@@ -573,7 +595,7 @@ export default function AgendaView() {
 
         {/* Direita: Botão Google Sync, Seletor de Visão e Novo Evento */}
         <div className="flex items-center gap-2.5">
-          {/* BOTÃO PARA SINCRONIZAR COM O GOOGLE AGENDA (DIRETO E AUTOMÁTICO) */}
+          {/* BOTÃO PARA CONEXÃO/STATUS DO GOOGLE AGENDA PESSOAL */}
           <button
             type="button"
             onClick={handleDirectGoogleSync}
@@ -581,16 +603,23 @@ export default function AgendaView() {
             className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-xs ${
               googleSyncSuccess
                 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                : isDark 
-                ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700' 
-                : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                : googleAccessToken
+                ? (isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100')
+                : (isDark 
+                    ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700' 
+                    : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300')
             }`}
-            title={googleAccount ? `Conta vinculada: ${googleAccount}. Clique para sincronizar imediatamente` : 'Clique para conectar sua conta Google e sincronizar'}
+            title={googleAccount ? `Conta Google vinculada: ${googleAccount}. Cada novo agendamento, edição ou exclusão reflete automaticamente em tempo real!` : 'Clique para conectar sua conta Google e ativar sincronização automática'}
           >
             {syncingGoogle ? (
               <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
             ) : googleSyncSuccess ? (
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            ) : googleAccessToken ? (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
             ) : (
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22 6c0-1.1-.9-2-2-2h-3V2h-2v2H9V2H7v2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z"/>
@@ -603,8 +632,8 @@ export default function AgendaView() {
               {syncingGoogle 
                 ? 'Sincronizando...' 
                 : (googleSyncSuccess 
-                    ? 'Visitas Sincronizadas!' 
-                    : (googleAccessToken ? 'Sincronizar Google Agenda' : 'Conectar Google Agenda'))}
+                    ? 'Google Agenda Atualizado!' 
+                    : (googleAccessToken ? 'Google Agenda Conectado (Auto-Sync)' : 'Conectar Google Agenda'))}
             </span>
           </button>
 

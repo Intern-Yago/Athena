@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { crmApiFetch } from '../utils/api';
+import { autoSyncEventToGoogle } from '../utils/googleCalendarSync';
 import { 
   Calendar, 
   Clock, 
@@ -87,6 +88,9 @@ export default function ScheduleVisitModal({
         body: JSON.stringify(appointmentObj)
       }).catch(() => {});
     } catch (_) {}
+
+    // 3. Sincronização automática em tempo real com o Google Agenda do consultor
+    autoSyncEventToGoogle(appointmentObj).catch(() => {});
 
     setIsSubmitting(false);
     if (onConfirmSchedule) {
