@@ -427,6 +427,10 @@ function CRMContent() {
       // Cria o lead automaticamente na etapa correta do Funil de Expansão DF
       try {
         const leadPayload = {
+          funnelId: 'fun_expansao_df',
+          funnel_id: 'fun_expansao_df',
+          stageId: targetStageId,
+          stage_id: targetStageId,
           name: workshop.nome || 'Oficina DF',
           company: workshop.rz || workshop.nome,
           cnpj: workshop.cnpj || '',
@@ -435,9 +439,7 @@ function CRMContent() {
           address: workshop.end || '',
           ra_df: workshop.ra || 'DF',
           value: 0,
-          notes: `Oficina sincronizada via Radar de Expansão DF • Categoria: ${workshop.cat || 'Mecânica Geral'} [Radar ID: ${workshop.id}]`,
-          funnel_id: 'fun_expansao_df',
-          stage_id: targetStageId
+          notes: `Oficina sincronizada via Radar de Expansão DF • Categoria: ${workshop.cat || 'Mecânica Geral'} [Radar ID: ${workshop.id}]`
         };
 
         const res = await fetch(`${API_BASE_URL}/crm/leads`, {

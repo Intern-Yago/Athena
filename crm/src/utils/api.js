@@ -20,16 +20,22 @@ export async function crmApiFetch(path, options = {}) {
 
   try {
     const res = await fetch(primaryUrl, { ...options, headers });
-    // Se a URL primária retornar 404 ou 403, tenta a rota relativa /api/...
-    if (!res.ok && res.status !== 401 && res.status !== 400) {
+    // Se a URL primária falhou e a rota não for igual à relativa, tenta relativa se não for em produção Vercel
+    if (!res.ok && res.status !== 401 && res.status !== 400 && res.status !== 404) {
       const fallbackUrl = `/api${cleanPath}`;
-      const fallbackRes = await fetch(fallbackUrl, { ...options, headers });
-      if (fallbackRes.ok) return fallbackRes;
+      if (fallbackUrl !== primaryUrl) {
+        const fallbackRes = await fetch(fallbackUrl, { ...options, headers });
+        if (fallbackRes.ok) return fallbackRes;
+      }
     }
     return res;
   } catch (e) {
-    // Se falhar rede na primária, tenta relativa
-    const fallbackUrl = `/api${cleanPath}`;
-    return fetch(fallbackUrl, { ...options, headers });
+    // Se falhar rede na primária, tenta relativa apenas como último recurso
+    try {
+      const fallbackUrl = `/api${cleanPath}`;
+      return await fetch(fallbackUrl, { ...options, headers });
+    } catch (_) {
+      return { ok: false, status: 503, json: async () => ({ success: false, error: 'Servidor indisponível' }) };
+    }
   }
 }

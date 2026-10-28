@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Athena | Radar de Expansão DF - Meta 50% por R.A.</title>
     
     <!-- ESTILOS LEAFLET E MARKERCLUSTER 100% EMBUTIDOS INLINE -->
@@ -1361,40 +1364,32 @@ let dadosCarregados = false;
 
 async function carregarOficinasDoSupabase() {
     let rawWorkshops = null;
-    const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const primaryUrl = isLocal ? 'http://localhost:3001/api/crm/workshops?all=true' : 'https://athena-backend-hu1m.onrender.com/api/crm/workshops?all=true';
 
-    // 1. Tenta carregar do backend (Render direto ou proxy Vercel)
-    const urls = [primaryUrl, '/api/crm/workshops?all=true'];
-    for (const url of urls) {
-        if (rawWorkshops) break;
+    // 1. Carrega imediatamente do dataset local completo (9.211 oficinas com 0ms e sem 404)
+    try {
+        const res = await fetch('/radar_workshops.json');
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+                rawWorkshops = data;
+            }
+        }
+    } catch (e) {
+        console.warn('Dataset estático inicial:', e);
+    }
+
+    // 2. Fallback de contingência caso necessário
+    if (!rawWorkshops) {
+        const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
         try {
-            const res = await fetch(url, {
+            const res = await fetch('/api/crm/workshops?all=true', {
                 headers: token ? { 'Authorization': 'Bearer ' + token } : {}
             });
             if (res.ok) {
                 const data = await res.json();
-                if (data && Array.isArray(data.workshops) && data.workshops.length > 0) {
-                    rawWorkshops = data.workshops;
-                }
+                if (data && Array.isArray(data.workshops)) rawWorkshops = data.workshops;
             }
         } catch (_) {}
-    }
-
-    // 2. Se backend estiver em processo de deploy no Render ou offline, fallback instantâneo estático
-    if (!rawWorkshops) {
-        try {
-            const res = await fetch('/radar_workshops.json');
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    rawWorkshops = data;
-                }
-            }
-        } catch (e) {
-            console.warn('Fallback offline radar carregado:', e);
-        }
     }
 
     if (Array.isArray(rawWorkshops) && rawWorkshops.length > 0) {

@@ -74,9 +74,22 @@ export async function fetchOfflineWorkshops({
       return false;
     }
 
-    // Filtro de Status
+    // Filtro de Status ESTRITO
+    // Oficinas "Não Visitado" NUNCA devem aparecer em "Visita Realizada" (Já Visitado), "Agendado", etc.
     if (allowedStatuses.length > 0) {
-      const matches = allowedStatuses.some(st => itemStatus.includes(st) || st.includes(itemStatus));
+      const isItemNaoVisitado = itemStatus === 'não visitado' || itemStatus === 'a visitar' || itemStatus === '';
+      const matches = allowedStatuses.some(st => {
+        if (st === 'não visitado' || st === 'a visitar') {
+          return isItemNaoVisitado;
+        }
+        if (isItemNaoVisitado) {
+          return false;
+        }
+        return itemStatus === st ||
+               (st === 'visita realizada' && (itemStatus === 'visitado' || itemStatus === 'já visitado')) ||
+               (st === 'visita agendada' && itemStatus === 'agendado') ||
+               (st === 'cliente athena' && itemStatus === 'parceria fechada');
+      });
       if (!matches) return false;
     }
 

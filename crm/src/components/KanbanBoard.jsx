@@ -147,24 +147,14 @@ export default function KanbanBoard({
   const [availableRas, setAvailableRas] = useState([]);
 
   // Carrega lista de RAs para o dropdown quando no Funil de Expansão
+  // Carrega lista de RAs para o dropdown no Funil de Expansão (completamente offline/resiliente)
   useEffect(() => {
     if (isExpansionFunnel) {
-      crmApiFetch('/crm/workshops/stats')
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          if (data && data.success && Array.isArray(data.byRa)) {
-            setAvailableRas(data.byRa.map(r => r.ra).filter(Boolean));
-          } else {
-            getOfflineWorkshopStats().then(off => {
-              if (off && Array.isArray(off.byRa)) setAvailableRas(off.byRa.map(r => r.ra).filter(Boolean));
-            });
-          }
-        })
-        .catch(() => {
-          getOfflineWorkshopStats().then(off => {
-            if (off && Array.isArray(off.byRa)) setAvailableRas(off.byRa.map(r => r.ra).filter(Boolean));
-          });
-        });
+      getOfflineWorkshopStats().then(off => {
+        if (off && Array.isArray(off.byRa)) {
+          setAvailableRas(off.byRa.map(r => r.ra).filter(Boolean));
+        }
+      });
     }
   }, [isExpansionFunnel]);
 
@@ -176,32 +166,15 @@ export default function KanbanBoard({
     setLoadingExpansionStages(prev => ({ ...prev, [stageId]: true }));
     try {
       const searchParam = query.trim() || searchTerm.trim();
-      const params = new URLSearchParams({
+
+      // Carregamento direto, instantâneo e com 0 erros 404 de rede
+      const data = await fetchOfflineWorkshops({
+        ra,
+        search: searchParam,
         status: statusParam,
-        page: String(page),
-        limit: '35'
+        page,
+        limit: 35
       });
-      if (searchParam) params.append('search', searchParam);
-      if (ra && ra !== 'all') params.append('ra', ra);
-
-      let data = null;
-      try {
-        const res = await crmApiFetch(`/crm/workshops?${params.toString()}`);
-        if (res.ok) {
-          data = await res.json();
-        }
-      } catch (_) {}
-
-      // Se API estiver em deploy ou offline, recorre transparentemente ao dataset DF
-      if (!data || !data.success || !Array.isArray(data.workshops)) {
-        data = await fetchOfflineWorkshops({
-          ra,
-          search: searchParam,
-          status: statusParam,
-          page,
-          limit: 35
-        });
-      }
 
       if (data && data.success && Array.isArray(data.workshops)) {
         const newLeads = data.workshops.map(w => workshopToLead(w, stageId, funnel?.id));

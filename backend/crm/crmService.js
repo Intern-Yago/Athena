@@ -357,22 +357,22 @@ async function listLeads({ funnelId, stageId, search = '', ra = '' } = {}) {
   return list.sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
-async function createLead({
-  funnelId,
-  stageId,
-  document = '',
-  name,
-  phone = '',
-  email = '',
-  company = '',
-  address = '',
-  ra_df = '',
-  estimated_value = 0,
-  priority = 'medium',
-  notes = '',
-  assigned_to = '',
-  source = 'manual'
-}) {
+async function createLead(payload) {
+  const funnelId = payload.funnelId || payload.funnel_id;
+  const stageId = payload.stageId || payload.stage_id;
+  const document = payload.document || payload.cnpj || payload.cpf || '';
+  const name = payload.name;
+  const phone = payload.phone || payload.tel || '';
+  const email = payload.email || '';
+  const company = payload.company || payload.rz || payload.razao_social || '';
+  const address = payload.address || payload.end || '';
+  const ra_df = payload.ra_df || payload.ra || '';
+  const estimated_value = payload.estimated_value || payload.value || 0;
+  const priority = payload.priority || 'medium';
+  const notes = payload.notes || payload.obs || '';
+  const assigned_to = payload.assigned_to || '';
+  const source = payload.source || 'manual';
+
   if (!name || !name.trim()) throw new Error('Nome do contato/oficina é obrigatório.');
   if (!funnelId) throw new Error('funnelId é obrigatório.');
 

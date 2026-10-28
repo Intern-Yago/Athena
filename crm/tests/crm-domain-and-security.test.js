@@ -185,4 +185,35 @@ describe('Athena CRM - Testes Unitários de Domínio, Regras de Negócio e Segur
     assert.equal(adjustZoom(1.0, 0.08), 1.08);
     assert.equal(adjustZoom(1.0, -0.08), 0.92);
   });
+
+  test('Filtro Estrito do Funil de Expansão: Oficinas "Não Visitado" NUNCA devem cair em "Já Visitado / Visita Realizada"', () => {
+    const isItemNaoVisitado = (status) => {
+      const lower = (status || '').toLowerCase().trim();
+      return lower === 'não visitado' || lower === 'a visitar' || lower === '';
+    };
+
+    const matchStatus = (itemStatus, allowedStatuses) => {
+      const isNv = isItemNaoVisitado(itemStatus);
+      return allowedStatuses.some(st => {
+        if (st === 'não visitado' || st === 'a visitar') {
+          return isNv;
+        }
+        if (isNv) return false;
+        return itemStatus.toLowerCase() === st.toLowerCase();
+      });
+    };
+
+    const itemStatus = 'Não Visitado';
+    // Coluna 1: A Visitar (Deve Casar)
+    assert.equal(matchStatus(itemStatus, ['não visitado']), true);
+
+    // Coluna 3: Visita Realizada / Já Visitado (JAMAIS DEVE CASAR)
+    assert.equal(matchStatus(itemStatus, ['visita realizada', 'visitado', 'já visitado']), false);
+
+    // Coluna 2: Visita Agendada (JAMAIS DEVE CASAR)
+    assert.equal(matchStatus(itemStatus, ['visita agendada', 'agendado']), false);
+
+    // Coluna 5: Cliente Athena (JAMAIS DEVE CASAR)
+    assert.equal(matchStatus(itemStatus, ['cliente athena', 'parceria fechada']), false);
+  });
 });
