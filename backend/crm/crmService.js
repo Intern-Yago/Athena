@@ -55,6 +55,46 @@ let memoryFunnels = [
 
 let memoryLeads = [];
 
+function loadInitialWorkshopsLeads() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const jsonPath = path.resolve(__dirname, '../../crm/public/radar_workshops.json');
+    if (fs.existsSync(jsonPath)) {
+      const workshops = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+      workshops.forEach(w => {
+        if (w.st && w.st !== 'Não Visitado' && w.st !== 'A Visitar') {
+          let stageId = 'stg_exp_1';
+          if (w.st === 'Visita Agendada' || w.st === 'Agendado') stageId = 'stg_exp_2';
+          else if (w.st === 'Visitado' || w.st === 'Já Visitado' || w.st === 'Visita Realizada') stageId = 'stg_exp_3';
+          else if (w.st === 'Negociação') stageId = 'stg_exp_4';
+          else if (w.st === 'Cliente Athena' || w.st === 'Parceria Fechada') stageId = 'stg_exp_5';
+
+          memoryLeads.push({
+            id: `radar_lead_${w.id}`,
+            funnel_id: 'fun_expansao_df',
+            stage_id: stageId,
+            name: w.nome || w.rz || 'Oficina DF',
+            company: w.rz || w.nome || 'Oficina DF',
+            cnpj: w.cnpj || '',
+            phone: w.tel || '',
+            email: '',
+            address: w.end || '',
+            ra_df: w.ra || 'DF',
+            estimated_value: 0,
+            notes: w.obs || 'Cliente ativo Athena sincronizado via Omie ERP e Ploomes CRM',
+            created_at: new Date().toISOString()
+          });
+        }
+      });
+      console.log(`[CRM Service] Inicializados ${memoryLeads.length} leads do Funil de Expansão DF a partir do Radar.`);
+    }
+  } catch (err) {
+    console.warn('[CRM Service] Aviso ao carregar leads iniciais do radar:', err.message);
+  }
+}
+loadInitialWorkshopsLeads();
+
 function generateId(prefix = 'crm') {
   return `${prefix}_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
 }

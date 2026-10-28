@@ -4,7 +4,7 @@
  * Garante que mesmo durante deploys, reinicializações ou instabilidades do Render/Supabase,
  * o Funil de Expansão e o Radar continuem 100% funcionais com todos os 9.211 registros.
  */
-import { autoRemoveEventFromGoogle } from './googleCalendarSync';
+import { autoRemoveEventFromGoogle } from './googleCalendarSync.js';
 
 let memoryCache = null;
 let fetchPromise = null;
@@ -20,7 +20,7 @@ export async function loadWorkshopsDataset() {
 
   fetchPromise = (async () => {
     try {
-      const res = await fetch('/radar_workshops.json');
+      const res = await fetch('/radar_workshops.json?v=' + Date.now(), { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {

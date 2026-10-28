@@ -144,7 +144,9 @@ export default function KanbanBoard({
     return [...(funnel?.stages || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [funnel]);
 
-  const isExpansionFunnel = funnel?.id === 'fun_expansao_df';
+  const isExpansionFunnel = funnel?.id === 'fun_expansao_df' ||
+                            funnel?.slug === 'expansao-df' ||
+                            (funnel?.name || '').toLowerCase().includes('expans');
 
   // --------------------------------------------------------------------------
   // PAGINAÇÃO E CARGA LEVE NO BANCO (FUNIL DE EXPANSÃO DF)
