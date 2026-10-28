@@ -743,6 +743,18 @@ router.delete('/appointments/:id', async (req, res) => {
   }
 });
 
+router.get('/google/auth-url', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || '140959731847-hhe81mqovj34413roo2nbqt394aku5g9.apps.googleusercontent.com';
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://interno.athenaconsultoria.com.br/agenda';
+  const scope = encodeURIComponent('https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email');
+  const userEmail = req.query.email ? encodeURIComponent(req.query.email) : '';
+  const loginHint = userEmail ? `&login_hint=${userEmail}` : '';
+
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}&prompt=consent&access_type=online${loginHint}`;
+
+  res.json({ success: true, authUrl, clientId });
+});
+
 router.post('/appointments/sync-google', (req, res) => {
   // Simula ou prepara sincronização bidirecional com Google Agenda
   res.json({
