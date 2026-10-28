@@ -2,9 +2,10 @@ const { Pool } = require('pg');
 
 /**
  * Dedicated PostgreSQL Pool for Athena CRM
- * Fully isolated from the main e-commerce database to protect free plan egress limits.
+ * Uses dedicated CRM_DATABASE_URL if provided, or falls back to main DATABASE_URL / SUPABASE_DB_URL
+ * so leads and custom stages are permanently preserved in PostgreSQL and never lost on server restarts.
  */
-const crmDbUrl = process.env.CRM_DATABASE_URL || '';
+const crmDbUrl = process.env.CRM_DATABASE_URL || process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
 
 let crmPool = null;
 let isCrmDbAvailable = false;
