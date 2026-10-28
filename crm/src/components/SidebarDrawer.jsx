@@ -14,7 +14,10 @@ import {
   ExternalLink,
   ChevronRight,
   Users,
-  Settings
+  Settings,
+  Calendar,
+  Package,
+  UserCheck
 } from 'lucide-react';
 
 export default function SidebarDrawer({ 
@@ -138,8 +141,59 @@ export default function SidebarDrawer({
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                 isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-800'
               }`}>
-                9.212
+                9.211
               </span>
+            </button>
+
+            {/* Base Central de Clientes */}
+            <button
+              type="button"
+              onClick={() => handleNav('/clientes')}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                currentRoute === '/clientes'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <UserCheck className="w-4 h-4 text-sky-400" />
+                <span>Base de Clientes & Fichas</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
+
+            {/* Equipamentos & Tabela de Vendas */}
+            <button
+              type="button"
+              onClick={() => handleNav('/equipamentos')}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                currentRoute === '/equipamentos'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Package className="w-4 h-4 text-amber-500" />
+                <span>Equipamentos & Valores</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+            </button>
+
+            {/* Agenda Comercial */}
+            <button
+              type="button"
+              onClick={() => handleNav('/agenda')}
+              className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer ${
+                currentRoute === '/agenda'
+                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-purple-400" />
+                <span>Agenda Comercial (Google)</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </button>
 
             {/* Gestão de Equipe & Funcionários */}

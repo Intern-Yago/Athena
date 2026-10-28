@@ -51,6 +51,24 @@ jobs:
       - name: Verify Frontend Production Build
         run: npm run build
 
+      - name: Install CRM Dependencies
+        run: |
+          cd crm
+          npm ci || npm install
+          cd ..
+
+      - name: Run CRM Automated Unit Tests
+        run: |
+          cd crm
+          npm test
+          cd ..
+
+      - name: Verify CRM Production Build
+        run: |
+          cd crm
+          npm run build
+          cd ..
+
   deploy-gate:
     name: Deployment Authorization Gate
     needs: test

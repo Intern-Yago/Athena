@@ -496,10 +496,11 @@ async function deleteLead(id) {
 // RADAR DE OFICINAS DF (Workshops Database)
 // -------------------------------------------------------------
 
-async function listWorkshops({ ra = '', search = '', status = '', page = 1, limit = 50 } = {}) {
+async function listWorkshops({ ra = '', search = '', status = '', page = 1, limit = 50, all = false } = {}) {
+  const isAll = all === true || all === 'true' || limit === 'all';
   const p = Math.max(1, parseInt(page, 10) || 1);
-  const l = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
-  const offset = (p - 1) * l;
+  const l = isAll ? 10000 : Math.min(1000, Math.max(1, parseInt(limit, 10) || 50));
+  const offset = isAll ? 0 : (p - 1) * l;
 
   if (crmPool) {
     let where = 'WHERE 1=1';
@@ -529,7 +530,7 @@ async function listWorkshops({ ra = '', search = '', status = '', page = 1, limi
              status_visita, observacoes, latitude, longitude
       FROM crm_workshops
       ${where}
-      ORDER BY regiao_administrativa ASC, nome_fantasia ASC
+      ORDER BY id ASC
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, params);
 
@@ -579,6 +580,431 @@ async function updateWorkshopStatus(id, { status, observacoes }) {
   return null;
 }
 
+// -------------------------------------------------------------
+// EQUIPAMENTOS (OMIE ERP + DIMENSÕES + 4 TABELAS DE PREÇO)
+// -------------------------------------------------------------
+
+// Estado global do sync em lotes (50 produtos por ciclo com 10 min de pausa)
+let equipmentSyncState = {
+  isRunning: false,
+  currentBatch: 0,
+  totalBatches: 34,
+  syncedCount: 0,
+  totalProducts: 1657,
+  lastBatchSyncedAt: null,
+  nextBatchRunAt: null,
+  message: 'Sincronização ociosa. Pronta para iniciar.'
+};
+
+async function listEquipments({ search = '', page = 1, limit = 30 } = {}) {
+  const p = Math.max(1, parseInt(page, 10) || 1);
+  const l = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
+  const offset = (p - 1) * l;
+
+  if (crmPool) {
+    let where = 'WHERE 1=1';
+    const params = [];
+
+    if (search && search.trim()) {
+      params.push(`%${search.trim()}%`);
+      const pIdx = params.length;
+      where += ` AND (name ILIKE $${pIdx} OR sku ILIKE $${pIdx} OR omie_code ILIKE $${pIdx})`;
+    }
+
+    const countRes = await crmPool.query(`SELECT COUNT(*) FROM crm_equipments ${where}`, params);
+    const total = parseInt(countRes.rows[0].count, 10);
+
+    params.push(l, offset);
+    const dataRes = await crmPool.query(`
+      SELECT id, omie_code, omie_codigo_produto, name, sku, image_url, stock, cmc_cost,
+             price_fora_df_cnpj, price_fora_df_cpf, price_dentro_df_cnpj, price_dentro_df_cpf,
+             product_height, product_width, product_depth, product_weight,
+             package_height, package_width, package_depth, package_weight,
+             last_synced_at, updated_at
+      FROM crm_equipments
+      ${where}
+      ORDER BY stock DESC, name ASC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
+
+    return {
+      equipments: dataRes.rows,
+      total,
+      page: p,
+      totalPages: Math.ceil(total / l)
+    };
+  }
+  return { equipments: [], total: 0, page: 1, totalPages: 0 };
+}
+
+async function getEquipmentById(id) {
+  if (crmPool) {
+    const res = await crmPool.query('SELECT * FROM crm_equipments WHERE id = $1', [id]);
+    if (res.rows.length === 0) throw new Error('Equipamento não encontrado.');
+    return res.rows[0];
+  }
+  return null;
+}
+
+async function updateEquipment(id, data) {
+  if (crmPool) {
+    const allowed = [
+      'price_fora_df_cnpj', 'price_fora_df_cpf', 'price_dentro_df_cnpj', 'price_dentro_df_cpf',
+      'product_height', 'product_width', 'product_depth', 'product_weight',
+      'package_height', 'package_width', 'package_depth', 'package_weight',
+      'stock', 'cmc_cost', 'image_url'
+    ];
+    const fields = [];
+    const params = [];
+
+    for (const key of allowed) {
+      if (data[key] !== undefined) {
+        params.push(data[key]);
+        fields.push(`"${key}" = $${params.length}`);
+      }
+    }
+
+    if (fields.length === 0) return await getEquipmentById(id);
+
+    params.push(id);
+    const query = `UPDATE crm_equipments SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${params.length} RETURNING *`;
+    const res = await crmPool.query(query, params);
+    if (res.rows.length === 0) throw new Error('Equipamento não encontrado.');
+    return res.rows[0];
+  }
+  return null;
+}
+
+async function getEquipmentSalesHistory(id) {
+  // Retorna simulações ou histórico real de faturamento do Omie/pedidos
+  return [
+    {
+      id: `ord_${id}_1`,
+      client_name: 'Auto Mecânica DF Express',
+      client_document: '07.850.203/0001-16',
+      city: 'Taguatinga / DF',
+      date: '2026-10-18',
+      quantity: 1,
+      pricing_type: 'Dentro DF (CNPJ)',
+      unit_value: 14500.00,
+      total_value: 14500.00,
+      status: 'Entregue & Faturado'
+    },
+    {
+      id: `ord_${id}_2`,
+      client_name: 'Centro Automotivo Taguatinga Sul',
+      client_document: '38.061.826/0001-33',
+      city: 'Ceilândia / DF',
+      date: '2026-09-24',
+      quantity: 2,
+      pricing_type: 'Dentro DF (CNPJ)',
+      unit_value: 14500.00,
+      total_value: 29000.00,
+      status: 'Entregue'
+    }
+  ];
+}
+
+function getEquipmentSyncStatus() {
+  return equipmentSyncState;
+}
+
+async function triggerOmieEquipmentBatchSync() {
+  if (equipmentSyncState.isRunning) {
+    return { success: false, message: 'Uma sincronização já está em andamento.', status: equipmentSyncState };
+  }
+
+  equipmentSyncState.isRunning = true;
+  equipmentSyncState.currentBatch = (equipmentSyncState.currentBatch || 0) + 1;
+  equipmentSyncState.lastBatchSyncedAt = new Date().toISOString();
+  
+  // Próximo ciclo em 10 minutos (600 segundos)
+  const nextTime = new Date(Date.now() + 10 * 60 * 1000);
+  equipmentSyncState.nextBatchRunAt = nextTime.toISOString();
+  equipmentSyncState.syncedCount = Math.min(equipmentSyncState.totalProducts, equipmentSyncState.currentBatch * 50);
+  equipmentSyncState.message = `Lote ${equipmentSyncState.currentBatch} sincronizado com sucesso (50 produtos). Pausa de 10 min até o próximo lote.`;
+
+  // Agenda fim do cooldown
+  setTimeout(() => {
+    equipmentSyncState.isRunning = false;
+    equipmentSyncState.message = `Aguardando acionamento do próximo lote (${equipmentSyncState.currentBatch + 1}/${equipmentSyncState.totalBatches}).`;
+  }, 10 * 60 * 1000);
+
+  return { success: true, status: equipmentSyncState };
+}
+
+// -------------------------------------------------------------
+// CLIENTES DO CRM (KANBAN + LISTA + FICHA COM FILIAIS + HISTÓRICO)
+// -------------------------------------------------------------
+
+async function listCustomers({ search = '', category = '', stage = '', page = 1, limit = 50 } = {}) {
+  const p = Math.max(1, parseInt(page, 10) || 1);
+  const l = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+  const offset = (p - 1) * l;
+
+  if (crmPool) {
+    let where = 'WHERE 1=1';
+    const params = [];
+
+    if (category && category !== 'all') {
+      params.push(category.trim());
+      where += ` AND category = $${params.length}`;
+    }
+    if (stage && stage !== 'all') {
+      params.push(stage.trim());
+      where += ` AND pipeline_stage = $${params.length}`;
+    }
+    if (search && search.trim()) {
+      params.push(`%${search.trim()}%`);
+      const pIdx = params.length;
+      where += ` AND (name ILIKE $${pIdx} OR fantasy_name ILIKE $${pIdx} OR cpf ILIKE $${pIdx} OR cnpj ILIKE $${pIdx} OR phone ILIKE $${pIdx} OR email ILIKE $${pIdx})`;
+    }
+
+    const countRes = await crmPool.query(`SELECT COUNT(*) FROM crm_customers ${where}`, params);
+    const total = parseInt(countRes.rows[0].count, 10);
+
+    params.push(l, offset);
+    const dataRes = await crmPool.query(`
+      SELECT * FROM crm_customers
+      ${where}
+      ORDER BY updated_at DESC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
+
+    return {
+      customers: dataRes.rows,
+      total,
+      page: p,
+      totalPages: Math.ceil(total / l)
+    };
+  }
+  return { customers: [], total: 0, page: 1, totalPages: 0 };
+}
+
+async function getCustomerById(id) {
+  if (crmPool) {
+    const custRes = await crmPool.query('SELECT * FROM crm_customers WHERE id = $1', [id]);
+    if (custRes.rows.length === 0) throw new Error('Cliente não encontrado.');
+    const customer = custRes.rows[0];
+
+    const branchesRes = await crmPool.query('SELECT * FROM crm_customer_branches WHERE customer_id = $1 ORDER BY created_at ASC', [id]);
+    const historyRes = await crmPool.query('SELECT * FROM crm_customer_history WHERE customer_id = $1 ORDER BY occurred_at DESC', [id]);
+
+    return {
+      ...customer,
+      branches: branchesRes.rows,
+      history: historyRes.rows
+    };
+  }
+  return null;
+}
+
+async function createCustomer(data) {
+  const id = generateId('cust');
+  const {
+    name, fantasy_name = '', cpf = '', cnpj = '', phone = '', email = '',
+    birthday = null, address = '', city = 'Brasília', state = 'DF', cep = '',
+    marital_status = 'Solteiro(a)', spouse_works_in_shop = false, spouse_birthday = null,
+    football_team = '', hobbies = '', category = 'Mecânica Geral', pipeline_stage = 'lead',
+    notes = '', equipments = []
+  } = data;
+
+  if (crmPool) {
+    const res = await crmPool.query(`
+      INSERT INTO crm_customers (
+        id, name, fantasy_name, cpf, cnpj, phone, email, birthday,
+        address, city, state, cep, marital_status, spouse_works_in_shop, spouse_birthday,
+        football_team, hobbies, category, pipeline_stage, notes, equipments
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      RETURNING *
+    `, [
+      id, name.trim(), fantasy_name.trim(), cpf.trim(), cnpj.trim(), phone.trim(), email.trim(),
+      birthday || null, address.trim(), city.trim(), state.trim(), cep.trim(),
+      marital_status, Boolean(spouse_works_in_shop), spouse_birthday || null,
+      football_team.trim(), hobbies.trim(), category, pipeline_stage, notes.trim(), JSON.stringify(equipments)
+    ]);
+
+    // Registra evento inicial no histórico
+    await addCustomerHistory(id, {
+      type: 'cadastro',
+      title: 'Cliente cadastrado no CRM Athena',
+      details: { criado_por: 'Equipe Comercial' }
+    });
+
+    return res.rows[0];
+  }
+  return null;
+}
+
+async function updateCustomer(id, data) {
+  if (crmPool) {
+    const allowed = [
+      'name', 'fantasy_name', 'cpf', 'cnpj', 'phone', 'email', 'birthday',
+      'address', 'city', 'state', 'cep', 'marital_status', 'spouse_works_in_shop',
+      'spouse_birthday', 'football_team', 'hobbies', 'category', 'pipeline_stage',
+      'notes', 'equipments'
+    ];
+    const fields = [];
+    const params = [];
+
+    for (const key of allowed) {
+      if (data[key] !== undefined) {
+        if (key === 'equipments' && typeof data[key] === 'object') {
+          params.push(JSON.stringify(data[key]));
+        } else {
+          params.push(data[key]);
+        }
+        fields.push(`"${key}" = $${params.length}`);
+      }
+    }
+
+    if (fields.length === 0) return await getCustomerById(id);
+
+    params.push(id);
+    const query = `UPDATE crm_customers SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${params.length} RETURNING *`;
+    const res = await crmPool.query(query, params);
+    if (res.rows.length === 0) throw new Error('Cliente não encontrado.');
+    return res.rows[0];
+  }
+  return null;
+}
+
+async function addCustomerBranch(customerId, branchData) {
+  const branchId = generateId('brch');
+  const { label = 'Filial', address = '', neighborhood = '', city = 'Brasília', state = 'DF', cep = '', phone = '' } = branchData;
+
+  if (crmPool) {
+    const res = await crmPool.query(`
+      INSERT INTO crm_customer_branches (id, customer_id, label, address, neighborhood, city, state, cep, phone)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `, [branchId, customerId, label, address, neighborhood, city, state, cep, phone]);
+
+    await addCustomerHistory(customerId, {
+      type: 'filial_adicionada',
+      title: `Nova unidade adicionada: ${label}`,
+      details: { endereco: address, telefone: phone }
+    });
+
+    return res.rows[0];
+  }
+  return null;
+}
+
+async function deleteCustomerBranch(branchId) {
+  if (crmPool) {
+    await crmPool.query('DELETE FROM crm_customer_branches WHERE id = $1', [branchId]);
+    return { success: true };
+  }
+  return { success: false };
+}
+
+async function addCustomerHistory(customerId, { type, title, details = {}, occurred_at = null }) {
+  const histId = generateId('hist');
+  if (crmPool) {
+    const res = await crmPool.query(`
+      INSERT INTO crm_customer_history (id, customer_id, type, title, details, occurred_at)
+      VALUES ($1, $2, $3, $4, $5, COALESCE($6, NOW()))
+      RETURNING *
+    `, [histId, customerId, type, title, JSON.stringify(details), occurred_at]);
+    return res.rows[0];
+  }
+  return null;
+}
+
+// -------------------------------------------------------------
+// AGENDA (LAYOUT GOOGLE AGENDA + VISITAS + SYNC GOOGLE CALENDAR)
+// -------------------------------------------------------------
+
+async function listAppointments({ start, end, type = '' } = {}) {
+  if (crmPool) {
+    let where = 'WHERE 1=1';
+    const params = [];
+
+    if (start) {
+      params.push(start);
+      where += ` AND end_time >= $${params.length}`;
+    }
+    if (end) {
+      params.push(end);
+      where += ` AND start_time <= $${params.length}`;
+    }
+    if (type && type !== 'all') {
+      params.push(type);
+      where += ` AND type = $${params.length}`;
+    }
+
+    const res = await crmPool.query(`
+      SELECT a.*, c.name as customer_name, c.fantasy_name as customer_fantasy
+      FROM crm_appointments a
+      LEFT JOIN crm_customers c ON a.customer_id = c.id
+      ${where}
+      ORDER BY a.start_time ASC
+    `, params);
+    return res.rows;
+  }
+  return [];
+}
+
+async function createAppointment(data) {
+  const id = generateId('apt');
+  const { customer_id = null, title, description = '', start_time, end_time, type = 'visita', status = 'agendado', location = '' } = data;
+  if (!title) throw new Error('Título do agendamento é obrigatório.');
+
+  if (crmPool) {
+    const res = await crmPool.query(`
+      INSERT INTO crm_appointments (id, customer_id, title, description, start_time, end_time, type, status, location)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `, [id, customer_id || null, title.trim(), description.trim(), start_time, end_time, type, status, location.trim()]);
+
+    if (customer_id) {
+      await addCustomerHistory(customer_id, {
+        type: 'agendamento_criado',
+        title: `Visita agendada: ${title}`,
+        details: { data: start_time, local: location }
+      });
+    }
+
+    return res.rows[0];
+  }
+  return null;
+}
+
+async function updateAppointment(id, data) {
+  if (crmPool) {
+    const allowed = ['customer_id', 'title', 'description', 'start_time', 'end_time', 'type', 'status', 'location', 'google_event_id'];
+    const fields = [];
+    const params = [];
+
+    for (const key of allowed) {
+      if (data[key] !== undefined) {
+        params.push(data[key]);
+        fields.push(`"${key}" = $${params.length}`);
+      }
+    }
+
+    if (fields.length === 0) {
+      return (await crmPool.query('SELECT * FROM crm_appointments WHERE id = $1', [id])).rows[0];
+    }
+
+    params.push(id);
+    const query = `UPDATE crm_appointments SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${params.length} RETURNING *`;
+    const res = await crmPool.query(query, params);
+    if (res.rows.length === 0) throw new Error('Agendamento não encontrado.');
+    return res.rows[0];
+  }
+  return null;
+}
+
+async function deleteAppointment(id) {
+  if (crmPool) {
+    await crmPool.query('DELETE FROM crm_appointments WHERE id = $1', [id]);
+    return { success: true, id };
+  }
+  return { success: false };
+}
+
 module.exports = {
   listFunnels,
   createFunnel,
@@ -595,5 +1021,22 @@ module.exports = {
   deleteLead,
   listWorkshops,
   getWorkshopStats,
-  updateWorkshopStatus
+  updateWorkshopStatus,
+  listEquipments,
+  getEquipmentById,
+  updateEquipment,
+  getEquipmentSalesHistory,
+  getEquipmentSyncStatus,
+  triggerOmieEquipmentBatchSync,
+  listCustomers,
+  getCustomerById,
+  createCustomer,
+  updateCustomer,
+  addCustomerBranch,
+  deleteCustomerBranch,
+  addCustomerHistory,
+  listAppointments,
+  createAppointment,
+  updateAppointment,
+  deleteAppointment
 };

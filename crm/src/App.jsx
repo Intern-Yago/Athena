@@ -8,6 +8,9 @@ import HomeDashboard from './components/HomeDashboard';
 import FunnelsListPage from './components/FunnelsListPage';
 import KanbanBoard from './components/KanbanBoard';
 import RadarView from './components/RadarView';
+import CustomersView from './components/CustomersView';
+import EquipmentsView from './components/EquipmentsView';
+import AgendaView from './components/AgendaView';
 import LeadModal from './components/LeadModal';
 import FunnelModal from './components/FunnelModal';
 import StageModal from './components/StageModal';
@@ -527,6 +530,12 @@ function CRMContent() {
           <RadarView
             onConvertWorkshopToLead={handleConvertWorkshopToLead}
           />
+        ) : currentPath === '/clientes' ? (
+          <CustomersView />
+        ) : currentPath === '/equipamentos' ? (
+          <EquipmentsView />
+        ) : currentPath === '/agenda' ? (
+          <AgendaView />
         ) : currentPath === '/equipe' ? (
           <TeamManagementView
             onOpenCreateModal={() => setIsCreateEmployeeOpen(true)}

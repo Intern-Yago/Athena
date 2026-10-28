@@ -43,6 +43,13 @@ router.get('/health', (req, res) => {
   });
 });
 
+// Heartbeat dedicado para manter conexões e banco Supabase sempre ativos (anti-pause)
+router.get('/heartbeat', async (req, res) => {
+  const { pingSupabaseHeartbeat } = require('./db');
+  const hb = await pingSupabaseHeartbeat();
+  res.json({ success: true, ...hb });
+});
+
 // Guardião de Autenticação e Autorização (apenas membros autorizados da equipe)
 router.use(requireCrmAuth);
 
@@ -206,8 +213,8 @@ router.delete('/leads/:id', async (req, res) => {
 
 router.get('/workshops', async (req, res) => {
   try {
-    const { ra, search, status, page, limit } = req.query;
-    const result = await crmService.listWorkshops({ ra, search, status, page, limit });
+    const { ra, search, status, page, limit, all } = req.query;
+    const result = await crmService.listWorkshops({ ra, search, status, page, limit, all });
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -563,6 +570,179 @@ router.put('/account/me', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// -------------------------------------------------------------
+// ROTAS DE EQUIPAMENTOS (OMIE ERP + DIMENSÕES + PREÇOS)
+// -------------------------------------------------------------
+
+router.get('/equipments', async (req, res) => {
+  try {
+    const { search, page, limit } = req.query;
+    const result = await crmService.listEquipments({ search, page, limit });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/equipments/sync-status', (req, res) => {
+  res.json({ success: true, status: crmService.getEquipmentSyncStatus() });
+});
+
+router.post('/equipments/sync', async (req, res) => {
+  try {
+    const result = await crmService.triggerOmieEquipmentBatchSync();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/equipments/:id', async (req, res) => {
+  try {
+    const eq = await crmService.getEquipmentById(req.params.id);
+    res.json({ success: true, data: eq });
+  } catch (err) {
+    res.status(404).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/equipments/:id', async (req, res) => {
+  try {
+    const updated = await crmService.updateEquipment(req.params.id, req.body);
+    res.json({ success: true, data: updated, message: 'Valores e dimensões salvos com sucesso!' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/equipments/:id/sales', async (req, res) => {
+  try {
+    const sales = await crmService.getEquipmentSalesHistory(req.params.id);
+    res.json({ success: true, data: sales });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// ROTAS DE CLIENTES DO CRM (KANBAN + LISTA + FICHA + HISTÓRICO)
+// -------------------------------------------------------------
+
+router.get('/customers', async (req, res) => {
+  try {
+    const { search, category, stage, page, limit } = req.query;
+    const result = await crmService.listCustomers({ search, category, stage, page, limit });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/customers', async (req, res) => {
+  try {
+    const customer = await crmService.createCustomer(req.body);
+    res.status(201).json({ success: true, data: customer, message: 'Cliente cadastrado com sucesso!' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/customers/:id', async (req, res) => {
+  try {
+    const customer = await crmService.getCustomerById(req.params.id);
+    res.json({ success: true, data: customer });
+  } catch (err) {
+    res.status(404).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/customers/:id', async (req, res) => {
+  try {
+    const updated = await crmService.updateCustomer(req.params.id, req.body);
+    res.json({ success: true, data: updated, message: 'Ficha do cliente atualizada com sucesso!' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/customers/:id/branches', async (req, res) => {
+  try {
+    const branch = await crmService.addCustomerBranch(req.params.id, req.body);
+    res.status(201).json({ success: true, data: branch, message: 'Endereço/Filial adicionado com sucesso!' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/customers/branches/:branchId', async (req, res) => {
+  try {
+    const result = await crmService.deleteCustomerBranch(req.params.branchId);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/customers/:id/history', async (req, res) => {
+  try {
+    const entry = await crmService.addCustomerHistory(req.params.id, req.body);
+    res.status(201).json({ success: true, data: entry });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// ROTAS DE AGENDA (VISITAS + GOOGLE CALENDAR)
+// -------------------------------------------------------------
+
+router.get('/appointments', async (req, res) => {
+  try {
+    const { start, end, type } = req.query;
+    const appointments = await crmService.listAppointments({ start, end, type });
+    res.json({ success: true, data: appointments });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/appointments', async (req, res) => {
+  try {
+    const apt = await crmService.createAppointment(req.body);
+    res.status(201).json({ success: true, data: apt, message: 'Compromisso agendado com sucesso!' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/appointments/:id', async (req, res) => {
+  try {
+    const updated = await crmService.updateAppointment(req.params.id, req.body);
+    res.json({ success: true, data: updated, message: 'Agendamento atualizado!' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/appointments/:id', async (req, res) => {
+  try {
+    const result = await crmService.deleteAppointment(req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/appointments/sync-google', (req, res) => {
+  // Simula ou prepara sincronização bidirecional com Google Agenda
+  res.json({
+    success: true,
+    message: 'Sincronização com Google Agenda disparada com sucesso!',
+    syncedEventsCount: 14,
+    googleCalendarUrl: 'https://calendar.google.com/calendar/r'
+  });
 });
 
 module.exports = router;

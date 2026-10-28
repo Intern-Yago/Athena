@@ -111,11 +111,115 @@ async function initCrmSchema() {
       );
     `);
 
+    // 5. Equipamentos (Omie Sync + Dimensões + 4 Valores de Venda)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS crm_equipments (
+        id VARCHAR(64) PRIMARY KEY,
+        omie_code VARCHAR(64),
+        omie_codigo_produto BIGINT,
+        name VARCHAR(255) NOT NULL,
+        sku VARCHAR(100),
+        image_url TEXT,
+        stock INT DEFAULT 0,
+        cmc_cost NUMERIC(12,2) DEFAULT 0,
+        price_fora_df_cnpj NUMERIC(12,2) DEFAULT 0,
+        price_fora_df_cpf NUMERIC(12,2) DEFAULT 0,
+        price_dentro_df_cnpj NUMERIC(12,2) DEFAULT 0,
+        price_dentro_df_cpf NUMERIC(12,2) DEFAULT 0,
+        product_height NUMERIC(8,2) DEFAULT 0,
+        product_width NUMERIC(8,2) DEFAULT 0,
+        product_depth NUMERIC(8,2) DEFAULT 0,
+        product_weight NUMERIC(8,2) DEFAULT 0,
+        package_height NUMERIC(8,2) DEFAULT 0,
+        package_width NUMERIC(8,2) DEFAULT 0,
+        package_depth NUMERIC(8,2) DEFAULT 0,
+        package_weight NUMERIC(8,2) DEFAULT 0,
+        sync_batch INT DEFAULT 0,
+        last_synced_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+
+    // 6. Base Central de Clientes do CRM
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS crm_customers (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(180) NOT NULL,
+        fantasy_name VARCHAR(180),
+        cpf VARCHAR(20),
+        cnpj VARCHAR(25),
+        phone VARCHAR(40),
+        email VARCHAR(180),
+        birthday DATE,
+        address TEXT,
+        city VARCHAR(100) DEFAULT 'Brasília',
+        state VARCHAR(10) DEFAULT 'DF',
+        cep VARCHAR(20),
+        marital_status VARCHAR(40) DEFAULT 'Solteiro(a)',
+        spouse_works_in_shop BOOLEAN DEFAULT false,
+        spouse_birthday DATE,
+        football_team VARCHAR(80),
+        hobbies TEXT,
+        category VARCHAR(60) DEFAULT 'Mecânica Geral',
+        pipeline_stage VARCHAR(60) DEFAULT 'lead',
+        notes TEXT,
+        equipments JSONB DEFAULT '[]'::jsonb,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS crm_customer_branches (
+        id VARCHAR(64) PRIMARY KEY,
+        customer_id VARCHAR(64) NOT NULL REFERENCES crm_customers(id) ON DELETE CASCADE,
+        label VARCHAR(100) NOT NULL,
+        address TEXT NOT NULL,
+        neighborhood VARCHAR(100),
+        city VARCHAR(100),
+        state VARCHAR(10),
+        cep VARCHAR(20),
+        phone VARCHAR(40),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS crm_customer_history (
+        id VARCHAR(64) PRIMARY KEY,
+        customer_id VARCHAR(64) NOT NULL REFERENCES crm_customers(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        title VARCHAR(180) NOT NULL,
+        details JSONB DEFAULT '{}'::jsonb,
+        occurred_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+
+    // 7. Agenda de Visitas e Compromissos
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS crm_appointments (
+        id VARCHAR(64) PRIMARY KEY,
+        customer_id VARCHAR(64) REFERENCES crm_customers(id) ON DELETE SET NULL,
+        title VARCHAR(180) NOT NULL,
+        description TEXT,
+        start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+        end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+        type VARCHAR(50) DEFAULT 'visita',
+        status VARCHAR(40) DEFAULT 'agendado',
+        location TEXT,
+        google_event_id VARCHAR(120),
+        created_by VARCHAR(120),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+
     // Índices de performance
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_stages_funnel ON crm_stages(funnel_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_leads_funnel ON crm_leads(funnel_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_leads_stage ON crm_leads(stage_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_leads_ra ON crm_leads(ra_df);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_equipments_sku ON crm_equipments(sku);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_doc ON crm_customers(cpf, cnpj);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_phone ON crm_customers(phone);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_appointments_time ON crm_appointments(start_time);`);
 
     // Ativação mandatória de Row Level Security (RLS) nas tabelas do CRM (Segurança Supabase)
     await client.query(`
@@ -124,6 +228,11 @@ async function initCrmSchema() {
       ALTER TABLE crm_leads ENABLE ROW LEVEL SECURITY;
       ALTER TABLE crm_activities ENABLE ROW LEVEL SECURITY;
       ALTER TABLE crm_workshops ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_equipments ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_customers ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_customer_branches ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_customer_history ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_appointments ENABLE ROW LEVEL SECURITY;
     `);
 
     // Semente inicial de Funis padrões se a tabela estiver vazia
@@ -215,8 +324,30 @@ if (crmPool) {
   initCrmSchema().catch(e => console.warn('[CRM Database] Aviso na checagem de schema:', e.message));
 }
 
+/**
+ * Heartbeat do Supabase: Executa pings recorrentes e mantém os pools ativos,
+ * impedindo que instâncias gratuitas do Supabase pausem por inatividade.
+ */
+async function pingSupabaseHeartbeat() {
+  const results = { crm: false, timestamp: new Date().toISOString() };
+  if (crmPool) {
+    try {
+      await crmPool.query('SELECT 1 as heartbeat');
+      results.crm = true;
+      console.log(`[Supabase Heartbeat] Ping executado com sucesso no CRM Supabase às ${results.timestamp}`);
+    } catch (e) {
+      console.warn('[Supabase Heartbeat] Falha no ping CRM:', e.message);
+    }
+  }
+  return results;
+}
+
+// Dispara heartbeat a cada 4 horas
+setInterval(pingSupabaseHeartbeat, 4 * 60 * 60 * 1000);
+
 module.exports = {
   crmPool,
   isCrmDbAvailable,
-  initCrmSchema
+  initCrmSchema,
+  pingSupabaseHeartbeat
 };

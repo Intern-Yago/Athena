@@ -47,17 +47,26 @@ export default function KanbanBoard({
   const [radarWorkshops, setRadarWorkshops] = useState([]);
   const [loadingRadarWorkshops, setLoadingRadarWorkshops] = useState(false);
 
+  // Carrega oficinas diretamente do Supabase via API do CRM (sem arquivo estático hardcoded)
   useEffect(() => {
     if (funnel?.id === 'fun_expansao_df' && radarWorkshops.length === 0) {
       setLoadingRadarWorkshops(true);
-      fetch('/radar_workshops.json')
-        .then(res => res.json())
+      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
+      fetch('/api/crm/workshops?all=true', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      })
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
         .then(data => {
-          if (Array.isArray(data)) {
-            setRadarWorkshops(data);
+          if (data && Array.isArray(data.workshops)) {
+            setRadarWorkshops(data.workshops);
           }
         })
-        .catch(err => console.warn('Aviso ao carregar radar_workshops.json:', err))
+        .catch(err => {
+          console.warn('Falha ao carregar oficinas do Supabase:', err.message);
+        })
         .finally(() => setLoadingRadarWorkshops(false));
     }
   }, [funnel?.id, radarWorkshops.length]);

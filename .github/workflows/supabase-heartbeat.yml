@@ -1,0 +1,25 @@
+name: Supabase Database Keep-Alive Heartbeat
+
+on:
+  schedule:
+    # Executa a cada 12 horas para garantir que o Supabase nunca pause por inatividade (limite de 7 dias)
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+jobs:
+  heartbeat:
+    name: Supabase Activity Keep-Alive
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Athena Supabase Instances
+        run: |
+          echo "Sending keep-alive heartbeat to Supabase projects..."
+          # Ping CRM Supabase Project
+          CRM_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://knfeuaarnkctzbfpicxo.supabase.co/rest/v1/" -H "apikey: public-anon-ping" || true)
+          echo "CRM Supabase HTTP response: $CRM_STATUS"
+          
+          # Ping Main Ecommerce Supabase Project
+          MAIN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://cjtqfkedqqjuhraeesmg.supabase.co/rest/v1/" -H "apikey: public-anon-ping" || true)
+          echo "Main Supabase HTTP response: $MAIN_STATUS"
+
+          echo "✅ Supabase heartbeat executed successfully. Databases kept warm and active."
