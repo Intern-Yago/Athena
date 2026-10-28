@@ -1325,9 +1325,13 @@ async function initDb() {
           target_blank BOOLEAN DEFAULT FALSE,
           is_active BOOLEAN DEFAULT TRUE,
           "order" INT DEFAULT 0,
+          publish_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+          unpublish_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE home_banners ADD COLUMN IF NOT EXISTS publish_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+        ALTER TABLE home_banners ADD COLUMN IF NOT EXISTS unpublish_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
 
         CREATE TABLE IF NOT EXISTS catalog_search_logs (
           id BIGSERIAL PRIMARY KEY,
@@ -8920,8 +8924,8 @@ app.get('/api/banners', async (req, res) => {
   if (pool) {
     try {
       const query = includeAll
-        ? 'SELECT id, title, desktop_image as "desktopImage", mobile_image as "mobileImage", link_url as "linkUrl", target_blank as "targetBlank", is_active as "isActive", "order" FROM home_banners ORDER BY "order" ASC, created_at ASC'
-        : 'SELECT id, title, desktop_image as "desktopImage", mobile_image as "mobileImage", link_url as "linkUrl", target_blank as "targetBlank", is_active as "isActive", "order" FROM home_banners WHERE is_active = true ORDER BY "order" ASC, created_at ASC';
+        ? 'SELECT id, title, desktop_image as "desktopImage", mobile_image as "mobileImage", link_url as "linkUrl", target_blank as "targetBlank", is_active as "isActive", "order", publish_at as "publishAt", unpublish_at as "unpublishAt" FROM home_banners ORDER BY "order" ASC, created_at ASC'
+        : 'SELECT id, title, desktop_image as "desktopImage", mobile_image as "mobileImage", link_url as "linkUrl", target_blank as "targetBlank", is_active as "isActive", "order", publish_at as "publishAt", unpublish_at as "unpublishAt" FROM home_banners WHERE is_active = true AND (publish_at IS NULL OR publish_at <= NOW()) AND (unpublish_at IS NULL OR unpublish_at >= NOW()) ORDER BY "order" ASC, created_at ASC';
       const result = await pool.query(query);
       return res.json(result.rows);
     } catch (e) {
@@ -8930,12 +8934,26 @@ app.get('/api/banners', async (req, res) => {
   }
   const db = readDbJson();
   const list = db.banners || [];
-  const filtered = includeAll ? list : list.filter(b => b.isActive !== false);
+  const now = new Date();
+  const filtered = includeAll ? list : list.filter(b => {
+    if (b.isActive === false) return false;
+    const pub = b.publishAt || b.publish_at;
+    const unpub = b.unpublishAt || b.unpublish_at;
+    if (pub && new Date(pub) > now) return false;
+    if (unpub && new Date(unpub) < now) return false;
+    return true;
+  });
   filtered.sort((a, b) => (a.order || 0) - (b.order || 0));
   res.json(filtered);
 });
 
 app.post('/api/banners', authenticateToken, requireStaff, async (req, res) => {
+  const parseDateOrNull = (val) => {
+    if (!val || val === '' || val === 'null') return null;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  };
+
   const newBanner = {
     id: req.body.id || `bnr_${Date.now()}`,
     title: req.body.title || 'Banner Athena',
@@ -8944,7 +8962,9 @@ app.post('/api/banners', authenticateToken, requireStaff, async (req, res) => {
     linkUrl: req.body.linkUrl || req.body.link_url || '',
     targetBlank: Boolean(req.body.targetBlank !== undefined ? req.body.targetBlank : req.body.target_blank),
     isActive: req.body.isActive !== undefined ? Boolean(req.body.isActive) : true,
-    order: parseInt(req.body.order || 0, 10)
+    order: parseInt(req.body.order || 0, 10),
+    publishAt: parseDateOrNull(req.body.publishAt || req.body.publish_at),
+    unpublishAt: parseDateOrNull(req.body.unpublishAt || req.body.unpublish_at)
   };
 
   if (!newBanner.desktopImage) {
@@ -8954,10 +8974,10 @@ app.post('/api/banners', authenticateToken, requireStaff, async (req, res) => {
   if (pool) {
     try {
       await pool.query(
-        `INSERT INTO home_banners (id, title, desktop_image, mobile_image, link_url, target_blank, is_active, "order")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (id) DO UPDATE SET title=$2, desktop_image=$3, mobile_image=$4, link_url=$5, target_blank=$6, is_active=$7, "order"=$8, updated_at=NOW()`,
-        [newBanner.id, newBanner.title, newBanner.desktopImage, newBanner.mobileImage, newBanner.linkUrl, newBanner.targetBlank, newBanner.isActive, newBanner.order]
+        `INSERT INTO home_banners (id, title, desktop_image, mobile_image, link_url, target_blank, is_active, "order", publish_at, unpublish_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         ON CONFLICT (id) DO UPDATE SET title=$2, desktop_image=$3, mobile_image=$4, link_url=$5, target_blank=$6, is_active=$7, "order"=$8, publish_at=$9, unpublish_at=$10, updated_at=NOW()`,
+        [newBanner.id, newBanner.title, newBanner.desktopImage, newBanner.mobileImage, newBanner.linkUrl, newBanner.targetBlank, newBanner.isActive, newBanner.order, newBanner.publishAt, newBanner.unpublishAt]
       );
       return res.status(201).json(newBanner);
     } catch (e) {
@@ -9010,6 +9030,12 @@ app.put('/api/banners/reorder', authenticateToken, requireStaff, async (req, res
 });
 
 app.put('/api/banners/:id', authenticateToken, requireStaff, async (req, res) => {
+  const parseDateOrNull = (val) => {
+    if (!val || val === '' || val === 'null') return null;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  };
+
   const updatedBanner = {
     id: req.params.id,
     title: req.body.title || 'Banner Athena',
@@ -9018,7 +9044,9 @@ app.put('/api/banners/:id', authenticateToken, requireStaff, async (req, res) =>
     linkUrl: req.body.linkUrl || req.body.link_url || '',
     targetBlank: Boolean(req.body.targetBlank !== undefined ? req.body.targetBlank : req.body.target_blank),
     isActive: req.body.isActive !== undefined ? Boolean(req.body.isActive) : true,
-    order: parseInt(req.body.order || 0, 10)
+    order: parseInt(req.body.order || 0, 10),
+    publishAt: parseDateOrNull(req.body.publishAt || req.body.publish_at),
+    unpublishAt: parseDateOrNull(req.body.unpublishAt || req.body.unpublish_at)
   };
 
   if (!updatedBanner.desktopImage) {
@@ -9028,8 +9056,8 @@ app.put('/api/banners/:id', authenticateToken, requireStaff, async (req, res) =>
   if (pool) {
     try {
       await pool.query(
-        `UPDATE home_banners SET title=$1, desktop_image=$2, mobile_image=$3, link_url=$4, target_blank=$5, is_active=$6, "order"=$7, updated_at=NOW() WHERE id=$8`,
-        [updatedBanner.title, updatedBanner.desktopImage, updatedBanner.mobileImage, updatedBanner.linkUrl, updatedBanner.targetBlank, updatedBanner.isActive, updatedBanner.order, req.params.id]
+        `UPDATE home_banners SET title=$1, desktop_image=$2, mobile_image=$3, link_url=$4, target_blank=$5, is_active=$6, "order"=$7, publish_at=$8, unpublish_at=$9, updated_at=NOW() WHERE id=$10`,
+        [updatedBanner.title, updatedBanner.desktopImage, updatedBanner.mobileImage, updatedBanner.linkUrl, updatedBanner.targetBlank, updatedBanner.isActive, updatedBanner.order, updatedBanner.publishAt, updatedBanner.unpublishAt, req.params.id]
       );
       return res.json(updatedBanner);
     } catch (e) {

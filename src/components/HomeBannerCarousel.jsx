@@ -21,10 +21,28 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
   const touchDeltaXRef = useRef(0);
   const timerRef = useRef(null);
 
-  // Filtra apenas banners ativos e que tenham pelo menos a imagem desktop
-  const activeBanners = (banners || []).filter(
-    (b) => b && (b.isActive !== false) && (b.desktopImage || b.desktop_image)
-  );
+  // Filtra apenas banners ativos, com imagem e cuja janela de agendamento esteja em vigor
+  const now = Date.now();
+  const activeBanners = (banners || []).filter((b) => {
+    if (!b || b.isActive === false) return false;
+    if (!b.desktopImage && !b.desktop_image) return false;
+
+    // Checagem de agendamento de publicação futura
+    const pub = b.publishAt || b.publish_at;
+    if (pub) {
+      const pubMs = new Date(pub).getTime();
+      if (!isNaN(pubMs) && now < pubMs) return false;
+    }
+
+    // Checagem de encerramento / término de agendamento
+    const unpub = b.unpublishAt || b.unpublish_at;
+    if (unpub) {
+      const unpubMs = new Date(unpub).getTime();
+      if (!isNaN(unpubMs) && now > unpubMs) return false;
+    }
+
+    return true;
+  });
 
   const total = activeBanners.length;
 

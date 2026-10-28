@@ -28,6 +28,8 @@ import {
   MousePointer,
   Globe,
   Users,
+  Calendar,
+  Clock,
   Printer,
   LogOut,
   UserCheck,
@@ -534,6 +536,8 @@ export default function AdminPanel({
     linkUrl: '',
     targetBlank: false,
     isActive: true,
+    publishAt: '',
+    unpublishAt: '',
     order: 0
   });
 
@@ -3461,7 +3465,76 @@ export default function AdminPanel({
     setEditingBrand(null);
   };
 
-  // BANNER HANDLERS
+  // BANNER HANDLERS & SCHEDULE HELPERS
+  const formatDateTimeLocal = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const formatScheduleLabel = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getBannerScheduleInfo = (banner) => {
+    const isActive = banner?.isActive !== false;
+    if (!isActive) {
+      return { status: 'paused', label: 'Pausado', badgeClass: 'bg-slate-200 text-slate-700' };
+    }
+
+    const now = Date.now();
+    const pub = banner?.publishAt || banner?.publish_at;
+    const unpub = banner?.unpublishAt || banner?.unpublish_at;
+
+    const pubTime = pub ? new Date(pub).getTime() : null;
+    const unpubTime = unpub ? new Date(unpub).getTime() : null;
+
+    if (pubTime && !isNaN(pubTime) && now < pubTime) {
+      return {
+        status: 'scheduled',
+        label: `Agendado para ${formatScheduleLabel(pub)}`,
+        badgeClass: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
+        isScheduled: true
+      };
+    }
+
+    if (unpubTime && !isNaN(unpubTime) && now > unpubTime) {
+      return {
+        status: 'expired',
+        label: `Encerrado em ${formatScheduleLabel(unpub)}`,
+        badgeClass: 'bg-red-100 text-red-800 border border-red-200',
+        isExpired: true
+      };
+    }
+
+    if (unpubTime && !isNaN(unpubTime)) {
+      return {
+        status: 'active',
+        label: `Ativo no Site (até ${formatScheduleLabel(unpub)})`,
+        badgeClass: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
+        isActive: true
+      };
+    }
+
+    return {
+      status: 'active',
+      label: 'Ativo no Site',
+      badgeClass: 'bg-emerald-100 text-emerald-800',
+      isActive: true
+    };
+  };
+
   const openNewBannerModal = () => {
     setEditingBanner(null);
     setBannerForm({
@@ -3471,6 +3544,8 @@ export default function AdminPanel({
       linkUrl: '',
       targetBlank: false,
       isActive: true,
+      publishAt: '',
+      unpublishAt: '',
       order: (banners || []).length + 1
     });
     setIsBannerModalOpen(true);
@@ -3485,6 +3560,8 @@ export default function AdminPanel({
       linkUrl: bannerObj.linkUrl || bannerObj.link_url || '',
       targetBlank: Boolean(bannerObj.targetBlank !== undefined ? bannerObj.targetBlank : bannerObj.target_blank),
       isActive: bannerObj.isActive !== undefined ? Boolean(bannerObj.isActive) : true,
+      publishAt: formatDateTimeLocal(bannerObj.publishAt || bannerObj.publish_at),
+      unpublishAt: formatDateTimeLocal(bannerObj.unpublishAt || bannerObj.unpublish_at),
       order: bannerObj.order || 0
     });
     setIsBannerModalOpen(true);
@@ -3505,6 +3582,8 @@ export default function AdminPanel({
       linkUrl: bannerForm.linkUrl.trim(),
       targetBlank: Boolean(bannerForm.targetBlank),
       isActive: Boolean(bannerForm.isActive),
+      publishAt: bannerForm.publishAt ? new Date(bannerForm.publishAt).toISOString() : null,
+      unpublishAt: bannerForm.unpublishAt ? new Date(bannerForm.unpublishAt).toISOString() : null,
       order: editingBanner ? (bannerForm.order || 0) : (banners || []).length + 1
     };
 
@@ -5971,15 +6050,18 @@ export default function AdminPanel({
                               {b.title || 'Banner sem título'}
                             </span>
 
-                            {isActive ? (
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold inline-flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Ativo no Site
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold">
-                                Pausado
-                              </span>
-                            )}
+                            {(() => {
+                              const sched = getBannerScheduleInfo(b);
+                              return (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${sched.badgeClass}`}>
+                                  {sched.status === 'scheduled' && <Clock className="w-3 h-3 text-amber-700 animate-pulse" />}
+                                  {sched.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                                  {sched.status === 'expired' && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+                                  {sched.status === 'paused' && <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />}
+                                  {sched.label}
+                                </span>
+                              );
+                            })()}
 
                             {mobileImg ? (
                               <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-bold">
@@ -10914,6 +10996,94 @@ export default function AdminPanel({
                     categories={categories}
                     brands={brands}
                   />
+                </div>
+
+                {/* Agendamento de Publicação (Programar Início e Término Automático) */}
+                <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-amber-600" />
+                      Agendamento de Publicação (Opcional)
+                    </label>
+                    <span className="text-[10px] text-amber-800 font-mono">Programação Automática</span>
+                  </div>
+
+                  <p className="text-[11px] text-amber-900/80 leading-relaxed">
+                    Programe a data e o horário exato para este banner entrar no ar. Deixe a data de início em branco para publicar imediatamente.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-sky-600" />
+                        Publicar em (Início)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={bannerForm.publishAt}
+                        onChange={(e) => setBannerForm({ ...bannerForm, publishAt: e.target.value })}
+                        className="form-input text-xs w-full"
+                      />
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => setBannerForm({ ...bannerForm, publishAt: '' })}
+                          className="text-[10px] text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                        >
+                          Publicar Imediato
+                        </button>
+                        <span className="text-[10px] text-slate-300">•</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const now = new Date();
+                            const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+                            setBannerForm({ ...bannerForm, publishAt: formatDateTimeLocal(nextMonth) });
+                          }}
+                          className="text-[10px] text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer"
+                        >
+                          1º dia do mês que vem
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-red-500" />
+                        Despublicar em (Término Opcional)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={bannerForm.unpublishAt}
+                        onChange={(e) => setBannerForm({ ...bannerForm, unpublishAt: e.target.value })}
+                        className="form-input text-xs w-full"
+                      />
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setBannerForm({ ...bannerForm, unpublishAt: '' })}
+                          className="text-[10px] text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                        >
+                          Sem expiração (contínuo)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {bannerForm.publishAt && (
+                    <div className={`p-2.5 rounded-xl text-xs flex items-center gap-2 ${
+                      new Date(bannerForm.publishAt).getTime() > Date.now()
+                        ? 'bg-amber-100/90 text-amber-900 border border-amber-300'
+                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    }`}>
+                      <Calendar className="w-4 h-4 shrink-0" />
+                      <span>
+                        {new Date(bannerForm.publishAt).getTime() > Date.now()
+                          ? `🕒 Agendado: Este banner NÃO aparecerá na Home antes de ${formatScheduleLabel(bannerForm.publishAt)}.`
+                          : `⚡ Data no passado/presente: Este banner ficará visível imediatamente ao salvar.`}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Active Toggle */}
