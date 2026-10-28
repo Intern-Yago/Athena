@@ -493,12 +493,56 @@ export default function KanbanBoard({
     };
   }, []);
 
+  // Intercepta Ctrl + Scroll e atalhos Ctrl/Cmd + / - para controlar o Zoom exclusivo do Kanban
+  useEffect(() => {
+    const handleGlobalWheel = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.08 : -0.08;
+        setZoomLevel(z => {
+          const next = Number((z + delta).toFixed(2));
+          return Math.max(0.55, Math.min(1.15, next));
+        });
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+
+      // Atalho de Zoom In: Ctrl/Cmd e '+' ou '='
+      if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') {
+        e.preventDefault();
+        setZoomLevel(z => Math.min(1.15, Number((z + 0.10).toFixed(2))));
+      } 
+      // Atalho de Zoom Out: Ctrl/Cmd e '-' ou '_'
+      else if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') {
+        e.preventDefault();
+        setZoomLevel(z => Math.max(0.55, Number((z - 0.10).toFixed(2))));
+      } 
+      // Atalho de Reset de Zoom: Ctrl/Cmd e '0'
+      else if (e.key === '0' || e.code === 'Numpad0') {
+        e.preventDefault();
+        setZoomLevel(1);
+      }
+    };
+
+    window.addEventListener('wheel', handleGlobalWheel, { passive: false });
+    window.addEventListener('keydown', handleKeyDown, { passive: false });
+
+    return () => {
+      window.removeEventListener('wheel', handleGlobalWheel);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   // Rolagem horizontal com a roda do mouse quando fora de listas com overflow vertical
   useEffect(() => {
     const el = boardRef.current;
     if (!el) return;
 
     const handleWheel = (e) => {
+      if (e.ctrlKey || e.metaKey) return; // Tratado pelo listener de zoom global
+
       const cardList = e.target.closest('.kanban-card-list');
       if (cardList && cardList.scrollHeight > cardList.clientHeight) {
         const atTop = cardList.scrollTop <= 0 && e.deltaY < 0;
@@ -999,29 +1043,32 @@ export default function KanbanBoard({
       </div>
 
       {/* Floating Zoom Controller no Rodapé */}
-      <div className={`fixed bottom-4 right-6 z-40 rounded-2xl border shadow-2xl flex items-center gap-1.5 p-1.5 backdrop-blur-md transition-all ${
-        isDark ? 'bg-slate-900/90 border-slate-700 text-white shadow-black/50' : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-300/50'
-      }`}>
+      <div 
+        className={`fixed bottom-4 right-6 z-40 rounded-2xl border shadow-2xl flex items-center gap-1.5 p-1.5 backdrop-blur-md transition-all ${
+          isDark ? 'bg-slate-900/90 border-slate-700 text-white shadow-black/50' : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-300/50'
+        }`}
+        title="Atalhos: Ctrl + Scroll do mouse ou Ctrl e + / -"
+      >
         <button
           type="button"
-          onClick={() => setZoomLevel(z => Math.max(0.55, Number((z - 0.15).toFixed(2))))}
+          onClick={() => setZoomLevel(z => Math.max(0.55, Number((z - 0.10).toFixed(2))))}
           disabled={zoomLevel <= 0.55}
           className="p-1.5 rounded-xl hover:bg-slate-800/20 disabled:opacity-30 cursor-pointer transition"
-          title="Diminuir Zoom"
+          title="Diminuir Zoom (Ctrl e -)"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
 
-        <span className="text-xs font-mono font-bold px-1 min-w-[42px] text-center" title="Nível de Zoom">
+        <span className="text-xs font-mono font-bold px-1 min-w-[42px] text-center" title="Nível de Zoom do Kanban (Ctrl + Scroll)">
           {Math.round(zoomLevel * 100)}%
         </span>
 
         <button
           type="button"
-          onClick={() => setZoomLevel(z => Math.min(1.15, Number((z + 0.15).toFixed(2))))}
+          onClick={() => setZoomLevel(z => Math.min(1.15, Number((z + 0.10).toFixed(2))))}
           disabled={zoomLevel >= 1.15}
           className="p-1.5 rounded-xl hover:bg-slate-800/20 disabled:opacity-30 cursor-pointer transition"
-          title="Aumentar Zoom"
+          title="Aumentar Zoom (Ctrl e +)"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
@@ -1031,7 +1078,7 @@ export default function KanbanBoard({
             type="button"
             onClick={() => setZoomLevel(1)}
             className="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer"
-            title="Redefinir Zoom para 100%"
+            title="Redefinir Zoom para 100% (Ctrl e 0)"
           >
             100%
           </button>

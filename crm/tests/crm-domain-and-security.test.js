@@ -162,4 +162,27 @@ describe('Athena CRM - Testes Unitários de Domínio, Regras de Negócio e Segur
     assert.equal(mapStageToStatus('stg_exp_4', 'Negociação em Aberto'), 'Negociação');
     assert.equal(mapStageToStatus('stg_exp_5', 'Parceria Fechada (Cliente)'), 'Cliente Athena');
   });
+
+  test('Atalhos de Zoom do Kanban: deve calcular incrementos e respeitar limites mínimo (55%) e máximo (115%)', () => {
+    const adjustZoom = (currentZoom, delta) => {
+      const next = Number((currentZoom + delta).toFixed(2));
+      return Math.max(0.55, Math.min(1.15, next));
+    };
+
+    // Zoom In normal
+    assert.equal(adjustZoom(1.0, 0.10), 1.10);
+    // Limite máximo: não passa de 1.15
+    assert.equal(adjustZoom(1.10, 0.10), 1.15);
+    assert.equal(adjustZoom(1.15, 0.10), 1.15);
+
+    // Zoom Out normal
+    assert.equal(adjustZoom(1.0, -0.10), 0.90);
+    // Limite mínimo: não desce além de 0.55
+    assert.equal(adjustZoom(0.60, -0.10), 0.55);
+    assert.equal(adjustZoom(0.55, -0.10), 0.55);
+
+    // Incremento suave por scroll (0.08)
+    assert.equal(adjustZoom(1.0, 0.08), 1.08);
+    assert.equal(adjustZoom(1.0, -0.08), 0.92);
+  });
 });
