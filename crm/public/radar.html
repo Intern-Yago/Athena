@@ -1360,34 +1360,60 @@ let dadosFiltrados = [];
 let dadosCarregados = false;
 
 async function carregarOficinasDoSupabase() {
-    try {
-        const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-        const res = await fetch('/api/crm/workshops?all=true', {
-            headers: token ? { 'Authorization': 'Bearer ' + token } : {}
-        });
-        if (res.ok) {
-            const data = await res.json();
-            if (data && Array.isArray(data.workshops)) {
-                TODOS_DADOS = data.workshops.map(w => ({
-                    id: w.id,
-                    ra: w.regiao_administrativa || '',
-                    cat: w.categoria || 'Mecânica Geral',
-                    nome: w.nome_fantasia || w.razao_social || 'Oficina DF',
-                    rz: w.razao_social || '',
-                    cnpj: w.cnpj || '',
-                    tel: w.telefone_principal || '',
-                    end: w.endereco_completo || '',
-                    bairro: w.bairro || '',
-                    st: w.status_visita || 'Não Visitado',
-                    dt: '',
-                    obs: w.observacoes || '',
-                    lat: parseFloat(w.latitude) || -15.7942,
-                    lng: parseFloat(w.longitude) || -47.8822
-                }));
+    let rawWorkshops = null;
+    const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const primaryUrl = isLocal ? 'http://localhost:3001/api/crm/workshops?all=true' : 'https://athena-backend-hu1m.onrender.com/api/crm/workshops?all=true';
+
+    // 1. Tenta carregar do backend (Render direto ou proxy Vercel)
+    const urls = [primaryUrl, '/api/crm/workshops?all=true'];
+    for (const url of urls) {
+        if (rawWorkshops) break;
+        try {
+            const res = await fetch(url, {
+                headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && Array.isArray(data.workshops) && data.workshops.length > 0) {
+                    rawWorkshops = data.workshops;
+                }
             }
+        } catch (_) {}
+    }
+
+    // 2. Se backend estiver em processo de deploy no Render ou offline, fallback instantâneo estático
+    if (!rawWorkshops) {
+        try {
+            const res = await fetch('/radar_workshops.json');
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    rawWorkshops = data;
+                }
+            }
+        } catch (e) {
+            console.warn('Fallback offline radar carregado:', e);
         }
-    } catch (err) {
-        console.warn('Erro ao carregar oficinas do Supabase:', err);
+    }
+
+    if (Array.isArray(rawWorkshops) && rawWorkshops.length > 0) {
+        TODOS_DADOS = rawWorkshops.map(w => ({
+            id: w.id,
+            ra: w.regiao_administrativa || w.ra || '',
+            cat: w.categoria || w.cat || 'Mecânica Geral',
+            nome: w.nome_fantasia || w.razao_social || w.nome || 'Oficina DF',
+            rz: w.razao_social || w.rz || '',
+            cnpj: w.cnpj || '',
+            tel: w.telefone_principal || w.tel || '',
+            end: w.endereco_completo || w.end || '',
+            bairro: w.bairro || '',
+            st: w.status_visita || w.st || 'Não Visitado',
+            dt: '',
+            obs: w.observacoes || w.obs || '',
+            lat: parseFloat(w.latitude || w.lat) || -15.7942,
+            lng: parseFloat(w.longitude || w.lng) || -47.8822
+        }));
     }
 
     // Aplica eventuais edições locais
@@ -2052,17 +2078,28 @@ function salvarEdicao(event) {
     };
     
     salvarLocalStorage();
-    // Persiste atualização diretamente no banco de dados Supabase
+    // Persiste atualização no banco de dados Supabase e em cache
     try {
         const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-        fetch('/api/crm/workshops/' + id + '/status', {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const primaryUrl = isLocal ? 'http://localhost:3001/api/crm/workshops/' + id + '/status' : 'https://athena-backend-hu1m.onrender.com/api/crm/workshops/' + id + '/status';
+        fetch(primaryUrl, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': 'Bearer ' + token } : {})
             },
             body: JSON.stringify({ status: item.st, observacoes: item.obs })
-        }).catch(e => console.warn('Aviso ao sincronizar no Supabase:', e));
+        }).catch(() => {
+            fetch('/api/crm/workshops/' + id + '/status', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+                },
+                body: JSON.stringify({ status: item.st, observacoes: item.obs })
+            }).catch(e => console.warn('Aviso ao sincronizar no Supabase:', e));
+        });
     } catch (e) {}
     fecharModal();
     atualizarKPIs();

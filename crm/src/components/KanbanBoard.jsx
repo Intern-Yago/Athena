@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { crmApiFetch } from '../utils/api';
+import { fetchOfflineWorkshops, getOfflineWorkshopStats, saveOfflineWorkshopStatus } from '../utils/workshopsFallback';
 import { 
   Plus, 
   Search, 
@@ -153,9 +154,17 @@ export default function KanbanBoard({
         .then(data => {
           if (data && data.success && Array.isArray(data.byRa)) {
             setAvailableRas(data.byRa.map(r => r.ra).filter(Boolean));
+          } else {
+            getOfflineWorkshopStats().then(off => {
+              if (off && Array.isArray(off.byRa)) setAvailableRas(off.byRa.map(r => r.ra).filter(Boolean));
+            });
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          getOfflineWorkshopStats().then(off => {
+            if (off && Array.isArray(off.byRa)) setAvailableRas(off.byRa.map(r => r.ra).filter(Boolean));
+          });
+        });
     }
   }, [isExpansionFunnel]);
 
@@ -175,12 +184,24 @@ export default function KanbanBoard({
       if (searchParam) params.append('search', searchParam);
       if (ra && ra !== 'all') params.append('ra', ra);
 
-      const res = await crmApiFetch(`/crm/workshops?${params.toString()}`);
-      if (!res.ok) {
-        // Rota aguardando conclusão do deploy no servidor; retorno silencioso sem poluir console
-        return;
+      let data = null;
+      try {
+        const res = await crmApiFetch(`/crm/workshops?${params.toString()}`);
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (_) {}
+
+      // Se API estiver em deploy ou offline, recorre transparentemente ao dataset DF
+      if (!data || !data.success || !Array.isArray(data.workshops)) {
+        data = await fetchOfflineWorkshops({
+          ra,
+          search: searchParam,
+          status: statusParam,
+          page,
+          limit: 35
+        });
       }
-      const data = await res.json();
 
       if (data && data.success && Array.isArray(data.workshops)) {
         const newLeads = data.workshops.map(w => workshopToLead(w, stageId, funnel?.id));
@@ -413,7 +434,8 @@ export default function KanbanBoard({
           return next;
         });
 
-        // Persiste atualização no banco de dados Supabase via crmApiFetch
+        // Persiste alteração localmente e no banco de dados Supabase
+        saveOfflineWorkshopStatus(workshopId, { status: newStatus });
         try {
           await crmApiFetch(`/crm/workshops/${workshopId}/status`, {
             method: 'PUT',
