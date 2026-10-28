@@ -108,7 +108,7 @@ export default function AgendaView() {
     return localStorage.getItem('athena_google_sync_email') || user?.email || 'admathenas2026@gmail.com';
   });
   const [googleClientId, setGoogleClientId] = useState(() => {
-    return localStorage.getItem('athena_google_client_id') || '';
+    return localStorage.getItem('athena_google_client_id') || '140959731847-hhe81mqovj34413roo2nbqt394aku5g9.apps.googleusercontent.com';
   });
   const [googleTab, setGoogleTab] = useState('quick'); // 'quick' | 'oauth'
 
