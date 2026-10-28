@@ -87,7 +87,8 @@ function CRMContent() {
   // Carrega Funis
   const loadFunnels = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/crm/funnels`, {
+      const res = await fetch(`${API_BASE_URL}/crm/funnels?_t=${Date.now()}`, {
+        cache: 'no-store',
         headers: getAuthHeaders()
       });
       const data = await res.json();
@@ -104,9 +105,12 @@ function CRMContent() {
     try {
       setLeads([]);
       const url = funnelId 
-        ? `${API_BASE_URL}/crm/leads?funnelId=${funnelId}` 
-        : `${API_BASE_URL}/crm/leads`;
-      const res = await fetch(url, { headers: getAuthHeaders() });
+        ? `${API_BASE_URL}/crm/leads?funnelId=${funnelId}&_t=${Date.now()}` 
+        : `${API_BASE_URL}/crm/leads?_t=${Date.now()}`;
+      const res = await fetch(url, { 
+        cache: 'no-store',
+        headers: getAuthHeaders() 
+      });
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setLeads(data.data);
