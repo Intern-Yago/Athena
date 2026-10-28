@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { crmApiFetch } from '../utils/api';
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -55,10 +56,7 @@ export default function AgendaView() {
   const loadAppointments = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      const res = await fetch('/api/crm/appointments', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const res = await crmApiFetch('/crm/appointments');
       if (res.ok) {
         const data = await res.json();
         setAppointments(data.data || []);
@@ -95,14 +93,31 @@ export default function AgendaView() {
     setCurrentDate(new Date());
   };
 
+  // Abrir modal de criação pré-preenchido com a data/hora clicada (Igual ao Google Agenda)
+  const openQuickCreate = (targetDate, targetHour = 10) => {
+    const dStr = targetDate instanceof Date ? targetDate.toISOString().slice(0, 10) : targetDate;
+    const startHourStr = String(targetHour).padStart(2, '0') + ':00';
+    const endHourStr = String(Math.min(23, targetHour + 1)).padStart(2, '0') + ':00';
+
+    setNewEvent({
+      title: '',
+      customer_id: '',
+      description: '',
+      date: dStr,
+      start_time: startHourStr,
+      end_time: endHourStr,
+      type: 'visita',
+      location: ''
+    });
+    setShowEventModal(true);
+  };
+
   // Sincronizar com Google Agenda
   const handleSyncGoogle = async () => {
     setSyncingGoogle(true);
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      const res = await fetch('/api/crm/appointments/sync-google', {
-        method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      const res = await crmApiFetch('/crm/appointments/sync-google', {
+        method: 'POST'
       });
       if (res.ok) {
         setGoogleSyncSuccess(true);
@@ -122,15 +137,13 @@ export default function AgendaView() {
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
       const startDateTime = `${newEvent.date}T${newEvent.start_time}:00Z`;
       const endDateTime = `${newEvent.date}T${newEvent.end_time}:00Z`;
 
-      const res = await fetch('/api/crm/appointments', {
+      const res = await crmApiFetch('/crm/appointments', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           title: newEvent.title,
@@ -169,7 +182,7 @@ export default function AgendaView() {
   const getDaysOfWeek = (date) => {
     const startOfWeek = new Date(date);
     const day = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - day; // Domingo como primeiro dia
+    const diff = startOfWeek.getDate() - day;
     startOfWeek.setDate(diff);
 
     const days = [];
@@ -185,7 +198,7 @@ export default function AgendaView() {
 
   // Posição percentual da linha vermelha (horário atual)
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const redLineTopPercent = (currentMinutes / 1440) * 100; // 1440 min num dia
+  const redLineTopPercent = (currentMinutes / 1440) * 100;
 
   const isToday = (d) => {
     const today = new Date();
@@ -195,6 +208,25 @@ export default function AgendaView() {
   };
 
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+  // Helper para dias do mês na visão Mensal
+  const getDaysInMonth = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+
+    const days = [];
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
+    }
+    for (let i = 1; i <= totalDays; i++) {
+      days.push(new Date(year, month, i));
+    }
+    return days;
+  };
+
+  const monthGridDays = getDaysInMonth();
 
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden select-none ${
@@ -231,7 +263,7 @@ export default function AgendaView() {
             <button
               type="button"
               onClick={handlePrev}
-              className={`p-1.5 rounded-lg border transition ${
+              className={`p-1.5 rounded-lg border transition cursor-pointer ${
                 isDark ? 'border-slate-800 hover:bg-slate-800 text-slate-300' : 'border-slate-300 hover:bg-slate-100 text-slate-700'
               }`}
               title="Anterior"
@@ -241,7 +273,7 @@ export default function AgendaView() {
             <button
               type="button"
               onClick={handleNext}
-              className={`p-1.5 rounded-lg border transition ${
+              className={`p-1.5 rounded-lg border transition cursor-pointer ${
                 isDark ? 'border-slate-800 hover:bg-slate-800 text-slate-300' : 'border-slate-300 hover:bg-slate-100 text-slate-700'
               }`}
               title="Próximo"
@@ -257,14 +289,13 @@ export default function AgendaView() {
 
         {/* Direita: Botão Google Sync, Seletor de Visão e Novo Evento */}
         <div className="flex items-center gap-2.5">
-          {/* BOTÃO PARA SINCRONIZAR COM O GOOGLE AGENDA (Pedido pelo usuário) */}
+          {/* BOTÃO PARA SINCRONIZAR COM O GOOGLE AGENDA */}
           <button
             type="button"
             onClick={() => setShowGoogleModal(true)}
             className="px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition cursor-pointer bg-white text-slate-800 hover:bg-slate-100 shadow-xs border-slate-300"
             title="Sincronizar visitas e compromissos com o Google Agenda"
           >
-            {/* Ícone oficial Google Calendar com 4 cores */}
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22 6c0-1.1-.9-2-2-2h-3V2h-2v2H9V2H7v2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z"/>
               <path fill="#34A853" d="M4 22h16c1.1 0 2-.9 2-2V9H2v11c0 1.1.9 2 2 2z"/>
@@ -297,7 +328,7 @@ export default function AgendaView() {
           {/* Botão Novo Agendamento */}
           <button
             type="button"
-            onClick={() => setShowEventModal(true)}
+            onClick={() => openQuickCreate(new Date(), 10)}
             className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 transition cursor-pointer shadow-xs"
           >
             <Plus className="w-4 h-4" />
@@ -307,65 +338,52 @@ export default function AgendaView() {
       </div>
 
       {/* ============================================================ */}
-      {/* CORPO DA AGENDA: SEMANAL / DIÁRIO COM LINHA VERMELHA VIVA    */}
+      {/* CORPO DA AGENDA: SEMANAL / DIÁRIO                            */}
+      {/* (SEM COLUNA GMT E CENTRALIZADO NO DIÁRIO)                    */}
       {/* ============================================================ */}
       {viewMode === 'semanal' || viewMode === 'diario' ? (
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-          {/* Header dos Dias da Semana */}
-          <div className={`grid ${viewMode === 'semanal' ? 'grid-cols-8' : 'grid-cols-2'} border-b shrink-0 text-xs ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            {/* Canto do fuso horário */}
-            <div className={`p-2.5 text-[10px] text-slate-400 font-mono text-center border-r ${
-              isDark ? 'border-slate-800' : 'border-slate-200'
-            }`}>
-              GMT-3
+          <div className={`flex-1 flex flex-col overflow-hidden ${viewMode === 'diario' ? 'max-w-3xl mx-auto w-full' : 'w-full'}`}>
+            {/* Header dos Dias da Semana (Sem coluna de GMT) */}
+            <div className="flex border-b shrink-0 text-xs bg-slate-900 border-slate-800">
+              {/* Espaço das horas */}
+              <div className="w-14 sm:w-16 shrink-0 border-r border-slate-800/80" />
+
+              {/* Colunas dos Dias */}
+              <div className="flex-1 grid grid-flow-col auto-cols-fr divide-x divide-slate-800">
+                {(viewMode === 'semanal' ? weekDays : [currentDate]).map((d, i) => {
+                  const today = isToday(d);
+                  return (
+                    <div 
+                      key={i} 
+                      onClick={() => openQuickCreate(d, 10)}
+                      className={`p-2 text-center transition cursor-pointer hover:bg-slate-800/40 ${
+                        today ? (isDark ? 'bg-amber-500/5' : 'bg-amber-50/70') : ''
+                      }`}
+                      title="Clique para adicionar agendamento neste dia"
+                    >
+                      <div className="text-[10px] uppercase font-bold text-slate-400">
+                        {d.toLocaleDateString('pt-BR', { weekday: 'short' })}
+                      </div>
+                      <div className="mt-0.5 flex justify-center">
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs ${
+                          today
+                            ? 'bg-amber-500 text-slate-950 shadow-sm'
+                            : isDark ? 'text-slate-200' : 'text-slate-800'
+                        }`}>
+                          {d.getDate()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Colunas dos Dias */}
-            {(viewMode === 'semanal' ? weekDays : [currentDate]).map((d, i) => {
-              const today = isToday(d);
-              return (
-                <div 
-                  key={i} 
-                  className={`p-2 text-center border-r last:border-r-0 transition ${
-                    isDark ? 'border-slate-800' : 'border-slate-200'
-                  } ${today ? (isDark ? 'bg-amber-500/5' : 'bg-amber-50/70') : ''}`}
-                >
-                  <div className="text-[10px] uppercase font-bold text-slate-400">
-                    {d.toLocaleDateString('pt-BR', { weekday: 'short' })}
-                  </div>
-                  {/* Marcação sutil destacando o dia atual */}
-                  <div className="mt-0.5 flex justify-center">
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-xs ${
-                      today
-                        ? 'bg-amber-500 text-slate-950 shadow-sm'
-                        : isDark ? 'text-slate-200' : 'text-slate-800'
-                    }`}>
-                      {d.getDate()}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Grade de 24 Horas com Rolagem e Linha Vermelha */}
-          <div className="flex-1 overflow-y-auto relative min-h-0">
-            {/* LINHA VERMELHA EM TEMPO REAL INDICANDO HORÁRIO ATUAL (Solicitada pelo usuário) */}
-            <div 
-              className="absolute left-14 sm:left-16 right-0 border-t-2 border-red-500 z-30 pointer-events-none flex items-center"
-              style={{ top: `${redLineTopPercent}%` }}
-            >
-              {/* Círculo vermelho indicador na borda */}
-              <div className="w-3 h-3 rounded-full bg-red-500 -ml-1.5 shadow-md shadow-red-500/50" />
-            </div>
-
-            <div className={`grid ${viewMode === 'semanal' ? 'grid-cols-8' : 'grid-cols-2'} divide-x ${
-              isDark ? 'divide-slate-800/80' : 'divide-slate-200'
-            }`}>
-              {/* Coluna Horária (00:00 às 23:00) */}
-              <div className="col-span-1 divide-y divide-transparent">
+            {/* Grade de 24 Horas com Rolagem e Linha Vermelha Viva */}
+            <div className="flex-1 overflow-y-auto relative min-h-0 flex">
+              {/* Coluna Horária Fixa (00:00 às 23:00) */}
+              <div className="w-14 sm:w-16 shrink-0 border-r border-slate-800/80 divide-y divide-transparent z-10 select-none bg-slate-950">
                 {HOURS.map((h) => (
                   <div key={h} className="h-14 pr-2 text-right text-[10px] text-slate-400 font-mono -mt-2">
                     {String(h).padStart(2, '0')}:00
@@ -373,70 +391,84 @@ export default function AgendaView() {
                 ))}
               </div>
 
-              {/* Colunas dos Dias com Linhas Horárias e Cards de Eventos */}
-              {(viewMode === 'semanal' ? weekDays : [currentDate]).map((d, colIdx) => {
-                const today = isToday(d);
-                const dayDateStr = d.toISOString().slice(0, 10);
-                const dayAppointments = appointments.filter(a => a.start_time && a.start_time.startsWith(dayDateStr));
+              {/* Área das Colunas com a Linha Vermelha */}
+              <div className="flex-1 relative grid grid-flow-col auto-cols-fr divide-x divide-slate-800">
+                {/* LINHA VERMELHA EM TEMPO REAL INDICANDO HORÁRIO ATUAL */}
+                <div 
+                  className="absolute left-0 right-0 border-t-2 border-red-500 z-30 pointer-events-none flex items-center"
+                  style={{ top: `${redLineTopPercent}%` }}
+                >
+                  <div className="w-3 h-3 rounded-full bg-red-500 -ml-1.5 shadow-md shadow-red-500/50" />
+                </div>
 
-                return (
-                  <div 
-                    key={colIdx} 
-                    className={`relative ${today ? (isDark ? 'bg-amber-500/3' : 'bg-amber-50/40') : ''}`}
-                  >
-                    {/* Linhas Horárias Horizontais */}
-                    {HOURS.map((h) => (
-                      <div 
-                        key={h} 
-                        className={`h-14 border-b ${isDark ? 'border-slate-800/60' : 'border-slate-100'}`} 
-                      />
-                    ))}
+                {(viewMode === 'semanal' ? weekDays : [currentDate]).map((d, colIdx) => {
+                  const today = isToday(d);
+                  const dayDateStr = d.toISOString().slice(0, 10);
+                  const dayAppointments = appointments.filter(a => a.start_time && a.start_time.startsWith(dayDateStr));
 
-                    {/* Cards de Eventos Posicionados */}
-                    {dayAppointments.map((apt) => {
-                      const start = new Date(apt.start_time);
-                      const startHour = start.getUTCHours() || 10;
-                      const topPos = startHour * 56 + 4;
+                  return (
+                    <div 
+                      key={colIdx} 
+                      className={`relative ${today ? (isDark ? 'bg-amber-500/3' : 'bg-amber-50/40') : ''}`}
+                    >
+                      {/* Slots Horários Clicáveis para abrir o modal pré-preenchido */}
+                      {HOURS.map((h) => (
+                        <div 
+                          key={h} 
+                          onClick={() => openQuickCreate(d, h)}
+                          className={`h-14 border-b transition cursor-pointer hover:bg-amber-500/5 ${
+                            isDark ? 'border-slate-800/60' : 'border-slate-100'
+                          }`}
+                          title={`Agendar para as ${String(h).padStart(2, '0')}:00`}
+                        />
+                      ))}
 
-                      let badgeColor = 'bg-amber-500 text-slate-950 border-amber-400';
-                      if (apt.type === 'treinamento') badgeColor = 'bg-blue-500 text-white border-blue-400';
-                      if (apt.type === 'reuniao') badgeColor = 'bg-purple-500 text-white border-purple-400';
+                      {/* Cards de Eventos Posicionados */}
+                      {dayAppointments.map((apt) => {
+                        const start = new Date(apt.start_time);
+                        const startHour = start.getUTCHours() || 10;
+                        const topPos = startHour * 56 + 4;
 
-                      return (
-                        <div
-                          key={apt.id}
-                          className={`absolute left-1 right-1 rounded-xl p-2 text-xs font-bold shadow-md border overflow-hidden transition hover:scale-[1.02] cursor-pointer z-10 ${badgeColor}`}
-                          style={{ top: `${topPos}px`, height: '52px' }}
-                          title={`${apt.title}\n${apt.description}\n${apt.location}`}
-                        >
-                          <div className="flex items-center justify-between text-[10px] opacity-90 mb-0.5">
-                            <span className="flex items-center gap-1 font-mono">
-                              <Clock className="w-3 h-3" />
-                              {apt.start_time.slice(11, 16)}
-                            </span>
-                            <span className="capitalize text-[9px] uppercase tracking-wider">{apt.type}</span>
-                          </div>
-                          <div className="truncate font-black text-xs leading-tight">
-                            {apt.title}
-                          </div>
-                          {apt.location && (
-                            <div className="text-[10px] truncate opacity-85 flex items-center gap-1">
-                              <MapPin className="w-2.5 h-2.5 shrink-0" />
-                              <span className="truncate">{apt.location}</span>
+                        let badgeColor = 'bg-amber-500 text-slate-950 border-amber-400';
+                        if (apt.type === 'treinamento') badgeColor = 'bg-blue-500 text-white border-blue-400';
+                        if (apt.type === 'reuniao') badgeColor = 'bg-purple-500 text-white border-purple-400';
+
+                        return (
+                          <div
+                            key={apt.id}
+                            className={`absolute left-1 right-1 rounded-xl p-2 text-xs font-bold shadow-md border overflow-hidden transition hover:scale-[1.02] cursor-pointer z-10 ${badgeColor}`}
+                            style={{ top: `${topPos}px`, height: '52px' }}
+                            title={`${apt.title}\n${apt.description || ''}\n${apt.location || ''}`}
+                          >
+                            <div className="flex items-center justify-between text-[10px] opacity-90 mb-0.5">
+                              <span className="flex items-center gap-1 font-mono">
+                                <Clock className="w-3 h-3" />
+                                {apt.start_time.slice(11, 16)}
+                              </span>
+                              <span className="capitalize text-[9px] uppercase tracking-wider">{apt.type}</span>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                            <div className="truncate font-black text-xs leading-tight">
+                              {apt.title}
+                            </div>
+                            {apt.location && (
+                              <div className="text-[10px] truncate opacity-85 flex items-center gap-1">
+                                <MapPin className="w-2.5 h-2.5 shrink-0" />
+                                <span className="truncate">{apt.location}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
       ) : (
         /* ============================================================ */
-        /* VISÃO MENSAL (GRID ESTILO GOOGLE CALENDAR)                    */
+        /* VISÃO MENSAL (CLIQUE NO QUADRADO ABRE NOVO EVENTO)           */
         /* ============================================================ */
         <div className="flex-1 overflow-y-auto p-4 min-h-0">
           <div className="grid grid-cols-7 gap-2">
@@ -446,34 +478,51 @@ export default function AgendaView() {
               </div>
             ))}
 
-            {Array.from({ length: 35 }, (_, i) => {
-              const dayNum = i + 1;
-              const isCurr = dayNum === now.getDate() && (currentDate.getMonth() === now.getMonth());
+            {monthGridDays.map((dObj, i) => {
+              if (!dObj) {
+                return (
+                  <div key={i} className="min-h-[90px] p-2 rounded-xl border border-transparent opacity-30" />
+                );
+              }
+
+              const isCurr = isToday(dObj);
+              const dateStr = dObj.toISOString().slice(0, 10);
+              const dayApts = appointments.filter(a => a.start_time && a.start_time.startsWith(dateStr));
+
               return (
                 <div
                   key={i}
-                  className={`min-h-[90px] p-2 rounded-xl border flex flex-col justify-between transition ${
+                  onClick={() => openQuickCreate(dObj, 10)}
+                  className={`min-h-[95px] p-2 rounded-xl border flex flex-col justify-between transition cursor-pointer hover:border-amber-500/60 hover:bg-slate-800/40 ${
                     isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200'
                   } ${isCurr ? 'ring-2 ring-amber-500 bg-amber-500/5' : ''}`}
+                  title="Clique para adicionar agendamento neste dia"
                 >
                   <div className="flex items-center justify-between">
                     <span className={`text-xs font-bold ${
                       isCurr ? 'text-amber-500 font-black' : isDark ? 'text-slate-300' : 'text-slate-700'
                     }`}>
-                      {dayNum <= 31 ? dayNum : ''}
+                      {dObj.getDate()}
                     </span>
                   </div>
 
-                  {dayNum === 15 && (
-                    <div className="mt-1 p-1 bg-amber-500 text-slate-950 text-[10px] font-bold rounded-md truncate">
-                      Visita: Polara Samambaia
-                    </div>
-                  )}
-                  {dayNum === 22 && (
-                    <div className="mt-1 p-1 bg-blue-500 text-white text-[10px] font-bold rounded-md truncate">
-                      Entrega: Elevador 4T
-                    </div>
-                  )}
+                  {/* Lista de eventos no dia */}
+                  <div className="space-y-1 mt-1 overflow-hidden">
+                    {dayApts.slice(0, 2).map((apt) => (
+                      <div 
+                        key={apt.id}
+                        className="p-1 bg-amber-500 text-slate-950 text-[10px] font-bold rounded-md truncate"
+                        title={apt.title}
+                      >
+                        {apt.title}
+                      </div>
+                    ))}
+                    {dayApts.length > 2 && (
+                      <span className="text-[9px] text-slate-400 font-bold block">
+                        +{dayApts.length - 2} mais
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}

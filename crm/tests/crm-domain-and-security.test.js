@@ -124,4 +124,42 @@ describe('Athena CRM - Testes Unitários de Domínio, Regras de Negócio e Segur
       assert.ok(!allowedModules.includes(tracker), `Tracker ${tracker} expressamente bloqueado no CRM`);
     });
   });
+
+  test('Deve construir URL correta do Google Maps a partir de coordenadas ou endereço', () => {
+    const buildGoogleMapsUrl = (lead) => {
+      let query = '';
+      if (lead.latitude && lead.longitude) {
+        query = `${lead.latitude},${lead.longitude}`;
+      } else if (lead.address) {
+        query = `${lead.address}, ${lead.ra_df || 'DF'}, Brasil`;
+      } else if (lead.ra_df) {
+        query = `${lead.name}, ${lead.ra_df}, Brasil`;
+      }
+      return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null;
+    };
+
+    const urlWithCoords = buildGoogleMapsUrl({ latitude: -15.7942, longitude: -47.8822 });
+    assert.equal(urlWithCoords, 'https://www.google.com/maps/search/?api=1&query=-15.7942%2C-47.8822');
+
+    const urlWithAddress = buildGoogleMapsUrl({ address: 'SIA Trecho 3 Lote 620', ra_df: 'SIA', name: 'Oficina Turbo' });
+    assert.equal(urlWithAddress, 'https://www.google.com/maps/search/?api=1&query=SIA%20Trecho%203%20Lote%20620%2C%20SIA%2C%20Brasil');
+  });
+
+  test('Deve mapear com precisão os estágios do Funil de Expansão para status no Supabase', () => {
+    const mapStageToStatus = (stageId, title) => {
+      const lower = (title || '').toLowerCase();
+      if (stageId === 'stg_exp_1' || lower.includes('a visitar')) return 'Não Visitado';
+      if (stageId === 'stg_exp_2' || lower.includes('agendad')) return 'Visita Agendada';
+      if (stageId === 'stg_exp_3' || lower.includes('realizada') || lower.includes('visitad')) return 'Visitado';
+      if (stageId === 'stg_exp_4' || lower.includes('negocia')) return 'Negociação';
+      if (stageId === 'stg_exp_5' || lower.includes('parceria') || lower.includes('cliente')) return 'Cliente Athena';
+      return 'Não Visitado';
+    };
+
+    assert.equal(mapStageToStatus('stg_exp_1', 'Oficinas no Radar (A Visitar)'), 'Não Visitado');
+    assert.equal(mapStageToStatus('stg_exp_2', 'Visita Agendada'), 'Visita Agendada');
+    assert.equal(mapStageToStatus('stg_exp_3', 'Visita Realizada'), 'Visitado');
+    assert.equal(mapStageToStatus('stg_exp_4', 'Negociação em Aberto'), 'Negociação');
+    assert.equal(mapStageToStatus('stg_exp_5', 'Parceria Fechada (Cliente)'), 'Cliente Athena');
+  });
 });

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { crmApiFetch } from '../utils/api';
 import { 
   X, 
   User, 
@@ -78,12 +79,10 @@ export default function CustomerDetailsModal({ customer, onClose, onCustomerUpda
     e.preventDefault();
     setSaving(true);
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      const res = await fetch(`/api/crm/customers/${customer.id}`, {
+      const res = await crmApiFetch(`/crm/customers/${customer.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
       });
@@ -110,12 +109,10 @@ export default function CustomerDetailsModal({ customer, onClose, onCustomerUpda
     }
 
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      const res = await fetch(`/api/crm/customers/${customer.id}/branches`, {
+      const res = await crmApiFetch(`/crm/customers/${customer.id}/branches`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(newBranch)
       });
@@ -134,10 +131,8 @@ export default function CustomerDetailsModal({ customer, onClose, onCustomerUpda
   // Remover Filial
   const handleDeleteBranch = async (branchId) => {
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      const res = await fetch(`/api/crm/customers/branches/${branchId}`, {
-        method: 'DELETE',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      const res = await crmApiFetch(`/crm/customers/branches/${branchId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         setBranches(branches.filter(b => b.id !== branchId));
@@ -305,9 +300,23 @@ export default function CustomerDetailsModal({ customer, onClose, onCustomerUpda
                 {/* Endereço Matriz */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="text-[11px] font-bold text-slate-400 block mb-1">
-                      Endereço da Matriz / Oficina Principal
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold text-slate-400">
+                        Endereço da Matriz / Oficina Principal
+                      </label>
+                      {formData.address && (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${formData.address}, ${formData.city || 'DF'}`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                        >
+                          <MapPin className="w-3 h-3 text-amber-500" />
+                          <span>Abrir no Google Maps</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={formData.address}

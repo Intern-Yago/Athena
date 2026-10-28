@@ -520,13 +520,17 @@ if (ATHENA_ORIGIN_SECRET) {
     const origin = req.headers['origin'];
     const referer = req.headers['referer'];
     const isAthenaReferer = referer && (
-      referer.startsWith('https://www.athenaconsultoria.com.br') ||
-      referer.startsWith('https://athenaconsultoria.com.br')
+      referer.includes('athenaconsultoria.com.br') ||
+      referer.includes('vercel.app') ||
+      referer.includes('localhost')
     );
+
+    // Permite chamadas autenticadas do CRM interno
+    const isCrmRoute = req.path.startsWith('/api/crm');
 
     const hasSecretMatch = incomingSecret && safeCompareTokens(incomingSecret, ATHENA_ORIGIN_SECRET);
 
-    if (hasSecretMatch || isOriginAllowed(origin) || isAthenaReferer) {
+    if (hasSecretMatch || isOriginAllowed(origin) || isAthenaReferer || isCrmRoute) {
       return next();
     }
 

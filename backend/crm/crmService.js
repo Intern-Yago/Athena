@@ -511,8 +511,17 @@ async function listWorkshops({ ra = '', search = '', status = '', page = 1, limi
       where += ` AND regiao_administrativa = $${params.length}`;
     }
     if (status && status !== 'all') {
-      params.push(status.trim());
-      where += ` AND status_visita = $${params.length}`;
+      const statusList = String(status).split(',').map(s => s.trim()).filter(Boolean);
+      if (statusList.length === 1) {
+        params.push(statusList[0]);
+        where += ` AND status_visita = $${params.length}`;
+      } else if (statusList.length > 1) {
+        const placeholders = statusList.map(s => {
+          params.push(s);
+          return `$${params.length}`;
+        }).join(', ');
+        where += ` AND status_visita IN (${placeholders})`;
+      }
     }
     if (search && search.trim()) {
       params.push(`%${search.trim()}%`);

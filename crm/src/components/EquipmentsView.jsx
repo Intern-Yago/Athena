@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { crmApiFetch } from '../utils/api';
 import { 
   Package, 
   Search, 
@@ -57,15 +58,12 @@ export default function EquipmentsView() {
   const loadEquipments = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
       const params = new URLSearchParams({
         page: String(page),
         limit: '24',
         search: search.trim()
       });
-      const res = await fetch(`/api/crm/equipments?${params.toString()}`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const res = await crmApiFetch(`/crm/equipments?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setEquipments(data.equipments || []);
@@ -82,10 +80,7 @@ export default function EquipmentsView() {
   // Carrega status da sincronização com Omie
   const loadSyncStatus = async () => {
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      const res = await fetch('/api/crm/equipments/sync-status', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const res = await crmApiFetch('/crm/equipments/sync-status');
       if (res.ok) {
         const data = await res.json();
         setSyncStatus(data.status);
@@ -109,12 +104,10 @@ export default function EquipmentsView() {
   const handleTriggerSync = async () => {
     setSyncing(true);
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      const res = await fetch('/api/crm/equipments/sync', {
+      const res = await crmApiFetch('/crm/equipments/sync', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         }
       });
       const data = await res.json();
@@ -159,12 +152,10 @@ export default function EquipmentsView() {
     setSavingEdit(true);
 
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      const res = await fetch(`/api/crm/equipments/${selectedEqp.id}`, {
+      const res = await crmApiFetch(`/crm/equipments/${selectedEqp.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(editFormData)
       });
@@ -187,10 +178,7 @@ export default function EquipmentsView() {
     setSalesHistoryEqp(eqp);
     setLoadingSales(true);
     try {
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      const res = await fetch(`/api/crm/equipments/${eqp.id}/sales`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const res = await crmApiFetch(`/crm/equipments/${eqp.id}/sales`);
       if (res.ok) {
         const data = await res.json();
         setSalesList(data.data || []);

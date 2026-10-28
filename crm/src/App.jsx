@@ -101,6 +101,7 @@ function CRMContent() {
   // Carrega Todos os Leads ou Leads do Funil Ativo
   const loadLeads = useCallback(async (funnelId = '') => {
     try {
+      setLeads([]);
       const url = funnelId 
         ? `${API_BASE_URL}/crm/leads?funnelId=${funnelId}` 
         : `${API_BASE_URL}/crm/leads`;
@@ -544,6 +545,7 @@ function CRMContent() {
           <KanbanBoard
             funnel={activeFunnel}
             leads={leads}
+            loading={loadingData}
             onMoveLeadStage={handleMoveLeadStage}
             onReorderStages={handleReorderStages}
             onBackToFunnels={() => navigateTo('/funil')}

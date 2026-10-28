@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { crmApiFetch } from '../utils/api';
 import { 
   Plus, 
   Search, 
@@ -23,9 +24,83 @@ import {
   Loader2 
 } from 'lucide-react';
 
+/**
+ * Skeleton Card para transições suaves e eliminação do efeito flash de dados antigos
+ */
+export function KanbanCardSkeleton() {
+  return (
+    <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40 animate-pulse space-y-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded-md w-3/4" />
+        <div className="h-3.5 w-3.5 bg-slate-200 dark:bg-slate-800 rounded-full shrink-0" />
+      </div>
+      <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded-md w-1/2" />
+      <div className="flex items-center gap-2">
+        <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded-md w-16" />
+        <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded-md w-20" />
+      </div>
+      <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+        <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded-lg w-20" />
+        <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-md w-16" />
+      </div>
+    </div>
+  );
+}
+
+function getStatusForStage(stageId, stageTitle = '') {
+  const lower = (stageTitle || '').toLowerCase();
+  if (stageId === 'stg_exp_1' || lower.includes('a visitar') || lower.includes('não visitado') || lower.includes('radar')) {
+    return 'Não Visitado';
+  }
+  if (stageId === 'stg_exp_2' || lower.includes('agendad')) {
+    return 'Agendado,Visita Agendada';
+  }
+  if (stageId === 'stg_exp_3' || lower.includes('realizada') || lower.includes('visitad')) {
+    return 'Visitado,Já Visitado,Visita Realizada';
+  }
+  if (stageId === 'stg_exp_4' || lower.includes('negocia')) {
+    return 'Negociação';
+  }
+  if (stageId === 'stg_exp_5' || lower.includes('parceria') || lower.includes('cliente') || lower.includes('fechada')) {
+    return 'Cliente Athena,Parceria Fechada';
+  }
+  return '';
+}
+
+function getWorkshopStatusToSave(stageId, stageTitle = '') {
+  const lower = (stageTitle || '').toLowerCase();
+  if (stageId === 'stg_exp_1' || lower.includes('a visitar') || lower.includes('não visitado')) return 'Não Visitado';
+  if (stageId === 'stg_exp_2' || lower.includes('agendad')) return 'Visita Agendada';
+  if (stageId === 'stg_exp_3' || lower.includes('realizada') || lower.includes('visitad')) return 'Visitado';
+  if (stageId === 'stg_exp_4' || lower.includes('negocia')) return 'Negociação';
+  if (stageId === 'stg_exp_5' || lower.includes('parceria') || lower.includes('cliente')) return 'Cliente Athena';
+  return 'Não Visitado';
+}
+
+function workshopToLead(w, stageId, funnelId) {
+  return {
+    id: `radar_lead_${w.id}`,
+    radarWorkshopId: w.id,
+    name: w.nome_fantasia || w.razao_social || w.nome || 'Oficina DF',
+    company: w.razao_social || w.rz || w.nome_fantasia || w.nome || 'Oficina DF',
+    cnpj: w.cnpj || '',
+    phone: w.telefone_principal || w.tel || '',
+    address: w.endereco_completo || w.end || '',
+    ra_df: w.regiao_administrativa || w.ra || 'DF',
+    category: w.categoria || w.cat || 'Mecânica Geral',
+    estimated_value: 0,
+    notes: w.observacoes || w.obs || `Oficina sincronizada via Radar de Expansão DF [Radar ID: ${w.id}]`,
+    latitude: w.latitude || w.lat,
+    longitude: w.longitude || w.lng,
+    stage_id: stageId,
+    funnel_id: funnelId
+  };
+}
+
 export default function KanbanBoard({
   funnel,
   leads = [],
+  loading = false,
   onMoveLeadStage,
   onReorderStages,
   onOpenLeadModal,
@@ -39,43 +114,342 @@ export default function KanbanBoard({
   const [selectedRa, setSelectedRa] = useState('all');
   const [draggedLeadId, setDraggedLeadId] = useState(null);
 
-  // Filtros individuais por coluna e controle de cards visíveis por performance
-  const [columnFilters, setColumnFilters] = useState({});
-  const [visibleCounts, setVisibleCounts] = useState({});
+  // Prevenção de flash de dados antigos ao alternar funis
+  const [isChangingFunnel, setIsChangingFunnel] = useState(false);
+  const prevFunnelIdRef = useRef(funnel?.id);
 
-  // Carga das 9.211 oficinas do Radar quando no Funil de Expansão DF
-  const [radarWorkshops, setRadarWorkshops] = useState([]);
-  const [loadingRadarWorkshops, setLoadingRadarWorkshops] = useState(false);
-
-  // Carrega oficinas diretamente do Supabase via API do CRM (sem arquivo estático hardcoded)
   useEffect(() => {
-    if (funnel?.id === 'fun_expansao_df' && radarWorkshops.length === 0) {
-      setLoadingRadarWorkshops(true);
-      const token = localStorage.getItem('athena_crm_token') || localStorage.getItem('athena_token') || '';
-      fetch('/api/crm/workshops?all=true', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      })
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json();
-        })
+    if (prevFunnelIdRef.current !== funnel?.id) {
+      prevFunnelIdRef.current = funnel?.id;
+      setIsChangingFunnel(true);
+      const timer = setTimeout(() => setIsChangingFunnel(false), 250);
+      return () => clearTimeout(timer);
+    }
+  }, [funnel?.id]);
+
+  const stages = useMemo(() => {
+    return [...(funnel?.stages || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [funnel]);
+
+  const isExpansionFunnel = funnel?.id === 'fun_expansao_df';
+
+  // --------------------------------------------------------------------------
+  // PAGINAÇÃO E CARGA LEVE NO BANCO (FUNIL DE EXPANSÃO DF)
+  // --------------------------------------------------------------------------
+  // Em vez de carregar 9.211 registros na memória do navegador ao mesmo tempo,
+  // mantemos dados sob demanda com paginação por coluna (35 por vez) e busca no DB.
+  const [columnFilters, setColumnFilters] = useState({});
+  const [expansionStagesData, setExpansionStagesData] = useState({});
+  const [loadingExpansionStages, setLoadingExpansionStages] = useState({});
+  const [availableRas, setAvailableRas] = useState([]);
+
+  // Carrega lista de RAs para o dropdown quando no Funil de Expansão
+  useEffect(() => {
+    if (isExpansionFunnel) {
+      crmApiFetch('/crm/workshops/stats')
+        .then(res => res.json())
         .then(data => {
-          if (data && Array.isArray(data.workshops)) {
-            setRadarWorkshops(data.workshops);
+          if (data && data.success && Array.isArray(data.byRa)) {
+            setAvailableRas(data.byRa.map(r => r.ra).filter(Boolean));
           }
         })
-        .catch(err => {
-          console.warn('Falha ao carregar oficinas do Supabase:', err.message);
-        })
-        .finally(() => setLoadingRadarWorkshops(false));
+        .catch(() => {});
     }
-  }, [funnel?.id, radarWorkshops.length]);
+  }, [isExpansionFunnel]);
 
-  // Reordenação de Colunas (Drag & Drop estilo Trello)
+  // Função para carregar uma página de oficinas para um determinado estágio
+  const loadStageWorkshops = useCallback(async (stage, page = 1, append = false, query = '', ra = 'all') => {
+    const stageId = stage.id;
+    const statusParam = getStatusForStage(stageId, stage.title);
+
+    setLoadingExpansionStages(prev => ({ ...prev, [stageId]: true }));
+    try {
+      const searchParam = query.trim() || searchTerm.trim();
+      const params = new URLSearchParams({
+        status: statusParam,
+        page: String(page),
+        limit: '35'
+      });
+      if (searchParam) params.append('search', searchParam);
+      if (ra && ra !== 'all') params.append('ra', ra);
+
+      const res = await crmApiFetch(`/crm/workshops?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (data && data.success && Array.isArray(data.workshops)) {
+        const newLeads = data.workshops.map(w => workshopToLead(w, stageId, funnel?.id));
+
+        setExpansionStagesData(prev => {
+          const currentItems = (append && prev[stageId]?.items) ? prev[stageId].items : [];
+          return {
+            ...prev,
+            [stageId]: {
+              items: append ? [...currentItems, ...newLeads] : newLeads,
+              page,
+              total: data.total || 0,
+              totalPages: data.totalPages || 1,
+              hasMore: page < (data.totalPages || 1)
+            }
+          };
+        });
+      }
+    } catch (err) {
+      console.warn(`Erro ao carregar oficinas do estágio ${stageId}:`, err.message);
+    } finally {
+      setLoadingExpansionStages(prev => ({ ...prev, [stageId]: false }));
+    }
+  }, [funnel?.id, searchTerm]);
+
+  // Carga inicial das colunas do Funil de Expansão
+  useEffect(() => {
+    if (isExpansionFunnel && stages.length > 0) {
+      stages.forEach(stg => {
+        loadStageWorkshops(stg, 1, false, columnFilters[stg.id] || '', selectedRa);
+      });
+    }
+  }, [isExpansionFunnel, funnel?.id, selectedRa]);
+
+  // Debounce para busca por coluna
+  const searchTimersRef = useRef({});
+  const handleColumnSearchChange = (stage, value) => {
+    const stageId = stage.id;
+    setColumnFilters(prev => ({ ...prev, [stageId]: value }));
+
+    if (isExpansionFunnel) {
+      if (searchTimersRef.current[stageId]) {
+        clearTimeout(searchTimersRef.current[stageId]);
+      }
+      searchTimersRef.current[stageId] = setTimeout(() => {
+        loadStageWorkshops(stage, 1, false, value, selectedRa);
+      }, 300);
+    }
+  };
+
+  // Carregar mais (+35) na coluna do Funil de Expansão
+  const handleLoadMoreColumn = (stage) => {
+    if (!isExpansionFunnel) return;
+    const currentData = expansionStagesData[stage.id] || { page: 1, hasMore: false };
+    if (currentData.hasMore) {
+      loadStageWorkshops(stage, currentData.page + 1, true, columnFilters[stage.id] || '', selectedRa);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // LEADS PARA FUNIS NORMAIS (CRM PADRÃO)
+  // --------------------------------------------------------------------------
+  const [visibleCounts, setVisibleCounts] = useState({});
+
+  const filteredStandardLeads = useMemo(() => {
+    if (isExpansionFunnel) return [];
+
+    return leads.filter(lead => {
+      const cleanTerm = searchTerm.trim().toLowerCase();
+      const numTerm = cleanTerm.replace(/\D/g, '');
+
+      const matchesSearch = !cleanTerm || 
+        (lead.name || '').toLowerCase().includes(cleanTerm) ||
+        (lead.company || '').toLowerCase().includes(cleanTerm) ||
+        (numTerm && (lead.cnpj || '').replace(/\D/g, '').includes(numTerm)) ||
+        (numTerm && (lead.phone || '').replace(/\D/g, '').includes(numTerm)) ||
+        (lead.address || '').toLowerCase().includes(cleanTerm) ||
+        (lead.notes || '').toLowerCase().includes(cleanTerm);
+
+      const matchesRa = selectedRa === 'all' || lead.ra_df === selectedRa;
+
+      return matchesSearch && matchesRa;
+    });
+  }, [isExpansionFunnel, leads, searchTerm, selectedRa]);
+
+  const standardLeadsByStage = useMemo(() => {
+    if (isExpansionFunnel) return {};
+
+    const map = {};
+    stages.forEach(stg => { map[stg.id] = []; });
+    filteredStandardLeads.forEach(lead => {
+      if (map[lead.stage_id]) {
+        map[lead.stage_id].push(lead);
+      } else if (stages.length > 0) {
+        map[stages[0].id] = map[stages[0].id] || [];
+        map[stages[0].id].push(lead);
+      }
+    });
+    return map;
+  }, [isExpansionFunnel, stages, filteredStandardLeads]);
+
+  // Lista de RAs para funis normais
+  const standardRas = useMemo(() => {
+    if (isExpansionFunnel) return availableRas;
+    const set = new Set();
+    leads.forEach(l => { if (l.ra_df) set.add(l.ra_df); });
+    return Array.from(set).sort();
+  }, [isExpansionFunnel, availableRas, leads]);
+
+  // Métricas do Funil
+  const totalValue = useMemo(() => {
+    return leads.reduce((acc, l) => acc + (parseFloat(l.estimated_value) || 0), 0);
+  }, [leads]);
+
+  const totalCardsCount = useMemo(() => {
+    if (isExpansionFunnel) {
+      return Object.values(expansionStagesData).reduce((acc, cur) => acc + (cur.total || 0), 0);
+    }
+    return filteredStandardLeads.length;
+  }, [isExpansionFunnel, expansionStagesData, filteredStandardLeads.length]);
+
+  // Disparo de WhatsApp com 1 clique
+  const handleOpenWhatsApp = (e, lead) => {
+    e.stopPropagation();
+    if (!lead.phone) return;
+    const cleanPhone = lead.phone.replace(/\D/g, '');
+    const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+
+    let msg = `Olá ${lead.name}, tudo bem? Aqui é da Athena Soluções Automotivas.`;
+    const funnelSlug = (funnel?.slug || '').toLowerCase();
+
+    if (funnelSlug.includes('curso')) {
+      msg = `Olá ${lead.name}, tudo bem? Aqui é da Athena Soluções Automotivas. Vi seu interesse nos nossos treinamentos de diagnóstico automotivo e gostaria de te passar a ementa completa!`;
+    } else if (funnelSlug.includes('rifa')) {
+      msg = `Olá amigo da ${lead.company || lead.name}! Tudo bem? Sou da Athena. Gostaria de te apresentar a Grande Rifa do Elevador Automotivo Mahovi que estamos promovendo para as oficinas do DF!`;
+    } else if (funnelSlug.includes('expansao')) {
+      msg = `Olá ${lead.name}, tudo bem? Aqui é da Athena Soluções Automotivas. Estamos no seu setor em ${lead.ra_df || 'Brasília'} visitando oficinas parceiras e gostaríamos de apresentar nossas condições especiais para equipamentos!`;
+    }
+
+    const url = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Botão de Google Maps em Nova Aba
+  const handleOpenGoogleMaps = (e, lead) => {
+    e.stopPropagation();
+    let query = '';
+    if (lead.latitude && lead.longitude) {
+      query = `${lead.latitude},${lead.longitude}`;
+    } else if (lead.address) {
+      query = `${lead.address}, ${lead.ra_df || 'DF'}, Brasil`;
+    } else if (lead.ra_df) {
+      query = `${lead.name}, ${lead.ra_df}, Brasil`;
+    }
+    if (!query) return;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Drag and Drop de Leads (Cards)
+  const handleLeadDragStart = (e, leadId, leadData) => {
+    setDraggedLeadId(leadId);
+    e.dataTransfer.setData('lead/id', leadId);
+    if (leadData) {
+      e.dataTransfer.setData('lead/data', JSON.stringify(leadData));
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDropLead = async (e, targetStage) => {
+    e.preventDefault();
+    const leadId = e.dataTransfer.getData('lead/id') || draggedLeadId;
+    const targetStageId = targetStage.id;
+
+    if (!leadId || !targetStageId) {
+      setDraggedLeadId(null);
+      return;
+    }
+
+    if (isExpansionFunnel) {
+      // Movimentação otimista no Funil de Expansão
+      const leadDataRaw = e.dataTransfer.getData('lead/data');
+      let leadObj = null;
+      if (leadDataRaw) {
+        try { leadObj = JSON.parse(leadDataRaw); } catch (_) {}
+      }
+
+      const workshopId = leadObj?.radarWorkshopId || (String(leadId).startsWith('radar_lead_') ? Number(leadId.replace('radar_lead_', '')) : null);
+
+      if (workshopId) {
+        const newStatus = getWorkshopStatusToSave(targetStageId, targetStage.title);
+
+        // Atualiza localmente entre as colunas do estado de expansão
+        setExpansionStagesData(prev => {
+          const next = { ...prev };
+          let foundItem = leadObj;
+
+          // Remove da coluna de origem
+          Object.keys(next).forEach(stId => {
+            if (stId !== targetStageId && next[stId]?.items) {
+              const idx = next[stId].items.findIndex(it => it.id === leadId);
+              if (idx !== -1) {
+                foundItem = next[stId].items[idx];
+                next[stId] = {
+                  ...next[stId],
+                  items: next[stId].items.filter(it => it.id !== leadId),
+                  total: Math.max(0, (next[stId].total || 1) - 1)
+                };
+              }
+            }
+          });
+
+          // Insere na coluna de destino
+          if (foundItem) {
+            const updatedItem = { ...foundItem, stage_id: targetStageId };
+            const destItems = next[targetStageId]?.items || [];
+            next[targetStageId] = {
+              ...(next[targetStageId] || { page: 1, hasMore: false }),
+              items: [updatedItem, ...destItems.filter(it => it.id !== leadId)],
+              total: (next[targetStageId]?.total || 0) + 1
+            };
+          }
+
+          return next;
+        });
+
+        // Persiste atualização no banco de dados Supabase via crmApiFetch
+        try {
+          await crmApiFetch(`/crm/workshops/${workshopId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+          });
+        } catch (err) {
+          console.warn('Falha ao sincronizar status da oficina:', err.message);
+        }
+      }
+    }
+
+    if (onMoveLeadStage) {
+      onMoveLeadStage(leadId, targetStageId);
+    }
+    setDraggedLeadId(null);
+  };
+
+  // Drag and Drop de Colunas (Reordenação como no Trello)
   const [draggedColumnIndex, setDraggedColumnIndex] = useState(null);
 
-  // Controle de Zoom do Kanban para arrastar do 1º ao último card facilmente
-  const [zoomLevel, setZoomLevel] = useState(1); // 1, 0.85, 0.7, 0.55
+  const handleColumnDragStart = (e, index) => {
+    setDraggedColumnIndex(index);
+    e.dataTransfer.setData('column/index', String(index));
+  };
+
+  const handleColumnDrop = (e, targetIndex) => {
+    const sourceIndexStr = e.dataTransfer.getData('column/index');
+    if (sourceIndexStr !== '') {
+      e.preventDefault();
+      e.stopPropagation();
+      const sourceIndex = parseInt(sourceIndexStr, 10);
+      if (!isNaN(sourceIndex) && sourceIndex !== targetIndex && onReorderStages) {
+        const newStages = [...stages];
+        const [moved] = newStages.splice(sourceIndex, 1);
+        newStages.splice(targetIndex, 0, moved);
+        onReorderStages(newStages.map(s => s.id));
+      }
+      setDraggedColumnIndex(null);
+    }
+  };
+
+  // Zoom do Kanban
+  const [zoomLevel, setZoomLevel] = useState(1);
 
   // Canvas Panning (arrastar para os lados segurando o mouse no fundo)
   const boardRef = useRef(null);
@@ -146,175 +520,7 @@ export default function KanbanBoard({
     };
   }, []);
 
-  const stages = useMemo(() => {
-    return [...(funnel?.stages || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
-  }, [funnel]);
-
-  // Combina leads cadastrados com todas as 9.211 oficinas do Radar quando no Funil de Expansão
-  const combinedLeads = useMemo(() => {
-    if (funnel?.id !== 'fun_expansao_df' || radarWorkshops.length === 0) {
-      return leads;
-    }
-
-    let edicoes = {};
-    try {
-      const stored = localStorage.getItem('athena_edicoes_v3');
-      if (stored) edicoes = JSON.parse(stored);
-    } catch (_) {}
-
-    // Identifica leads criados no CRM para não duplicar com os dados brutos do radar
-    const crmLeadsByWorkshopId = new Map();
-    leads.forEach(l => {
-      if (l.funnel_id === 'fun_expansao_df') {
-        const match = l.notes?.match(/\[Radar ID:\s*(\d+)\]/);
-        if (match) {
-          crmLeadsByWorkshopId.set(Number(match[1]), l);
-        }
-      }
-    });
-
-    const allCards = radarWorkshops.map(w => {
-      if (crmLeadsByWorkshopId.has(w.id)) {
-        return crmLeadsByWorkshopId.get(w.id);
-      }
-
-      const currentSt = edicoes[w.id]?.st || w.st || 'Não Visitado';
-
-      let stageId = 'stg_exp_1';
-      if (currentSt === 'Visita Agendada' || currentSt === 'Agendado') stageId = 'stg_exp_2';
-      else if (currentSt === 'Visitado' || currentSt === 'Já Visitado' || currentSt === 'Visita Realizada') stageId = 'stg_exp_3';
-      else if (currentSt === 'Negociação') stageId = 'stg_exp_4';
-      else if (currentSt === 'Cliente Athena' || currentSt === 'Parceria Fechada') stageId = 'stg_exp_5';
-
-      return {
-        id: `radar_lead_${w.id}`,
-        radarWorkshopId: w.id,
-        name: edicoes[w.id]?.nome || w.nome || 'Oficina DF',
-        company: w.rz || w.nome,
-        cnpj: w.cnpj || '',
-        phone: edicoes[w.id]?.tel || w.tel || '',
-        address: edicoes[w.id]?.end || w.end || '',
-        ra_df: edicoes[w.id]?.ra || w.ra || 'DF',
-        category: edicoes[w.id]?.cat || w.cat || 'Mecânica Geral',
-        estimated_value: 0,
-        notes: edicoes[w.id]?.obs || w.obs || `Oficina sincronizada via Radar de Expansão DF [Radar ID: ${w.id}]`,
-        stage_id: stageId,
-        funnel_id: 'fun_expansao_df'
-      };
-    });
-
-    return allCards;
-  }, [funnel?.id, radarWorkshops, leads]);
-
-  // Filtra leads por busca global e por Região Administrativa do DF
-  const filteredLeads = useMemo(() => {
-    return combinedLeads.filter(lead => {
-      const cleanTerm = searchTerm.trim().toLowerCase();
-      const numTerm = cleanTerm.replace(/\D/g, '');
-
-      const matchesSearch = !cleanTerm || 
-        (lead.name || '').toLowerCase().includes(cleanTerm) ||
-        (lead.company || '').toLowerCase().includes(cleanTerm) ||
-        (numTerm && (lead.cnpj || '').replace(/\D/g, '').includes(numTerm)) ||
-        (numTerm && (lead.phone || '').replace(/\D/g, '').includes(numTerm)) ||
-        (lead.address || '').toLowerCase().includes(cleanTerm) ||
-        (lead.notes || '').toLowerCase().includes(cleanTerm);
-
-      const matchesRa = selectedRa === 'all' || lead.ra_df === selectedRa;
-
-      return matchesSearch && matchesRa;
-    });
-  }, [combinedLeads, searchTerm, selectedRa]);
-
-  // Agrupa leads por estágio
-  const leadsByStage = useMemo(() => {
-    const map = {};
-    stages.forEach(stg => { map[stg.id] = []; });
-    filteredLeads.forEach(lead => {
-      if (map[lead.stage_id]) {
-        map[lead.stage_id].push(lead);
-      } else if (stages.length > 0) {
-        map[stages[0].id] = map[stages[0].id] || [];
-        map[stages[0].id].push(lead);
-      }
-    });
-    return map;
-  }, [stages, filteredLeads]);
-
-  // Lista única de RAs encontradas nos leads
-  const availableRas = useMemo(() => {
-    const set = new Set();
-    combinedLeads.forEach(l => { if (l.ra_df) set.add(l.ra_df); });
-    return Array.from(set).sort();
-  }, [combinedLeads]);
-
-  // Métricas do Funil
-  const totalValue = useMemo(() => {
-    return leads.reduce((acc, l) => acc + (parseFloat(l.estimated_value) || 0), 0);
-  }, [leads]);
-
-  // Disparo de WhatsApp com 1 clique
-  const handleOpenWhatsApp = (e, lead) => {
-    e.stopPropagation();
-    if (!lead.phone) return;
-    const cleanPhone = lead.phone.replace(/\D/g, '');
-    const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-
-    let msg = `Olá ${lead.name}, tudo bem? Aqui é da Athena Soluções Automotivas.`;
-    const funnelSlug = (funnel?.slug || '').toLowerCase();
-
-    if (funnelSlug.includes('curso')) {
-      msg = `Olá ${lead.name}, tudo bem? Aqui é da Athena Soluções Automotivas. Vi seu interesse nos nossos treinamentos de diagnóstico automotivo e gostaria de te passar a ementa completa!`;
-    } else if (funnelSlug.includes('rifa')) {
-      msg = `Olá amigo da ${lead.company || lead.name}! Tudo bem? Sou da Athena. Gostaria de te apresentar a Grande Rifa do Elevador Automotivo Mahovi que estamos promovendo para as oficinas do DF!`;
-    } else if (funnelSlug.includes('expansao')) {
-      msg = `Olá ${lead.name}, tudo bem? Aqui é da Athena Soluções Automotivas. Estamos no seu setor em ${lead.ra_df || 'Brasília'} visitando oficinas parceiras e gostaríamos de apresentar nossas condições especiais para equipamentos!`;
-    }
-
-    const url = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
-  // Drag and Drop de Leads (Cards)
-  const handleLeadDragStart = (e, leadId) => {
-    setDraggedLeadId(leadId);
-    e.dataTransfer.setData('lead/id', leadId);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDropLead = (e, targetStageId) => {
-    e.preventDefault();
-    const leadId = e.dataTransfer.getData('lead/id') || draggedLeadId;
-    if (leadId && targetStageId) {
-      onMoveLeadStage(leadId, targetStageId);
-    }
-    setDraggedLeadId(null);
-  };
-
-  // Drag and Drop de Colunas (Reordenação como no Trello)
-  const handleColumnDragStart = (e, index) => {
-    setDraggedColumnIndex(index);
-    e.dataTransfer.setData('column/index', String(index));
-  };
-
-  const handleColumnDrop = (e, targetIndex) => {
-    const sourceIndexStr = e.dataTransfer.getData('column/index');
-    if (sourceIndexStr !== '') {
-      e.preventDefault();
-      e.stopPropagation();
-      const sourceIndex = parseInt(sourceIndexStr, 10);
-      if (!isNaN(sourceIndex) && sourceIndex !== targetIndex && onReorderStages) {
-        const newStages = [...stages];
-        const [moved] = newStages.splice(sourceIndex, 1);
-        newStages.splice(targetIndex, 0, moved);
-        onReorderStages(newStages.map(s => s.id));
-      }
-      setDraggedColumnIndex(null);
-    }
-  };
+  const isBoardLoading = loading || isChangingFunnel;
 
   return (
     <div className={`flex-1 flex flex-col h-full max-h-full min-h-0 overflow-hidden select-none relative ${
@@ -365,7 +571,9 @@ export default function KanbanBoard({
             isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
           }`}>
             <span className="text-slate-400 font-medium">Oportunidades:</span>
-            <span className="font-bold font-mono text-amber-500">{filteredLeads.length}</span>
+            <span className="font-bold font-mono text-amber-500">
+              {totalCardsCount.toLocaleString('pt-BR')}
+            </span>
           </div>
 
           {totalValue > 0 && (
@@ -412,8 +620,8 @@ export default function KanbanBoard({
                   : 'bg-slate-100 border-slate-200 text-slate-700 focus:border-amber-500'
               }`}
             >
-              <option value="all">Todas as RAs ({leads.length})</option>
-              {availableRas.map(ra => (
+              <option value="all">Todas as Regiões</option>
+              {standardRas.map(ra => (
                 <option key={ra} value={ra}>{ra}</option>
               ))}
             </select>
@@ -463,30 +671,45 @@ export default function KanbanBoard({
           }}
         >
           {stages.map((stage, index) => {
-            const stageLeads = leadsByStage[stage.id] || [];
-            const stageTotal = stageLeads.reduce((acc, l) => acc + (parseFloat(l.estimated_value) || 0), 0);
-
             const isWon = Boolean(stage.is_won);
             const isLost = Boolean(stage.is_lost);
 
-            // Filtro específico desta coluna
-            const colFilter = (columnFilters[stage.id] || '').trim().toLowerCase();
-            const cleanNum = colFilter.replace(/\D/g, '');
+            // Determina os leads da coluna de acordo com o modo (Expansão vs Padrão)
+            let stageLeads = [];
+            let stageTotalCount = 0;
+            let hasMoreItems = false;
+            let isStageLoading = isBoardLoading;
 
-            const stageFilteredLeads = colFilter
-              ? stageLeads.filter(l => 
-                  (l.name || '').toLowerCase().includes(colFilter) ||
-                  (l.company || '').toLowerCase().includes(colFilter) ||
-                  (cleanNum && (l.cnpj || '').replace(/\D/g, '').includes(cleanNum)) ||
-                  (cleanNum && (l.phone || '').replace(/\D/g, '').includes(cleanNum)) ||
-                  (l.address || '').toLowerCase().includes(colFilter) ||
-                  (l.ra_df || '').toLowerCase().includes(colFilter) ||
-                  (l.notes || '').toLowerCase().includes(colFilter)
-                )
-              : stageLeads;
+            if (isExpansionFunnel) {
+              const expData = expansionStagesData[stage.id] || { items: [], total: 0, hasMore: false };
+              stageLeads = expData.items || [];
+              stageTotalCount = expData.total || stageLeads.length;
+              hasMoreItems = Boolean(expData.hasMore);
+              isStageLoading = isBoardLoading || Boolean(loadingExpansionStages[stage.id]);
+            } else {
+              const allStageLeads = standardLeadsByStage[stage.id] || [];
+              const colFilter = (columnFilters[stage.id] || '').trim().toLowerCase();
+              const cleanNum = colFilter.replace(/\D/g, '');
 
-            const visibleLimit = visibleCounts[stage.id] || 40;
-            const visibleLeads = colFilter ? stageFilteredLeads : stageFilteredLeads.slice(0, visibleLimit);
+              const filtered = colFilter
+                ? allStageLeads.filter(l => 
+                    (l.name || '').toLowerCase().includes(colFilter) ||
+                    (l.company || '').toLowerCase().includes(colFilter) ||
+                    (cleanNum && (l.cnpj || '').replace(/\D/g, '').includes(cleanNum)) ||
+                    (cleanNum && (l.phone || '').replace(/\D/g, '').includes(cleanNum)) ||
+                    (l.address || '').toLowerCase().includes(colFilter) ||
+                    (l.ra_df || '').toLowerCase().includes(colFilter) ||
+                    (l.notes || '').toLowerCase().includes(colFilter)
+                  )
+                : allStageLeads;
+
+              const limit = visibleCounts[stage.id] || 40;
+              stageLeads = colFilter ? filtered : filtered.slice(0, limit);
+              stageTotalCount = allStageLeads.length;
+              hasMoreItems = !colFilter && filtered.length > stageLeads.length;
+            }
+
+            const stageTotalValue = stageLeads.reduce((acc, l) => acc + (parseFloat(l.estimated_value) || 0), 0);
 
             return (
               <div
@@ -496,7 +719,7 @@ export default function KanbanBoard({
                   if (e.dataTransfer.types.includes('column/index')) {
                     handleColumnDrop(e, index);
                   } else {
-                    handleDropLead(e, stage.id);
+                    handleDropLead(e, stage);
                   }
                 }}
                 className={`w-72 sm:w-80 shrink-0 border rounded-2xl flex flex-col h-full max-h-full min-h-0 shadow-lg transition-all ${
@@ -532,8 +755,8 @@ export default function KanbanBoard({
                     
                     <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold ${
                       isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                    }`} title={`${stageLeads.length} oportunidades no total`}>
-                      {stageLeads.length}
+                    }`} title={`${stageTotalCount} oportunidades no total nesta etapa`}>
+                      {stageTotalCount.toLocaleString('pt-BR')}
                     </span>
 
                     {/* Indicador de Ganho */}
@@ -587,7 +810,7 @@ export default function KanbanBoard({
                     <input
                       type="text"
                       value={columnFilters[stage.id] || ''}
-                      onChange={(e) => setColumnFilters(prev => ({ ...prev, [stage.id]: e.target.value }))}
+                      onChange={(e) => handleColumnSearchChange(stage, e.target.value)}
                       placeholder="Filtrar nesta etapa (nome, cnpj, tel)..."
                       className={`w-full pl-7 pr-7 py-1 text-[11px] rounded-lg border outline-none transition-colors ${
                         isDark 
@@ -598,7 +821,7 @@ export default function KanbanBoard({
                     {columnFilters[stage.id] && (
                       <button
                         type="button"
-                        onClick={() => setColumnFilters(prev => ({ ...prev, [stage.id]: '' }))}
+                        onClick={() => handleColumnSearchChange(stage, '')}
                         className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 cursor-pointer"
                         title="Limpar filtro da coluna"
                       >
@@ -606,131 +829,167 @@ export default function KanbanBoard({
                       </button>
                     )}
                   </div>
-                  {colFilter && (
-                    <div className="text-[10px] text-amber-500 font-bold mt-1 px-0.5">
-                      {stageFilteredLeads.length} {stageFilteredLeads.length === 1 ? 'encontrado' : 'encontrados'}
-                    </div>
-                  )}
                 </div>
 
                 {/* Stage Sub-total */}
-                {stageTotal > 0 && (
+                {stageTotalValue > 0 && (
                   <div className={`px-3.5 py-1.5 text-[10px] font-mono border-b shrink-0 flex items-center justify-between ${
                     isDark ? 'bg-slate-950/40 text-slate-400 border-slate-800/40' : 'bg-slate-50 text-slate-600 border-slate-100'
                   }`}>
                     <span>Valor na etapa:</span>
                     <strong className="text-amber-500 font-bold">
-                      R$ {stageTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {stageTotalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </strong>
                   </div>
                 )}
 
                 {/* Lead Cards List com scroll próprio quando cheio (estilo Trello) */}
                 <div className="kanban-card-list flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
-                  {visibleLeads.map(lead => (
-                    <div
-                      key={lead.id}
-                      draggable
-                      onDragStart={(e) => handleLeadDragStart(e, lead.id)}
-                      onClick={() => onOpenLeadModal(lead)}
-                      className={`p-3.5 rounded-xl border transition-all cursor-pointer shadow-xs hover:shadow-md group space-y-2 relative ${
-                        isDark 
-                          ? 'bg-slate-950 border-slate-800 hover:border-amber-400/50' 
-                          : 'bg-white border-slate-200 hover:border-amber-400 hover:bg-amber-50/10'
-                      }`}
-                    >
-                      {/* Header: Name + Priority */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className={`font-bold text-xs group-hover:text-amber-500 transition-colors line-clamp-1 ${
-                          isDark ? 'text-white' : 'text-slate-900'
-                        }`}>
-                          {lead.name}
-                        </div>
+                  {isStageLoading && stageLeads.length === 0 ? (
+                    <div className="space-y-2.5">
+                      <KanbanCardSkeleton />
+                      <KanbanCardSkeleton />
+                      <KanbanCardSkeleton />
+                    </div>
+                  ) : (
+                    <>
+                      {stageLeads.map(lead => {
+                        const hasLocation = Boolean(lead.address || lead.ra_df || (lead.latitude && lead.longitude));
 
-                        {lead.priority === 'high' && (
-                          <span className="shrink-0 text-amber-500" title="Prioridade Alta">
-                            <Flame className="w-3.5 h-3.5 fill-amber-500/20" />
-                          </span>
-                        )}
-                      </div>
-
-                      {lead.company && lead.company !== lead.name && (
-                        <div className="text-[11px] text-slate-400 truncate">
-                          {lead.company}
-                        </div>
-                      )}
-
-                      {/* Badges: RA + Value */}
-                      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                        {lead.ra_df && (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold ${
-                            isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            <MapPin className="w-2.5 h-2.5 text-sky-500" />
-                            <span>{lead.ra_df}</span>
-                          </span>
-                        )}
-
-                        {lead.estimated_value > 0 && (
-                          <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 font-mono font-bold border border-amber-500/20">
-                            R$ {Number(lead.estimated_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Notes preview */}
-                      {lead.notes && (
-                        <p className={`text-[10px] line-clamp-2 leading-relaxed italic p-1.5 rounded-lg border ${
-                          isDark ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-100 text-slate-600'
-                        }`}>
-                          "{lead.notes}"
-                        </p>
-                      )}
-
-                      {/* Card Actions Footer */}
-                      <div className={`pt-2 border-t flex items-center justify-between gap-2 ${
-                        isDark ? 'border-slate-900' : 'border-slate-100'
-                      }`}>
-                        {lead.phone ? (
-                          <button
-                            type="button"
-                            onClick={(e) => handleOpenWhatsApp(e, lead)}
-                            className="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-500 hover:text-white font-bold text-[10px] flex items-center gap-1 transition cursor-pointer"
-                            title="Iniciar conversa no WhatsApp com mensagem personalizada"
+                        return (
+                          <div
+                            key={lead.id}
+                            draggable
+                            onDragStart={(e) => handleLeadDragStart(e, lead.id, lead)}
+                            onClick={() => onOpenLeadModal(lead)}
+                            className={`p-3.5 rounded-xl border transition-all cursor-pointer shadow-xs hover:shadow-md group space-y-2 relative ${
+                              isDark 
+                                ? 'bg-slate-950 border-slate-800 hover:border-amber-400/50' 
+                                : 'bg-white border-slate-200 hover:border-amber-400 hover:bg-amber-50/10'
+                            }`}
                           >
-                            <MessageCircle className="w-3 h-3" />
-                            <span>WhatsApp</span>
-                          </button>
-                        ) : <div />}
+                            {/* Header: Name + Priority */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className={`font-bold text-xs group-hover:text-amber-500 transition-colors line-clamp-1 ${
+                                isDark ? 'text-white' : 'text-slate-900'
+                              }`}>
+                                {lead.name}
+                              </div>
 
-                        <div className="text-[10px] text-slate-400 flex items-center gap-1 group-hover:text-amber-500 transition">
-                          <span>Ver detalhes</span>
-                          <ArrowRight className="w-2.5 h-2.5" />
+                              {lead.priority === 'high' && (
+                                <span className="shrink-0 text-amber-500" title="Prioridade Alta">
+                                  <Flame className="w-3.5 h-3.5 fill-amber-500/20" />
+                                </span>
+                              )}
+                            </div>
+
+                            {lead.company && lead.company !== lead.name && (
+                              <div className="text-[11px] text-slate-400 truncate">
+                                {lead.company}
+                              </div>
+                            )}
+
+                            {/* Badges: RA + Value */}
+                            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                              {lead.ra_df && (
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold ${
+                                  isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  <MapPin className="w-2.5 h-2.5 text-sky-500" />
+                                  <span>{lead.ra_df}</span>
+                                </span>
+                              )}
+
+                              {lead.estimated_value > 0 && (
+                                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 font-mono font-bold border border-amber-500/20">
+                                  R$ {Number(lead.estimated_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Notes preview */}
+                            {lead.notes && (
+                              <p className={`text-[10px] line-clamp-2 leading-relaxed italic p-1.5 rounded-lg border ${
+                                isDark ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-100 text-slate-600'
+                              }`}>
+                                "{lead.notes}"
+                              </p>
+                            )}
+
+                            {/* Card Actions Footer: WhatsApp + Google Maps + Ver detalhes */}
+                            <div className={`pt-2 border-t flex items-center justify-between gap-2 ${
+                              isDark ? 'border-slate-900' : 'border-slate-100'
+                            }`}>
+                              <div className="flex items-center gap-1.5">
+                                {lead.phone && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleOpenWhatsApp(e, lead)}
+                                    className="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-500 hover:text-white font-bold text-[10px] flex items-center gap-1 transition cursor-pointer"
+                                    title="Iniciar conversa no WhatsApp"
+                                  >
+                                    <MessageCircle className="w-3 h-3" />
+                                    <span>WhatsApp</span>
+                                  </button>
+                                )}
+
+                                {hasLocation && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleOpenGoogleMaps(e, lead)}
+                                    className={`px-2 py-1 rounded-lg border font-bold text-[10px] flex items-center gap-1 transition cursor-pointer ${
+                                      isDark 
+                                        ? 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border-sky-500/20' 
+                                        : 'bg-sky-50 hover:bg-sky-100 text-sky-600 border-sky-200'
+                                    }`}
+                                    title="Abrir localização no Google Maps em nova aba"
+                                  >
+                                    <MapPin className="w-3 h-3 text-sky-500" />
+                                    <span>Mapa</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="text-[10px] text-slate-400 flex items-center gap-1 group-hover:text-amber-500 transition">
+                                <span>Detalhes</span>
+                                <ArrowRight className="w-2.5 h-2.5" />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {stageLeads.length === 0 && !isStageLoading && (
+                        <div className="py-8 text-center text-slate-500 text-[11px] border border-dashed border-slate-800/40 rounded-xl">
+                          Nenhuma oportunidade nesta etapa.
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      )}
 
-                  {colFilter && visibleLeads.length === 0 && (
-                    <div className="py-8 text-center text-slate-500 text-[11px] border border-dashed border-slate-800/40 rounded-xl">
-                      Nenhuma oportunidade encontrada para "{columnFilters[stage.id]}".
-                    </div>
-                  )}
-
-                  {!colFilter && stageFilteredLeads.length > visibleLeads.length && (
-                    <button
-                      type="button"
-                      onClick={() => setVisibleCounts(prev => ({ ...prev, [stage.id]: (prev[stage.id] || 40) + 40 }))}
-                      className="w-full py-2.5 px-3 text-center text-[11px] font-bold text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition cursor-pointer border border-amber-500/20"
-                    >
-                      Carregar mais (+40) • {stageFilteredLeads.length - visibleLeads.length} restantes
-                    </button>
-                  )}
-
-                  {stageLeads.length === 0 && (
-                    <div className="py-8 text-center text-slate-500 text-[11px] border border-dashed border-slate-800/40 rounded-xl">
-                      Nenhum lead nesta etapa.
-                    </div>
+                      {/* Botão de Paginação / Infinite Scroll por Coluna */}
+                      {hasMoreItems && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isExpansionFunnel) {
+                              handleLoadMoreColumn(stage);
+                            } else {
+                              setVisibleCounts(prev => ({ ...prev, [stage.id]: (prev[stage.id] || 40) + 40 }));
+                            }
+                          }}
+                          disabled={isStageLoading}
+                          className="w-full py-2.5 px-3 text-center text-[11px] font-bold text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition cursor-pointer border border-amber-500/20 flex items-center justify-center gap-1.5"
+                        >
+                          {isStageLoading ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Carregando...</span>
+                            </>
+                          ) : (
+                            <span>Carregar mais (+35)</span>
+                          )}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -748,7 +1007,7 @@ export default function KanbanBoard({
           onClick={() => setZoomLevel(z => Math.max(0.55, Number((z - 0.15).toFixed(2))))}
           disabled={zoomLevel <= 0.55}
           className="p-1.5 rounded-xl hover:bg-slate-800/20 disabled:opacity-30 cursor-pointer transition"
-          title="Diminuir Zoom (Enquadrar todas as colunas na tela)"
+          title="Diminuir Zoom"
         >
           <ZoomOut className="w-4 h-4" />
         </button>

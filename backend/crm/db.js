@@ -220,6 +220,10 @@ async function initCrmSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_doc ON crm_customers(cpf, cnpj);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_phone ON crm_customers(phone);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_appointments_time ON crm_appointments(start_time);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_status ON crm_workshops(status_visita);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_ra ON crm_workshops(regiao_administrativa);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_name ON crm_workshops(nome_fantasia);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_cnpj ON crm_workshops(cnpj);`);
 
     // Ativação mandatória de Row Level Security (RLS) nas tabelas do CRM (Segurança Supabase)
     await client.query(`
