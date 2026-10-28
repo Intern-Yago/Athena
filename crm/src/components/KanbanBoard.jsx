@@ -147,7 +147,7 @@ export default function KanbanBoard({
   useEffect(() => {
     if (isExpansionFunnel) {
       crmApiFetch('/crm/workshops/stats')
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data && data.success && Array.isArray(data.byRa)) {
             setAvailableRas(data.byRa.map(r => r.ra).filter(Boolean));
@@ -174,7 +174,10 @@ export default function KanbanBoard({
       if (ra && ra !== 'all') params.append('ra', ra);
 
       const res = await crmApiFetch(`/crm/workshops?${params.toString()}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // Rota aguardando conclusão do deploy no servidor; retorno silencioso sem poluir console
+        return;
+      }
       const data = await res.json();
 
       if (data && data.success && Array.isArray(data.workshops)) {
@@ -194,8 +197,8 @@ export default function KanbanBoard({
           };
         });
       }
-    } catch (err) {
-      console.warn(`Erro ao carregar oficinas do estágio ${stageId}:`, err.message);
+    } catch (_) {
+      // Ignora falhas de conexão de forma graciosa
     } finally {
       setLoadingExpansionStages(prev => ({ ...prev, [stageId]: false }));
     }
