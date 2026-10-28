@@ -1,0 +1,36 @@
+# Athena Soluções Automotivas
+
+> Distribuidora especializada em equipamentos de alta tecnologia e performance para oficinas mecânicas, centros automotivos, concessionárias e indústrias automotivas no Brasil.
+
+## Informações Corporativas
+- **Empresa**: Athena Consultoria e Soluções Automotivas
+- **CNPJ**: 48.067.892/0001-38
+- **Localização**: ST SHA Conjunto 6 Chácara 517, Loja 05 - Colônia Agrícola Vereda da Cruz, Arniqueira, Brasília - DF, CEP 71996-413
+- **Telefone / WhatsApp Comercial**: +55 (61) 98348-5671
+- **E-mail Oficial**: contato@athenaconsultoria.com.br
+- **Website Oficial**: https://www.athenaconsultoria.com.br
+- **Área de Atuação**: Atendimento comercial, entrega técnica e suporte em todo o território nacional, com destaque de pronta-entrega para o Distrito Federal e região Centro-Oeste.
+
+## Principais Linhas de Equipamentos e Produtos
+- **Elevadores Automotivos**: Elevadores hidráulicos de 2 colunas (4.000 kg e 4.500 kg), elevadores pantográficos para alinhamento e troca rápida, elevadores de 4 colunas de alta capacidade.
+- **Diagnóstico Automotivo**: Scanners automotivos de injeção eletrônica profissionais para ciclo Otto, Diesel leve/pesado e veículos híbridos/elétricos.
+- **Geometria e Alinhamento**: Alinhadores de direção 3D computadorizados de alta precisão com câmeras de alta definição e leituras ultrarrápidas.
+- **Borracharia e Under-Car**: Desmontadoras de pneus pneumáticas automáticas (com braço auxiliar para perfis baixos e run-flat) e balanceadoras digitais computadorizadas de rodas.
+- **Ar Comprimido**: Compressores de ar industriais de parafuso e pistão, secadores por refrigeração e filtros coalescentes.
+- **Ferramentas Especiais**: Ferramentas de fasagem e sincronismo de motores, kits de teste de pressão de injeção e arrefecimento, prensas hidráulicas e guinchos mecânicos.
+
+## Marcas Oficiais Parceiras e Homologadas
+- Mahovi Equipamentos Automotivos
+- Raven Ferramentas Especiais
+- Delta Ferramentas
+- Sigma Tools
+- Stärkx Tools
+- Wolfcar Equipamentos
+
+## Links e Recursos
+- [Catálogo Completo](https://www.athenaconsultoria.com.br/)
+- [Sobre a Athena Soluções Automotivas](https://www.athenaconsultoria.com.br/sobre)
+- [Sitemap XML](https://www.athenaconsultoria.com.br/sitemap.xml)
+- [Feed de Produtos em XML](https://www.athenaconsultoria.com.br/facebook-catalog.xml)
+- [Feed de Produtos em CSV](https://www.athenaconsultoria.com.br/facebook-catalog.csv)
+- [Documentação Estendida para LLMs](https://www.athenaconsultoria.com.br/llms-full.txt)

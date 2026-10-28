@@ -1,6 +1,35 @@
 # Robots.txt - Athena Soluções Automotivas
 # https://www.athenaconsultoria.com.br
 
+User-agent: Googlebot
+Allow: /
+Allow: /sitemap.xml
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: Google-Sitemaps
+Allow: /
+Allow: /sitemap.xml
+
+User-agent: Google-InspectionTool
+Allow: /
+Allow: /sitemap.xml
+
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+
 User-agent: facebookexternalhit
 Allow: /
 Allow: /facebook-catalog.xml
@@ -16,15 +45,15 @@ Allow: /
 User-agent: Meta-ExternalFetcher
 Allow: /
 
-User-agent: Googlebot
-Allow: /
-
 User-agent: *
 Allow: /
 Allow: /produto/
 Allow: /categoria/
 Allow: /marca/
 Allow: /sobre
+Allow: /sitemap.xml
+Allow: /llms.txt
+Allow: /llms-full.txt
 Allow: /facebook-catalog.xml
 Allow: /facebook-catalog.csv
 Allow: /api/feeds/
@@ -35,6 +64,7 @@ Disallow: /api/
 Allow: /api/feeds/
 Disallow: /api-docs
 
-# Sitemap oficial indexador
+# Sitemap oficial indexador e documentação para LLMs
 Sitemap: https://www.athenaconsultoria.com.br/sitemap.xml
+
 

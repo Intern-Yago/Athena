@@ -498,13 +498,33 @@ if (ATHENA_ORIGIN_SECRET) {
       return next();
     }
 
-    // Permite health checks internos do Render, ping, Webhooks de pagamento e feeds públicos do Meta Commerce / Google
+    // Permite sitemaps, robots, llms.txt, health checks internos do Render, ping, Webhooks de pagamento e crawlers públicos (Google, Bing, Meta, etc.)
     const userAgent = (req.headers['user-agent'] || '').toLowerCase();
     const isPublicCrawler = userAgent.includes('facebook') || 
                             userAgent.includes('meta-external') || 
-                            userAgent.includes('googlebot');
+                            userAgent.includes('facebot') ||
+                            userAgent.includes('google') ||
+                            userAgent.includes('bing') ||
+                            userAgent.includes('bot') ||
+                            userAgent.includes('crawler') ||
+                            userAgent.includes('spider') ||
+                            userAgent.includes('slurp') ||
+                            userAgent.includes('duckduckbot') ||
+                            userAgent.includes('baiduspider') ||
+                            userAgent.includes('yandex') ||
+                            userAgent.includes('applebot') ||
+                            userAgent.includes('gptbot') ||
+                            userAgent.includes('chatgpt') ||
+                            userAgent.includes('perplexity') ||
+                            userAgent.includes('claude');
 
     if (
+      req.path === '/sitemap.xml' || 
+      req.path === '/robots.txt' || 
+      req.path === '/llms.txt' || 
+      req.path === '/llms-full.txt' || 
+      req.path === '/security.txt' || 
+      req.path === '/.well-known/security.txt' || 
       req.path === '/api/health' || 
       req.path === '/api/ping' || 
       req.path === '/health' || 
@@ -626,7 +646,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// SITEMAP ROUTE FOR SEARCH ENGINES & CRAWLERS (/sitemap.xml)
+// SITEMAP, ROBOTS & LLM ROUTES FOR SEARCH ENGINES & AI CRAWLERS
 // -------------------------------------------------------------
 app.get('/sitemap.xml', (req, res) => {
   const sitemapPath = path.join(__dirname, '..', 'public', 'sitemap.xml');
@@ -635,6 +655,33 @@ app.get('/sitemap.xml', (req, res) => {
     return res.sendFile(sitemapPath);
   }
   return res.status(404).send('Sitemap not found');
+});
+
+app.get('/robots.txt', (req, res) => {
+  const robotsPath = path.join(__dirname, '..', 'public', 'robots.txt');
+  if (fs.existsSync(robotsPath)) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.sendFile(robotsPath);
+  }
+  return res.status(404).send('robots.txt not found');
+});
+
+app.get('/llms.txt', (req, res) => {
+  const llmsPath = path.join(__dirname, '..', 'public', 'llms.txt');
+  if (fs.existsSync(llmsPath)) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.sendFile(llmsPath);
+  }
+  return res.status(404).send('llms.txt not found');
+});
+
+app.get('/llms-full.txt', (req, res) => {
+  const llmsFullPath = path.join(__dirname, '..', 'public', 'llms-full.txt');
+  if (fs.existsSync(llmsFullPath)) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.sendFile(llmsFullPath);
+  }
+  return res.status(404).send('llms-full.txt not found');
 });
 
 // -------------------------------------------------------------
