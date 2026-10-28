@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useTheme } from '../context/ThemeContext';
 import { crmApiFetch } from '../utils/api';
 import { fetchOfflineWorkshops, getOfflineWorkshopStats, saveOfflineWorkshopStatus } from '../utils/workshopsFallback';
+import ScheduleVisitModal from './ScheduleVisitModal';
 import { 
   Plus, 
   Search, 
@@ -114,6 +115,15 @@ export default function KanbanBoard({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRa, setSelectedRa] = useState('all');
   const [draggedLeadId, setDraggedLeadId] = useState(null);
+
+  // Modal para Agendamento de Visita vinculado à Agenda
+  const [scheduledVisitState, setScheduledVisitState] = useState({
+    isOpen: false,
+    lead: null,
+    leadId: null,
+    targetStage: null,
+    targetStageId: null
+  });
 
   // Prevenção de flash de dados antigos ao alternar funis
   const [isChangingFunnel, setIsChangingFunnel] = useState(false);
@@ -350,24 +360,10 @@ export default function KanbanBoard({
     e.preventDefault();
   };
 
-  const handleDropLead = async (e, targetStage) => {
-    e.preventDefault();
-    const leadId = e.dataTransfer.getData('lead/id') || draggedLeadId;
+  const executeMoveLead = (leadId, targetStage, leadObj = null) => {
     const targetStageId = targetStage.id;
 
-    if (!leadId || !targetStageId) {
-      setDraggedLeadId(null);
-      return;
-    }
-
     if (isExpansionFunnel) {
-      // Movimentação otimista no Funil de Expansão
-      const leadDataRaw = e.dataTransfer.getData('lead/data');
-      let leadObj = null;
-      if (leadDataRaw) {
-        try { leadObj = JSON.parse(leadDataRaw); } catch (_) {}
-      }
-
       const workshopId = leadObj?.radarWorkshopId || (String(leadId).startsWith('radar_lead_') ? Number(leadId.replace('radar_lead_', '')) : null);
 
       if (workshopId) {
@@ -410,20 +406,64 @@ export default function KanbanBoard({
         // Persiste alteração localmente e no banco de dados Supabase
         saveOfflineWorkshopStatus(workshopId, { status: newStatus });
         try {
-          await crmApiFetch(`/crm/workshops/${workshopId}/status`, {
+          crmApiFetch(`/crm/workshops/${workshopId}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
-          });
-        } catch (err) {
-          console.warn('Falha ao sincronizar status da oficina:', err.message);
-        }
+          }).catch(() => {});
+        } catch (_) {}
       }
     }
 
     if (onMoveLeadStage) {
-      onMoveLeadStage(leadId, targetStageId);
+      onMoveLeadStage(leadId, targetStageId, leadObj);
     }
+  };
+
+  const handleDropLead = async (e, targetStage) => {
+    e.preventDefault();
+    const leadId = e.dataTransfer.getData('lead/id') || draggedLeadId;
+    const targetStageId = targetStage.id;
+
+    if (!leadId || !targetStageId) {
+      setDraggedLeadId(null);
+      return;
+    }
+
+    const leadDataRaw = e.dataTransfer.getData('lead/data');
+    let leadObj = null;
+    if (leadDataRaw) {
+      try { leadObj = JSON.parse(leadDataRaw); } catch (_) {}
+    }
+
+    if (!leadObj) {
+      if (isExpansionFunnel) {
+        Object.values(expansionStagesData).forEach(stg => {
+          if (!leadObj && stg?.items) {
+            const f = stg.items.find(it => it.id === leadId);
+            if (f) leadObj = f;
+          }
+        });
+      } else {
+        leadObj = leads.find(l => l.id === leadId);
+      }
+    }
+
+    // Se o estágio de destino for "Visita Agendada", abre modal interativo vinculado à Agenda
+    const isScheduleStage = targetStageId === 'stg_exp_2' || (targetStage?.title || '').toLowerCase().includes('agendad');
+    if (isScheduleStage) {
+      setScheduledVisitState({
+        isOpen: true,
+        lead: leadObj || { id: leadId, name: 'Oficina DF' },
+        leadId,
+        targetStage,
+        targetStageId
+      });
+      setDraggedLeadId(null);
+      return;
+    }
+
+    executeMoveLead(leadId, targetStage, leadObj);
     setDraggedLeadId(null);
   };
 
@@ -1087,6 +1127,25 @@ export default function KanbanBoard({
           </button>
         )}
       </div>
+
+      {/* Modal Interativo para Agendar Visita Comercial na Agenda */}
+      <ScheduleVisitModal
+        isOpen={scheduledVisitState.isOpen}
+        lead={scheduledVisitState.lead}
+        onClose={() => setScheduledVisitState({ isOpen: false, lead: null, leadId: null, targetStage: null, targetStageId: null })}
+        onConfirmSchedule={(appointmentObj) => {
+          if (scheduledVisitState.leadId && scheduledVisitState.targetStage) {
+            executeMoveLead(scheduledVisitState.leadId, scheduledVisitState.targetStage, scheduledVisitState.lead);
+          }
+          setScheduledVisitState({ isOpen: false, lead: null, leadId: null, targetStage: null, targetStageId: null });
+        }}
+        onMoveWithoutSchedule={() => {
+          if (scheduledVisitState.leadId && scheduledVisitState.targetStage) {
+            executeMoveLead(scheduledVisitState.leadId, scheduledVisitState.targetStage, scheduledVisitState.lead);
+          }
+          setScheduledVisitState({ isOpen: false, lead: null, leadId: null, targetStage: null, targetStageId: null });
+        }}
+      />
     </div>
   );
 }

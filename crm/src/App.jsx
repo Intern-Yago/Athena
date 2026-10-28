@@ -305,7 +305,7 @@ function CRMContent() {
     }
   };
 
-  const handleMoveLeadStage = async (leadId, targetStageId) => {
+  const handleMoveLeadStage = async (leadId, targetStageId, extraLead = null) => {
     // Se for um card do radar_workshops.json ainda sem ID no banco
     if (String(leadId).startsWith('radar_lead_')) {
       const workshopId = Number(leadId.replace('radar_lead_', ''));
@@ -334,7 +334,11 @@ function CRMContent() {
         } catch (_) {}
       });
 
-      await handleConvertWorkshopToLead({ id: workshopId, st: radarStatus });
+      await handleConvertWorkshopToLead({ 
+        id: workshopId, 
+        st: radarStatus, 
+        nome: extraLead?.name || extraLead?.company || extraLead?.nome || 'Oficina DF'
+      });
       return;
     }
 
@@ -417,11 +421,13 @@ function CRMContent() {
        (l.name && workshop.nome && l.name.trim().toLowerCase() === workshop.nome.trim().toLowerCase()))
     );
 
+    const workshopDisplayName = workshop.nome || workshop.name || workshop.company || existingLead?.name || 'Oficina DF';
+
     if (existingLead) {
       // Se já existe e mudou de estágio, move o lead
       if (existingLead.stage_id !== targetStageId) {
-        await handleMoveLeadStage(existingLead.id, targetStageId);
-        showNotification(`Lead "${workshop.nome}" atualizado para o estágio correspondente no Funil.`);
+        await handleMoveLeadStage(existingLead.id, targetStageId, { name: workshopDisplayName });
+        showNotification(`Lead "${workshopDisplayName}" atualizado para o estágio correspondente no Funil.`);
       }
     } else {
       // Cria o lead automaticamente na etapa correta do Funil de Expansão DF
@@ -431,13 +437,13 @@ function CRMContent() {
           funnel_id: 'fun_expansao_df',
           stageId: targetStageId,
           stage_id: targetStageId,
-          name: workshop.nome || 'Oficina DF',
-          company: workshop.rz || workshop.nome,
+          name: workshopDisplayName,
+          company: workshop.rz || workshop.company || workshopDisplayName,
           cnpj: workshop.cnpj || '',
-          phone: workshop.tel || '',
-          email: '',
-          address: workshop.end || '',
-          ra_df: workshop.ra || 'DF',
+          phone: workshop.tel || workshop.phone || '',
+          email: workshop.email || '',
+          address: workshop.end || workshop.address || '',
+          ra_df: workshop.ra || workshop.ra_df || 'DF',
           value: 0,
           notes: `Oficina sincronizada via Radar de Expansão DF • Categoria: ${workshop.cat || 'Mecânica Geral'} [Radar ID: ${workshop.id}]`
         };
@@ -450,7 +456,7 @@ function CRMContent() {
         const data = await res.json();
         if (data.success && data.data) {
           setLeads(prev => [data.data, ...prev]);
-          showNotification(`Oficina "${workshop.nome}" sincronizada no Funil de Expansão!`);
+          showNotification(`Oficina "${workshopDisplayName}" sincronizada no Funil de Expansão!`);
         }
       } catch (err) {
         console.error('Erro ao sincronizar oficina para o funil de expansão:', err);
