@@ -20,7 +20,8 @@ import {
   X,
   ChevronRight,
   MessageCircle,
-  Clock
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 
 const INITIAL_SAMPLE_CUSTOMERS = [

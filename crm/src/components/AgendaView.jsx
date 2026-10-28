@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { crmApiFetch } from '../utils/api';
 import { 
   Calendar as CalendarIcon, 
@@ -16,20 +17,119 @@ import {
   User,
   Building2,
   Filter,
-  CheckCircle2
+  CheckCircle2,
+  Edit2,
+  Trash2,
+  Download,
+  Sparkles,
+  Share2,
+  Key
 } from 'lucide-react';
+
+function buildGoogleCalendarUrl(apt) {
+  if (!apt) return 'https://calendar.google.com';
+  const title = encodeURIComponent(apt.title || 'Visita Comercial Athena');
+  const details = encodeURIComponent(apt.description || 'Visita comercial agendada via Athena CRM');
+  const location = encodeURIComponent(apt.location || 'Brasília - DF');
+
+  let startIso = '';
+  let endIso = '';
+
+  try {
+    const sDate = new Date(apt.start_time);
+    const eDate = apt.end_time ? new Date(apt.end_time) : new Date(sDate.getTime() + 60 * 60 * 1000);
+    startIso = sDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    endIso = eDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  } catch (_) {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    startIso = `${today}T130000Z`;
+    endIso = `${today}T140000Z`;
+  }
+
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startIso}/${endIso}&details=${details}&location=${location}`;
+}
+
+function downloadIcsCalendar(appointments) {
+  if (!appointments || appointments.length === 0) return;
+  const icsLines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Athena Solucoes Automotivas//CRM Agenda//PT',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH'
+  ];
+
+  appointments.forEach(apt => {
+    try {
+      const sDate = new Date(apt.start_time);
+      const eDate = apt.end_time ? new Date(apt.end_time) : new Date(sDate.getTime() + 60 * 60 * 1000);
+      const dtStart = sDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      const dtEnd = eDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+      icsLines.push('BEGIN:VEVENT');
+      icsLines.push(`UID:${apt.id || Date.now()}@athenaconsultoria.com.br`);
+      icsLines.push(`SUMMARY:${(apt.title || 'Compromisso Athena').replace(/,/g, '\\,')}`);
+      icsLines.push(`DESCRIPTION:${(apt.description || '').replace(/\n/g, '\\n').replace(/,/g, '\\,')}`);
+      if (apt.location) {
+        icsLines.push(`LOCATION:${apt.location.replace(/,/g, '\\,')}`);
+      }
+      icsLines.push(`DTSTART:${dtStart}`);
+      icsLines.push(`DTEND:${dtEnd}`);
+      icsLines.push('STATUS:CONFIRMED');
+      icsLines.push('END:VEVENT');
+    } catch (_) {}
+  });
+
+  icsLines.push('END:VCALENDAR');
+  const blob = new Blob([icsLines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `athena-agenda-${new Date().toISOString().slice(0, 10)}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 export default function AgendaView() {
   const { isDark } = useTheme();
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState('semanal'); // 'mensal' | 'semanal' | 'diario'
   const [currentDate, setCurrentDate] = useState(new Date());
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Sincronização Google Agenda
+  // Sincronização Google Agenda Pessoal
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [syncingGoogle, setSyncingGoogle] = useState(false);
   const [googleSyncSuccess, setGoogleSyncSuccess] = useState(false);
+  const [googleAccount, setGoogleAccount] = useState(() => {
+    return localStorage.getItem('athena_google_sync_email') || user?.email || 'admathenas2026@gmail.com';
+  });
+  const [googleClientId, setGoogleClientId] = useState(() => {
+    return localStorage.getItem('athena_google_client_id') || '';
+  });
+  const [googleTab, setGoogleTab] = useState('quick'); // 'quick' | 'oauth'
+
+  useEffect(() => {
+    if (user?.email && !localStorage.getItem('athena_google_sync_email')) {
+      setGoogleAccount(user.email);
+    }
+  }, [user]);
+
+  // Modal Detalhes / Edição / Exclusão de Agendamento
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [isEditingAppointment, setIsEditingAppointment] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    type: 'visita',
+    date: '',
+    start_time: '10:00',
+    end_time: '11:00',
+    location: '',
+    description: ''
+  });
 
   // Modal Novo Agendamento
   const [showEventModal, setShowEventModal] = useState(false);
@@ -207,6 +307,83 @@ export default function AgendaView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(createdObj)
       });
+    } catch (_) {}
+  };
+
+  // Abrir Modal de Detalhes do Agendamento
+  const handleOpenAppointmentDetails = (apt) => {
+    setSelectedAppointment(apt);
+    const startDate = apt.start_time ? apt.start_time.slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const startH = apt.start_time ? apt.start_time.slice(11, 16) : '10:00';
+    const endH = apt.end_time ? apt.end_time.slice(11, 16) : '11:00';
+
+    setEditForm({
+      title: apt.title || '',
+      type: apt.type || 'visita',
+      date: apt.date || startDate,
+      start_time: startH,
+      end_time: endH,
+      location: apt.location || '',
+      description: apt.description || ''
+    });
+    setIsEditingAppointment(false);
+  };
+
+  // Salvar Edição do Agendamento
+  const handleSaveAppointmentEdit = async (e) => {
+    e.preventDefault();
+    if (!selectedAppointment) return;
+
+    const startDateTime = `${editForm.date}T${editForm.start_time}:00Z`;
+    const endDateTime = `${editForm.date}T${editForm.end_time}:00Z`;
+
+    const updatedObj = {
+      ...selectedAppointment,
+      title: editForm.title,
+      type: editForm.type,
+      start_time: startDateTime,
+      end_time: endDateTime,
+      location: editForm.location,
+      description: editForm.description,
+      updated_at: new Date().toISOString()
+    };
+
+    setAppointments(prev => prev.map(a => a.id === updatedObj.id ? updatedObj : a));
+    try {
+      const stored = localStorage.getItem('athena_crm_appointments');
+      const list = stored ? JSON.parse(stored) : [];
+      const updatedList = list.map(a => a.id === updatedObj.id ? updatedObj : a);
+      localStorage.setItem('athena_crm_appointments', JSON.stringify(updatedList));
+    } catch (_) {}
+
+    setSelectedAppointment(updatedObj);
+    setIsEditingAppointment(false);
+
+    try {
+      await crmApiFetch(`/crm/appointments/${updatedObj.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedObj)
+      });
+    } catch (_) {}
+  };
+
+  // Excluir Agendamento
+  const handleDeleteAppointment = async (id) => {
+    if (!id) return;
+    setAppointments(prev => prev.filter(a => a.id !== id));
+    try {
+      const stored = localStorage.getItem('athena_crm_appointments');
+      const list = stored ? JSON.parse(stored) : [];
+      const filtered = list.filter(a => a.id !== id);
+      localStorage.setItem('athena_crm_appointments', JSON.stringify(filtered));
+    } catch (_) {}
+
+    setSelectedAppointment(null);
+    setIsEditingAppointment(false);
+
+    try {
+      await crmApiFetch(`/crm/appointments/${id}`, { method: 'DELETE' });
     } catch (_) {}
   };
 
@@ -494,9 +671,13 @@ export default function AgendaView() {
                         return (
                           <div
                             key={apt.id}
-                            className={`absolute left-1.5 right-1.5 rounded-xl p-2.5 text-xs font-bold shadow-md border overflow-hidden transition hover:scale-[1.01] cursor-pointer z-10 ${badgeColor}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenAppointmentDetails(apt);
+                            }}
+                            className={`absolute left-1.5 right-1.5 rounded-xl p-2.5 text-xs font-bold shadow-md border overflow-hidden transition hover:scale-[1.01] hover:brightness-110 cursor-pointer z-20 ${badgeColor}`}
                             style={{ top: `${topPos}px`, height: '52px' }}
-                            title={`${apt.title}\n${apt.description || ''}\n${apt.location || ''}`}
+                            title={`Clique para ver detalhes, editar ou excluir:\n${apt.title}\n${apt.description || ''}\n${apt.location || ''}`}
                           >
                             <div className="flex items-center justify-between text-[10px] opacity-90 mb-0.5">
                               <span className="flex items-center gap-1 font-mono font-bold">
@@ -570,18 +751,22 @@ export default function AgendaView() {
 
                   {/* Lista de eventos no dia */}
                   <div className="space-y-1 mt-1 overflow-hidden">
-                    {dayApts.slice(0, 2).map((apt) => (
+                    {dayApts.slice(0, 3).map((apt) => (
                       <div 
                         key={apt.id}
-                        className="p-1 bg-amber-500 text-slate-950 text-[10px] font-bold rounded-md truncate shadow-xs"
-                        title={apt.title}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenAppointmentDetails(apt);
+                        }}
+                        className="p-1 bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold rounded-md truncate shadow-xs cursor-pointer transition hover:scale-[1.02]"
+                        title={`Clique para ver detalhes, editar ou excluir:\n${apt.title}`}
                       >
                         {apt.title}
                       </div>
                     ))}
-                    {dayApts.length > 2 && (
+                    {dayApts.length > 3 && (
                       <span className="text-[9px] text-amber-500 font-bold block">
-                        +{dayApts.length - 2} mais
+                        +{dayApts.length - 3} mais
                       </span>
                     )}
                   </div>
@@ -593,29 +778,40 @@ export default function AgendaView() {
       )}
 
       {/* ============================================================ */}
-      {/* MODAL: SINCRONIZAR COM GOOGLE AGENDA                         */}
+      {/* MODAL: SINCRONIZAR COM GOOGLE AGENDA PESSOAL                 */}
       {/* ============================================================ */}
       {showGoogleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs select-none">
-          <div className={`w-full max-w-md rounded-2xl border shadow-2xl p-6 ${
+          <div className={`w-full max-w-lg rounded-2xl border shadow-2xl p-6 flex flex-col max-h-[90vh] overflow-hidden ${
             isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
           }`}>
-            <div className={`flex items-center justify-between pb-3 border-b mb-4 ${
+            {/* Header */}
+            <div className={`flex items-center justify-between pb-3 border-b mb-4 shrink-0 ${
               isDark ? 'border-slate-800' : 'border-slate-200'
             }`}>
               <div className="flex items-center gap-2.5">
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22 6c0-1.1-.9-2-2-2h-3V2h-2v2H9V2H7v2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z"/>
                   <path fill="#34A853" d="M4 22h16c1.1 0 2-.9 2-2V9H2v11c0 1.1.9 2 2 2z"/>
                   <path fill="#FBBC05" d="M2 9h20V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v3z"/>
                   <path fill="#EA4335" d="M7 2v4H5V2h2zm10 0v4h-2V2h2z"/>
                 </svg>
-                <h3 className="font-black text-base">Google Calendar Sync</h3>
+                <div>
+                  <h3 className="font-black text-base flex items-center gap-2">
+                    Sincronização com Google Agenda
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20">
+                      Pessoal
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Conecte a agenda da Athena diretamente à sua conta Google pessoal
+                  </p>
+                </div>
               </div>
               <button 
                 type="button" 
                 onClick={() => setShowGoogleModal(false)}
-                className={`p-1 rounded-lg ${
+                className={`p-1.5 rounded-lg ${
                   isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'
                 }`}
               >
@@ -623,33 +819,150 @@ export default function AgendaView() {
               </button>
             </div>
 
-            <p className={`text-xs leading-relaxed mb-4 ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
-            }`}>
-              Todas as visitas comerciais, demonstrações práticas de elevadores e alinhadores serão sincronizadas diretamente para o seu Google Agenda no smartphone e computador.
-            </p>
-
-            <div className={`p-3 rounded-xl border text-xs space-y-2 mb-4 ${
-              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between">
-                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Conta Google vinculada:</span>
-                <strong className="text-amber-500 font-mono">athena.consultoria@gmail.com</strong>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Modo de sincronização:</span>
-                <span className="text-emerald-500 font-bold">Bidirecional em Tempo Real</span>
-              </div>
+            {/* Tabs */}
+            <div className="flex items-center gap-2 border-b pb-3 mb-4 shrink-0 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setGoogleTab('quick')}
+                className={`px-3 py-1.5 rounded-xl transition ${
+                  googleTab === 'quick' 
+                    ? 'bg-blue-600 text-white shadow-xs' 
+                    : isDark ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                ⚡ 1-Clique Direto (Sem Chaves)
+              </button>
+              <button
+                type="button"
+                onClick={() => setGoogleTab('oauth')}
+                className={`px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 ${
+                  googleTab === 'oauth' 
+                    ? 'bg-blue-600 text-white shadow-xs' 
+                    : isDark ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Key className="w-3.5 h-3.5" />
+                API & OAuth 2.0
+              </button>
             </div>
 
-            {googleSyncSuccess ? (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-500 text-xs font-bold flex items-center gap-2 mb-4">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Eventos sincronizados com seu Google Agenda com sucesso!</span>
-              </div>
-            ) : null}
+            <div className="overflow-y-auto space-y-4 pr-1">
+              {googleTab === 'quick' ? (
+                <>
+                  {/* Conta Pessoal do Usuário */}
+                  <div className={`p-3.5 rounded-xl border space-y-2 text-xs ${
+                    isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <label className="block text-[11px] font-bold text-slate-400">
+                      Sua Conta Google Pessoal para Sincronização:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={googleAccount}
+                        onChange={(e) => {
+                          setGoogleAccount(e.target.value);
+                          localStorage.setItem('athena_google_sync_email', e.target.value);
+                        }}
+                        placeholder="seu-email@gmail.com"
+                        className={`flex-1 px-3 py-2 rounded-xl border text-xs font-mono outline-none ${
+                          isDark ? 'bg-slate-900 border-slate-700 text-amber-400 focus:border-blue-400' : 'bg-white border-slate-300 text-amber-600 focus:border-blue-500'
+                        }`}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-tight">
+                      💡 Pré-preenchido automaticamente com o e-mail da sua conta Athena (<strong>{user?.email || 'usuário atual'}</strong>).
+                    </p>
+                  </div>
 
-            <div className="flex items-center justify-end gap-2">
+                  {/* Ações 1-Clique Rápidas */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => downloadIcsCalendar(appointments)}
+                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition hover:border-blue-500 ${
+                        isDark ? 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/40' : 'bg-white border-slate-200 hover:bg-blue-50/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 text-xs font-bold text-blue-500 mb-1">
+                        <Download className="w-4 h-4 shrink-0" />
+                        <span>Exportar para o Google (.ics)</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Baixa todos os seus agendamentos para importar no Google Agenda em 2 segundos.
+                      </p>
+                    </button>
+
+                    <a
+                      href="https://calendar.google.com/calendar/r"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition hover:border-emerald-500 ${
+                        isDark ? 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/40' : 'bg-white border-slate-200 hover:bg-emerald-50/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-500 mb-1">
+                        <ExternalLink className="w-4 h-4 shrink-0" />
+                        <span>Abrir seu Google Agenda</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Acessar diretamente sua agenda do Google no navegador.
+                      </p>
+                    </a>
+                  </div>
+
+                  {googleSyncSuccess ? (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-500 text-xs font-bold flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>Sincronização disparada com seu Google Agenda com sucesso!</span>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                /* Aba de Configuração com Chave OAuth */
+                <div className="space-y-3 text-xs">
+                  <div className={`p-3.5 rounded-xl border space-y-2 leading-relaxed ${
+                    isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}>
+                    <h4 className="font-bold text-xs text-blue-500 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Como obter sua chave do Google Calendar API:
+                    </h4>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-400">
+                      <li>Acesse o <strong>Google Cloud Console</strong> (<a href="https://console.cloud.google.com" target="_blank" rel="noreferrer" className="text-blue-400 underline">console.cloud.google.com</a>).</li>
+                      <li>Crie um projeto e ative a <strong>Google Calendar API</strong>.</li>
+                      <li>Configure a <strong>Tela de Consentimento OAuth</strong> com seu e-mail.</li>
+                      <li>Vá em <strong>Credenciais ➔ Criar Credencial ➔ ID do Cliente OAuth</strong> (Aplicativo Web).</li>
+                      <li>Adicione em <em>Origens JavaScript autorizadas</em>: <code className="text-amber-400">https://interno.athenaconsultoria.com.br</code>.</li>
+                      <li>Cole o seu <strong>Client ID</strong> gerado abaixo.</li>
+                    </ol>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                      Google OAuth Client ID:
+                    </label>
+                    <input
+                      type="text"
+                      value={googleClientId}
+                      onChange={(e) => {
+                        setGoogleClientId(e.target.value);
+                        localStorage.setItem('athena_google_client_id', e.target.value);
+                      }}
+                      placeholder="Ex: 123456789-abcdef.apps.googleusercontent.com"
+                      className={`w-full px-3 py-2 rounded-xl border text-xs font-mono outline-none ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-blue-400' : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className={`mt-4 pt-3 border-t flex items-center justify-end gap-2 shrink-0 ${
+              isDark ? 'border-slate-800' : 'border-slate-200'
+            }`}>
               <button
                 type="button"
                 onClick={() => setShowGoogleModal(false)}
@@ -657,7 +970,7 @@ export default function AgendaView() {
                   isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Cancelar
+                Fechar
               </button>
               <button
                 type="button"
@@ -669,6 +982,272 @@ export default function AgendaView() {
                 <span>{syncingGoogle ? 'Sincronizando...' : 'Sincronizar Agora'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL: DETALHES / EDIÇÃO / EXCLUSÃO DE AGENDAMENTO           */}
+      {/* ============================================================ */}
+      {selectedAppointment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs select-none">
+          <div className={`w-full max-w-lg rounded-2xl border shadow-2xl p-6 flex flex-col max-h-[90vh] overflow-hidden ${
+            isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            {/* Header */}
+            <div className={`flex items-center justify-between pb-3 border-b mb-4 shrink-0 ${
+              isDark ? 'border-slate-800' : 'border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  selectedAppointment.type === 'treinamento' 
+                    ? 'bg-blue-500/20 text-blue-400' 
+                    : selectedAppointment.type === 'reuniao'
+                    ? 'bg-purple-500/20 text-purple-400'
+                    : 'bg-amber-500/20 text-amber-500'
+                }`}>
+                  <CalendarIcon className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base truncate max-w-xs">
+                    {isEditingAppointment ? 'Editar Agendamento' : selectedAppointment.title}
+                  </h3>
+                  <span className="text-[10px] uppercase font-extrabold tracking-wider opacity-75">
+                    {selectedAppointment.type || 'Visita'}
+                  </span>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setSelectedAppointment(null)}
+                className={`p-1.5 rounded-lg ${
+                  isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Conteúdo */}
+            {isEditingAppointment ? (
+              /* Formulário de Edição */
+              <form onSubmit={handleSaveAppointmentEdit} className="space-y-3 overflow-y-auto pr-1">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Título do Compromisso *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-400' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                    }`}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">
+                      Data *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={editForm.date}
+                      onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                      className={`w-full px-3 py-2 rounded-xl border text-xs outline-none ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-400' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">
+                      Tipo
+                    </label>
+                    <select
+                      value={editForm.type}
+                      onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                      className={`w-full px-3 py-2 rounded-xl border text-xs outline-none ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-400' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                      }`}
+                    >
+                      <option value="visita">Visita Comercial</option>
+                      <option value="treinamento">Treinamento</option>
+                      <option value="reuniao">Reunião Interna</option>
+                      <option value="instalacao">Instalação Técnica</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">
+                      Horário Início *
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={editForm.start_time}
+                      onChange={(e) => setEditForm({ ...editForm, start_time: e.target.value })}
+                      className={`w-full px-3 py-2 rounded-xl border text-xs outline-none ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-400' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">
+                      Horário Término
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={editForm.end_time}
+                      onChange={(e) => setEditForm({ ...editForm, end_time: e.target.value })}
+                      className={`w-full px-3 py-2 rounded-xl border text-xs outline-none ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-400' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Endereço / Localização
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.location}
+                    onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                    placeholder="Ex: SIA Trecho 3 Lote 620"
+                    className={`w-full px-3 py-2 rounded-xl border text-xs outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-400' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Pauta / Observações
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs outline-none resize-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-400' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                    }`}
+                  />
+                </div>
+
+                <div className={`mt-4 pt-3 border-t flex justify-end gap-2 ${
+                  isDark ? 'border-slate-800' : 'border-slate-200'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingAppointment(false)}
+                    className="px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20"
+                  >
+                    Salvar Alterações
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* Visualização de Detalhes */
+              <div className="space-y-4 overflow-y-auto pr-1">
+                {/* Horário e Data */}
+                <div className={`p-3.5 rounded-xl border flex items-center gap-3 ${
+                  isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <Clock className="w-5 h-5 text-amber-500 shrink-0" />
+                  <div>
+                    <div className="text-xs font-bold text-slate-200">
+                      {selectedAppointment.start_time?.slice(0, 10)} às {selectedAppointment.start_time?.slice(11, 16)} - {selectedAppointment.end_time?.slice(11, 16) || '11:00'}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      Horário comercial agendado
+                    </div>
+                  </div>
+                </div>
+
+                {/* Localização com Botão Google Maps */}
+                {selectedAppointment.location && (
+                  <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                    isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <MapPin className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold truncate">Endereço</div>
+                        <div className="text-xs text-slate-400 truncate">{selectedAppointment.location}</div>
+                      </div>
+                    </div>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedAppointment.location)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold shrink-0 flex items-center gap-1 transition"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Maps
+                    </a>
+                  </div>
+                )}
+
+                {/* Descrição / Pauta */}
+                {selectedAppointment.description && (
+                  <div className={`p-3.5 rounded-xl border text-xs leading-relaxed ${
+                    isDark ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}>
+                    <div className="text-[10px] uppercase font-extrabold text-slate-500 mb-1">Pauta / Observações</div>
+                    <p className="whitespace-pre-wrap">{selectedAppointment.description}</p>
+                  </div>
+                )}
+
+                {/* Rodapé de Ações */}
+                <div className={`pt-4 border-t flex flex-wrap items-center justify-between gap-2 ${
+                  isDark ? 'border-slate-800' : 'border-slate-200'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteAppointment(selectedAppointment.id)}
+                    className="px-3 py-2 rounded-xl text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 transition flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Excluir
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={buildGoogleCalendarUrl(selectedAppointment)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 transition shadow-xs"
+                      title="Adicionar diretamente ao seu Google Agenda"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Google Agenda
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingAppointment(true)}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 transition shadow-md shadow-amber-500/20"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      Editar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
