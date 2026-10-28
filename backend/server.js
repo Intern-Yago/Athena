@@ -1003,8 +1003,12 @@ async function initDb() {
           email VARCHAR(255) UNIQUE NOT NULL,
           password_hash VARCHAR(255) NOT NULL,
           role VARCHAR(50) NOT NULL DEFAULT 'vendedor',
+          first_login_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+          last_login_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS first_login_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
       `);
 
       // Initialize Super Admin User if no users exist
@@ -3445,9 +3449,9 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
       // Zera falhas do IP
       resetIpAttempts(clientIp).catch(() => {});
 
-      // Zera falhas do Usuário no PostgreSQL
+      // Zera falhas do Usuário no PostgreSQL e registra primeiro / último login
       if (foundUser && pool) {
-        pool.query('UPDATE users SET failed_login_attempts = 0, locked_until = NULL, is_locked = false WHERE id = $1', [foundUser.id]).catch(() => {});
+        pool.query('UPDATE users SET failed_login_attempts = 0, locked_until = NULL, is_locked = false, first_login_at = COALESCE(first_login_at, NOW()), last_login_at = NOW() WHERE id = $1', [foundUser.id]).catch(() => {});
       }
       // Zera no JSON DB se aplicável
       const db = readDbJson();
@@ -3457,6 +3461,10 @@ app.post('/api/auth/login', loginSlowDown, loginLimiter, async (req, res) => {
         db.users[uIdx].failedAttempts = 0;
         db.users[uIdx].locked_until = null;
         db.users[uIdx].is_locked = false;
+        if (!db.users[uIdx].first_login_at && !db.users[uIdx].firstLoginAt) {
+          db.users[uIdx].firstLoginAt = new Date().toISOString();
+        }
+        db.users[uIdx].lastLoginAt = new Date().toISOString();
         writeDbJson(db);
       }
 
@@ -7669,6 +7677,8 @@ app.get('/api/crm/team', authenticateToken, requireStaff, async (req, res) => {
       const result = await pool.query(`
         SELECT id, name, email, role, phone, 
                COALESCE(is_locked, false) as "isLocked",
+               first_login_at as "firstLoginAt",
+               last_login_at as "lastLoginAt",
                created_at as "createdAt"
         FROM users
         WHERE role IN ('admin', 'vendedor', 'staff', 'operacoes', 'edicao') OR role != 'cliente'
@@ -7685,13 +7695,82 @@ app.get('/api/crm/team', authenticateToken, requireStaff, async (req, res) => {
         role: u.role || 'staff',
         phone: u.phone || '',
         isLocked: Boolean(u.isLocked || u.is_locked),
+        firstLoginAt: u.firstLoginAt || u.first_login_at || null,
+        lastLoginAt: u.lastLoginAt || u.last_login_at || null,
         createdAt: u.createdAt || new Date().toISOString()
       }));
     }
-    return res.json({ success: true, data: rows });
+    const mapped = rows.map(u => {
+      const isLocked = Boolean(u.isLocked);
+      const isPending = !u.firstLoginAt && !u.lastLoginAt && u.role !== 'admin';
+      return {
+        ...u,
+        status: isLocked ? 'bloqueado' : (isPending ? 'pendente' : 'ativo')
+      };
+    });
+    return res.json({ success: true, data: mapped });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// Create Employee / Team Member for CRM (Restricted to Administrator)
+app.post('/api/crm/team', authenticateToken, requireAdmin, async (req, res) => {
+  const { name, email, password, role } = req.body;
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Nome, E-mail e Senha são obrigatórios.' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres.' });
+  }
+
+  const hashedPassword = bcrypt.hashSync(password, 10);
+  const newUser = {
+    id: `user_${Date.now()}`,
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    passwordHash: hashedPassword,
+    role: role || 'vendedor',
+    firstLoginAt: null,
+    lastLoginAt: null,
+    isLocked: false,
+    createdAt: new Date().toISOString()
+  };
+
+  const db = readDbJson();
+  if (!db.users) db.users = [];
+  if (db.users.some(u => (u.email || '').toLowerCase() === newUser.email)) {
+    return res.status(400).json({ error: 'Este e-mail já está cadastrado.' });
+  }
+  db.users.push(newUser);
+  writeDbJson(db);
+
+  if (pool) {
+    try {
+      await pool.query(
+        'INSERT INTO users (id, name, email, password_hash, role, first_login_at, last_login_at) VALUES ($1, $2, $3, $4, $5, NULL, NULL)',
+        [newUser.id, newUser.name, newUser.email, newUser.passwordHash, newUser.role]
+      );
+    } catch (e) {
+      console.error('Aviso ao sincronizar usuário no PostgreSQL:', e.message);
+      if (e.code === '23505') {
+        return res.status(400).json({ error: 'Este e-mail já está cadastrado.' });
+      }
+    }
+  }
+
+  res.status(201).json({ 
+    success: true, 
+    data: { 
+      id: newUser.id, 
+      name: newUser.name, 
+      email: newUser.email, 
+      role: newUser.role, 
+      status: 'pendente',
+      isLocked: false 
+    } 
+  });
 });
 
 // List Users (Restricted to Staff: Admin, Vendedor, Editor)

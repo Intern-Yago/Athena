@@ -17,6 +17,7 @@ import {
   Shield,
   UserCheck,
   UserX,
+  Clock,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -322,6 +323,7 @@ export default function TeamManagementView({ onOpenCreateModal }) {
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-100'}`}>
                 {filteredTeam.map(member => {
                   const isLocked = Boolean(member.isLocked);
+                  const isPending = member.status === 'pendente' || (!member.firstLoginAt && !member.lastLoginAt && member.role !== 'admin');
                   const isCurrent = member.id === currentUser?.id;
                   const isDeleting = deleteConfirmId === member.id;
 
@@ -388,6 +390,11 @@ export default function TeamManagementView({ onOpenCreateModal }) {
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
                             <UserX className="w-3 h-3" />
                             <span>Bloqueado</span>
+                          </span>
+                        ) : isPending ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30" title="Aguardando primeiro acesso do funcionário">
+                            <Clock className="w-3 h-3 animate-pulse" />
+                            <span>Pendente (1º Acesso)</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
