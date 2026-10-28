@@ -30,10 +30,12 @@ let memoryFunnels = [
     color: '#f59e0b',
     is_default: false,
     stages: [
-      { id: 'stg_rif_1', funnel_id: 'fun_rifa_elevador', title: 'Interessados', color: '#64748b', order: 0, is_won: false, is_lost: false },
-      { id: 'stg_rif_2', funnel_id: 'fun_rifa_elevador', title: 'Link Enviado', color: '#0ea5e9', order: 1, is_won: false, is_lost: false },
-      { id: 'stg_rif_3', funnel_id: 'fun_rifa_elevador', title: 'Números Reservados', color: '#f59e0b', order: 2, is_won: false, is_lost: false },
-      { id: 'stg_rif_4', funnel_id: 'fun_rifa_elevador', title: 'Cota Paga (Concluído)', color: '#10b981', order: 3, is_won: true, is_lost: false }
+      { id: 'stg_rif_clientes', funnel_id: 'fun_rifa_elevador', title: 'Clientes', color: '#10b981', order: 0, is_won: false, is_lost: false },
+      { id: 'stg_rif_contato1', funnel_id: 'fun_rifa_elevador', title: 'Primeiro Contato', color: '#0ea5e9', order: 1, is_won: false, is_lost: false },
+      { id: 'stg_rif_contato2', funnel_id: 'fun_rifa_elevador', title: 'Segundo Contato', color: '#3b82f6', order: 2, is_won: false, is_lost: false },
+      { id: 'stg_rif_interessados', funnel_id: 'fun_rifa_elevador', title: 'Interessados', color: '#f59e0b', order: 3, is_won: false, is_lost: false },
+      { id: 'stg_rif_paga', funnel_id: 'fun_rifa_elevador', title: 'Cota Paga', color: '#22c55e', order: 4, is_won: true, is_lost: false },
+      { id: 'stg_rif_seminteresse', funnel_id: 'fun_rifa_elevador', title: 'Sem Interesse', color: '#ef4444', order: 5, is_won: false, is_lost: true }
     ]
   },
   {

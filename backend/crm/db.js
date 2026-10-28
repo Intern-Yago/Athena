@@ -276,17 +276,19 @@ async function initCrmSchema() {
       `, [f2Id]);
 
       const f2Stages = [
-        { id: 'stg_rif_1', title: 'Interessados', color: '#64748b', order: 0 },
-        { id: 'stg_rif_2', title: 'Link Enviado', color: '#0ea5e9', order: 1 },
-        { id: 'stg_rif_3', title: 'Números Reservados', color: '#f59e0b', order: 2 },
-        { id: 'stg_rif_4', title: 'Cota Paga (Concluído)', color: '#10b981', order: 3, is_won: true }
+        { id: 'stg_rif_clientes', title: 'Clientes', color: '#10b981', order: 0, is_won: false, is_lost: false },
+        { id: 'stg_rif_contato1', title: 'Primeiro Contato', color: '#0ea5e9', order: 1, is_won: false, is_lost: false },
+        { id: 'stg_rif_contato2', title: 'Segundo Contato', color: '#3b82f6', order: 2, is_won: false, is_lost: false },
+        { id: 'stg_rif_interessados', title: 'Interessados', color: '#f59e0b', order: 3, is_won: false, is_lost: false },
+        { id: 'stg_rif_paga', title: 'Cota Paga', color: '#22c55e', order: 4, is_won: true, is_lost: false },
+        { id: 'stg_rif_seminteresse', title: 'Sem Interesse', color: '#ef4444', order: 5, is_won: false, is_lost: true }
       ];
 
       for (const s of f2Stages) {
         await client.query(`
           INSERT INTO crm_stages (id, funnel_id, title, color, "order", is_won, is_lost)
-          VALUES ($1, $2, $3, $4, $5, $6, false)
-        `, [s.id, f2Id, s.title, s.color, s.order, Boolean(s.is_won)]);
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [s.id, f2Id, s.title, s.color, s.order, Boolean(s.is_won), Boolean(s.is_lost)]);
       }
 
       // Funil 3: Expansão de Oficinas DF (Radar)
