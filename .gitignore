@@ -77,4 +77,5 @@ logs/
 catalogos/
 *.timestamp-*.mjs
 rel.txt
-
+
+contacts.csv

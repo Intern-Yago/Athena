@@ -350,7 +350,8 @@ async function pingSupabaseHeartbeat() {
 }
 
 // Dispara heartbeat a cada 4 horas
-setInterval(pingSupabaseHeartbeat, 4 * 60 * 60 * 1000);
+const heartbeatInterval = setInterval(pingSupabaseHeartbeat, 4 * 60 * 60 * 1000);
+if (heartbeatInterval.unref) heartbeatInterval.unref();
 
 module.exports = {
   crmPool,

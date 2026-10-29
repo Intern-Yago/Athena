@@ -10089,7 +10089,7 @@ if (require.main === module) {
     generateAndSyncCatalogToR2().catch(err => 
       console.warn('[Catalog R2 Periodic Sync Notice]:', err.message)
     );
-  }, 60 * 60 * 1000);
+  }, 60 * 60 * 1000).unref();
 
   // Housekeeping Preventivo de Banco de Dados: Executa limpeza de retenção a cada 24 horas
   setTimeout(() => {
