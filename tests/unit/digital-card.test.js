@@ -26,15 +26,15 @@ describe('Athena NFC Digital Card Configuration & Routing', () => {
 
   it('should properly format and URL-encode Commercial (Lidiane) and Technical Support (Henrique) WhatsApp links with DDD 61', () => {
     assert.strictEqual(DIGITAL_CARD_CONFIG.commercialWhatsAppNumber, '5561983485671');
-    assert.strictEqual(DIGITAL_CARD_CONFIG.technicalSupportWhatsAppNumber, '556191831000');
+    assert.strictEqual(DIGITAL_CARD_CONFIG.technicalSupportWhatsAppNumber, '5561984884099');
 
     assert.ok(
       DIGITAL_CARD_CONFIG.commercialWhatsAppUrl.startsWith('https://wa.me/5561983485671?text='),
       'Commercial WhatsApp URL must use https://wa.me/5561983485671'
     );
     assert.ok(
-      DIGITAL_CARD_CONFIG.technicalSupportWhatsAppUrl.startsWith('https://wa.me/556191831000?text='),
-      'Technical Support WhatsApp URL must use https://wa.me/556191831000'
+      DIGITAL_CARD_CONFIG.technicalSupportWhatsAppUrl.startsWith('https://wa.me/5561984884099?text='),
+      'Technical Support WhatsApp URL must use https://wa.me/5561984884099'
     );
 
     const commercialUrlObj = new URL(DIGITAL_CARD_CONFIG.commercialWhatsAppUrl);
@@ -70,7 +70,7 @@ describe('Athena NFC Digital Card Configuration & Routing', () => {
     assert.ok(multiVcf.includes('FN:Lidiane - Athena Consultoria Automotiva'));
     assert.ok(multiVcf.includes('+5561983485671'));
     assert.ok(multiVcf.includes('FN:Henrique - Athena Suporte Técnico'));
-    assert.ok(multiVcf.includes('+556191831000'));
+    assert.ok(multiVcf.includes('+5561984884099'));
 
     const lidianeProfile = getDigitalCardProfile('/lidiane');
     assert.strictEqual(lidianeProfile.key, 'lidiane');
@@ -79,7 +79,7 @@ describe('Athena NFC Digital Card Configuration & Routing', () => {
     assert.strictEqual((lidianeVcf.match(/BEGIN:VCARD/g) || []).length, 1);
     assert.ok(lidianeVcf.includes('FN:Lidiane - Athena Consultoria Automotiva'));
     assert.ok(lidianeVcf.includes('+5561983485671'));
-    assert.ok(!lidianeVcf.includes('+556191831000'));
+    assert.ok(!lidianeVcf.includes('+5561984884099'));
 
     const henriqueProfile = getDigitalCardProfile('/henrique');
     assert.strictEqual(henriqueProfile.key, 'henrique');
@@ -87,7 +87,7 @@ describe('Athena NFC Digital Card Configuration & Routing', () => {
     const henriqueVcf = buildVCardContent(henriqueProfile);
     assert.strictEqual((henriqueVcf.match(/BEGIN:VCARD/g) || []).length, 1);
     assert.ok(henriqueVcf.includes('FN:Henrique - Athena Suporte Técnico'));
-    assert.ok(henriqueVcf.includes('+556191831000'));
+    assert.ok(henriqueVcf.includes('+5561984884099'));
     assert.ok(!henriqueVcf.includes('+5561983485671'));
   });
 });
