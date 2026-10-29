@@ -171,13 +171,14 @@ export default function KanbanBoard({
   }, [isExpansionFunnel]);
 
   // Função para carregar uma página de oficinas para um determinado estágio
-  const loadStageWorkshops = useCallback(async (stage, page = 1, append = false, query = '', ra = 'all') => {
+  const loadStageWorkshops = useCallback(async (stage, page = 1, append = false, query = '', ra = 'all', overrideSearch = null) => {
     const stageId = stage.id;
     const statusParam = getStatusForStage(stageId, stage.title);
 
     setLoadingExpansionStages(prev => ({ ...prev, [stageId]: true }));
     try {
-      const searchParam = query.trim() || searchTerm.trim();
+      const activeSearch = overrideSearch !== null ? overrideSearch : searchTerm;
+      const searchParam = query.trim() || (activeSearch || '').trim();
 
       // Carregamento direto, instantâneo e com 0 erros 404 de rede
       const data = await fetchOfflineWorkshops({
@@ -212,14 +213,28 @@ export default function KanbanBoard({
     }
   }, [funnel?.id, searchTerm]);
 
-  // Carga inicial das colunas do Funil de Expansão
+  // Carga e busca no Funil de Expansão (com debounce para digitação suave)
+  const globalSearchTimerRef = useRef(null);
   useEffect(() => {
-    if (isExpansionFunnel && stages.length > 0) {
-      stages.forEach(stg => {
-        loadStageWorkshops(stg, 1, false, columnFilters[stg.id] || '', selectedRa);
-      });
+    if (!isExpansionFunnel || stages.length === 0) return;
+
+    if (globalSearchTimerRef.current) {
+      clearTimeout(globalSearchTimerRef.current);
     }
-  }, [isExpansionFunnel, funnel?.id, selectedRa]);
+
+    // Debounce de 250ms para buscas instantâneas sem travar a interface
+    globalSearchTimerRef.current = setTimeout(() => {
+      stages.forEach(stg => {
+        loadStageWorkshops(stg, 1, false, columnFilters[stg.id] || '', selectedRa, searchTerm);
+      });
+    }, searchTerm ? 250 : 0);
+
+    return () => {
+      if (globalSearchTimerRef.current) {
+        clearTimeout(globalSearchTimerRef.current);
+      }
+    };
+  }, [isExpansionFunnel, funnel?.id, stages, searchTerm, selectedRa]);
 
   // Debounce para busca por coluna
   const searchTimersRef = useRef({});
@@ -232,7 +247,7 @@ export default function KanbanBoard({
         clearTimeout(searchTimersRef.current[stageId]);
       }
       searchTimersRef.current[stageId] = setTimeout(() => {
-        loadStageWorkshops(stage, 1, false, value, selectedRa);
+        loadStageWorkshops(stage, 1, false, value, selectedRa, searchTerm);
       }, 300);
     }
   };
@@ -242,7 +257,7 @@ export default function KanbanBoard({
     if (!isExpansionFunnel) return;
     const currentData = expansionStagesData[stage.id] || { page: 1, hasMore: false };
     if (currentData.hasMore) {
-      loadStageWorkshops(stage, currentData.page + 1, true, columnFilters[stage.id] || '', selectedRa);
+      loadStageWorkshops(stage, currentData.page + 1, true, columnFilters[stage.id] || '', selectedRa, searchTerm);
     }
   };
 
@@ -690,18 +705,28 @@ export default function KanbanBoard({
       }`}>
         <div className="flex items-center gap-2 flex-1 min-w-[220px] max-w-md">
           <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar oportunidade, oficina ou telefone..."
-              className={`w-full rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none border transition-colors ${
+              className={`w-full rounded-xl pl-9 pr-8 py-1.5 text-xs focus:outline-none border transition-colors ${
                 isDark 
                   ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-amber-400' 
                   : 'bg-slate-100 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-amber-500'
               }`}
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-500 p-0.5 rounded-full cursor-pointer transition-colors"
+                title="Limpar busca"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Filtro por RA */}
