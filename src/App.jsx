@@ -54,7 +54,9 @@ import {
 import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
 import { trackMetaEvent, trackMetaCustom, pushGtmEvent } from './utils/metaPixel';
 
-const REMOTE_API_BASE_URL = import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
+const REMOTE_API_BASE_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !/^192\.168\./.test(window.location.hostname) && !/^127\./.test(window.location.hostname)
+  ? '/api'
+  : (import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api');
 const LOCAL_API_BASE_URL = typeof window !== 'undefined' 
   ? `${window.location.protocol}//${window.location.hostname}:3001/api` 
   : 'http://localhost:3001/api';
