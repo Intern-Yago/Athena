@@ -14,7 +14,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
  * - Suporte a gestos touch/swipe em smartphones e tablets.
  * - Redirecionamento configurável por banner (links internos ou externos).
  */
-export default function HomeBannerCarousel({ banners = [], onNavigate }) {
+export default function HomeBannerCarousel({ banners = [], isLoading = false, onNavigate }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const touchStartXRef = useRef(0);
@@ -122,6 +122,17 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
   };
 
   if (total === 0) {
+    if (isLoading) {
+      return (
+        <div className="w-full select-none overflow-hidden bg-slate-950 border-b border-slate-800/80">
+          <div className="relative w-full max-w-[1920px] mx-auto overflow-hidden">
+            <div className="w-full aspect-[16/7] sm:aspect-[21/9] md:aspect-[24/9] max-h-[360px] sm:max-h-[400px] md:max-h-[440px] 2xl:max-h-[480px] bg-slate-900/60 animate-pulse flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin opacity-40" />
+            </div>
+          </div>
+        </div>
+      );
+    }
     return null;
   }
 

@@ -32,7 +32,7 @@ import ForceChangePasswordModal from './components/ForceChangePasswordModal';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import { CartProvider, useCart } from './context/CartContext';
 
-import { INITIAL_CATEGORIES, INITIAL_BRANDS, INITIAL_PRODUCTS, INITIAL_BANNERS } from './data/initialData';
+import { INITIAL_CATEGORIES, INITIAL_BRANDS, INITIAL_PRODUCTS } from './data/initialData';
 import { MACRO_DEPARTMENTS } from './data/departmentsData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
 import { 
@@ -137,8 +137,8 @@ export default function App() {
 
   const [banners, setBanners] = useState(() => {
     const saved = safeStorageGet('athena_banners', null);
-    if (Array.isArray(saved) && saved.length > 0) return saved;
-    return INITIAL_BANNERS;
+    if (Array.isArray(saved)) return saved;
+    return [];
   });
 
   const [departments, setDepartments] = useState(() => {
@@ -1594,6 +1594,7 @@ export default function App() {
         <>
           <HomeBannerCarousel
             banners={banners}
+            isLoading={isLoadingCatalog}
             onNavigate={navigateTo}
           />
 
