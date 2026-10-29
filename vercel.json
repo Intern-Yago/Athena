@@ -61,7 +61,7 @@
       ]
     },
     {
-      "source": "/(sitemap\\.xml|robots\\.txt|llms\\.txt|llms-full\\.txt|ai-catalog\\.json|\\.well-known/ai-catalog\\.json)",
+      "source": "/(sitemap\\.xml|robots\\.txt|llms\\.txt|llms-full\\.txt|ai-catalog\\.json|\\.well-known/ai-catalog\\.json|BingSiteAuth\\.xml)",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
