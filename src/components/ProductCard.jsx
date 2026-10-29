@@ -125,6 +125,8 @@ export default function ProductCard({
               alt={product.altText || product.name}
               loading="lazy"
               decoding="async"
+              width="320"
+              height="256"
               className="w-full h-full max-h-56 object-contain group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
@@ -429,6 +431,8 @@ export default function ProductCard({
             alt={product.altText || product.name}
             loading="lazy"
             decoding="async"
+            width="320"
+            height="288"
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
           />
         ) : (

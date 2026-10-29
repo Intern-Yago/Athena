@@ -26,6 +26,8 @@ export default function Footer({ setActiveTab, currentUser }) {
                 <img 
                   src="/logo.jpg" 
                   alt="Athena Soluções Automotivas Logo" 
+                  width="44"
+                  height="44"
                   className="w-full h-full object-contain"
                 />
               </div>

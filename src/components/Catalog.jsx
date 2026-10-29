@@ -271,6 +271,8 @@ export default function Catalog({
                   <div className="flex items-center gap-2">
                     <SlidersHorizontal className="w-4 h-4 text-slate-500 hidden sm:inline" />
                     <select
+                      id="sort-products"
+                      aria-label="Ordenar produtos por"
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value)}
                       className="form-select text-xs py-2 px-3 bg-slate-50 border-slate-300 w-auto font-semibold"

@@ -60,6 +60,8 @@ export default function Header({
                 <img 
                   src="/logo.jpg" 
                   alt="Athena Soluções Automotivas Logo" 
+                  width="48"
+                  height="48"
                   className="w-full h-full object-contain"
                 />
               </div>

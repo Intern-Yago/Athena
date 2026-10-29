@@ -55,6 +55,16 @@ export default function Product3DViewer({
   const iosSrc = modelData.usdz || product?.modelUsdz || '';
   const dimensions = modelData.dimensions || { width: 1.27, height: 0.96, depth: 0.75 };
 
+  // Dynamically load Google model-viewer on-demand only when 3D viewer is mounted (saves 3MB+ on initial home load)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !customElements.get('model-viewer')) {
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js';
+      document.head.appendChild(script);
+    }
+  }, []);
+
   // Hotspots management
   const [hotspots, setHotspots] = useState(() => {
     if (Array.isArray(modelData.hotspots)) return modelData.hotspots;

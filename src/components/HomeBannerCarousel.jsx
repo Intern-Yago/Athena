@@ -153,7 +153,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
             return (
               <div
                 key={banner.id || idx}
-                className={`w-full shrink-0 relative overflow-hidden flex items-center justify-center max-h-[360px] sm:max-h-[400px] md:max-h-[440px] 2xl:max-h-[480px] ${
+                className={`w-full shrink-0 relative overflow-hidden flex items-center justify-center aspect-[16/7] sm:aspect-[21/9] md:aspect-[24/9] max-h-[360px] sm:max-h-[400px] md:max-h-[440px] 2xl:max-h-[480px] ${
                   hasLink ? 'cursor-pointer' : ''
                 }`}
                 onClick={() => hasLink && handleBannerClick(banner)}
@@ -163,16 +163,19 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
                   WebkitBackfaceVisibility: 'hidden'
                 }}
               >
-                <picture className="w-full block">
+                <picture className="w-full h-full block">
                   {mobileImg && mobileImg !== desktopImg && (
-                    <source media="(max-width: 640px)" srcSet={mobileImg} />
+                    <source media="(max-width: 640px)" srcSet={mobileImg} width="800" height="450" />
                   )}
                   <img
                     src={desktopImg}
                     alt={banner.title || `Banner ${idx + 1}`}
                     loading={idx === 0 ? 'eager' : 'lazy'}
+                    fetchpriority={idx === 0 ? 'high' : 'low'}
                     decoding="async"
-                    className="w-full h-auto max-h-[360px] sm:max-h-[400px] md:max-h-[440px] 2xl:max-h-[480px] object-cover object-center block"
+                    width="1920"
+                    height="480"
+                    className="w-full h-full object-cover object-center block"
                     style={{
                       imageRendering: 'auto',
                       WebkitFontSmoothing: 'subpixel-antialiased',

@@ -208,6 +208,7 @@ export default function BrandPage({
               <div className="flex items-center gap-1.5">
                 <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">Ordenar:</span>
                 <select
+                  aria-label="Ordenar produtos da marca"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 outline-none focus:ring-1 focus:ring-amber-500"
@@ -237,6 +238,7 @@ export default function BrandPage({
               <div className="flex items-center gap-1.5">
                 <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">Exibir:</span>
                 <select
+                  aria-label="Quantidade de itens por página"
                   value={itemsPerPage}
                   onChange={(e) => setItemsPerPage(Number(e.target.value))}
                   className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 outline-none focus:ring-1 focus:ring-amber-500"
