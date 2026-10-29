@@ -171,7 +171,7 @@ export default function HomeBannerCarousel({ banners = [], onNavigate }) {
                     src={desktopImg}
                     alt={banner.title || `Banner ${idx + 1}`}
                     loading={idx === 0 ? 'eager' : 'lazy'}
-                    fetchpriority={idx === 0 ? 'high' : 'low'}
+                    fetchPriority={idx === 0 ? 'high' : 'low'}
                     decoding="async"
                     width="1920"
                     height="480"

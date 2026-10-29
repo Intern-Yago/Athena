@@ -1,3 +1,26 @@
+export const INITIAL_BANNERS = [
+  {
+    "id": "bnr_1793108523101",
+    "title": "Rifa elevador",
+    "desktopImage": "https://images.athenaconsultoria.com.br/produtos/imagem-2026-10-27-105242798-a6b21ab57d42.webp",
+    "mobileImage": "https://images.athenaconsultoria.com.br/produtos/imagem-2026-10-27-104038069-721d38d3de4e.webp",
+    "linkUrl": "https://rifa.athenaconsultoria.com.br",
+    "targetBlank": true,
+    "isActive": true,
+    "order": 1
+  },
+  {
+    "id": "bnr_launch_scanners",
+    "title": "Programa A-Points - Fidelidade Athena",
+    "desktopImage": "https://images.athenaconsultoria.com.br/produtos/imagem-2026-10-27-105415220-8b59c80052f2.webp",
+    "mobileImage": "https://images.athenaconsultoria.com.br/athena_produtos/upload-1789142911072-7006b5c9419b.webp",
+    "linkUrl": "/pontos",
+    "targetBlank": false,
+    "isActive": true,
+    "order": 2
+  }
+];
+
 export const INITIAL_CATEGORIES = [
   {
     "id": "cat_elevadores",

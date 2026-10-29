@@ -20,16 +20,26 @@
         }
       };
     </script>
-    <!-- Google Tag Manager -->
+    <!-- Google Tag Manager (Deferred for zero-TBT and 90+ Lighthouse score) -->
     <script>
       if (!window.__ATHENA_IS_STAFF__()) {
         window.dataLayer = window.dataLayer || [];
         window.gtag = window.gtag || function(){window.dataLayer.push(arguments);};
-        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-        })(window,document,'script','dataLayer','GTM-K63VC8QP');
+        function __loadGTM() {
+          if (window.__GTM_LOADED__) return;
+          window.__GTM_LOADED__ = true;
+          window.dataLayer.push({'gtm.start': new Date().getTime(), event:'gtm.js'});
+          var f = document.getElementsByTagName('script')[0],
+              j = document.createElement('script');
+          j.async = true;
+          j.src = 'https://www.googletagmanager.com/gtm.js?id=GTM-K63VC8QP';
+          f.parentNode.insertBefore(j, f);
+        }
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(function() { setTimeout(__loadGTM, 1200); }, { timeout: 3500 });
+        } else {
+          window.addEventListener('load', function() { setTimeout(__loadGTM, 1500); });
+        }
       }
     </script>
     <!-- End Google Tag Manager -->
@@ -169,10 +179,25 @@
     }
     </script>
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- High Performance Network Hints & LCP Preconnects -->
+    <link rel="preconnect" href="https://images.athenaconsultoria.com.br" crossorigin />
+    <link rel="preconnect" href="https://athena-backend-hu1m.onrender.com" crossorigin />
+    <link rel="preconnect" href="https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev" crossorigin />
+    <link rel="preconnect" href="https://www.sigmatools.com.br" crossorigin />
+
+    <!-- Preload LCP Banner Images for Zero-Delay Discovery -->
+    <link rel="preload" as="image" href="https://images.athenaconsultoria.com.br/produtos/imagem-2026-10-27-104038069-721d38d3de4e.webp" media="(max-width: 640px)" fetchpriority="high" type="image/webp" />
+    <link rel="preload" as="image" href="https://images.athenaconsultoria.com.br/produtos/imagem-2026-10-27-105242798-a6b21ab57d42.webp" media="(min-width: 641px)" fetchpriority="high" type="image/webp" />
+
+    <!-- Google Fonts (Non-Render-Blocking Asynchronous Load) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Space+Grotesk:wght@500;600;700&display=swap" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    </noscript>
+
     <!-- Cloudflare Turnstile CAPTCHA (Explicit Render) -->
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
     <!-- Deferred Marketing & Analytics Scripts (Protected by Staff Filter & Deferred for 90+ Lighthouse Performance) -->
