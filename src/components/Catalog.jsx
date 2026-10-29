@@ -216,7 +216,7 @@ export default function Catalog({
   };
 
   return (
-    <section className="py-6 sm:py-8 w-full">
+    <section className="py-6 sm:py-8 w-full min-h-[800px]">
       <div className="w-full px-3 sm:px-6 lg:px-8 space-y-6">
         
         {/* Full-Width E-commerce Layout: Sidebar Glued to Far Left + Cards Fill Entire Monitor */}
