@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { crmApiFetch } from '../utils/api';
-import CustomerDetailsModal from './CustomerDetailsModal';
+import CustomerProfilePage from './CustomerProfilePage';
 import { 
   Users, 
   Search, 
@@ -216,6 +216,20 @@ export default function CustomersView() {
     if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
+
+  // Se houver um cliente selecionado, exibe a página dedicada completa (sem popup)
+  if (activeCustomer) {
+    return (
+      <CustomerProfilePage
+        customer={activeCustomer}
+        onBack={() => setActiveCustomer(null)}
+        onCustomerUpdated={(updated) => {
+          setActiveCustomer(updated);
+          loadCustomers();
+        }}
+      />
+    );
+  }
 
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden select-none ${
@@ -445,7 +459,7 @@ export default function CustomersView() {
                 <div
                   key={cust.id}
                   onClick={() => handleOpenDetails(cust)}
-                  className={`group relative rounded-2xl border p-4.5 transition-all duration-200 cursor-pointer flex flex-col justify-between ${
+                  className={`group relative rounded-2xl border p-6 sm:p-7 transition-all duration-200 cursor-pointer flex flex-col justify-between ${
                     isDark
                       ? 'bg-slate-900/90 border-slate-800/80 hover:border-amber-500/50 hover:bg-slate-900 shadow-lg shadow-black/20'
                       : 'bg-white border-slate-200/90 hover:border-amber-500/50 hover:shadow-md'
@@ -691,18 +705,6 @@ export default function CustomersView() {
           </div>
         )}
       </div>
-
-      {/* MODAL DETALHADO DO CLIENTE (FICHA + HISTÓRICO) */}
-      {activeCustomer && (
-        <CustomerDetailsModal
-          customer={activeCustomer}
-          onClose={() => setActiveCustomer(null)}
-          onCustomerUpdated={(updated) => {
-            setActiveCustomer(updated);
-            loadCustomers();
-          }}
-        />
-      )}
 
       {/* MODAL DE CADASTRO RÁPIDO DE CLIENTE */}
       {showCreateModal && (
