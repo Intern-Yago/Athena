@@ -7,9 +7,9 @@
   },
   "entries": [
     {
-      "identifier": "urn:ai:athenaconsultoria.com.br:resource:catalog-docs",
+      "identifier": "urn:air:athenaconsultoria.com.br:skills:automotive-catalog",
       "displayName": "Catálogo de Equipamentos Automotivos Athena",
-      "type": "text/markdown",
+      "type": "text/markdown; profile=\"urn:air:agent-skills\"",
       "url": "https://www.athenaconsultoria.com.br/llms.txt",
       "description": "Catálogo comercial completo de elevadores automotivos, alinhadores 3D, desmontadoras, balanceadoras, scanners de diagnóstico e ferramentas especiais.",
       "version": "1.0.0",
