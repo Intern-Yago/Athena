@@ -171,16 +171,36 @@ export default function App() {
   const [previousRoute, setPreviousRoute] = useState(null);
   const [activeAdminTab, setActiveAdminTab] = useState('products');
 
-  const getInitialSearchTerm = () => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('q') || params.get('busca') || params.get('search') || '';
+  const getInitialFiltersFromUrl = () => {
+    if (typeof window === 'undefined') {
+      return { search: '', categories: [], brands: [], maxPrice: null };
+    }
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const search = params.get('busca') || params.get('q') || params.get('search') || '';
+
+      const catRaw = params.getAll('categoria').concat(params.getAll('cat'));
+      const catList = catRaw.flatMap((c) => c.split(',')).map((c) => c.trim()).filter(Boolean);
+
+      const brandRaw = params.getAll('marca').concat(params.getAll('brand'));
+      const brandList = brandRaw.flatMap((b) => b.split(',')).map((b) => b.trim()).filter(Boolean);
+
+      const priceRaw = params.get('preco_max') || params.get('precoMax') || params.get('max_price');
+      const maxPrice = priceRaw && !isNaN(Number(priceRaw)) ? Number(priceRaw) : null;
+
+      return { search, categories: catList, brands: brandList, maxPrice };
+    } catch (_) {
+      return { search: '', categories: [], brands: [], maxPrice: null };
+    }
   };
 
-  // Multi-Selection E-commerce Filter States
-  const [searchTerm, setSearchTerm] = useState(getInitialSearchTerm);
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  const [selectedBrands, setSelectedBrands] = useState([]);
-  const [maxPriceFilter, setMaxPriceFilter] = useState(null);
+  const initialUrlFilters = useRef(getInitialFiltersFromUrl()).current;
+
+  // Multi-Selection E-commerce Filter States (Synced with URL)
+  const [searchTerm, setSearchTerm] = useState(initialUrlFilters.search);
+  const [selectedCategories, setSelectedCategories] = useState(initialUrlFilters.categories);
+  const [selectedBrands, setSelectedBrands] = useState(initialUrlFilters.brands);
+  const [maxPriceFilter, setMaxPriceFilter] = useState(initialUrlFilters.maxPrice);
 
   const [editingProduct, setEditingProduct] = useState(null);
   const [toast, setToast] = useState(null);
@@ -377,14 +397,44 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Resolve category/brand slugs from initial URL to internal IDs when catalog metadata loads
+  useEffect(() => {
+    if (categories.length > 0 && selectedCategories.length > 0) {
+      const resolved = selectedCategories.map((item) => {
+        const found = categories.find((c) => c.slug === item || c.id === item);
+        return found ? found.id : item;
+      });
+      const hasChanged = resolved.some((id, idx) => id !== selectedCategories[idx]);
+      if (hasChanged) {
+        setSelectedCategories(resolved);
+      }
+    }
+  }, [categories]);
+
+  useEffect(() => {
+    if (brands.length > 0 && selectedBrands.length > 0) {
+      const resolved = selectedBrands.map((item) => {
+        const found = brands.find((b) => b.slug === item || b.id === item);
+        return found ? found.id : item;
+      });
+      const hasChanged = resolved.some((id, idx) => id !== selectedBrands[idx]);
+      if (hasChanged) {
+        setSelectedBrands(resolved);
+      }
+    }
+  }, [brands]);
+
   // Route change listener for browser back/forward and F5 persistence
   useEffect(() => {
     const handleUrlChange = () => {
       const route = getRouteFromUrl();
-      const params = new URLSearchParams(window.location.search);
-      const q = params.get('q') || params.get('busca') || params.get('search');
-      if (q !== null) {
-        setSearchTerm(q);
+      const isCatalog = !route || route === 'catalog' || route === 'catalogo' || route === 'inicio' || route === 'home';
+      if (isCatalog) {
+        const filters = getInitialFiltersFromUrl();
+        setSearchTerm(filters.search);
+        if (filters.categories.length > 0) setSelectedCategories(filters.categories);
+        if (filters.brands.length > 0) setSelectedBrands(filters.brands);
+        setMaxPriceFilter(filters.maxPrice);
       }
       setCurrentRoute((prev) => {
         setPreviousRoute(prev);
@@ -399,6 +449,77 @@ export default function App() {
       window.removeEventListener('hashchange', handleUrlChange);
     };
   }, []);
+
+  // Synchronize Catalog Filters & Search with URL query parameters (Debounced & Clean)
+  useEffect(() => {
+    const isCatalogRoute = !currentRoute || currentRoute === 'catalog' || currentRoute === 'catalogo' || currentRoute === 'inicio' || currentRoute === 'home';
+    if (!isCatalogRoute) return;
+
+    const timer = setTimeout(() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+
+        // 1. Search term
+        const cleanSearch = (searchTerm || '').trim();
+        if (cleanSearch) {
+          params.set('busca', cleanSearch);
+          params.delete('q');
+          params.delete('search');
+        } else {
+          params.delete('busca');
+          params.delete('q');
+          params.delete('search');
+        }
+
+        // 2. Categories (convert IDs to friendly slugs if available)
+        if (selectedCategories.length > 0) {
+          const catSlugs = selectedCategories.map((catId) => {
+            const found = categories.find((c) => c.id === catId);
+            return found?.slug || catId;
+          });
+          params.set('categoria', catSlugs.join(','));
+          params.delete('cat');
+        } else {
+          params.delete('categoria');
+          params.delete('cat');
+        }
+
+        // 3. Brands (convert IDs to friendly slugs if available)
+        if (selectedBrands.length > 0) {
+          const brandSlugs = selectedBrands.map((bId) => {
+            const found = brands.find((b) => b.id === bId);
+            return found?.slug || bId;
+          });
+          params.set('marca', brandSlugs.join(','));
+          params.delete('brand');
+        } else {
+          params.delete('marca');
+          params.delete('brand');
+        }
+
+        // 4. Max Price
+        if (maxPriceFilter !== null && maxPriceFilter > 0) {
+          params.set('preco_max', String(maxPriceFilter));
+          params.delete('precoMax');
+        } else {
+          params.delete('preco_max');
+          params.delete('precoMax');
+        }
+
+        const queryString = params.toString();
+        const pathname = window.location.pathname;
+        const basePath = pathname === '/catalogo' ? '/catalogo' : '/';
+        const targetUrl = queryString ? `${basePath}?${queryString}` : basePath;
+
+        const currentFullUrl = window.location.pathname + window.location.search;
+        if (currentFullUrl !== targetUrl) {
+          window.history.replaceState({}, '', targetUrl);
+        }
+      } catch (_) {}
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, selectedCategories, selectedBrands, maxPriceFilter, currentRoute, categories, brands]);
 
   // Track Meta Pixel & Google Tag Manager PageView + Category/Brand Exploration on SPA route change
   useEffect(() => {

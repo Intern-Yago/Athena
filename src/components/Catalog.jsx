@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import ProductCard from './ProductCard';
 import FilterSidebar from './FilterSidebar';
 import Pagination from './Pagination';
-import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, LayoutGrid, List } from 'lucide-react';
+import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, LayoutGrid, List, Share2, Check } from 'lucide-react';
 import { sortProducts } from '../utils/productSorting';
 import { 
   buildProductRelationsMap, 
@@ -41,6 +41,17 @@ export default function Catalog({
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('grid');
   const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1000000));
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleCopyLink = () => {
+    try {
+      navigator.clipboard.writeText(window.location.href);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch (err) {
+      console.error('Falha ao copiar link:', err);
+    }
+  };
 
   // Reset to page 1 whenever any filter or search changes
   useEffect(() => {
@@ -411,13 +422,34 @@ export default function Catalog({
                     )}
                   </div>
 
-                  <button
-                    onClick={resetAllFilters}
-                    className="text-xs font-bold text-amber-700 hover:text-amber-800 hover:underline flex items-center gap-1"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Limpar Todos</span>
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="text-xs font-bold text-slate-600 hover:text-amber-700 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Copiar link exato desta busca para enviar no WhatsApp"
+                    >
+                      {copiedLink ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-emerald-700">Link Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Compartilhar Busca</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={resetAllFilters}
+                      className="text-xs font-bold text-amber-700 hover:text-amber-800 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Limpar Todos</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
