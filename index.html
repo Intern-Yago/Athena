@@ -181,6 +181,45 @@
 
     <!-- High Performance Image CDN Preconnect -->
     <link rel="preconnect" href="https://images.athenaconsultoria.com.br" crossorigin />
+    <link rel="preconnect" href="https://www.sigmatools.com.br" />
+
+    <!-- Dynamic LCP Banner Preload (Precarrega dinamicamente a imagem do primeiro banner ativo e agendado sem travar URL fixa) -->
+    <script>
+      (function() {
+        try {
+          var raw = localStorage.getItem('athena_banners');
+          if (!raw) return;
+          var banners = JSON.parse(raw);
+          if (!Array.isArray(banners)) return;
+          var now = Date.now();
+          var firstActive = banners.find(function(b) {
+            if (!b || b.isActive === false) return false;
+            var pub = b.publishAt || b.publish_at;
+            if (pub) {
+              var pubMs = new Date(pub).getTime();
+              if (!isNaN(pubMs) && now < pubMs) return false;
+            }
+            var unpub = b.unpublishAt || b.unpublish_at;
+            if (unpub) {
+              var unpubMs = new Date(unpub).getTime();
+              if (!isNaN(unpubMs) && now > unpubMs) return false;
+            }
+            return Boolean(b.desktopImage || b.desktop_image);
+          });
+          if (firstActive) {
+            var imgUrl = firstActive.desktopImage || firstActive.desktop_image;
+            if (imgUrl) {
+              var link = document.createElement('link');
+              link.rel = 'preload';
+              link.as = 'image';
+              link.href = imgUrl;
+              link.fetchPriority = 'high';
+              document.head.appendChild(link);
+            }
+          }
+        } catch (_) {}
+      })();
+    </script>
 
     <!-- Google Fonts (Non-Render-Blocking Asynchronous Load) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

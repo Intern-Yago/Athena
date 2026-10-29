@@ -727,6 +727,14 @@ export default function App() {
     };
   }, [revalidateCatalog]);
 
+  // Sincroniza banners atualizados no cache local e IndexedDB para reaberturas instantâneas e LCP preload
+  useEffect(() => {
+    if (Array.isArray(banners) && banners.length > 0) {
+      safeStorageSet('athena_banners', banners);
+      idbSet('athena_banners', banners).catch(() => {});
+    }
+  }, [banners]);
+
   // Fetch from NestJS / Node backend if available (SWR Dynamic Sync)
   useEffect(() => {
     let retryTimer = null;
@@ -857,6 +865,8 @@ export default function App() {
             const bannerData = await bannerRes.json();
             if (Array.isArray(bannerData)) {
               setBanners(bannerData);
+              safeStorageSet('athena_banners', bannerData);
+              idbSet('athena_banners', bannerData).catch(() => {});
             }
           } catch {}
         }
