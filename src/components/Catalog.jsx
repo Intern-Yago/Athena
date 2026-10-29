@@ -248,10 +248,10 @@ export default function Catalog({
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
                     <Package className="w-6 h-6 text-amber-600 shrink-0" />
                     Catálogo de Equipamentos
-                  </h2>
+                  </h1>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Exibindo <span className="text-amber-700 font-bold">{paginatedProducts.length}</span> de {sortedProducts.length} equipamentos
                   </p>
