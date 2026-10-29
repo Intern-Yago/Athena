@@ -24,11 +24,11 @@ export const DIGITAL_CARD_CONFIG = {
   addressPostalCode: '71996-413',
   email: 'contato@athenaconsultoria.com.br',
   commercialWhatsAppNumber: '5561983485671',
-  technicalSupportWhatsAppNumber: '556191831000',
+  technicalSupportWhatsAppNumber: '5561984884099',
   commercialInitialMessage: COMMERCIAL_MESSAGE,
   technicalSupportInitialMessage: TECHNICAL_SUPPORT_MESSAGE,
   commercialWhatsAppUrl: `https://wa.me/5561983485671?text=${encodeURIComponent(COMMERCIAL_MESSAGE)}`,
-  technicalSupportWhatsAppUrl: `https://wa.me/556191831000?text=${encodeURIComponent(TECHNICAL_SUPPORT_MESSAGE)}`,
+  technicalSupportWhatsAppUrl: `https://wa.me/5561984884099?text=${encodeURIComponent(TECHNICAL_SUPPORT_MESSAGE)}`,
   profiles: {
     default: {
       key: 'default',
@@ -61,7 +61,7 @@ export const DIGITAL_CARD_CONFIG = {
       lastName: 'Athena Suporte Técnico',
       title: 'Suporte Técnico | Athena Consultoria Automotiva',
       phones: [
-        { type: 'CELL,WORK,VOICE', label: 'Suporte Técnico', number: '+556191831000' },
+        { type: 'CELL,WORK,VOICE', label: 'Suporte Técnico', number: '+5561984884099' },
       ],
     },
   },
