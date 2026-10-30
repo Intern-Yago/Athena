@@ -1,128 +1,6 @@
 # Robots.txt - Athena Soluções Automotivas
 # https://www.athenaconsultoria.com.br
-
-User-agent: Googlebot
-Allow: /
-Allow: /sitemap.xml
-Allow: /llms.txt
-Allow: /llms-full.txt
-
-User-agent: Google-Sitemaps
-Allow: /
-Allow: /sitemap.xml
-
-User-agent: Google-InspectionTool
-Allow: /
-Allow: /sitemap.xml
-
-User-agent: GPTBot
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-
-User-agent: OAI-SearchBot
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-
-User-agent: ChatGPT-User
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-
-User-agent: PerplexityBot
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-
-User-agent: Perplexity-User
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-
-User-agent: ClaudeBot
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-
-User-agent: Claude-SearchBot
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-
-User-agent: Claude-User
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-
-User-agent: Applebot
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-
-User-agent: Bytespider
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-Allow: /sitemap.xml
-
-User-agent: CCBot
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-Allow: /sitemap.xml
-
-User-agent: DuckAssistBot
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-Allow: /ai-catalog.json
-Allow: /sitemap.xml
-
-User-agent: DuckDuckBot
-Allow: /
-Allow: /sitemap.xml
-
-User-agent: Amazonbot
-Allow: /
-Allow: /llms.txt
-Allow: /ai-catalog.json
-
-User-agent: cohere-ai
-Allow: /
-Allow: /llms.txt
-Allow: /ai-catalog.json
-
-User-agent: Google-Extended
-Allow: /
-Allow: /llms.txt
-Allow: /ai-catalog.json
-
-User-agent: facebookexternalhit
-Allow: /
-Allow: /facebook-catalog.xml
-Allow: /facebook-catalog.csv
-Allow: /api/feeds/
-
-User-agent: Facebot
-Allow: /
-
-User-agent: Meta-ExternalAgent
-Allow: /
-
-User-agent: Meta-ExternalFetcher
-Allow: /
+# Permissão universal para todos os robôs de busca, redes sociais e agentes de IA
 
 User-agent: *
 Allow: /
@@ -133,20 +11,21 @@ Allow: /sobre
 Allow: /sitemap.xml
 Allow: /llms.txt
 Allow: /llms-full.txt
+Allow: /ai-catalog.json
+Allow: /.well-known/ai-catalog.json
 Allow: /facebook-catalog.xml
 Allow: /facebook-catalog.csv
 Allow: /api/feeds/
 
-# Bloqueio de rotas administrativas e API interna para proteger segurança e indexação
+# Proteção de rotas administrativas e API interna
 Disallow: /admin
 Disallow: /api/
 Allow: /api/feeds/
 Disallow: /api-docs
 
-# Sitemap oficial indexador e documentação para LLMs
+# Sitemaps e Recursos para Inteligência Artificial (LLMs / ARD)
 Sitemap: https://www.athenaconsultoria.com.br/sitemap.xml
-# Catálogo de IA estruturado (Agentic Resource Discovery)
-# https://www.athenaconsultoria.com.br/.well-known/ai-catalog.json
-# https://www.athenaconsultoria.com.br/llms.txt
+# AI Resource Catalog: https://www.athenaconsultoria.com.br/.well-known/ai-catalog.json
+# LLM Context: https://www.athenaconsultoria.com.br/llms.txt
 
 
