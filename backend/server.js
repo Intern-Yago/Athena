@@ -498,11 +498,17 @@ if (ATHENA_ORIGIN_SECRET) {
       return next();
     }
 
-    // Permite sitemaps, robots, llms.txt, health checks internos do Render, ping, Webhooks de pagamento e crawlers públicos (Google, Bing, Meta, etc.)
+    // Permite sitemaps, robots, llms.txt, health checks internos do Render, ping, Webhooks de pagamento, rotas de share social (WhatsApp/Meta/etc.) e crawlers públicos
     const userAgent = (req.headers['user-agent'] || '').toLowerCase();
-    const isPublicCrawler = userAgent.includes('facebook') || 
+    const isPublicCrawler = userAgent.includes('whatsapp') ||
+                            userAgent.includes('facebook') || 
                             userAgent.includes('meta-external') || 
                             userAgent.includes('facebot') ||
+                            userAgent.includes('telegram') ||
+                            userAgent.includes('twitter') ||
+                            userAgent.includes('linkedin') ||
+                            userAgent.includes('slack') ||
+                            userAgent.includes('discord') ||
                             userAgent.includes('google') ||
                             userAgent.includes('bing') ||
                             userAgent.includes('bot') ||
@@ -523,11 +529,14 @@ if (ATHENA_ORIGIN_SECRET) {
       req.path === '/robots.txt' || 
       req.path === '/llms.txt' || 
       req.path === '/llms-full.txt' || 
+      req.path === '/ai-catalog.json' ||
+      req.path === '/.well-known/ai-catalog.json' ||
       req.path === '/security.txt' || 
       req.path === '/.well-known/security.txt' || 
       req.path === '/api/health' || 
       req.path === '/api/ping' || 
       req.path === '/health' || 
+      req.path.startsWith('/api/share/') ||
       req.path.startsWith('/api/payments/webhook') ||
       req.path.startsWith('/api/telegram') ||
       req.path.startsWith('/api/feeds/') ||
@@ -9629,6 +9638,149 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
   }
 
   return res.status(404).json({ error: 'Equipamento não encontrado.' });
+});
+
+// 3.1 SOCIAL OPEN GRAPH PREVIEW (WHATSAPP, FACEBOOK, TELEGRAM)
+app.get(['/api/share/product/:identifier', '/api/share/produto/:identifier'], async (req, res) => {
+  const { identifier } = req.params;
+  const cleanId = String(identifier || '').trim().slice(0, 200).replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!cleanId) {
+    return res.redirect(302, 'https://www.athenaconsultoria.com.br/');
+  }
+
+  const escapeHtml = (str) => {
+    if (!str || typeof str !== 'string') return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  const stripTags = (html) => {
+    if (!html || typeof html !== 'string') return '';
+    return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  };
+
+  let product = null;
+
+  if (pool) {
+    try {
+      const result = await pool.query(`
+        SELECT 
+          p.id, p.name, p.slug, p.price::float, COALESCE(p.preco_venda, p.price, 0)::float as "precoVenda",
+          p.price_negotiable as "priceNegotiable", p.image, p.images, p.description,
+          b.name as "brandName", c.name as "categoryName"
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        WHERE p.slug = $1 OR p.id = $1
+        LIMIT 1
+      `, [cleanId]);
+      if (result.rows.length > 0) {
+        product = result.rows[0];
+      }
+    } catch (e) {
+      console.warn('[Social Share OG DB Error]:', e.message);
+    }
+  }
+
+  if (!product) {
+    const db = readDbJson();
+    product = (db.products || []).find(p => p.slug === cleanId || p.id === cleanId) || null;
+  }
+
+  const siteUrl = 'https://www.athenaconsultoria.com.br';
+
+  if (!product) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(404).send(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Athena Soluções Automotivas | Catálogo de Equipamentos</title>
+  <meta property="og:title" content="Athena Soluções Automotivas | Catálogo de Equipamentos" />
+  <meta property="og:description" content="Catálogo completo de equipamentos para oficina mecânica e centro automotivo." />
+  <meta property="og:image" content="${siteUrl}/logo.jpg" />
+  <meta property="og:url" content="${siteUrl}/" />
+  <meta http-equiv="refresh" content="0; url=${siteUrl}/" />
+</head>
+<body><script>window.location.replace("${siteUrl}/");</script></body>
+</html>`);
+  }
+
+  const targetSlug = product.slug || product.id;
+  const canonicalUrl = `${siteUrl}/produto/${encodeURIComponent(targetSlug)}`;
+  
+  // Normaliza imagem para o CDN R2 de alta performance
+  let rawImage = product.image;
+  if (!rawImage && Array.isArray(product.images) && product.images.length > 0) {
+    rawImage = product.images[0];
+  }
+  if (!rawImage) {
+    rawImage = `${siteUrl}/logo.jpg`;
+  } else if (rawImage.includes('pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev')) {
+    rawImage = rawImage.replace('https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev', 'https://images.athenaconsultoria.com.br');
+  } else if (!rawImage.startsWith('http')) {
+    rawImage = `${siteUrl}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`;
+  }
+
+  const cleanTitle = escapeHtml(product.name || 'Equipamento Automotivo Athena');
+  const fullTitle = `${cleanTitle} | Athena Soluções Automotivas`;
+  const rawDesc = stripTags(product.description || '');
+  const brandPart = product.brandName ? ` [${product.brandName}]` : '';
+  const priceFormatted = (product.priceNegotiable || !product.precoVenda) 
+    ? 'Sob Consulta' 
+    : `R$ ${Number(product.precoVenda).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  const cleanDesc = escapeHtml(
+    (rawDesc ? rawDesc.slice(0, 160) : `Confira ${product.name}${brandPart} na Athena. Condição: ${priceFormatted}. Pronta-entrega e garantia!`)
+  );
+
+  const safeImageUrl = escapeHtml(rawImage);
+
+  // Headers de Cache Edge da Cloudflare: 7 dias de cache na borda (s-maxage) e 1 dia no navegador
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  return res.status(200).send(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>${fullTitle}</title>
+  <meta name="description" content="${cleanDesc}" />
+  <link rel="canonical" href="${canonicalUrl}" />
+
+  <!-- Open Graph / WhatsApp / Facebook / Instagram / LinkedIn -->
+  <meta property="og:type" content="product" />
+  <meta property="og:site_name" content="Athena Soluções Automotivas" />
+  <meta property="og:title" content="${cleanTitle}" />
+  <meta property="og:description" content="${cleanDesc}" />
+  <meta property="og:image" content="${safeImageUrl}" />
+  <meta property="og:image:secure_url" content="${safeImageUrl}" />
+  <meta property="og:image:alt" content="${cleanTitle}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content="${canonicalUrl}" />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@athena_automotiva" />
+  <meta name="twitter:title" content="${cleanTitle}" />
+  <meta name="twitter:description" content="${cleanDesc}" />
+  <meta name="twitter:image" content="${safeImageUrl}" />
+
+  <!-- Redirecionamento instantâneo se um usuário humano abrir essa URL -->
+  <meta http-equiv="refresh" content="0; url=${canonicalUrl}" />
+</head>
+<body>
+  <p>Redirecionando para <a href="${canonicalUrl}">${cleanTitle}</a>...</p>
+  <script>window.location.replace("${canonicalUrl}");</script>
+</body>
+</html>`);
 });
 
 function hasAnyValidProductImage(product) {

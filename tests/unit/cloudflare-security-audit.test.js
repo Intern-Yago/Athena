@@ -206,5 +206,24 @@ describe('Cloudflare & Edge Architecture Security Audit Suite', () => {
       assert.strictEqual(res4.allowed, false);
       assert.strictEqual(res4.status, 403);
     });
+
+    it('Social Open Graph Crawlers & ARD AI Catalog should be permitted without origin secret', () => {
+      const vercelConfigPath = path.resolve(process.cwd(), 'vercel.json');
+      const config = JSON.parse(fs.readFileSync(vercelConfigPath, 'utf8'));
+
+      // 1. Verifica rewrites de crawlers sociais
+      assert.ok(Array.isArray(config.rewrites), 'vercel.json deve conter lista de rewrites');
+      const shareRewrite = config.rewrites.find(r => r.source === '/produto/:slug*' && r.has);
+      assert.ok(shareRewrite, 'Deve existir rewrite condicional para /produto/:slug*');
+      assert.ok(shareRewrite.has.some(h => h.key === 'user-agent' && h.value.includes('WhatsApp')), 'Rewrite deve contemplar WhatsApp');
+      assert.ok(shareRewrite.has.some(h => h.key === 'user-agent' && h.value.includes('facebookexternalhit')), 'Rewrite deve contemplar facebookexternalhit');
+      assert.ok(shareRewrite.destination.includes('/api/share/product/'), 'Deve encaminhar para o backend share endpoint');
+
+      // 2. Verifica headers dedicados do ai-catalog.json
+      const aiCatalogHeader = config.headers.find(h => h.source.includes('ai-catalog'));
+      assert.ok(aiCatalogHeader, 'Headers de ai-catalog.json devem estar presentes');
+      const ctHeader = aiCatalogHeader.headers.find(h => h.key === 'Content-Type');
+      assert.ok(ctHeader && ctHeader.value.includes('application/json'), 'ai-catalog deve ter MIME type application/json');
+    });
   });
 });

@@ -44,6 +44,7 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
     cpf: customer.cpf || '',
     cnpj: customer.cnpj || '',
     phone: customer.phone || '',
+    phone2: customer.phone2 || '',
     email: customer.email || '',
     birthday: customer.birthday ? customer.birthday.slice(0, 10) : '',
     address: customer.address || '',
@@ -248,6 +249,12 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
                     <span>{formData.phone}</span>
                   </span>
                 )}
+                {formData.phone2 && (
+                  <span className="flex items-center gap-1.5 text-slate-400 font-semibold">
+                    <Phone className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{formData.phone2} <span className="text-[10px] text-amber-500 font-normal">(Tel 2)</span></span>
+                  </span>
+                )}
                 {formData.email && (
                   <span className="flex items-center gap-1.5 text-slate-400">
                     <Mail className="w-3.5 h-3.5 text-slate-500" />
@@ -395,12 +402,25 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-slate-400 block mb-1.5">Telefone / WhatsApp</label>
+                    <label className="text-xs font-bold text-slate-400 block mb-1.5">Telefone Principal (WhatsApp)</label>
                     <input
                       type="text"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       placeholder="(61) 90000-0000"
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs sm:text-sm outline-none ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 block mb-1.5">Telefone 2 / Recado</label>
+                    <input
+                      type="text"
+                      value={formData.phone2}
+                      onChange={(e) => setFormData({ ...formData, phone2: e.target.value })}
+                      placeholder="(61) 98888-8888"
                       className={`w-full px-4 py-2.5 rounded-xl border text-xs sm:text-sm outline-none ${
                         isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
                       }`}

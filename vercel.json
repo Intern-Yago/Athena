@@ -61,7 +61,24 @@
       ]
     },
     {
-      "source": "/(sitemap\\.xml|robots\\.txt|llms\\.txt|llms-full\\.txt|ai-catalog\\.json|\\.well-known/ai-catalog\\.json|BingSiteAuth\\.xml)",
+      "source": "/(ai-catalog\\.json|\\.well-known/ai-catalog\\.json)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, s-maxage=86400"
+        }
+      ]
+    },
+    {
+      "source": "/(sitemap\\.xml|robots\\.txt|llms\\.txt|llms-full\\.txt|BingSiteAuth\\.xml)",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
@@ -116,6 +133,28 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/produto/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(WhatsApp|facebookexternalhit|Facebot|TelegramBot|Twitterbot|LinkedInBot|Slackbot).*"
+        }
+      ],
+      "destination": "https://athena-backend-hu1m.onrender.com/api/share/product/:slug*"
+    },
+    {
+      "source": "/produtos/:slug*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(WhatsApp|facebookexternalhit|Facebot|TelegramBot|Twitterbot|LinkedInBot|Slackbot).*"
+        }
+      ],
+      "destination": "https://athena-backend-hu1m.onrender.com/api/share/product/:slug*"
+    },
     { "source": "/api/:match*", "destination": "https://athena-backend-hu1m.onrender.com/api/:match*" },
     { "source": "/facebook-catalog.xml", "destination": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/facebook-catalog.xml" },
     { "source": "/facebook-catalog.csv", "destination": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/facebook-catalog.csv" },

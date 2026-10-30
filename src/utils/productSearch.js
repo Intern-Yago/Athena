@@ -831,7 +831,18 @@ export const getSearchSuggestions = (products, rawTerm, categories = [], brands 
   const brandsMap = brands instanceof Map 
     ? brands 
     : new Map((Array.isArray(brands) ? brands : []).map(b => [b.id, b]));
-  const queryTokens = normTerm.split(/\s+/).filter(Boolean);
+  const queryTokens = normTerm
+    .split(/\s+/)
+    .filter(t => t.length >= 2 && !['de', 'da', 'do', 'das', 'dos', 'com', 'para', 'em', 'um', 'uma', 'e'].includes(t));
+
+  const matchesToken = (text, tok) => {
+    if (!text || !tok) return false;
+    if (text.includes(tok)) return true;
+    if (tok.endsWith('es') && tok.length > 4 && text.includes(tok.slice(0, -2))) return true;
+    if (tok.endsWith('s') && tok.length > 3 && text.includes(tok.slice(0, -1))) return true;
+    if (!tok.endsWith('s') && text.includes(tok + 's')) return true;
+    return false;
+  };
 
   const getProductTier = (p) => {
     const prof = getProductSuggestionProfile(p, brandsMap, categoriesMap);
@@ -841,6 +852,8 @@ export const getSearchSuggestions = (products, rawTerm, categories = [], brands 
     if (prof.pNorm === normTerm || (cleanTerm.length >= 3 && prof.pClean === cleanTerm)) return 0;
     // Tier 1: Título inicia com o termo
     if (prof.pNorm.startsWith(normTerm)) return 1;
+    // Tier 1.5: Título contém todos os termos significativos da busca (ex: "carregador" e "baterias")
+    if (queryTokens.length > 1 && queryTokens.every(tok => matchesToken(prof.pNorm, tok))) return 1.5;
     // Tier 2: Título contém o termo completo
     if (prof.pNorm.includes(normTerm)) return 2;
     // Tier 2.5: Tag / Palavra-chave de busca (#hashtags)
@@ -850,8 +863,8 @@ export const getSearchSuggestions = (products, rawTerm, categories = [], brands 
       );
       if (hasTagMatch) return 2.5;
     }
-    // Tier 3: Título contém todos os tokens digitados
-    if (queryTokens.length > 1 && queryTokens.every(tok => prof.pNorm.includes(tok))) return 3;
+    // Tier 2.8: Título contém ao menos um dos termos principais
+    if (queryTokens.length > 1 && queryTokens.some(tok => matchesToken(prof.pNorm, tok))) return 2.8;
     // Tier 4: SKU / Código Omie
     if (prof.skuNorm && (prof.skuNorm.includes(normTerm) || (cleanTerm.length >= 3 && prof.skuClean.includes(cleanTerm)))) return 4;
     // Tier 4.2: Especificações Técnicas (specs)
@@ -861,7 +874,7 @@ export const getSearchSuggestions = (products, rawTerm, categories = [], brands 
     // Tier 5: Marca ou Categoria
     if (prof.brandNorm.includes(normTerm) || prof.catNorm.includes(normTerm)) return 5;
     // Tier 6: Descrição geral
-    if (prof.descNorm.includes(normTerm) || (cleanTerm.length >= 3 && prof.descClean.includes(cleanTerm)) || (queryTokens.length > 1 && queryTokens.every(tok => prof.descNorm.includes(tok)))) return 6;
+    if (prof.descNorm.includes(normTerm) || (cleanTerm.length >= 3 && prof.descClean.includes(cleanTerm)) || (queryTokens.length > 1 && queryTokens.every(tok => matchesToken(prof.descNorm, tok)))) return 6;
 
     return 999;
   };

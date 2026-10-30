@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { X, Layers, Check, Trash2 } from 'lucide-react';
+import { X, Layers, Check, Trash2, Users, Package, CheckSquare, ShieldCheck, Database } from 'lucide-react';
 
 const PRESET_COLORS = [
   '#f59e0b', // Amber
@@ -24,6 +24,8 @@ export default function FunnelModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('#f59e0b');
+  const [funnelType, setFunnelType] = useState('cliente');
+  const [populateFromBase, setPopulateFromBase] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -31,10 +33,14 @@ export default function FunnelModal({
       setName(funnel.name || '');
       setDescription(funnel.description || '');
       setColor(funnel.color || '#f59e0b');
+      setFunnelType(funnel.funnel_type || 'cliente');
+      setPopulateFromBase(false);
     } else {
       setName('');
       setDescription('');
       setColor('#f59e0b');
+      setFunnelType('cliente');
+      setPopulateFromBase(false);
     }
     setConfirmDelete(false);
   }, [funnel, isOpen]);
@@ -44,7 +50,13 @@ export default function FunnelModal({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave({ name: name.trim(), description: description.trim(), color });
+    onSave({
+      name: name.trim(),
+      description: description.trim(),
+      color,
+      funnel_type: funnelType,
+      populate_from_base: !funnel ? populateFromBase : false
+    });
   };
 
   const handleDeleteClick = () => {
@@ -113,6 +125,86 @@ export default function FunnelModal({
               }`}
             />
           </div>
+
+          {/* Tipo de Funil */}
+          <div>
+            <label className={`block text-xs font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              Tipo do Funil *
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setFunnelType('cliente')}
+                className={`p-2.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1.5 ${
+                  funnelType === 'cliente'
+                    ? 'bg-amber-500/15 border-amber-500 text-amber-400 font-bold'
+                    : isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span className="text-[11px]">Clientes</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFunnelType('produto')}
+                className={`p-2.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1.5 ${
+                  funnelType === 'produto'
+                    ? 'bg-amber-500/15 border-amber-500 text-amber-400 font-bold'
+                    : isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                <span className="text-[11px]">Equipamentos</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFunnelType('atividade')}
+                className={`p-2.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1.5 ${
+                  funnelType === 'atividade'
+                    ? 'bg-amber-500/15 border-amber-500 text-amber-400 font-bold'
+                    : isDark ? 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span className="text-[11px]">Atividades</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Toggle de Importação da Base (apenas na criação) */}
+          {!funnel && funnelType !== 'atividade' && (
+            <div className={`p-3 rounded-2xl border transition-all ${
+              populateFromBase
+                ? 'bg-emerald-500/10 border-emerald-500/30'
+                : isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={populateFromBase}
+                  onChange={(e) => setPopulateFromBase(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded text-amber-500 focus:ring-amber-400 accent-amber-500 cursor-pointer"
+                />
+                <div className="flex-1 text-xs">
+                  <div className="font-bold flex items-center gap-1.5 text-slate-200">
+                    <Database className="w-3.5 h-3.5 text-amber-500" />
+                    <span>
+                      {funnelType === 'cliente'
+                        ? 'Deseja puxar a base de clientes?'
+                        : 'Deseja puxar toda a base de equipamentos?'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                    {funnelType === 'cliente'
+                      ? 'Cria automaticamente a primeira coluna "Clientes" com todos os clientes da base importados.'
+                      : 'Cria a primeira coluna "Equipamentos" com todo o catálogo de máquinas Omie importado.'}
+                  </p>
+                </div>
+              </label>
+            </div>
+          )}
 
           <div>
             <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>

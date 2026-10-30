@@ -92,8 +92,8 @@ router.get('/funnels', async (req, res) => {
 
 router.post('/funnels', async (req, res) => {
   try {
-    const { name, description, color } = req.body;
-    const funnel = await crmService.createFunnel({ name, description, color });
+    const { name, description, color, funnel_type, populate_from_base } = req.body;
+    const funnel = await crmService.createFunnel({ name, description, color, funnel_type, populate_from_base });
     res.status(201).json({ success: true, data: funnel });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

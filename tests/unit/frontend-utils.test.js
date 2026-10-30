@@ -248,4 +248,34 @@ describe('Frontend Utils: Order & Fulfillment Domain Utilities (orderUtils.js)',
 
     delete globalThis.window;
   });
+
+  it('Search Ranking: Multi-word query ("carregador de baterias") must rank charger title above description matches', async () => {
+    const { getSearchSuggestions } = await import('../../src/utils/productSearch.js');
+
+    const products = [
+      {
+        id: 'sgt_8102',
+        name: 'Politriz Nano Híbrida 2mm 12mm SGT-8102 – Sigma Tools',
+        description: 'A Politriz Nano Híbrida possui bateria de lítio e carregador de baterias bivolt rápido incluso.',
+        status: 'published'
+      },
+      {
+        id: 'skx_038',
+        name: 'Carregador Inteligente de Baterias Stärkx SKX-038',
+        description: 'Carregador profissional microprocessado para baterias de 12V e 24V.',
+        status: 'published'
+      },
+      {
+        id: 'eaata_epd002',
+        name: 'Estabilizador de Bateria 12V 70A – EAATA EPD002',
+        description: 'Fonte estabilizada para programação de ECU e suporte de carga.',
+        status: 'published'
+      }
+    ];
+
+    const { suggestions } = getSearchSuggestions(products, 'carregador de baterias', [], [], 10);
+    assert.ok(suggestions.length >= 2, 'Deveria retornar ao menos 2 sugestões');
+    // SKX-038 contains both 'carregador' and 'baterias' in the title and MUST rank first
+    assert.strictEqual(suggestions[0].product.id, 'skx_038', 'Carregador Inteligente de Baterias deve estar em 1º lugar');
+  });
 });

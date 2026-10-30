@@ -38,6 +38,7 @@ export default function CustomerDetailsModal({ customer, onClose, onCustomerUpda
     cpf: customer.cpf || '',
     cnpj: customer.cnpj || '',
     phone: customer.phone || '',
+    phone2: customer.phone2 || '',
     email: customer.email || '',
     birthday: customer.birthday ? customer.birthday.slice(0, 10) : '',
     address: customer.address || '',
@@ -198,6 +199,23 @@ export default function CustomerDetailsModal({ customer, onClose, onCustomerUpda
                         rel="noopener noreferrer"
                         className="text-emerald-400 hover:text-emerald-300 ml-1 inline-flex items-center"
                         title="Conversar no WhatsApp"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </span>
+                )}
+                {formData.phone2 && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-slate-500" />
+                    <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{formData.phone2} <span className="text-[10px] text-amber-500 font-normal">(Tel 2)</span></strong>
+                    {formData.phone2.replace(/\D/g, '') && (
+                      <a 
+                        href={`https://wa.me/55${formData.phone2.replace(/\D/g, '')}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-emerald-400 hover:text-emerald-300 ml-1 inline-flex items-center"
+                        title="Conversar no WhatsApp (Tel 2)"
                       >
                         <MessageCircle className="w-3.5 h-3.5" />
                       </a>

@@ -128,7 +128,7 @@ async function listFunnels() {
   return memoryFunnels;
 }
 
-async function createFunnel({ name, description = '', color = '#f59e0b' }) {
+async function createFunnel({ name, description = '', color = '#f59e0b', funnel_type = 'cliente', populate_from_base = false }) {
   if (!name || !name.trim()) throw new Error('Nome do funil é obrigatório.');
   const uniqueSuffix = Math.floor(1000 + Math.random() * 9000);
   const id = `fun_${Date.now()}_${uniqueSuffix}`;
@@ -141,27 +141,159 @@ async function createFunnel({ name, description = '', color = '#f59e0b' }) {
     try {
       await client.query('BEGIN');
       const res = await client.query(`
-        INSERT INTO crm_funnels (id, name, slug, description, color)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO crm_funnels (id, name, slug, description, color, funnel_type)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
-      `, [id, cleanName, slug, description.trim(), color]);
+      `, [id, cleanName, slug, description.trim(), color, funnel_type]);
 
-      // Cria 3 etapas padrão para o novo funil
-      const defaultStages = [
-        { id: generateId('stg'), title: 'Primeiro Contato', color: '#64748b', order: 0 },
-        { id: generateId('stg'), title: 'Em Negociação', color: '#f59e0b', order: 1 },
-        { id: generateId('stg'), title: 'Concluído (Ganho)', color: '#10b981', order: 2, is_won: true }
-      ];
+      let stagesToCreate = [];
+      let baseClientesStageId = null;
+      let baseEquipStageId = null;
 
-      for (const stg of defaultStages) {
+      if (populate_from_base && funnel_type === 'cliente') {
+        baseClientesStageId = generateId('stg');
+        stagesToCreate = [
+          { id: baseClientesStageId, title: 'Clientes', color: '#10b981', order: 0, is_won: false, is_lost: false },
+          { id: generateId('stg'), title: '1° Contato', color: '#0ea5e9', order: 1, is_won: false, is_lost: false },
+          { id: generateId('stg'), title: 'Em Negociação', color: '#f59e0b', order: 2, is_won: false, is_lost: false },
+          { id: generateId('stg'), title: 'Concluído (Ganho)', color: '#22c55e', order: 3, is_won: true, is_lost: false }
+        ];
+      } else if (populate_from_base && funnel_type === 'produto') {
+        baseEquipStageId = generateId('stg');
+        stagesToCreate = [
+          { id: baseEquipStageId, title: 'Equipamentos', color: '#0ea5e9', order: 0, is_won: false, is_lost: false },
+          { id: generateId('stg'), title: 'Em Demonstração / Cotação', color: '#f59e0b', order: 1, is_won: false, is_lost: false },
+          { id: generateId('stg'), title: 'Vendido (Ganho)', color: '#10b981', order: 2, is_won: true, is_lost: false }
+        ];
+      } else {
+        stagesToCreate = [
+          { id: generateId('stg'), title: 'Primeiro Contato', color: '#64748b', order: 0, is_won: false, is_lost: false },
+          { id: generateId('stg'), title: 'Em Negociação', color: '#f59e0b', order: 1, is_won: false, is_lost: false },
+          { id: generateId('stg'), title: 'Concluído (Ganho)', color: '#10b981', order: 2, is_won: true, is_lost: false }
+        ];
+      }
+
+      for (const stg of stagesToCreate) {
         await client.query(`
-          INSERT INTO crm_stages (id, funnel_id, title, color, "order", is_won)
-          VALUES ($1, $2, $3, $4, $5, $6)
-        `, [stg.id, id, stg.title, stg.color, stg.order, Boolean(stg.is_won)]);
+          INSERT INTO crm_stages (id, funnel_id, title, color, "order", is_won, is_lost)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [stg.id, id, stg.title, stg.color, stg.order, Boolean(stg.is_won), Boolean(stg.is_lost)]);
+      }
+
+      // Carga em lote (Batch Insert via SQL) caso tenha selecionado popular base
+      if (populate_from_base && funnel_type === 'cliente' && baseClientesStageId) {
+        const custRes = await client.query(`
+          SELECT id, name, fantasy_name, cpf, cnpj, phone, phone2, email, address, city, state
+          FROM crm_customers
+          ORDER BY created_at ASC
+        `);
+
+        const customers = custRes.rows;
+        if (customers.length > 0) {
+          const CHUNK_SIZE = 100;
+          for (let i = 0; i < customers.length; i += CHUNK_SIZE) {
+            const chunk = customers.slice(i, i + CHUNK_SIZE);
+            const valueRows = [];
+            const params = [];
+            let pIdx = 1;
+
+            chunk.forEach((cust, cIdx) => {
+              const leadId = generateId('lead_pop');
+              const doc = cust.cnpj || cust.cpf || '';
+              const company = cust.fantasy_name || '';
+              const orderNum = i + cIdx;
+
+              valueRows.push(`(
+                $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++},
+                $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++},
+                $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++},
+                NOW(), NOW()
+              )`);
+
+              params.push(
+                leadId,
+                id,
+                baseClientesStageId,
+                cust.id,
+                cust.name,
+                doc,
+                company,
+                cust.phone || '',
+                cust.phone2 || '',
+                cust.email || '',
+                cust.address || '',
+                cust.city || 'Brasília',
+                'Importado da Base Central de Clientes',
+                orderNum,
+                'base_central'
+              );
+            });
+
+            const insertBatchSql = `
+              INSERT INTO crm_leads (
+                id, funnel_id, stage_id, customer_id, name,
+                document, company, phone, phone2, email,
+                address, ra_df, notes, "order", source,
+                created_at, updated_at
+              ) VALUES ${valueRows.join(', ')}
+            `;
+            await client.query(insertBatchSql, params);
+          }
+        }
+      } else if (populate_from_base && funnel_type === 'produto' && baseEquipStageId) {
+        const eqRes = await client.query(`
+          SELECT id, name, sku, cmc_cost, price_dentro_df_cnpj, price_fora_df_cnpj, stock
+          FROM crm_equipments
+          ORDER BY name ASC
+        `);
+        const equipments = eqRes.rows;
+        if (equipments.length > 0) {
+          const CHUNK_SIZE = 100;
+          for (let i = 0; i < equipments.length; i += CHUNK_SIZE) {
+            const chunk = equipments.slice(i, i + CHUNK_SIZE);
+            const valueRows = [];
+            const params = [];
+            let pIdx = 1;
+
+            chunk.forEach((eq, eqIdx) => {
+              const leadId = generateId('lead_eq');
+              const price = parseFloat(eq.price_dentro_df_cnpj) || parseFloat(eq.price_fora_df_cnpj) || parseFloat(eq.cmc_cost) || 0;
+              const orderNum = i + eqIdx;
+
+              valueRows.push(`(
+                $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++},
+                $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++},
+                NOW(), NOW()
+              )`);
+
+              params.push(
+                leadId,
+                id,
+                baseEquipStageId,
+                eq.id,
+                eq.name,
+                eq.sku || '',
+                price,
+                price,
+                `Catálogo Omie (Estoque: ${eq.stock || 0})`,
+                orderNum
+              );
+            });
+
+            const insertBatchSql = `
+              INSERT INTO crm_leads (
+                id, funnel_id, stage_id, equipment_id, name,
+                company, estimated_value, negotiated_price, notes, "order",
+                created_at, updated_at
+              ) VALUES ${valueRows.join(', ')}
+            `;
+            await client.query(insertBatchSql, params);
+          }
+        }
       }
 
       await client.query('COMMIT');
-      return { ...res.rows[0], stages: defaultStages };
+      return { ...res.rows[0], stages: stagesToCreate };
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -183,6 +315,7 @@ async function createFunnel({ name, description = '', color = '#f59e0b' }) {
     slug,
     description: description.trim(),
     color,
+    funnel_type,
     is_default: false,
     stages: defaultStages,
     created_at: new Date().toISOString()
@@ -376,7 +509,7 @@ async function listLeads({ funnelId, stageId, search = '', ra = '' } = {}) {
     if (search) {
       params.push(`%${search.trim()}%`);
       const pIdx = params.length;
-      query += ` AND (name ILIKE $${pIdx} OR company ILIKE $${pIdx} OR phone ILIKE $${pIdx} OR email ILIKE $${pIdx})`;
+      query += ` AND (name ILIKE $${pIdx} OR company ILIKE $${pIdx} OR phone ILIKE $${pIdx} OR phone2 ILIKE $${pIdx} OR email ILIKE $${pIdx})`;
     }
 
     query += ' ORDER BY "order" ASC, created_at DESC';
@@ -405,15 +538,20 @@ async function createLead(payload) {
   const document = payload.document || payload.cnpj || payload.cpf || '';
   const name = payload.name;
   const phone = payload.phone || payload.tel || '';
+  const phone2 = payload.phone2 || payload.phone_secondary || payload.tel2 || '';
   const email = payload.email || '';
   const company = payload.company || payload.rz || payload.razao_social || '';
   const address = payload.address || payload.end || '';
   const ra_df = payload.ra_df || payload.ra || '';
   const estimated_value = payload.estimated_value || payload.value || 0;
+  const negotiated_price = payload.negotiated_price !== undefined ? parseFloat(payload.negotiated_price) : (parseFloat(estimated_value) || 0);
   const priority = payload.priority || 'medium';
   const notes = payload.notes || payload.obs || '';
   const assigned_to = payload.assigned_to || '';
   const source = payload.source || 'manual';
+  let customer_id = payload.customer_id || null;
+  let equipment_id = payload.equipment_id || null;
+  const update_customer = Boolean(payload.update_customer);
 
   if (!name || !name.trim()) throw new Error('Nome do contato/oficina é obrigatório.');
   if (!funnelId) throw new Error('funnelId é obrigatório.');
@@ -421,6 +559,94 @@ async function createLead(payload) {
   const id = generateId('lead');
 
   if (crmPool) {
+    // Salvaguarda 2: Bloqueio de duplicata dentro do mesmo funil
+    const dupCheck = await crmPool.query(`
+      SELECT l.id, l.name, s.title as stage_title
+      FROM crm_leads l
+      LEFT JOIN crm_stages s ON l.stage_id = s.id
+      WHERE l.funnel_id = $1 AND l.status != 'archived' AND (
+        (l.customer_id IS NOT NULL AND $2::VARCHAR IS NOT NULL AND l.customer_id = $2)
+        OR (l.phone IS NOT NULL AND l.phone != '' AND $3::VARCHAR != '' AND (l.phone = $3 OR l.phone2 = $3))
+        OR (l.phone2 IS NOT NULL AND l.phone2 != '' AND $4::VARCHAR != '' AND (l.phone = $4 OR l.phone2 = $4))
+      )
+      LIMIT 1
+    `, [funnelId, customer_id, phone.trim(), phone2.trim()]);
+
+    if (dupCheck.rows.length > 0) {
+      throw new Error(`Este contato já existe na etapa "${dupCheck.rows[0].stage_title || 'Ativa'}" deste funil.`);
+    }
+
+    // Se não informou customer_id e tem telefone ou documento, tenta achar na base central
+    if (!customer_id && !equipment_id) {
+      const cleanPhone1 = phone.replace(/\D/g, '');
+      const cleanDoc = document.replace(/\D/g, '');
+      if (cleanDoc && cleanDoc.length >= 11) {
+        const findDoc = await crmPool.query('SELECT id FROM crm_customers WHERE cpf = $1 OR cnpj = $1 LIMIT 1', [cleanDoc]);
+        if (findDoc.rows.length > 0) customer_id = findDoc.rows[0].id;
+      }
+      if (!customer_id && cleanPhone1 && cleanPhone1.length >= 8) {
+        const findPhone = await crmPool.query('SELECT id FROM crm_customers WHERE phone ILIKE $1 OR phone2 ILIKE $1 LIMIT 1', [`%${cleanPhone1.slice(-8)}%`]);
+        if (findPhone.rows.length > 0) customer_id = findPhone.rows[0].id;
+      }
+
+      // Se ainda não achou, auto-cadastra cliente novo na base central (Origem: Criado pelo funil)
+      if (!customer_id) {
+        try {
+          const funInfo = await crmPool.query('SELECT name FROM crm_funnels WHERE id = $1', [funnelId]);
+          const funName = funInfo.rows[0]?.name || 'Funil Comercial';
+          const newCustId = generateId('cust');
+          await crmPool.query(`
+            INSERT INTO crm_customers (
+              id, name, fantasy_name, cpf, cnpj, phone, phone2, email,
+              address, city, state, category, pipeline_stage, notes, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+          `, [
+            newCustId,
+            name.trim(),
+            company.trim() || null,
+            document.replace(/\D/g, '').length === 11 ? document.trim() : null,
+            document.replace(/\D/g, '').length === 14 ? document.trim() : null,
+            phone.trim() || null,
+            phone2.trim() || null,
+            email.trim() || null,
+            address.trim() || null,
+            'Brasília',
+            'DF',
+            'Mecânica Geral',
+            'lead',
+            `Origem: Criado pelo funil ${funName}`
+          ]);
+          customer_id = newCustId;
+        } catch (err) {
+          console.warn('Auto-cadastro de cliente falhou silenciosamente:', err.message);
+        }
+      } else {
+        // Safe-sync: enriquece campos vazios no cliente mestre
+        try {
+          const custRes = await crmPool.query('SELECT * FROM crm_customers WHERE id = $1', [customer_id]);
+          if (custRes.rows.length > 0) {
+            const cust = custRes.rows[0];
+            const updates = [];
+            const params = [];
+            if (!cust.phone && phone) { params.push(phone.trim()); updates.push(`phone = $${params.length}`); }
+            if (!cust.phone2 && phone2) { params.push(phone2.trim()); updates.push(`phone2 = $${params.length}`); }
+            if (!cust.email && email) { params.push(email.trim()); updates.push(`email = $${params.length}`); }
+            if (!cust.fantasy_name && company) { params.push(company.trim()); updates.push(`fantasy_name = $${params.length}`); }
+            if (!cust.address && address) { params.push(address.trim()); updates.push(`address = $${params.length}`); }
+            if (update_customer) {
+              if (phone && cust.phone !== phone) { params.push(phone.trim()); updates.push(`phone = $${params.length}`); }
+              if (phone2 && cust.phone2 !== phone2) { params.push(phone2.trim()); updates.push(`phone2 = $${params.length}`); }
+              if (email && cust.email !== email) { params.push(email.trim()); updates.push(`email = $${params.length}`); }
+            }
+            if (updates.length > 0) {
+              params.push(customer_id);
+              await crmPool.query(`UPDATE crm_customers SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${params.length}`, params);
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
     // Se não informou stageId, usa a primeira etapa do funil
     let targetStage = stageId;
     if (!targetStage) {
@@ -430,14 +656,14 @@ async function createLead(payload) {
 
     const res = await crmPool.query(`
       INSERT INTO crm_leads (
-        id, funnel_id, stage_id, document, name, phone, email, company, address,
-        ra_df, estimated_value, priority, notes, assigned_to, source
+        id, funnel_id, stage_id, customer_id, equipment_id, document, name, phone, phone2, email, company, address,
+        ra_df, estimated_value, negotiated_price, priority, notes, assigned_to, source
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *
     `, [
-      id, funnelId, targetStage, document.trim(), name.trim(), phone.trim(), email.trim(),
-      company.trim(), address.trim(), ra_df.trim(), parseFloat(estimated_value) || 0,
+      id, funnelId, targetStage, customer_id, equipment_id, document.trim(), name.trim(), phone.trim(), phone2.trim(), email.trim(),
+      company.trim(), address.trim(), ra_df.trim(), parseFloat(estimated_value) || 0, negotiated_price,
       priority, notes.trim(), assigned_to.trim(), source
     ]);
     return res.rows[0];
@@ -450,14 +676,18 @@ async function createLead(payload) {
     id,
     funnel_id: funnelId,
     stage_id: targetStage,
+    customer_id,
+    equipment_id,
     document: document.trim(),
     name: name.trim(),
     phone: phone.trim(),
+    phone2: phone2.trim(),
     email: email.trim(),
     company: company.trim(),
     address: address.trim(),
     ra_df: ra_df.trim(),
     estimated_value: parseFloat(estimated_value) || 0,
+    negotiated_price,
     priority,
     status: 'active',
     notes: notes.trim(),
@@ -524,7 +754,35 @@ async function moveLeadStage(leadId, newStageId, newOrder = null) {
       if (isRadar) return { id: leadId, stage_id: newStageId };
       throw new Error('Lead não encontrado.');
     }
-    return res.rows[0];
+
+    const movedLead = res.rows[0];
+    if (movedLead.customer_id) {
+      try {
+        const stageInfo = await crmPool.query(`
+          SELECT s.title as stage_title, f.name as funnel_name
+          FROM crm_stages s
+          JOIN crm_funnels f ON s.funnel_id = f.id
+          WHERE s.id = $1
+        `, [newStageId]);
+        if (stageInfo.rows.length > 0) {
+          await addCustomerHistory(movedLead.customer_id, {
+            type: 'movimentacao_funil',
+            title: `Movimentado para "${stageInfo.rows[0].stage_title}" no funil "${stageInfo.rows[0].funnel_name}"`,
+            details: {
+              funnel_id: movedLead.funnel_id,
+              stage_id: newStageId,
+              stage_title: stageInfo.rows[0].stage_title,
+              funnel_name: stageInfo.rows[0].funnel_name,
+              moved_at: new Date().toISOString()
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Falha ao registrar historico de movimentacao:', err.message);
+      }
+    }
+
+    return movedLead;
   }
 
   let lead = memoryLeads.find(l => l.id === leadId);
@@ -591,7 +849,11 @@ async function updateLead(id, data) {
 
     const fields = [];
     const params = [];
-    const allowed = ['name', 'phone', 'email', 'company', 'address', 'ra_df', 'estimated_value', 'priority', 'status', 'notes', 'assigned_to', 'document', 'stage_id', 'funnel_id'];
+    const allowed = [
+      'name', 'phone', 'phone2', 'email', 'company', 'address', 'ra_df',
+      'estimated_value', 'negotiated_price', 'priority', 'status', 'notes',
+      'assigned_to', 'document', 'stage_id', 'funnel_id', 'customer_id', 'equipment_id'
+    ];
 
     for (const key of allowed) {
       if (data[key] !== undefined) {
@@ -613,7 +875,42 @@ async function updateLead(id, data) {
       if (isRadar) return { id, ...data };
       throw new Error('Lead não encontrado.');
     }
-    return res.rows[0];
+
+    const updatedLead = res.rows[0];
+
+    // Se houve opt-in de atualização do cliente mestre ou enriquecimento de vazios
+    if (updatedLead.customer_id) {
+      try {
+        const custRes = await crmPool.query('SELECT * FROM crm_customers WHERE id = $1', [updatedLead.customer_id]);
+        if (custRes.rows.length > 0) {
+          const cust = custRes.rows[0];
+          const custUpdates = [];
+          const custParams = [];
+
+          // Preenche campos vazios automaticamente (safe sync)
+          if (!cust.phone && updatedLead.phone) { custParams.push(updatedLead.phone); custUpdates.push(`phone = $${custParams.length}`); }
+          if (!cust.phone2 && updatedLead.phone2) { custParams.push(updatedLead.phone2); custUpdates.push(`phone2 = $${custParams.length}`); }
+          if (!cust.email && updatedLead.email) { custParams.push(updatedLead.email); custUpdates.push(`email = $${custParams.length}`); }
+          if (!cust.fantasy_name && updatedLead.company) { custParams.push(updatedLead.company); custUpdates.push(`fantasy_name = $${custParams.length}`); }
+          if (!cust.address && updatedLead.address) { custParams.push(updatedLead.address); custUpdates.push(`address = $${custParams.length}`); }
+
+          // Se marcou update_customer (opt-in confirmado pelo usuário)
+          if (data.update_customer) {
+            if (updatedLead.phone && cust.phone !== updatedLead.phone) { custParams.push(updatedLead.phone); custUpdates.push(`phone = $${custParams.length}`); }
+            if (updatedLead.phone2 && cust.phone2 !== updatedLead.phone2) { custParams.push(updatedLead.phone2); custUpdates.push(`phone2 = $${custParams.length}`); }
+            if (updatedLead.email && cust.email !== updatedLead.email) { custParams.push(updatedLead.email); custUpdates.push(`email = $${custParams.length}`); }
+            if (updatedLead.company && cust.fantasy_name !== updatedLead.company) { custParams.push(updatedLead.company); custUpdates.push(`fantasy_name = $${custParams.length}`); }
+          }
+
+          if (custUpdates.length > 0) {
+            custParams.push(updatedLead.customer_id);
+            await crmPool.query(`UPDATE crm_customers SET ${custUpdates.join(', ')}, updated_at = NOW() WHERE id = $${custParams.length}`, custParams);
+          }
+        }
+      } catch (_) {}
+    }
+
+    return updatedLead;
   }
 
   const idx = memoryLeads.findIndex(l => l.id === id);
@@ -916,7 +1213,7 @@ async function listCustomers({ search = '', category = '', stage = '', page = 1,
     if (search && search.trim()) {
       params.push(`%${search.trim()}%`);
       const pIdx = params.length;
-      where += ` AND (name ILIKE $${pIdx} OR fantasy_name ILIKE $${pIdx} OR cpf ILIKE $${pIdx} OR cnpj ILIKE $${pIdx} OR phone ILIKE $${pIdx} OR email ILIKE $${pIdx})`;
+      where += ` AND (name ILIKE $${pIdx} OR fantasy_name ILIKE $${pIdx} OR cpf ILIKE $${pIdx} OR cnpj ILIKE $${pIdx} OR phone ILIKE $${pIdx} OR phone2 ILIKE $${pIdx} OR email ILIKE $${pIdx})`;
     }
 
     const countRes = await crmPool.query(`SELECT COUNT(*) FROM crm_customers ${where}`, params);
@@ -961,7 +1258,7 @@ async function getCustomerById(id) {
 async function createCustomer(data) {
   const id = generateId('cust');
   const {
-    name, fantasy_name = '', cpf = '', cnpj = '', phone = '', email = '',
+    name, fantasy_name = '', cpf = '', cnpj = '', phone = '', phone2 = '', email = '',
     birthday = null, address = '', city = 'Brasília', state = 'DF', cep = '',
     marital_status = 'Solteiro(a)', spouse_works_in_shop = false, spouse_birthday = null,
     football_team = '', hobbies = '', category = 'Mecânica Geral', pipeline_stage = 'lead',
@@ -971,13 +1268,13 @@ async function createCustomer(data) {
   if (crmPool) {
     const res = await crmPool.query(`
       INSERT INTO crm_customers (
-        id, name, fantasy_name, cpf, cnpj, phone, email, birthday,
+        id, name, fantasy_name, cpf, cnpj, phone, phone2, email, birthday,
         address, city, state, cep, marital_status, spouse_works_in_shop, spouse_birthday,
         football_team, hobbies, category, pipeline_stage, notes, equipments
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       RETURNING *
     `, [
-      id, name.trim(), fantasy_name.trim(), cpf.trim(), cnpj.trim(), phone.trim(), email.trim(),
+      id, name.trim(), fantasy_name.trim(), cpf.trim(), cnpj.trim(), phone.trim(), phone2.trim(), email.trim(),
       birthday || null, address.trim(), city.trim(), state.trim(), cep.trim(),
       marital_status, Boolean(spouse_works_in_shop), spouse_birthday || null,
       football_team.trim(), hobbies.trim(), category, pipeline_stage, notes.trim(), JSON.stringify(equipments)
@@ -998,7 +1295,7 @@ async function createCustomer(data) {
 async function updateCustomer(id, data) {
   if (crmPool) {
     const allowed = [
-      'name', 'fantasy_name', 'cpf', 'cnpj', 'phone', 'email', 'birthday',
+      'name', 'fantasy_name', 'cpf', 'cnpj', 'phone', 'phone2', 'email', 'birthday',
       'address', 'city', 'state', 'cep', 'marital_status', 'spouse_works_in_shop',
       'spouse_birthday', 'football_team', 'hobbies', 'category', 'pipeline_stage',
       'notes', 'equipments'

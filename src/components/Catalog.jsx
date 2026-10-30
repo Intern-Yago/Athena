@@ -103,6 +103,19 @@ export default function Catalog({
     if (rawTerm) {
       const normQuery = normalizeSearchText(rawTerm);
       const cleanQuery = cleanAlphanumeric(rawTerm);
+      const queryTokens = normQuery
+        .split(/\s+/)
+        .filter(t => t.length >= 2 && !['de', 'da', 'do', 'das', 'dos', 'com', 'para', 'em', 'um', 'uma', 'e'].includes(t));
+
+      const matchesToken = (text, tok) => {
+        if (!text || !tok) return false;
+        if (text.includes(tok)) return true;
+        // Tolerância singular/plural em português
+        if (tok.endsWith('es') && tok.length > 4 && text.includes(tok.slice(0, -2))) return true;
+        if (tok.endsWith('s') && tok.length > 3 && text.includes(tok.slice(0, -1))) return true;
+        if (!tok.endsWith('s') && text.includes(tok + 's')) return true;
+        return false;
+      };
 
       const getTier = (p) => {
         const prof = getProductSuggestionProfile(p, brandsMap, categoriesMap);
@@ -112,8 +125,15 @@ export default function Catalog({
         if (prof.pNorm === normQuery || (cleanQuery.length >= 3 && prof.pClean === cleanQuery)) return 0;
         // Tier 1: título começa com a pesquisa
         if (prof.pNorm.startsWith(normQuery)) return 1;
-        // Tier 2: título contém a pesquisa
+        // Tier 1.5: Título contém todos os termos significativos da busca (ex: "carregador" e "baterias")
+        if (queryTokens.length > 1 && queryTokens.every(tok => matchesToken(prof.pNorm, tok))) return 1.5;
+        // Tier 2: título contém a pesquisa exata contígua
         if (prof.pNorm.includes(normQuery)) return 2;
+        // Tier 2.4: Tags contêm todos os termos da busca
+        if (prof.normTags.length > 0 && queryTokens.length > 1) {
+          const allTokensInTags = queryTokens.every(tok => prof.normTags.some(t => matchesToken(t.norm, tok)));
+          if (allTokensInTags) return 2.4;
+        }
         // Tier 2.5: Tag / Palavra-chave de busca (#hashtags)
         if (prof.normTags.length > 0) {
           const hasTagMatch = prof.normTags.some(t => 
@@ -121,6 +141,8 @@ export default function Catalog({
           );
           if (hasTagMatch) return 2.5;
         }
+        // Tier 2.8: Título contém ao menos um dos termos principais da busca (relevância parcial de título)
+        if (queryTokens.length > 1 && queryTokens.some(tok => matchesToken(prof.pNorm, tok))) return 2.8;
         // Tier 3: SKU ou código Omie
         if (prof.skuNorm && (prof.skuNorm.includes(normQuery) || (cleanQuery.length >= 3 && prof.skuClean.includes(cleanQuery)))) return 3;
         // Tier 3.3: Especificações Técnicas (specs)
@@ -141,6 +163,9 @@ export default function Catalog({
 
       matched.sort((a, b) => {
         if (a._tier !== b._tier) return a._tier - b._tier;
+        const aTokensInTitle = queryTokens.filter(tok => matchesToken((a.name || '').toLowerCase(), tok)).length;
+        const bTokensInTitle = queryTokens.filter(tok => matchesToken((b.name || '').toLowerCase(), tok)).length;
+        if (aTokensInTitle !== bTokensInTitle) return bTokensInTitle - aTokensInTitle;
         return (b._searchScore || 0) - (a._searchScore || 0);
       });
     }

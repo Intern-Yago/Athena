@@ -5,7 +5,7 @@ const { Pool } = require('pg');
  * Uses dedicated CRM_DATABASE_URL if provided, or falls back to main DATABASE_URL / SUPABASE_DB_URL
  * so leads and custom stages are permanently preserved in PostgreSQL and never lost on server restarts.
  */
-const crmDbUrl = process.env.CRM_DATABASE_URL || process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
+const crmDbUrl = process.env.DATABASE_URL || process.env.CRM_DATABASE_URL || process.env.SUPABASE_DB_URL || '';
 
 let crmPool = null;
 let isCrmDbAvailable = false;
@@ -53,10 +53,12 @@ async function initCrmSchema() {
         description TEXT,
         color VARCHAR(32) DEFAULT '#f59e0b',
         is_default BOOLEAN DEFAULT false,
+        funnel_type VARCHAR(32) DEFAULT 'cliente',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
       ALTER TABLE crm_funnels DROP CONSTRAINT IF EXISTS crm_funnels_slug_key;
+      ALTER TABLE crm_funnels ADD COLUMN IF NOT EXISTS funnel_type VARCHAR(32) DEFAULT 'cliente';
     `);
 
     // 2. Etapas / Colunas do Kanban
@@ -83,6 +85,7 @@ async function initCrmSchema() {
         document VARCHAR(40),
         name VARCHAR(180) NOT NULL,
         phone VARCHAR(40),
+        phone2 VARCHAR(40),
         email VARCHAR(180),
         company VARCHAR(180),
         address TEXT,
@@ -98,6 +101,10 @@ async function initCrmSchema() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
       ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS document VARCHAR(40);
+      ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS phone2 VARCHAR(40);
+      ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS customer_id VARCHAR(64) REFERENCES crm_customers(id) ON DELETE SET NULL;
+      ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS equipment_id VARCHAR(64) REFERENCES crm_equipments(id) ON DELETE SET NULL;
+      ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS negotiated_price NUMERIC(12, 2) DEFAULT 0;
     `);
 
     // 4. Histórico e Atividades dos Leads
@@ -151,6 +158,7 @@ async function initCrmSchema() {
         cpf VARCHAR(20),
         cnpj VARCHAR(25),
         phone VARCHAR(40),
+        phone2 VARCHAR(40),
         email VARCHAR(180),
         birthday DATE,
         address TEXT,
@@ -220,6 +228,7 @@ async function initCrmSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_equipments_sku ON crm_equipments(sku);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_doc ON crm_customers(cpf, cnpj);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_phone ON crm_customers(phone);`);
+    await client.query(`ALTER TABLE crm_customers ADD COLUMN IF NOT EXISTS phone2 VARCHAR(40);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_appointments_time ON crm_appointments(start_time);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_status ON crm_workshops(status_visita);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_ra ON crm_workshops(regiao_administrativa);`);

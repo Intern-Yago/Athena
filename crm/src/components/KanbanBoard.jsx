@@ -23,7 +23,9 @@ import {
   Maximize2, 
   CheckCircle2, 
   X, 
-  Loader2 
+  Loader2,
+  Users,
+  Package
 } from 'lucide-react';
 
 /**
@@ -44,6 +46,214 @@ export function KanbanCardSkeleton() {
       <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
         <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded-lg w-20" />
         <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-md w-16" />
+      </div>
+    </div>
+  );
+}
+
+export function KanbanLeadCard({
+  lead,
+  isDark,
+  handleLeadDragStart,
+  onOpenLeadModal,
+  handleOpenWhatsApp,
+  handleOpenGoogleMaps
+}) {
+  const hasLocation = Boolean(lead.address || lead.ra_df || (lead.latitude && lead.longitude));
+  const priceDisplay = parseFloat(lead.negotiated_price) || parseFloat(lead.estimated_value) || 0;
+
+  return (
+    <div
+      draggable
+      onDragStart={(e) => handleLeadDragStart(e, lead.id, lead)}
+      onClick={() => onOpenLeadModal(lead)}
+      className={`p-3.5 rounded-xl border transition-all cursor-pointer shadow-xs hover:shadow-md group space-y-2 relative ${
+        isDark 
+          ? 'bg-slate-950 border-slate-800 hover:border-amber-400/50' 
+          : 'bg-white border-slate-200 hover:border-amber-400 hover:bg-amber-50/10'
+      }`}
+    >
+      {/* Header: Name + Priority */}
+      <div className="flex items-start justify-between gap-2">
+        <div className={`font-bold text-xs group-hover:text-amber-500 transition-colors line-clamp-1 ${
+          isDark ? 'text-white' : 'text-slate-900'
+        }`}>
+          {lead.name}
+        </div>
+
+        {lead.priority === 'high' && (
+          <span className="shrink-0 text-amber-500" title="Prioridade Alta">
+            <Flame className="w-3.5 h-3.5 fill-amber-500/20" />
+          </span>
+        )}
+      </div>
+
+      {lead.company && lead.company !== lead.name && (
+        <div className="text-[11px] text-slate-400 truncate">
+          {lead.company}
+        </div>
+      )}
+
+      {/* Badges: Vínculo + Equipamento + RA + Valor Negociado */}
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+        {lead.customer_id && (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" title="Cliente cadastrado na Base Central">
+            <Users className="w-2.5 h-2.5" />
+            <span>Cadastrado</span>
+          </span>
+        )}
+
+        {lead.equipment_id && (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20" title="Equipamento vinculado">
+            <Package className="w-2.5 h-2.5" />
+            <span>Equipamento</span>
+          </span>
+        )}
+
+        {lead.ra_df && (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold ${
+            isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
+          }`}>
+            <MapPin className="w-2.5 h-2.5 text-sky-500" />
+            <span>{lead.ra_df}</span>
+          </span>
+        )}
+
+        {priceDisplay > 0 && (
+          <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 font-mono font-bold border border-amber-500/20">
+            R$ {priceDisplay.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </span>
+        )}
+      </div>
+
+      {/* Notes preview */}
+      {lead.notes && (
+        <p className={`text-[10px] line-clamp-2 leading-relaxed italic p-1.5 rounded-lg border ${
+          isDark ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-100 text-slate-600'
+        }`}>
+          "{lead.notes}"
+        </p>
+      )}
+
+      {/* Card Actions Footer: WhatsApp + Google Maps + Ver detalhes */}
+      <div className={`pt-2 border-t flex items-center justify-between gap-2 ${
+        isDark ? 'border-slate-900' : 'border-slate-100'
+      }`}>
+        <div className="flex items-center gap-1.5">
+          {lead.phone && (
+            <button
+              type="button"
+              onClick={(e) => handleOpenWhatsApp(e, lead)}
+              className="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-500 hover:text-white font-bold text-[10px] flex items-center gap-1 transition cursor-pointer"
+              title="Iniciar conversa no WhatsApp"
+            >
+              <MessageCircle className="w-3 h-3" />
+              <span>WhatsApp</span>
+            </button>
+          )}
+
+          {hasLocation && (
+            <button
+              type="button"
+              onClick={(e) => handleOpenGoogleMaps(e, lead)}
+              className={`px-2 py-1 rounded-lg border font-bold text-[10px] flex items-center gap-1 transition cursor-pointer ${
+                isDark 
+                  ? 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border-sky-500/20' 
+                  : 'bg-sky-50 hover:bg-sky-100 text-sky-600 border-sky-200'
+              }`}
+              title="Abrir localização no Google Maps em nova aba"
+            >
+              <MapPin className="w-3 h-3 text-sky-500" />
+              <span>Mapa</span>
+            </button>
+          )}
+        </div>
+
+        <div className="text-[10px] text-slate-400 flex items-center gap-1 group-hover:text-amber-500 transition">
+          <span>Detalhes</span>
+          <ArrowRight className="w-2.5 h-2.5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function VirtualizedCardList({
+  leads,
+  isDark,
+  handleLeadDragStart,
+  onOpenLeadModal,
+  handleOpenWhatsApp,
+  handleOpenGoogleMaps
+}) {
+  const containerRef = useRef(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
+
+  const ITEM_HEIGHT = 135;
+  const total = leads.length;
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const updateSize = () => {
+      if (containerRef.current) {
+        setContainerHeight(containerRef.current.clientHeight || 600);
+      }
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  const handleScroll = (e) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  };
+
+  if (total <= 35) {
+    return (
+      <div className="kanban-card-list flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
+        {leads.map(lead => (
+          <KanbanLeadCard
+            key={lead.id}
+            lead={lead}
+            isDark={isDark}
+            handleLeadDragStart={handleLeadDragStart}
+            onOpenLeadModal={onOpenLeadModal}
+            handleOpenWhatsApp={handleOpenWhatsApp}
+            handleOpenGoogleMaps={handleOpenGoogleMaps}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // Virtualização para colunas com grande volume (>35 cards)
+  const buffer = 4;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - buffer);
+  const endIndex = Math.min(total, Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + buffer);
+
+  const visibleLeads = leads.slice(startIndex, endIndex);
+  const paddingTop = startIndex * ITEM_HEIGHT;
+  const paddingBottom = Math.max(0, (total - endIndex) * ITEM_HEIGHT);
+
+  return (
+    <div
+      ref={containerRef}
+      onScroll={handleScroll}
+      className="kanban-card-list flex-1 min-h-0 overflow-y-auto p-3"
+    >
+      <div style={{ paddingTop: `${paddingTop}px`, paddingBottom: `${paddingBottom}px` }} className="space-y-2.5">
+        {visibleLeads.map(lead => (
+          <KanbanLeadCard
+            key={lead.id}
+            lead={lead}
+            isDark={isDark}
+            handleLeadDragStart={handleLeadDragStart}
+            onOpenLeadModal={onOpenLeadModal}
+            handleOpenWhatsApp={handleOpenWhatsApp}
+            handleOpenGoogleMaps={handleOpenGoogleMaps}
+          />
+        ))}
       </div>
     </div>
   );
@@ -963,155 +1173,29 @@ export default function KanbanBoard({
                   </div>
                 )}
 
-                {/* Lead Cards List com scroll próprio quando cheio (estilo Trello) */}
-                <div className="kanban-card-list flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
-                  {(isStageLoading || isBoardLoading) ? (
-                    <div className="space-y-2.5">
-                      <KanbanCardSkeleton />
-                      <KanbanCardSkeleton />
-                      <KanbanCardSkeleton />
+                {/* Lead Cards List Virtualizado para manter 60fps independente do volume */}
+                {(isStageLoading || isBoardLoading) ? (
+                  <div className="kanban-card-list flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
+                    <KanbanCardSkeleton />
+                    <KanbanCardSkeleton />
+                    <KanbanCardSkeleton />
+                  </div>
+                ) : stageLeads.length === 0 ? (
+                  <div className="p-3 flex-1 min-h-0 overflow-y-auto">
+                    <div className="py-8 text-center text-slate-500 text-[11px] border border-dashed border-slate-800/40 rounded-xl">
+                      Nenhuma oportunidade nesta etapa.
                     </div>
-                  ) : (
-                    <>
-                      {stageLeads.map(lead => {
-                        const hasLocation = Boolean(lead.address || lead.ra_df || (lead.latitude && lead.longitude));
-
-                        return (
-                          <div
-                            key={lead.id}
-                            draggable
-                            onDragStart={(e) => handleLeadDragStart(e, lead.id, lead)}
-                            onClick={() => onOpenLeadModal(lead)}
-                            className={`p-3.5 rounded-xl border transition-all cursor-pointer shadow-xs hover:shadow-md group space-y-2 relative ${
-                              isDark 
-                                ? 'bg-slate-950 border-slate-800 hover:border-amber-400/50' 
-                                : 'bg-white border-slate-200 hover:border-amber-400 hover:bg-amber-50/10'
-                            }`}
-                          >
-                            {/* Header: Name + Priority */}
-                            <div className="flex items-start justify-between gap-2">
-                              <div className={`font-bold text-xs group-hover:text-amber-500 transition-colors line-clamp-1 ${
-                                isDark ? 'text-white' : 'text-slate-900'
-                              }`}>
-                                {lead.name}
-                              </div>
-
-                              {lead.priority === 'high' && (
-                                <span className="shrink-0 text-amber-500" title="Prioridade Alta">
-                                  <Flame className="w-3.5 h-3.5 fill-amber-500/20" />
-                                </span>
-                              )}
-                            </div>
-
-                            {lead.company && lead.company !== lead.name && (
-                              <div className="text-[11px] text-slate-400 truncate">
-                                {lead.company}
-                              </div>
-                            )}
-
-                            {/* Badges: RA + Value */}
-                            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                              {lead.ra_df && (
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold ${
-                                  isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                                }`}>
-                                  <MapPin className="w-2.5 h-2.5 text-sky-500" />
-                                  <span>{lead.ra_df}</span>
-                                </span>
-                              )}
-
-                              {lead.estimated_value > 0 && (
-                                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 font-mono font-bold border border-amber-500/20">
-                                  R$ {Number(lead.estimated_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Notes preview */}
-                            {lead.notes && (
-                              <p className={`text-[10px] line-clamp-2 leading-relaxed italic p-1.5 rounded-lg border ${
-                                isDark ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-100 text-slate-600'
-                              }`}>
-                                "{lead.notes}"
-                              </p>
-                            )}
-
-                            {/* Card Actions Footer: WhatsApp + Google Maps + Ver detalhes */}
-                            <div className={`pt-2 border-t flex items-center justify-between gap-2 ${
-                              isDark ? 'border-slate-900' : 'border-slate-100'
-                            }`}>
-                              <div className="flex items-center gap-1.5">
-                                {lead.phone && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleOpenWhatsApp(e, lead)}
-                                    className="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-500 hover:text-white font-bold text-[10px] flex items-center gap-1 transition cursor-pointer"
-                                    title="Iniciar conversa no WhatsApp"
-                                  >
-                                    <MessageCircle className="w-3 h-3" />
-                                    <span>WhatsApp</span>
-                                  </button>
-                                )}
-
-                                {hasLocation && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleOpenGoogleMaps(e, lead)}
-                                    className={`px-2 py-1 rounded-lg border font-bold text-[10px] flex items-center gap-1 transition cursor-pointer ${
-                                      isDark 
-                                        ? 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border-sky-500/20' 
-                                        : 'bg-sky-50 hover:bg-sky-100 text-sky-600 border-sky-200'
-                                    }`}
-                                    title="Abrir localização no Google Maps em nova aba"
-                                  >
-                                    <MapPin className="w-3 h-3 text-sky-500" />
-                                    <span>Mapa</span>
-                                  </button>
-                                )}
-                              </div>
-
-                              <div className="text-[10px] text-slate-400 flex items-center gap-1 group-hover:text-amber-500 transition">
-                                <span>Detalhes</span>
-                                <ArrowRight className="w-2.5 h-2.5" />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {stageLeads.length === 0 && !isStageLoading && (
-                        <div className="py-8 text-center text-slate-500 text-[11px] border border-dashed border-slate-800/40 rounded-xl">
-                          Nenhuma oportunidade nesta etapa.
-                        </div>
-                      )}
-
-                      {/* Botão de Paginação / Infinite Scroll por Coluna */}
-                      {hasMoreItems && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (isExpansionFunnel) {
-                              handleLoadMoreColumn(stage);
-                            } else {
-                              setVisibleCounts(prev => ({ ...prev, [stage.id]: (prev[stage.id] || 40) + 40 }));
-                            }
-                          }}
-                          disabled={isStageLoading}
-                          className="w-full py-2.5 px-3 text-center text-[11px] font-bold text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition cursor-pointer border border-amber-500/20 flex items-center justify-center gap-1.5"
-                        >
-                          {isStageLoading ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Carregando...</span>
-                            </>
-                          ) : (
-                            <span>Carregar mais (+35)</span>
-                          )}
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <VirtualizedCardList
+                    leads={stageLeads}
+                    isDark={isDark}
+                    handleLeadDragStart={handleLeadDragStart}
+                    onOpenLeadModal={onOpenLeadModal}
+                    handleOpenWhatsApp={handleOpenWhatsApp}
+                    handleOpenGoogleMaps={handleOpenGoogleMaps}
+                  />
+                )}
               </div>
             );
           })}

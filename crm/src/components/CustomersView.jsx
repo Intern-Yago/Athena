@@ -66,6 +66,7 @@ export default function CustomersView() {
     cpf: '',
     cnpj: '',
     phone: '',
+    phone2: '',
     email: '',
     city: 'Brasília',
     state: 'DF',
@@ -182,6 +183,7 @@ export default function CustomersView() {
         cpf: '',
         cnpj: '',
         phone: '',
+        phone2: '',
         email: '',
         city: 'Brasília',
         state: 'DF',
@@ -534,6 +536,29 @@ export default function CustomersView() {
                         )}
                       </div>
 
+                      {/* Telefone 2 / Recado */}
+                      {cust.phone2 && (
+                        <div className="flex items-center justify-between gap-2 text-[11px]">
+                          <span className="flex items-center gap-1.5 font-semibold truncate text-slate-400">
+                            <Phone className="w-3 h-3 text-slate-500 shrink-0" />
+                            <span className="truncate">{cust.phone2} <span className="text-[9px] text-amber-500/80 font-normal">(Tel 2)</span></span>
+                          </span>
+                          {cust.phone2.replace(/\D/g, '') && (
+                            <a
+                              href={`https://wa.me/55${cust.phone2.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="px-2 py-0.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white font-bold text-[10px] flex items-center gap-1 transition"
+                              title="Conversar no WhatsApp (Tel 2)"
+                            >
+                              <MessageCircle className="w-2.5 h-2.5" />
+                              <span>WhatsApp</span>
+                            </a>
+                          )}
+                        </div>
+                      )}
+
                       {/* Email */}
                       {cust.email && (
                         <div className="flex items-center gap-1.5 text-[11px] truncate text-slate-400">
@@ -588,8 +613,8 @@ export default function CustomersView() {
 
                   {/* Rodapé do Card com Ação de Abrir Ficha */}
                   <div className="mt-4 pt-3 border-t border-slate-800/40 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      Código: <span className="font-mono text-slate-400">{cust.id.replace('cust_', '').substring(0, 8)}</span>
+                    <span className="text-[11px] text-slate-500 font-medium truncate max-w-[150px]">
+                      {cust.category || 'Oficina'}
                     </span>
                     <button
                       type="button"
@@ -661,18 +686,37 @@ export default function CustomersView() {
                         <div>{cust.cnpj || cust.cpf || '—'}</div>
                       </td>
                       <td className="p-3.5 text-[11px]">
-                        <div className="flex items-center gap-1.5 font-bold">
-                          <span>{cust.phone || '—'}</span>
-                          {cleanPhone && (
-                            <a 
-                              href={`https://wa.me/55${cleanPhone}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-emerald-400"
-                            >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                            </a>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 font-bold">
+                            <span>{cust.phone || '—'}</span>
+                            {cleanPhone && (
+                              <a 
+                                href={`https://wa.me/55${cleanPhone}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-emerald-400"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+                          </div>
+                          {cust.phone2 && (
+                            <div className="flex items-center gap-1.5 text-slate-400 text-[10px]">
+                              <span>{cust.phone2}</span>
+                              {cust.phone2.replace(/\D/g, '') && (
+                                <a 
+                                  href={`https://wa.me/55${cust.phone2.replace(/\D/g, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-emerald-400/80 hover:text-emerald-300"
+                                  title="WhatsApp (Tel 2)"
+                                >
+                                  <MessageCircle className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
                           )}
                         </div>
                         <div className="text-slate-400 truncate max-w-[160px]">{cust.email || '—'}</div>
@@ -778,9 +822,9 @@ export default function CustomersView() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-400 block mb-1">Telefone / WhatsApp</label>
+                  <label className="text-xs font-bold text-slate-400 block mb-1">Telefone Principal (WhatsApp)</label>
                   <input
                     type="text"
                     value={newCustomerData.phone}
@@ -791,6 +835,21 @@ export default function CustomersView() {
                     }`}
                   />
                 </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 block mb-1">Telefone 2 / Recado</label>
+                  <input
+                    type="text"
+                    value={newCustomerData.phone2}
+                    onChange={(e) => setNewCustomerData({ ...newCustomerData, phone2: e.target.value })}
+                    placeholder="(61) 98888-8888"
+                    className={`w-full px-3 py-1.5 rounded-xl border text-xs outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-400 block mb-1">Tipo de Oficina</label>
                   <select
@@ -808,19 +867,18 @@ export default function CustomersView() {
                     <option value="Concessionária / Outros">Concessionária / Outros</option>
                   </select>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">Email</label>
-                <input
-                  type="email"
-                  value={newCustomerData.email}
-                  onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
-                  placeholder="cliente@email.com"
-                  className={`w-full px-3 py-1.5 rounded-xl border text-xs outline-none ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  }`}
-                />
+                <div>
+                  <label className="text-xs font-bold text-slate-400 block mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={newCustomerData.email}
+                    onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
+                    placeholder="contato@oficina.com.br"
+                    className={`w-full px-3 py-1.5 rounded-xl border text-xs outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                    }`}
+                  />
+                </div>
               </div>
 
               <div className="pt-3 flex justify-end gap-2 border-t border-slate-800">
