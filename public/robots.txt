@@ -69,6 +69,46 @@ Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /ai-catalog.json
 
+User-agent: Bytespider
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /ai-catalog.json
+Allow: /sitemap.xml
+
+User-agent: CCBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /ai-catalog.json
+Allow: /sitemap.xml
+
+User-agent: DuckAssistBot
+Allow: /
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /ai-catalog.json
+Allow: /sitemap.xml
+
+User-agent: DuckDuckBot
+Allow: /
+Allow: /sitemap.xml
+
+User-agent: Amazonbot
+Allow: /
+Allow: /llms.txt
+Allow: /ai-catalog.json
+
+User-agent: cohere-ai
+Allow: /
+Allow: /llms.txt
+Allow: /ai-catalog.json
+
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+Allow: /ai-catalog.json
+
 User-agent: facebookexternalhit
 Allow: /
 Allow: /facebook-catalog.xml
