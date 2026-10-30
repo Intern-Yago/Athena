@@ -180,10 +180,14 @@
     </script>
 
     <!-- High Performance Image CDN Preconnect -->
-    <link rel="preconnect" href="https://images.athenaconsultoria.com.br" crossorigin />
-    <link rel="preconnect" href="https://www.sigmatools.com.br" />
+    <link rel="preconnect" href="https://images.athenaconsultoria.com.br" />
+    <link rel="preconnect" href="https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev" />
 
-    <!-- Dynamic LCP Banner Preload (Precarrega dinamicamente a imagem do primeiro banner ativo e agendado sem travar URL fixa) -->
+    <!-- Responsive LCP Hero Banner Preload (Milissegundo zero para celular e computador) -->
+    <link rel="preload" as="image" href="https://images.athenaconsultoria.com.br/produtos/imagem-2026-10-27-104038069-721d38d3de4e.webp" media="(max-width: 640px)" fetchpriority="high" />
+    <link rel="preload" as="image" href="https://images.athenaconsultoria.com.br/produtos/imagem-2026-10-27-105242798-a6b21ab57d42.webp" media="(min-width: 641px)" fetchpriority="high" />
+
+    <!-- Dynamic LCP Banner Preload (Atualiza dinamicamente se o usuário tiver alterado o banner no Admin) -->
     <script>
       (function() {
         try {
@@ -207,7 +211,10 @@
             return Boolean(b.desktopImage || b.desktop_image);
           });
           if (firstActive) {
-            var imgUrl = firstActive.desktopImage || firstActive.desktop_image;
+            var isMobile = window.innerWidth <= 640;
+            var imgUrl = isMobile 
+              ? (firstActive.mobileImage || firstActive.mobile_image || firstActive.desktopImage || firstActive.desktop_image)
+              : (firstActive.desktopImage || firstActive.desktop_image);
             if (imgUrl) {
               var link = document.createElement('link');
               link.rel = 'preload';

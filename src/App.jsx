@@ -32,7 +32,7 @@ import ForceChangePasswordModal from './components/ForceChangePasswordModal';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import { CartProvider, useCart } from './context/CartContext';
 
-import { INITIAL_CATEGORIES, INITIAL_BRANDS, INITIAL_PRODUCTS } from './data/initialData';
+import { INITIAL_CATEGORIES, INITIAL_BRANDS, INITIAL_PRODUCTS, INITIAL_BANNERS } from './data/initialData';
 import { MACRO_DEPARTMENTS } from './data/departmentsData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
 import { 
@@ -139,8 +139,8 @@ export default function App() {
 
   const [banners, setBanners] = useState(() => {
     const saved = safeStorageGet('athena_banners', null);
-    if (Array.isArray(saved)) return saved;
-    return [];
+    if (Array.isArray(saved) && saved.length > 0) return saved;
+    return INITIAL_BANNERS;
   });
 
   const [departments, setDepartments] = useState(() => {
@@ -793,12 +793,23 @@ export default function App() {
           clearCatalogCache();
         }
 
+        // 1.5 Early dispatch for hero banners & departments so first viewport renders in <150ms
+        fetch(`${currentBaseUrl}/banners?all=true`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((bannerData) => {
+            if (Array.isArray(bannerData) && isMounted) {
+              setBanners(bannerData);
+              safeStorageSet('athena_banners', bannerData);
+              idbSet('athena_banners', bannerData).catch(() => {});
+            }
+          })
+          .catch(() => {});
+
         // 2. Skip 3.4MB /products payload if exact PostgreSQL snapshot is already cached
-        const [prodRes, catRes, brandRes, bannerRes, deptRes] = await Promise.all([
+        const [prodRes, catRes, brandRes, deptRes] = await Promise.all([
           isCatalogCurrent ? Promise.resolve(null) : fetch(`${currentBaseUrl}/products`),
           fetch(`${currentBaseUrl}/categories`),
           fetch(`${currentBaseUrl}/brands`),
-          fetch(`${currentBaseUrl}/banners?all=true`).catch(() => ({ ok: false })),
           fetch(`${currentBaseUrl}/departments`).catch(() => ({ ok: false }))
         ]);
 
@@ -860,16 +871,7 @@ export default function App() {
           } catch {}
         }
 
-        if (bannerRes && bannerRes.ok && isMounted) {
-          try {
-            const bannerData = await bannerRes.json();
-            if (Array.isArray(bannerData)) {
-              setBanners(bannerData);
-              safeStorageSet('athena_banners', bannerData);
-              idbSet('athena_banners', bannerData).catch(() => {});
-            }
-          } catch {}
-        }
+
 
         if (deptRes && deptRes.ok && isMounted) {
           try {
