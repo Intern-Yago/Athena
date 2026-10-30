@@ -746,6 +746,50 @@ flowchart TD
 - [ ] **12.4.5 Fluxo Human-in-the-Loop via Telegram:**
   - Agendador diário (cron) que gera o post como `draft` e envia um card no Telegram da equipe com prévia da foto, título e botão inline *"Aprovar & Publicar Agora"* ou *"Editar"*.
 
+---
+
+## 📱 13. [PLANEJAMENTO] Automação Social & Conversão via ManyChat (Instagram Direct & Athena CRM)
+
+### 📌 Contexto & Motivação
+- A estratégia com maior taxa de conversão e engajamento orgânico no Instagram para equipamentos e ferramentas de oficina é a **automação de comentários** (*"Comente X que te envio o link no direct"*).
+- Fazer esse atendimento manualmente é inviável, lento e resulta em perda de vendas quando clientes comentam fora do horário comercial (noites e finais de semana).
+- Utilizando o **ManyChat** (parceiro oficial homologado pela Meta), a resposta é disparada em menos de **2 segundos**, 24h por dia, sem risco de bloqueio.
+
+---
+
+### 🔄 Arquitetura do Fluxo de Conversão (ManyChat ➔ Catálogo ➔ CRM)
+
+```mermaid
+flowchart TD
+    Post["1. Post / Reels no Instagram<br/>(Ex: Demonstração Scanner Raven / Elevador)"] --> Comment["2. Cliente Comenta Palavra-Chave<br/>('RAVEN', 'PREÇO', 'COTAÇÃO', 'QUERO')"]
+    Comment --> ManyChat["3. ManyChat (API Oficial Meta em <2s)"]
+    
+    ManyChat --> PublicReply["4. Resposta Pública no Comentário<br/>('Te mandamos todos os detalhes no direct! Dá uma olhada lá 🚀')<br/>(Aquece o algoritmo do Instagram)"]
+    ManyChat --> DirectMsg["5. Mensagem Automática no Direct<br/>(Link clicável do produto no Catálogo Athena + Ficha Técnica)"]
+    
+    DirectMsg --> Catalog["6. Navegação no Catálogo Athena<br/>(athenaconsultoria.com.br/produto/:slug)"]
+    DirectMsg --> WhatsApp["7. Botão CTA: Falar com Consultor Técnico<br/>(Lidiane ou Henrique no WhatsApp Oficial)"]
+    
+    ManyChat -.->|Webhook Opcional| CRM["8. Athena CRM (/api/crm/leads)<br/>(Criação automática do Lead no Funil de Vendas)"]
+```
+
+---
+
+### 📝 Checklist de Implementação:
+- [ ] **13.1 Conexão da Conta Oficial:**
+  - Conectar a conta comercial do Instagram `@athena.solucoes.automotivas` ao ManyChat via login com Facebook Meta Business.
+- [ ] **13.2 Configuração da Ferramenta de Comentários (Instagram Comment Growth Tool):**
+  - Mapear gatilhos por palavras-chave de interesse: `RAVEN`, `ELEVADOR`, `MAHOVI`, `POLITRIZ`, `PREÇO`, `COTAÇÃO`, `CATALOGO`, `QUERO`.
+  - Configurar variação de 3 a 5 respostas públicas randômicas para evitar respostas idênticas (ex: *"Acabamos de te enviar no direct!"*, *"Confira sua caixa de mensagens 🚀"*, *"Enviamos a ficha técnica e valores no direct!"*).
+- [ ] **13.3 Template de Mensagens no Direct com Links Oficiais:**
+  - Mensagem acolhedora com apresentação técnica rápida.
+  - Link direto e clicável para o produto ou categoria no catálogo Athena (`https://www.athenaconsultoria.com.br/produto/...`).
+  - Botão de ação direta para o WhatsApp comercial com mensagem parametrizada (ex: *"Olá! Vim pelo Instagram e tenho interesse no Scanner Raven 3"*).
+- [ ] **13.4 Webhook de Integração com o Athena CRM:**
+  - Criar endpoint no backend Athena (`POST /api/webhooks/manychat`) para receber dados do lead (nome, username do Instagram, equipamento de interesse).
+  - Alimentar automaticamente a coluna *"Primeiro Contato"* do Kanban do CRM para acompanhamento dos vendedores.
+
+
 
 
 
