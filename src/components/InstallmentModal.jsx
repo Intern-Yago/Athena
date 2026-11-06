@@ -1,0 +1,1608 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  X, 
+  CreditCard, 
+  QrCode, 
+  ShieldCheck, 
+  Zap, 
+  FileText, 
+  CheckCircle2, 
+  Landmark, 
+  Clock, 
+  ArrowRight,
+  Copy,
+  Check,
+  Loader2,
+  AlertCircle,
+  Lock,
+  MessageCircle,
+  ExternalLink,
+  ChevronDown,
+  ShoppingCart,
+  Tag,
+  Gift,
+  Trash2,
+  Building,
+  Search,
+  Truck,
+  Sparkles,
+  MapPin,
+  Key,
+  Eye,
+  EyeOff,
+  Plus
+} from 'lucide-react';
+import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
+import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
+import { isDigitalProduct, doesProductRequireEquipmentSerial } from '../utils/productVariants';
+
+export default function InstallmentModal({ 
+  isOpen, 
+  onClose, 
+  productName, 
+  cashPrice, 
+  maxInstallments = 12,
+  items = [],
+  currentUser = null,
+  onOrderCompleted
+}) {
+  const [selectedTab, setSelectedTab] = useState('pix');
+
+  // Lock background scroll when modal is open to eliminate background lag and prevent page scrolling
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+      document.body.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+      };
+    }
+  }, [isOpen]);
+  
+  // Normalize items array with memoization
+  const activeItems = useMemo(() => {
+    return items && items.length > 0 
+      ? items 
+      : (productName && cashPrice ? [{
+          name: productName,
+          price: Number(cashPrice),
+          quantity: 1
+        }] : []);
+  }, [items, productName, cashPrice]);
+
+  const rawSubtotal = useMemo(() => {
+    return activeItems.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
+  }, [activeItems]);
+
+  const estimatedPoints = useMemo(() => {
+    return activeItems.reduce((acc, it) => {
+      if (it.aPoints && Number(it.aPoints) > 0) {
+        return acc + (Number(it.aPoints) * (Number(it.quantity) || 1));
+      }
+      const val = (Number(it.price) || 0) * (Number(it.quantity) || 1);
+      return acc + Math.floor(val / 50);
+    }, 0);
+  }, [activeItems]);
+
+  // Customer Form with pre-fill from currentUser
+  const [customer, setCustomer] = useState({
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    cpfCnpj: currentUser?.document || '',
+    phone: currentUser?.phone ? formatPhone(currentUser.phone) : '',
+    companyName: currentUser?.companyName || ''
+  });
+
+  const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
+  const [cnpjSuccessMsg, setCnpjSuccessMsg] = useState(null);
+  const [cnpjErrorMsg, setCnpjErrorMsg] = useState(null);
+
+  const docInfo = useMemo(() => {
+    return formatCpfCnpj(customer.cpfCnpj);
+  }, [customer.cpfCnpj]);
+
+  const hasPhysicalItems = useMemo(() => {
+    return activeItems.some(i => !isDigitalProduct(i));
+  }, [activeItems]);
+
+  const allDigital = useMemo(() => {
+    return activeItems.length > 0 && activeItems.every(i => isDigitalProduct(i));
+  }, [activeItems]);
+
+  const requiresEquipmentInfo = useMemo(() => {
+    return activeItems.some(i => i.requiresEquipmentSerial || i.requires_equipment_serial || doesProductRequireEquipmentSerial(i));
+  }, [activeItems]);
+
+  const [equipmentModel, setEquipmentModel] = useState('');
+  const [equipmentSerial, setEquipmentSerial] = useState('');
+
+  // Idempotency Key Ref para blindagem contra cobranças duplicadas (clique duplo / instabilidade)
+  const idempotencyKeyRef = useRef(null);
+  useEffect(() => {
+    if (isOpen && !idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = `idem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    } else if (!isOpen) {
+      idempotencyKeyRef.current = null;
+    }
+  }, [isOpen]);
+
+  // Guest Account Password State
+  const [guestPassword, setGuestPassword] = useState('');
+  const [showGuestPassword, setShowGuestPassword] = useState(false);
+
+  // Multi-Address from currentUser
+  const savedAddresses = useMemo(() => {
+    if (Array.isArray(currentUser?.addresses) && currentUser.addresses.length > 0) {
+      return currentUser.addresses;
+    }
+    if (currentUser?.address && (currentUser.address.street || currentUser.address.cep)) {
+      return [{
+        id: 'addr_default',
+        label: 'Endereço Principal',
+        isDefault: true,
+        ...currentUser.address
+      }];
+    }
+    return [];
+  }, [currentUser]);
+
+  const [selectedAddressId, setSelectedAddressId] = useState(() => {
+    if (savedAddresses.length > 0) {
+      const def = savedAddresses.find(a => a.isDefault) || savedAddresses[0];
+      return def ? def.id : null;
+    }
+    return null;
+  });
+
+  const hasSavedAddress = savedAddresses.length > 0;
+  const isCustomAddress = !selectedAddressId || selectedAddressId === 'custom';
+
+  // Address State for delivery / billing
+  const [address, setAddress] = useState(() => {
+    if (savedAddresses.length > 0) {
+      const def = savedAddresses.find(a => a.isDefault) || savedAddresses[0];
+      return {
+        cep: def.cep || '',
+        street: def.street || '',
+        number: def.number || '',
+        complement: def.complement || '',
+        neighborhood: def.neighborhood || '',
+        city: def.city || '',
+        state: def.state || ''
+      };
+    }
+    return {
+      cep: currentUser?.address?.cep || '',
+      street: currentUser?.address?.street || '',
+      number: currentUser?.address?.number || '',
+      complement: currentUser?.address?.complement || '',
+      neighborhood: currentUser?.address?.neighborhood || '',
+      city: currentUser?.address?.city || '',
+      state: currentUser?.address?.state || ''
+    };
+  });
+
+  useEffect(() => {
+    if (selectedAddressId && selectedAddressId !== 'custom') {
+      const matched = savedAddresses.find(a => a.id === selectedAddressId);
+      if (matched) {
+        setAddress({
+          cep: matched.cep || '',
+          street: matched.street || '',
+          number: matched.number || '',
+          complement: matched.complement || '',
+          neighborhood: matched.neighborhood || '',
+          city: matched.city || '',
+          state: matched.state || ''
+        });
+      }
+    }
+  }, [selectedAddressId, savedAddresses]);
+  const [searchingCep, setSearchingCep] = useState(false);
+  const [cepError, setCepError] = useState(null);
+
+  const handleCepLookup = async (manualCep = null) => {
+    const rawCep = (manualCep || address.cep || '').replace(/\D/g, '');
+    if (rawCep.length !== 8) return;
+    setSearchingCep(true);
+    setCepError(null);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${rawCep}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setAddress(prev => ({
+          ...prev,
+          street: data.logradouro || prev.street,
+          neighborhood: data.bairro || prev.neighborhood,
+          city: data.localidade || prev.city,
+          state: data.uf || prev.state
+        }));
+      } else {
+        setCepError('CEP não localizado. Preencha os campos manualmente.');
+      }
+    } catch (e) {
+      setCepError('Erro ao consultar CEP.');
+    } finally {
+      setSearchingCep(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      setCustomer(prev => ({
+        name: prev.name || currentUser.name || '',
+        email: prev.email || currentUser.email || '',
+        cpfCnpj: prev.cpfCnpj || currentUser.document || '',
+        phone: prev.phone || (currentUser.phone ? formatPhone(currentUser.phone) : ''),
+        companyName: prev.companyName || currentUser.companyName || ''
+      }));
+
+      if (currentUser.address) {
+        setAddress(prev => ({
+          cep: prev.cep || currentUser.address.cep || '',
+          street: prev.street || currentUser.address.street || '',
+          number: prev.number || currentUser.address.number || '',
+          complement: prev.complement || currentUser.address.complement || '',
+          neighborhood: prev.neighborhood || currentUser.address.neighborhood || '',
+          city: prev.city || currentUser.address.city || '',
+          state: prev.state || currentUser.address.state || ''
+        }));
+      }
+    }
+  }, [currentUser]);
+
+  // Coupon Engine State
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponError, setCouponError] = useState(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
+  // Credit Card Form
+  const [card, setCard] = useState({
+    holderName: '',
+    number: '',
+    expiry: '',
+    ccv: '',
+    installments: 1
+  });
+
+  // State machine
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [paymentResult, setPaymentResult] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState('pending'); // 'pending' | 'confirmed' | 'failed'
+  const [copied, setCopied] = useState(false);
+  const [showItemsList, setShowItemsList] = useState(false);
+
+  // Polling ref
+  const pollingRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset state on close
+      setPaymentResult(null);
+      setPaymentStatus('pending');
+      setErrorMessage(null);
+      setIsSubmitting(false);
+      setCouponError(null);
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    }
+  }, [isOpen]);
+
+  // Polling for PIX / Payment confirmation
+  useEffect(() => {
+    if (paymentResult?.id && paymentStatus === 'pending' && !paymentResult.isFreeOrder) {
+      pollingRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/payments/charge/${paymentResult.id}/status`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'RECEIVED' || data.status === 'CONFIRMED') {
+              setPaymentStatus('confirmed');
+              if (pollingRef.current) clearInterval(pollingRef.current);
+              if (onOrderCompleted) onOrderCompleted(data);
+            }
+          }
+        } catch (e) {
+          // Silent polling error
+        }
+      }, 3500);
+    }
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [paymentResult, paymentStatus, onOrderCompleted]);
+
+  // Final Payable Calculation with memoization
+  const discountedSubtotal = useMemo(() => {
+    return Math.max(0, rawSubtotal - couponDiscount);
+  }, [rawSubtotal, couponDiscount]);
+
+  const isFreeOrder = discountedSubtotal === 0 && appliedCoupon !== null;
+
+  const installments = useMemo(() => {
+    return calculateInstallments(discountedSubtotal, maxInstallments);
+  }, [discountedSubtotal, maxInstallments]);
+
+  const gateways = useMemo(() => {
+    return calculatePaymentGateways(discountedSubtotal);
+  }, [discountedSubtotal]);
+
+  const selectedInstallmentData = useMemo(() => {
+    return installments.find(i => i.installments === Number(card.installments)) || installments[0];
+  }, [installments, card.installments]);
+
+  // Mask Helpers & Document Verification
+  const triggerCnpjLookup = async (manualRaw = null) => {
+    const raw = manualRaw || customer.cpfCnpj.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+    if (raw.length !== 14) return;
+    setIsSearchingCnpj(true);
+    setCnpjErrorMsg(null);
+    setCnpjSuccessMsg(null);
+    try {
+      const data = await fetchCnpjData(raw);
+      setCustomer(c => ({
+        ...c,
+        companyName: data.tradeName || data.companyName || c.companyName,
+        email: c.email || data.email || '',
+        phone: c.phone || data.phone || ''
+      }));
+      if (data.zip || data.street) {
+        setAddress(prev => ({
+          ...prev,
+          cep: prev.cep || data.zip || '',
+          street: prev.street || data.street || '',
+          number: prev.number || data.number || '',
+          complement: prev.complement || data.complement || '',
+          neighborhood: prev.neighborhood || data.district || '',
+          city: prev.city || data.city || '',
+          state: prev.state || data.state || ''
+        }));
+      }
+      setCnpjSuccessMsg(`Empresa localizada: ${data.companyName} (${data.city}/${data.state})`);
+      setTimeout(() => setCnpjSuccessMsg(null), 5000);
+    } catch (err) {
+      setCnpjErrorMsg(err.message || 'Erro ao consultar CNPJ');
+      setTimeout(() => setCnpjErrorMsg(null), 4000);
+    } finally {
+      setIsSearchingCnpj(false);
+    }
+  };
+
+  const handleCpfChange = (e) => {
+    const info = formatCpfCnpj(e.target.value);
+    setCustomer(c => ({ ...c, cpfCnpj: info.formatted }));
+
+    // Auto-search company data if full 14-char CNPJ is entered and companyName is empty
+    if (info.isCnpj && info.isComplete && !customer.companyName) {
+      triggerCnpjLookup(info.raw);
+    }
+  };
+
+  const handlePhoneChange = (e) => {
+    setCustomer(c => ({ ...c, phone: formatPhone(e.target.value) }));
+  };
+
+  const handleCardNumberChange = (e) => {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 16);
+    v = v.replace(/(\d{4})(?=\d)/g, '$1 ');
+    setCard(c => ({ ...c, number: v }));
+  };
+
+  const handleExpiryChange = (e) => {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 4);
+    if (v.length > 2) v = `${v.slice(0, 2)}/${v.slice(2)}`;
+    setCard(c => ({ ...c, expiry: v }));
+  };
+
+  const handleCopyPix = () => {
+    const code = paymentResult?.pix?.payload;
+    if (code) {
+      navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    }
+  };
+
+  // COUPON APPLICATION
+  const handleApplyCoupon = async (e) => {
+    if (e) e.preventDefault();
+    if (!couponCodeInput.trim()) {
+      setCouponError('Digite um código de cupom.');
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    setCouponError(null);
+
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponCodeInput.trim(),
+          items: activeItems,
+          customerEmail: customer.email,
+          customerCpfCnpj: customer.cpfCnpj
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.valid) {
+        setCouponError(data.error || 'Cupom inválido ou não aplicável.');
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+      } else {
+        setAppliedCoupon(data.coupon);
+        setCouponDiscount(data.discountAmount);
+        setCouponError(null);
+      }
+    } catch (err) {
+      setCouponError('Erro ao consultar cupom. Tente novamente.');
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setCouponCodeInput('');
+    setCouponError(null);
+  };
+
+  // CHECKOUT SUBMISSION
+  const handleSubmitPayment = async (method = 'PIX') => {
+    setErrorMessage(null);
+
+    // Form Validations
+    if (!customer.name.trim()) {
+      setErrorMessage('Por favor, preencha seu Nome Completo.');
+      return;
+    }
+    const cleanDoc = customer.cpfCnpj.replace(/[^0-9a-zA-Z]/g, '');
+    if (cleanDoc.length !== 11 && cleanDoc.length !== 14) {
+      setErrorMessage('Por favor, informe um CPF (11 dígitos) ou CNPJ (14 dígitos/caracteres) válido.');
+      return;
+    }
+    if (docInfo.isCnpj && !customer.companyName?.trim()) {
+      setErrorMessage('Por favor, informe o Nome da Oficina / Razão Social da empresa.');
+      return;
+    }
+    if (!customer.email.trim() || !customer.email.includes('@')) {
+      setErrorMessage('Por favor, informe um e-mail válido para envio do comprovante e nota fiscal.');
+      return;
+    }
+
+    // Address validation (Always required for SEFAZ/fiscal invoicing)
+    if (!address.cep?.trim() || !address.street?.trim() || !address.number?.trim() || !address.city?.trim() || !address.state?.trim()) {
+      setErrorMessage('Por favor, informe o endereço completo (CEP, rua, número, cidade e UF) para emissão da Nota Fiscal.');
+      return;
+    }
+
+    // Equipment validation for automotive licenses/SGW
+    if (requiresEquipmentInfo) {
+      if (!equipmentModel.trim()) {
+        setErrorMessage('Por favor, informe o modelo do seu equipamento.');
+        return;
+      }
+      if (!equipmentSerial.trim()) {
+        setErrorMessage('Por favor, informe o número de série do equipamento.');
+        return;
+      }
+    }
+
+    // Guest password validation
+    if (!currentUser && guestPassword && guestPassword.trim().length < 6) {
+      setErrorMessage('A senha precisa ter no mínimo 6 caracteres.');
+      return;
+    }
+
+    // Card Specific Validations
+    if (method === 'CREDIT_CARD' && !isFreeOrder) {
+      if (!card.holderName.trim()) {
+        setErrorMessage('Informe o nome impresso no cartão.');
+        return;
+      }
+      const cleanCardNum = card.number.replace(/\D/g, '');
+      if (cleanCardNum.length < 13 || cleanCardNum.length > 16) {
+        setErrorMessage('Número do cartão inválido.');
+        return;
+      }
+      if (!card.expiry.includes('/') || card.expiry.length !== 5) {
+        setErrorMessage('Data de validade inválida (formato MM/AA).');
+        return;
+      }
+      if (card.ccv.length < 3) {
+        setErrorMessage('Código de segurança (CVV) inválido.');
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const orderDescription = activeItems.length === 1 
+        ? `${activeItems[0].name} - Athena Automotiva`
+        : `Pedido Athena (${activeItems.length} itens) - #${Date.now().toString().slice(-6)}`;
+
+      let payload = {
+        customerName: customer.name.trim(),
+        customerEmail: customer.email.trim().toLowerCase(),
+        customerCpfCnpj: customer.cpfCnpj.trim(),
+        customerCompanyName: docInfo.isCnpj ? (customer.companyName || '').trim() : undefined,
+        customerPhone: customer.phone.trim(),
+        shippingAddress: address,
+        address: address,
+        equipmentInfo: requiresEquipmentInfo ? {
+          model: equipmentModel.trim(),
+          serialNumber: equipmentSerial.trim()
+        } : undefined,
+        equipmentModel: requiresEquipmentInfo ? equipmentModel.trim() : undefined,
+        equipmentSerial: requiresEquipmentInfo ? equipmentSerial.trim() : undefined,
+        customerPassword: (!currentUser && guestPassword.trim().length >= 6) ? guestPassword.trim() : undefined,
+        billingType: isFreeOrder ? 'FREE' : method,
+        value: isFreeOrder ? 0 : (
+          method === 'PIX' ? gateways.pix.customerAmount :
+          method === 'CREDIT_CARD' ? selectedInstallmentData.total :
+          method === 'DEBIT_CARD' ? gateways.debit.customerAmount :
+          gateways.boleto.customerAmount
+        ),
+        items: activeItems,
+        couponCode: appliedCoupon ? appliedCoupon.code : undefined,
+        description: orderDescription
+      };
+
+      if (method === 'CREDIT_CARD' && !isFreeOrder) {
+        const [expMonth, expYear] = card.expiry.split('/');
+        payload.creditCard = {
+          holderName: card.holderName.trim(),
+          number: card.number.replace(/\D/g, ''),
+          expiryMonth: expMonth,
+          expiryYear: `20${expYear}`,
+          ccv: card.ccv
+        };
+        payload.creditCardHolderInfo = {
+          name: customer.name.trim(),
+          email: customer.email.trim(),
+          cpfCnpj: customer.cpfCnpj.replace(/[^0-9a-zA-Z]/g, ''),
+          phone: customer.phone.replace(/\D/g, '')
+        };
+      }
+
+      const currentIdempotencyKey = idempotencyKeyRef.current || `idem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      payload.idempotencyKey = currentIdempotencyKey;
+
+      const res = await fetch('/api/payments/charge', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-idempotency-key': currentIdempotencyKey
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao processar pagamento.');
+      }
+
+      setPaymentResult(data);
+
+      if (data.isFreeOrder || data.status === 'CONFIRMED' || data.status === 'RECEIVED') {
+        setPaymentStatus('confirmed');
+        if (onOrderCompleted) onOrderCompleted(data);
+      } else {
+        setPaymentStatus('pending');
+      }
+
+    } catch (err) {
+      setErrorMessage(err.message || 'Erro inesperado ao conectar ao gateway Asaas.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-3 sm:p-4 overscroll-none animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div 
+        className="relative bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] my-auto overscroll-contain"
+        onClick={(e) => e.stopPropagation()}
+      >
+        
+        {/* MODAL HEADER */}
+        <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0 border-b border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-extrabold text-sm sm:text-base leading-tight truncate">
+                Finalizar Compra Segura
+              </h3>
+              <p className="text-xs text-slate-400 truncate">
+                {activeItems.length === 1 
+                  ? activeItems[0].name 
+                  : `${activeItems.length} equipamentos no carrinho`}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-2"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* MODAL BODY */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-5">
+
+          {/* 1. ORDER SUMMARY & MULTI-ITEM DRAWER */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-amber-600" />
+                <span className="font-bold text-xs text-slate-800 uppercase tracking-wider">
+                  Resumo do Pedido ({activeItems.length} {activeItems.length === 1 ? 'item' : 'itens'})
+                </span>
+              </div>
+              {activeItems.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setShowItemsList(!showItemsList)}
+                  className="text-xs text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1"
+                >
+                  <span>{showItemsList ? 'Ocultar Itens' : 'Ver Todos os Itens'}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showItemsList ? 'rotate-180' : ''}`} />
+                </button>
+              )}
+            </div>
+
+            {/* Expandable items list */}
+            {(showItemsList || activeItems.length === 1) && (
+              <div className="space-y-2 pt-2 border-t border-slate-200/80 max-h-48 overflow-y-auto pr-1 divide-y divide-slate-100">
+                {activeItems.map((item, idx) => (
+                  <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {item.image && (
+                        <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
+                          <img src={item.image} alt="" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-900 block truncate">{item.name}</span>
+                        <span className="text-[10px] text-slate-500 block">Qtd: {item.quantity || 1} • {formatBRL(item.price)} un.</span>
+                      </div>
+                    </div>
+                    <span className="font-extrabold text-slate-900 shrink-0">
+                      {formatBRL(Number(item.price) * (Number(item.quantity) || 1))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Totals Breakdown */}
+            <div className="pt-2 border-t border-slate-200 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between text-slate-600">
+                <span>Subtotal dos Produtos:</span>
+                <span className="font-bold text-slate-900">{formatBRL(rawSubtotal)}</span>
+              </div>
+
+              {appliedCoupon && (
+                <div className="flex items-center justify-between text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                  <span className="flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5" /> Cupom {appliedCoupon.code} aplicado:
+                  </span>
+                  <span>- {formatBRL(couponDiscount)}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-slate-900 pt-1 border-t border-slate-200/60 font-black text-sm sm:text-base">
+                <span>Total a Pagar:</span>
+                <span className={isFreeOrder ? 'text-emerald-600' : 'text-amber-900'}>
+                  {isFreeOrder ? 'GRÁTIS (100% OFF)' : formatBRL(discountedSubtotal)}
+                </span>
+              </div>
+
+              {estimatedPoints > 0 && (
+                <div className="flex items-center justify-between text-amber-950 font-semibold bg-amber-50/90 px-2.5 py-1.5 rounded-lg border border-amber-200/80">
+                  <span className="flex items-center gap-1.5 text-xs text-amber-900">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    A-Points acumulados neste pedido:
+                  </span>
+                  <span className="font-extrabold text-xs text-amber-950">
+                    +{estimatedPoints} pts
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. COUPON INPUT SECTION */}
+          {!paymentResult && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Gift className="w-4 h-4 text-amber-600" />
+                  <span>Possui um Cupom de Desconto?</span>
+                </label>
+                {appliedCoupon && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    className="text-[11px] font-bold text-red-600 hover:text-red-800 flex items-center gap-0.5"
+                  >
+                    <Trash2 className="w-3 h-3" /> Remover
+                  </button>
+                )}
+              </div>
+
+              {!appliedCoupon ? (
+                <form onSubmit={handleApplyCoupon} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                    placeholder="Ex: BEMVINDO10"
+                    className="form-input text-xs uppercase font-mono tracking-wider flex-1 bg-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isValidatingCoupon || !couponCodeInput.trim()}
+                    className="btn-gold text-xs font-bold py-2 px-4 rounded-xl shadow-xs shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    {isValidatingCoupon ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Aplicar'}
+                  </button>
+                </form>
+              ) : (
+                <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-semibold">
+                  <span>Cupom <strong>{appliedCoupon.code}</strong> ativado com sucesso!</span>
+                  <Check className="w-4 h-4 text-emerald-600" />
+                </div>
+              )}
+
+              {couponError && (
+                <p className="text-[11px] text-red-600 font-semibold flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  <span>{couponError}</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* 3. PAYMENT STATUS SUCCESS VIEW */}
+          {paymentStatus === 'confirmed' ? (
+            <div className="p-6 rounded-2xl bg-emerald-50 border-2 border-emerald-500 text-center space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                <CheckCircle2 className="w-9 h-9" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-lg font-black text-emerald-950">
+                  {isFreeOrder ? 'Pedido Gratuito Concluído!' : 'Pagamento Confirmado com Sucesso!'}
+                </h4>
+                <p className="text-xs text-emerald-800 max-w-md mx-auto">
+                  {isFreeOrder 
+                    ? 'Seu pedido cortesia foi faturado e registrado no seu perfil. Em instantes você receberá os detalhes no e-mail cadastrado.' 
+                    : 'Recebemos a confirmação da sua transação. A nota fiscal e o comprovante foram encaminhados para o seu e-mail.'}
+                </p>
+              </div>
+
+              <div className="p-3 bg-white rounded-xl border border-emerald-200 text-xs text-slate-700 inline-block text-left font-mono">
+                <div><strong>Pedido:</strong> #{paymentResult?.orderId || paymentResult?.id}</div>
+                <div><strong>Status:</strong> FATURADO / APROVADO</div>
+                <div><strong>Cliente:</strong> {customer.name}</div>
+              </div>
+
+              {estimatedPoints > 0 && (
+                <div className="p-3 rounded-xl bg-amber-100/70 border border-amber-300 text-amber-950 text-xs font-semibold flex items-center justify-center gap-2 max-w-md mx-auto shadow-xs">
+                  <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span>Você acumulou <strong>+{estimatedPoints} A-Points</strong> com este pedido! Eles estarão visíveis na sua conta.</span>
+                </div>
+              )}
+
+              <div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="btn-gold font-extrabold text-xs py-2.5 px-6 rounded-xl shadow-md cursor-pointer"
+                >
+                  Concluir e Fechar
+                </button>
+              </div>
+            </div>
+          ) : paymentResult?.billingType === 'PIX' && paymentResult?.pix?.encodedImage ? (
+            /* PIX QR CODE & COPY/PASTE DISPLAY */
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-4 animate-in fade-in">
+              <div className="space-y-1">
+                <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs inline-block">
+                  Aguardando Pagamento via PIX
+                </span>
+                <p className="text-xs text-slate-500">
+                  Abra o aplicativo do seu banco e escaneie o QR Code abaixo ou utilize o Pix Copia e Cola:
+                </p>
+              </div>
+
+              {/* QR Code Image */}
+              <div className="w-48 h-48 sm:w-56 sm:h-56 mx-auto bg-white p-2.5 rounded-2xl border border-slate-300 shadow-md flex items-center justify-center">
+                <img
+                  src={`data:image/png;base64,${paymentResult.pix.encodedImage}`}
+                  alt="QR Code PIX Asaas"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+
+              {/* Value Indicator */}
+              <div className="text-slate-900 font-black text-xl">
+                {gateways.pix.formattedCustomerAmount}
+              </div>
+
+              {/* Copy Paste Input */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 max-w-md mx-auto">
+                  <input
+                    type="text"
+                    readOnly
+                    value={paymentResult.pix.payload}
+                    className="form-input text-xs font-mono text-slate-600 bg-white truncate"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyPix}
+                    className={`btn-gold text-xs font-bold py-2.5 px-4 rounded-xl shadow-xs shrink-0 flex items-center gap-1.5 ${
+                      copied ? 'bg-emerald-600 text-white' : ''
+                    }`}
+                  >
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    <span>{copied ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Real-time Polling Status Radar */}
+              <div className="flex items-center justify-center gap-2 text-xs text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                <span>Identificando pagamento em tempo real... Não feche esta janela.</span>
+              </div>
+            </div>
+          ) : (
+            /* PAYMENT CHECKOUT FORM & METHOD TABS */
+            <div className="space-y-4">
+              
+              {/* If Free Order (100% OFF) */}
+              {isFreeOrder ? (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3 text-center">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto">
+                    <Gift className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="font-extrabold text-sm text-emerald-950">Pedido Cortesia (100% de Desconto)</h4>
+                    <p className="text-xs text-emerald-800">
+                      Preencha seus dados abaixo para faturar o pedido e receber o acesso no seu e-mail.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* Payment Method Switcher Tabs */
+                <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold select-none">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTab('pix')}
+                    className={`py-2 px-1 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      selectedTab === 'pix'
+                        ? 'bg-white text-amber-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Zap className={`w-3.5 h-3.5 ${selectedTab === 'pix' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span>PIX</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTab('credit')}
+                    className={`py-2 px-1 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      selectedTab === 'credit'
+                        ? 'bg-white text-amber-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <CreditCard className={`w-3.5 h-3.5 ${selectedTab === 'credit' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span>Crédito</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTab('debit')}
+                    className={`py-2 px-1 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      selectedTab === 'debit'
+                        ? 'bg-white text-amber-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Landmark className={`w-3.5 h-3.5 ${selectedTab === 'debit' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span>Débito</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTab('boleto')}
+                    className={`py-2 px-1 rounded-xl transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer ${
+                      selectedTab === 'boleto'
+                        ? 'bg-white text-amber-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <FileText className={`w-3.5 h-3.5 ${selectedTab === 'boleto' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span>Boleto</span>
+                  </button>
+                </div>
+              )}
+
+              {/* CUSTOMER BILLING DATA (LEAD CAPTURE FOR CRM) */}
+              <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 pb-2.5">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Dados para Faturamento</span>
+                  </h4>
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200 w-fit flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-amber-600" />
+                    <span>Nota Fiscal & Comprovante</span>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Nome Completo *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: João da Silva"
+                      value={customer.name}
+                      onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                      className="form-input text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        {docInfo.isCnpj ? 'CNPJ (Pessoa Jurídica) *' : 'CPF ou CNPJ *'}
+                      </label>
+                      {docInfo.isCnpj && (
+                        <button
+                          type="button"
+                          onClick={() => triggerCnpjLookup()}
+                          disabled={isSearchingCnpj || customer.cpfCnpj.replace(/[^0-9a-zA-Z]/g, '').length !== 14}
+                          className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+                        >
+                          {isSearchingCnpj ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                              <span>Consultando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Search className="w-3 h-3 text-amber-600" />
+                              <span>Buscar CNPJ</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                        value={customer.cpfCnpj}
+                        onChange={handleCpfChange}
+                        className="form-input text-xs font-mono"
+                        required
+                      />
+                      {isSearchingCnpj && (
+                        <Loader2 className="w-4 h-4 text-amber-600 animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      )}
+                    </div>
+                    {cnpjSuccessMsg && (
+                      <p className="text-[10px] font-semibold text-emerald-700 mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                        <span>{cnpjSuccessMsg}</span>
+                      </p>
+                    )}
+                    {cnpjErrorMsg && (
+                      <p className="text-[10px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                        <span>{cnpjErrorMsg}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Nome da Oficina / Razão Social: ONLY DISPLAYED IF CNPJ */}
+                  {docInfo.isCnpj && (
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Nome da Oficina / Razão Social *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Ex: Centro Automotivo Modelo LTDA"
+                          value={customer.companyName || ''}
+                          onChange={(e) => setCustomer({ ...customer, companyName: e.target.value })}
+                          className="form-input text-xs !pl-9"
+                          required={docInfo.isCnpj}
+                        />
+                        <Building className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      E-mail (para envio da NF) *
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="seuemail@empresa.com.br"
+                      value={customer.email}
+                      onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+                      className="form-input text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      Celular / WhatsApp *
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="(61) 98888-8888"
+                      value={customer.phone}
+                      onChange={handlePhoneChange}
+                      className="form-input text-xs"
+                      required
+                    />
+                  </div>
+
+                  {/* DADOS DO EQUIPAMENTO PARA ATIVAÇÃO DIGITAL */}
+                  {requiresEquipmentInfo && (
+                    <div className="sm:col-span-2 pt-3 mt-1 border-t border-slate-200 space-y-3 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Key className="w-4 h-4 text-amber-600" />
+                          <h4 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                            Dados do Equipamento para Ativação da Licença
+                          </h4>
+                        </div>
+                        <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Zap className="w-3 h-3 text-amber-600" />
+                          <span>Obrigatório</span>
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Modelo do Equipamento *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Digite o modelo do seu equipamento"
+                            value={equipmentModel}
+                            onChange={(e) => setEquipmentModel(e.target.value)}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Número de Série do Equipamento *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Digite o número de série do equipamento"
+                            value={equipmentSerial}
+                            onChange={(e) => setEquipmentSerial(e.target.value)}
+                            className="form-input text-xs font-mono"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs text-amber-900 leading-relaxed space-y-1">
+                        <p className="font-semibold text-amber-950">
+                          Ativação Digital:
+                        </p>
+                        <p className="text-[11px] text-amber-800">
+                          Com o modelo e o número de série informados, nossa equipe técnica realizará a configuração e liberação do seu acesso. Suas credenciais (login e senha) serão enviadas diretamente para seu e-mail e WhatsApp cadastrados.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ENDEREÇO DE FATURAMENTO E ENTREGA */}
+                  <div className="sm:col-span-2 pt-3 mt-1 border-t border-slate-200 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-amber-600" />
+                        <h4 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                          Endereço para Faturamento e Entrega
+                        </h4>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Utilizado para emissão da nota fiscal e envio quando aplicável
+                      </span>
+                    </div>
+
+                    {/* Caderno de Endereços Salvos para Usuário Logado */}
+                    {savedAddresses.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                            Selecione o endereço cadastrado:
+                          </span>
+                          {isCustomAddress && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const def = savedAddresses.find(a => a.isDefault) || savedAddresses[0];
+                                if (def) setSelectedAddressId(def.id);
+                              }}
+                              className="text-[10px] font-bold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer"
+                            >
+                              Voltar aos endereços salvos
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {savedAddresses.map((addr) => {
+                            const isSelected = selectedAddressId === addr.id;
+                            return (
+                              <div
+                                key={addr.id}
+                                onClick={() => setSelectedAddressId(addr.id)}
+                                className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between space-y-1.5 ${
+                                  isSelected
+                                    ? 'bg-amber-50/40 border-amber-500 shadow-xs ring-1 ring-amber-400'
+                                    : 'bg-slate-50/70 border-slate-200 hover:bg-white text-slate-600'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-bold text-xs text-slate-900 truncate">
+                                    {addr.label || 'Endereço'}
+                                  </span>
+                                  {isSelected ? (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-200 text-amber-900 flex items-center gap-0.5 shrink-0">
+                                      <Check className="w-2.5 h-2.5" />
+                                      <span>Selecionado</span>
+                                    </span>
+                                  ) : addr.isDefault ? (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-200 text-slate-700 shrink-0">
+                                      Padrão
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="text-[11px] text-slate-700 leading-snug">
+                                  {addr.street}, {addr.number || 'S/N'}{addr.complement ? ` - ${addr.complement}` : ''}
+                                </p>
+                                <p className="text-[10px] text-slate-500">
+                                  {addr.neighborhood} • {addr.city}/{addr.state} • CEP {addr.cep}
+                                </p>
+                              </div>
+                            );
+                          })}
+
+                          <div
+                            onClick={() => setSelectedAddressId('custom')}
+                            className={`p-3 rounded-xl border border-dashed text-left cursor-pointer transition-all flex items-center justify-center gap-2 ${
+                              selectedAddressId === 'custom'
+                                ? 'bg-amber-50/40 border-amber-500 shadow-xs ring-1 ring-amber-400 text-amber-900 font-bold'
+                                : 'bg-white border-slate-300 hover:border-amber-400 text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            <Plus className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span className="text-xs font-bold">Digitar outro endereço</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Formulário de Endereço Manual */}
+                    {(!hasSavedAddress || isCustomAddress) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-6 gap-2.5 pt-1 animate-in fade-in">
+                        <div className="sm:col-span-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-bold text-slate-700">CEP *</label>
+                            <button
+                              type="button"
+                              onClick={() => handleCepLookup()}
+                              disabled={searchingCep || (address.cep || '').replace(/\D/g, '').length !== 8}
+                              className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                            >
+                              {searchingCep ? <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-600" /> : <Search className="w-2.5 h-2.5 text-amber-600" />}
+                              <span>Buscar</span>
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="00000-000"
+                            value={address.cep}
+                            onChange={(e) => {
+                              let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+                              if (v.length > 5) v = `${v.slice(0, 5)}-${v.slice(5)}`;
+                              setAddress(a => ({ ...a, cep: v }));
+                              if (v.replace(/\D/g, '').length === 8) handleCepLookup(v);
+                            }}
+                            className="form-input text-xs font-mono"
+                            required
+                          />
+                          {cepError && <p className="text-[10px] text-rose-500 mt-0.5">{cepError}</p>}
+                        </div>
+
+                        <div className="sm:col-span-4">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Logradouro / Rua *</label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Av. das Indústrias"
+                            value={address.street}
+                            onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Número *</label>
+                          <input
+                            type="text"
+                            placeholder="123 ou S/N"
+                            value={address.number}
+                            onChange={(e) => setAddress({ ...address, number: e.target.value })}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Complemento</label>
+                          <input
+                            type="text"
+                            placeholder="Galpão 4, Sala 1"
+                            value={address.complement}
+                            onChange={(e) => setAddress({ ...address, complement: e.target.value })}
+                            className="form-input text-xs"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Bairro *</label>
+                          <input
+                            type="text"
+                            placeholder="Distrito Industrial"
+                            value={address.neighborhood}
+                            onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div className="sm:col-span-4">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">Cidade *</label>
+                          <input
+                            type="text"
+                            placeholder="Brasília"
+                            value={address.city}
+                            onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                            className="form-input text-xs"
+                            required
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-700 block mb-1">UF *</label>
+                          <input
+                            type="text"
+                            placeholder="DF"
+                            maxLength={2}
+                            value={address.state}
+                            onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })}
+                            className="form-input text-xs uppercase"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CRIAÇÃO DE CONTA INTEGRADA / OPÇÃO B (PARA USUÁRIOS NÃO LOGADOS) */}
+                  {!currentUser && (
+                    <div className="sm:col-span-2 pt-3 mt-1 border-t border-slate-200 space-y-2.5 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Lock className="w-4 h-4 text-amber-600" />
+                          <h4 className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                            Acesso à sua Conta Athena
+                          </h4>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-emerald-600" />
+                          <span>Acompanhe seu Pedido & A-Points</span>
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          Crie uma Senha para sua Conta *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showGuestPassword ? 'text' : 'password'}
+                            placeholder="Mínimo 6 caracteres"
+                            value={guestPassword}
+                            onChange={(e) => setGuestPassword(e.target.value)}
+                            className="form-input text-xs !pr-9"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowGuestPassword(!showGuestPassword)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showGuestPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Sua conta será criada para acompanhar a liberação do acesso, consultar pedidos e pontuar no programa A-Points.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* CARD DETAILS FORM IF CREDIT CARD */}
+              {!isFreeOrder && selectedTab === 'credit' && (
+                <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Dados do Cartão de Crédito
+                    </h4>
+                    <span className="text-[10px] text-slate-400 font-mono">Processamento Seguro</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Parcelamento Desejado
+                      </label>
+                      <select
+                        value={card.installments}
+                        onChange={(e) => setCard({ ...card, installments: Number(e.target.value) })}
+                        className="form-input text-xs font-semibold"
+                      >
+                        {installments.map((inst) => (
+                          <option key={inst.installments} value={inst.installments}>
+                            {inst.installments}x de {inst.formattedMonthly} (Total: {inst.formattedTotal})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Nome Impresso no Cartão *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="NOME COMO NO CARTAO"
+                        value={card.holderName}
+                        onChange={(e) => setCard({ ...card, holderName: e.target.value.toUpperCase() })}
+                        className="form-input text-xs uppercase"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          Número do Cartão *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="0000 0000 0000 0000"
+                          value={card.number}
+                          onChange={handleCardNumberChange}
+                          className="form-input text-xs font-mono"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Validade *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="MM/AA"
+                            value={card.expiry}
+                            onChange={handleExpiryChange}
+                            className="form-input text-xs font-mono text-center"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            CVV *
+                          </label>
+                          <input
+                            type="password"
+                            maxLength={4}
+                            placeholder="123"
+                            value={card.ccv}
+                            onChange={(e) => setCard({ ...card, ccv: e.target.value.replace(/\D/g, '') })}
+                            className="form-input text-xs font-mono text-center"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ERROR MESSAGE DISPLAY */}
+              {errorMessage && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* ACTION SUBMIT BUTTON */}
+              <div className="pt-2 space-y-2">
+                {isFreeOrder ? (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('FREE')}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Faturando Pedido Cortesia...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Gift className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Resgatar Pedido Gratuito (100% OFF)</span>
+                      </>
+                    )}
+                  </button>
+                ) : selectedTab === 'pix' ? (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('PIX')}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Gerando QR Code PIX Asaas...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Gerar PIX para Pagamento ({gateways.pix.formattedCustomerAmount})</span>
+                      </>
+                    )}
+                  </button>
+                ) : selectedTab === 'credit' ? (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('CREDIT_CARD')}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Processando no Cartão...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Pagar {selectedInstallmentData.installments}x de {selectedInstallmentData.formattedMonthly}</span>
+                      </>
+                    )}
+                  </button>
+                ) : selectedTab === 'debit' ? (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('DEBIT_CARD')}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Processando Débito...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Landmark className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Pagar no Débito Online ({gateways.debit.formattedCustomerAmount})</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleSubmitPayment('BOLETO')}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                        <span className="text-slate-950 font-black">Emitindo Boleto Bancário...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4 text-slate-950" />
+                        <span className="text-slate-950 font-black">Gerar Boleto Bancário ({gateways.boleto.formattedCustomerAmount})</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* MODAL FOOTER */}
+        <div className="p-3 sm:p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 shrink-0">
+          <div className="flex items-center gap-2">
+            <Lock className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Pagamento Seguro via Gateway Asaas</span>
+          </div>
+
+          <a
+            href="https://wa.me/5561983485671?text=Olá!+Preciso+de+ajuda+com+minha+compra+no+site+Athena."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1 transition-colors"
+          >
+            <MessageCircle className="w-3.5 h-3.5 text-amber-600" />
+            <span>Suporte no WhatsApp</span>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  );
+}

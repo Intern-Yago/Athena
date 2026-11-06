@@ -1,0 +1,795 @@
+# 📋 Athena Soluções Automotivas — Roadmap & Backlog (TODO)
+
+---
+
+## 🔍 0. [EM EXECUÇÃO / PRIORIDADE IMEDIATA] Vistoria Geral & Auditoria Fina do Catálogo (Produto a Produto, Categoria por Categoria)
+
+### 📌 Objetivo da Vistoria Geral
+Realizar uma auditoria minuciosa, produto a produto e categoria por categoria em todo o catálogo da Athena (~640 produtos e ~50 categorias), respondendo a cinco perguntas fundamentais:
+1. **Qual produto está no lugar errado?** (Ex: item de freio ou bateria perdido em ferramentas genéricas, macacos ou suportes dentro de elevadores automotivos).
+2. **Para onde cada produto deve ser movido?** (Mapear a origem e o destino exato de cada item desalocado).
+3. **Quais categorias deveríamos unificar utilizando outro nome?** (Eliminar micro-categorias redundantes de 1 a 2 produtos e unificá-las em famílias técnicas com nomes comerciais claros e fortes para SEO).
+4. **Categorias com apenas 1 produto — Investigação profunda:**  
+   - *O produto está no lugar errado e deveria estar em outra categoria já existente?*  
+   - *A categoria é válida, mas há outros produtos espalhados pelo catálogo que deveriam estar agrupados com ela?*  
+   - *Ou essa categoria deve ser absorvida e extinta?*
+5. **Quem é Produto Único, quem é Kit Fechado e quem é Variação?**  
+   - Identificar produtos que foram cadastrados repetidos apenas por causa de milímetro/tamanho/cor para fundir como **Variações**.  
+   - Identificar composições completas (como o kit de 178 peças) para classificar como **Kits/Jogos** com especificações ricas e tags de alta conversão.
+
+---
+
+### 📋 Metodologia de Execução da Vistoria
+
+```mermaid
+flowchart LR
+  Audit[1. Vistoria Categoria por Categoria] --> Classify{Diagnóstico do Item}
+  Classify -->|Alocado Errado| Move[Mover para Categoria Correta]
+  Classify -->|Categoria com 1 Produto| Decision{Avaliação da Categoria}
+  Classify -->|Variação Disfarçada| Merge[Unificar como Variação de Produto Pai]
+  Classify -->|Kit Completo| Enrich[Enriquecer Specs & Tags do Kit]
+  
+  Decision -->|Falta Agrupar| Pull[Resgatar produtos correlatos espalhados no catálogo]
+  Decision -->|Redundante| Absorb[Fundir na Categoria Principal e Excluir Micro]
+```
+
+### 📝 Checklist de Ações da Vistoria Geral:
+- [x] **0.1 Mapeamento Completo de Volume:** Gerar levantamento de todas as categorias do banco com o número exato de produtos em cada uma (identificando todas as categorias com 0, 1, 2 e 3 produtos).
+- [x] **0.2 Investigação das Categorias Solitárias (1 a 3 produtos):**
+  - Auditar cada produto solitário para determinar se está em local incorreto ou se há itens irmãos dispersos em outras categorias.
+- [x] **0.3 Descentralização da Categoria "Ferramentas & Armários" (321 produtos):**
+  - Fatiar a macro-categoria sobrecarregada, criando a categoria dedicada *Estética Automotiva & Pintura* (81 itens) e migrando as 26 parafusadeiras industriais.
+- [x] **0.4 Descentralização da Categoria "Acessórios Diversos" (36 produtos):**
+  - Mover cada um dos produtos para suas respectivas famílias especializadas (Elevação, Soquetes, Torquímetros, Válvulas, Lubrificação).
+- [x] **0.5 Proposta de Unificação e Renomeação:**
+  - Elaborar proposta com a relação completa de: *Categoria Atual ➔ Nova Categoria Unificada / Novo Nome Comercial*.
+- [x] **0.6 Relatório de Movimentação para Validação & Execução:**
+  - Execução no banco oficial Supabase com eliminação de todas as micro-categorias de 0 a 1 produto e criação de Estética Automotiva.
+
+---
+
+## 🚀 1. [CONCLUÍDO] Sistema de Variações de Produtos (Cores, Tamanhos, Modelos & Integração Omie)
+
+### 📌 Contexto & Motivação
+- Existem equipamentos (como carrinhos de oficina, bancadas, alinhadores, scanners) cuja única diferença entre itens físicos é a **cor** (ex: Vermelho, Azul, Preto) ou o **tamanho/especificação** (ex: 5 gavetas vs 7 gavetas, 220V vs 380V, 1.500mm vs 2.000mm).
+- Em vez de cadastrar 3 a 5 produtos separados e poluir o catálogo com itens repetidos, unificamos em **1 produto pai** com **variações selecionáveis**.
+- No **Omie ERP**, cada variação física possui seu próprio cadastro com código SKU e estoque individualizado.
+
+---
+
+### 🧠 Regras de Negócio & Fallbacks Inteligentes
+
+| Atributo | Comportamento se Preenchido | Comportamento se NÃO Preenchido (Fallback) |
+| :--- | :--- | :--- |
+| **Preço (`price`)** | Cobra o valor específico da variação selecionada. | **Herda automaticamente o preço base do produto pai**. |
+| **Imagem (`image`)** | Ao clicar na variação, a galeria/foto principal troca para a imagem daquela opção. | **Mantém a imagem e galeria principal do produto pai** (nada quebra). |
+| **Estoque Omie** | Consulta o saldo em estoque no Omie via `sku` / `omieCode` da variação. | Se não encontrar no ERP ou não tiver saldo, **define estoque como 0** (esgotado). |
+| **Identificação Omie** | Cada variação guarda seu `sku` e `omieCode` exclusivos. | Permite que o checkout e a nota fiscal no Omie saiam com a baixa no produto exato. |
+
+---
+
+### 🎨 Design & Experiência do Usuário (UI / UX)
+
+#### 1. Tipos de Seletores Dinâmicos:
+- **Variações de Cor (Swatches):**
+  - Círculos de 28–32px preenchidos com a cor real (`colorHex`).
+  - Anel de destaque na cor ativa (borda dupla âmbar/escuro).
+  - Rótulo logo acima: `Cor: [Nome da Cor Selecionada]`.
+- **Variações de Tamanho / Medida / Modelo (Pills / Chips):**
+  - Botões arredondados modernos (ex: `[ 5 Gavetas ]`, `[ 7 Gavetas ]` ou `[ 220V ]`, `[ 380V ]`).
+  - Efeito visual de botão ativo e hover suave.
+
+#### 2. Na Página de Detalhes ([ProductDetailPage.jsx](src/pages/ProductDetailPage.jsx)):
+- Bloco posicionado estrategicamente entre o título do produto e a caixa de preço/botões de compra.
+- Ao clicar em uma opção:
+  - Foto principal muda instantaneamente (se houver foto para a variação).
+  - Preço e parcelamento recalculam (se houver preço diferente).
+  - Status de estoque exibe a quantidade disponível daquela variação.
+  - Botão do WhatsApp gera a mensagem incluindo a variação escolhida:
+    > *"Olá Athena! Tenho interesse no Carrinho de Oficina na cor **Vermelho (SKU: WLF-CAR-VM)**..."*
+
+#### 3. No Card do Catálogo ([ProductCard.jsx](src/components/ProductCard.jsx)):
+- Mini-swatches (bolinhas) discretas indicando que o produto tem cores disponíveis.
+- Passar o mouse sobre a bolinha já pode alternar a foto do card (estilo lojas premium).
+
+#### 4. No Carrinho de Compras ([CartContext.jsx](src/context/CartContext.jsx)):
+- O item adicionado ao carrinho salva:
+  - `productId`, `variantId`, `variantName` (ex: "Vermelho - 5 Gavetas").
+  - `sku` da variação.
+  - Imagem e preço calculados.
+- Na listagem do carrinho e no resumo do pedido, aparece discriminada a opção escolhida.
+
+#### 5. No Painel Administrativo ([AdminPanel.jsx](src/components/AdminPanel.jsx)):
+- Seção no modal/formulário de edição do produto: **"Variações do Produto (Cores / Tamanhos)"**.
+- Botão **"+ Adicionar Variação"** com campos:
+  - Nome da Variação (ex: "Vermelho", "7 Gavetas", "220V").
+  - Código SKU Omie (obrigatório para integração de estoque).
+  - Código Omie numérico (opcional).
+  - Seletor de Cor HEX (opcional — se informado, vira bolinha de cor; se vazio, vira botão de texto).
+  - Preço Diferenciado (opcional — em branco herda o valor geral).
+  - URL da Imagem da Variação (opcional — em branco herda a foto geral).
+
+---
+
+### 📦 Exemplo de Estrutura de Dados (JSON / Supabase)
+
+```json
+{
+  "id": "prod_carrinho_oficina_modular",
+  "name": "Carrinho de Ferramentas Modular Wolfcar",
+  "slug": "carrinho-de-ferramentas-modular-wolfcar",
+  "price": 1499.00,
+  "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/carrinho-geral.webp",
+  "categoryId": "cat_ferramentas",
+  "brandId": "brand_wolfcar",
+  "variants": [
+    {
+      "id": "var_vermelho_5g",
+      "name": "Vermelho - 5 Gavetas",
+      "sku": "WLF-CAR-VM-5G",
+      "omieCode": 892011,
+      "colorHex": "#DC2626",
+      "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/carrinho-vermelho.webp"
+    },
+    {
+      "id": "var_azul_5g",
+      "name": "Azul - 5 Gavetas",
+      "sku": "WLF-CAR-AZ-5G",
+      "omieCode": 892012,
+      "colorHex": "#1E40AF",
+      "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/carrinho-azul.webp"
+    },
+    {
+      "id": "var_preto_7g",
+      "name": "Preto - 7 Gavetas",
+      "sku": "WLF-CAR-PR-7G",
+      "omieCode": 892013,
+      "colorHex": "#18181B",
+      "price": 1799.00
+    }
+  ]
+}
+```
+
+---
+
+### 📝 Checklist de Tarefas para Execução
+
+- [x] **1.1 Modelo & Banco:** Suporte completo ao campo `variants` (JSONB) no Supabase / PostgreSQL e fallbacks estruturados (`sku`, `omieCode`, `price`, `stock`, `colorHex`, `image`).
+- [x] **1.2 Backend (Omie Sync & Webhooks):** Atualizar o serviço de consulta de estoque e sincronização (`omieProductSyncService.js` / `server.js`) para suportar baixa e saldo por SKU de variação.
+- [x] **1.3 ProductDetailPage:** Seletor dinâmico estilo Shopee (`selectedVariant`) com suporte a cores e chips, fallbacks de imagem e preço, estoque individualizado e atualização da mensagem WhatsApp.
+- [x] **1.4 CartContext & Checkout:** Atualizar `addToCart` para persistir `variantId`, `variantName`, `sku`, `price` e `image`.
+- [x] **1.5 ProductCard:** Exibir swatches de cores / badges de opções no catálogo com pré-visualização.
+- [x] **1.6 AdminPanel & ProductVariantsManager:** Gerenciador visual dedicado de variações no formulário de produtos com vínculo direto a SKUs e códigos Omie.
+- [x] **1.7 Hermes API & Brain (`../athena-hermes`):** Ensinar o Hermes Agent a consultar, entender e atualizar variações (`hermesProductService.js`, `athena-catalogo-fidelidade/SKILL.md`, `athena-site/SKILL.md`, `athena_api.py`, `SOUL.md`).
+
+---
+
+## ⚡ 2. [CONCLUÍDO] Otimização de Carga e Modularização do God File (`AdminPanel.jsx`)
+
+### 📌 Contexto & Diagnóstico
+- `AdminPanel.jsx` atingiu 11.264 linhas de código em um único arquivo, gerando um bundle massivo de 2.6 MB sem code-splitting.
+- O `ImageLibraryModal` executava varreduras pesadas em 600 produtos mesmo quando fechado.
+- Ausência de lazy loading fazia o usuário carregar toda a estrutura administrativa na página inicial pública.
+
+### 📝 Checklist de Tarefas
+- [x] **2.1 Blindagem do ImageLibraryModal:** Impedir cálculos pesados de `mediaUsageRegistry` quando `isOpen === false`.
+- [x] **2.2 Code Splitting com React.lazy:** Carregar o `AdminPanel` sob demanda com `React.Suspense` e skeleton de carregamento profissional.
+- [x] **2.3 Otimização do Rollup / Vite Chunks:** Dividir dependências pesadas (`vendor-react`, `lucide`, etc.) para cache eficiente no navegador.
+- [x] **2.4 Modularização do AdminPanel:** Extrair modais e abas gigantes (`ProductFormModal`, `ProductVariantsManager`, `OmieSyncTab`, `ClientsManagementTab`, etc.) em submódulos limpos em `src/components/admin/`.
+- [x] **2.5 Keep-alive & Mitigação de Cold Start:** Otimizar rotas e pings de aquecimento para evitar telas congeladas.
+
+---
+
+---
+
+## 🕶️ 3. [BACKLOG / AR INDUSTRIAL] Athena Industrial AR Engine (Motor Próprio WebXR para Equipamentos Automotivos)
+
+### 📌 Visão do Produto & Proposta de Valor B2B
+- **Superar o "Gimmick" / 3D Brinquedo:** Equipamentos como elevadores automotivos de 4T, alinhadores 3D e desmontadoras de pneus são investimentos industriais de R$ 15.000 a R$ 60.000. O AR da Athena não deve ser apenas uma animação solta, mas uma **ferramenta de viabilidade técnica e fechamento de vendas**.
+- **A Pergunta Crítica do Cliente:** Responder diretamente à maior dúvida do dono de oficina: *"Esse equipamento realmente cabe no meu box com a folga necessária para trabalhar?"*.
+- **Controle Total da Experiência:** Substituir a dependência do Google Scene Viewer (que frequentemente oscila, afunda o modelo no piso e perde a escala) por um motor próprio baseado em **Three.js + WebXR Hit Test API**, desenhado especificamente para chão de oficina mecânica.
+
+---
+
+### 🧠 Princípios de Interação & Física Controlada (Anti-Frustração)
+
+```mermaid
+flowchart TD
+  A["1. Câmera aponta para o piso da oficina"] --> B["2. Retículo animado detecta plano do chão a 60 FPS"]
+  B --> C["3. Toque na tela: Equipamento nasce travado em Y=0 na escala 1:1 real"]
+  C --> D["4. 1 Dedo: Desliza o equipamento restrito ao plano do chão (sem flutuar)"]
+  C --> E["5. 2 Dedos: Rotaciona o equipamento em torno do próprio eixo central"]
+  C --> F["6. Pinça: Escala real 1:1 travada (impede redução ou aumento acidental)"]
+```
+
+1. **Escala Métrica 1:1 Bloqueada por Padrão:**
+   - 1 unidade 3D = rigorosamente 1 metro físico.
+   - Previne que o usuário acidentalmente reduza o elevador para 20cm ou aumente para o tamanho de um prédio.
+2. **Âncora de Chão Estrita ($Y=0$):**
+   - O equipamento nunca atravessa o concreto e nunca levita no ar.
+   - O ponto pivô $(0,0,0)$ de todos os modelos é calibrado na face inferior das sapatas/rodas.
+3. **Área Ocupada & Zona de Segurança (Clearance Zone):**
+   - **Footprint Real:** Marcação sutil quadriculada no piso com a largura e comprimento exatos da máquina.
+   - **Área de Circulação / Segurança:** Perímetro demarcado (+80cm a +1,2m) ao redor das colunas e braços para o mecânico manobrar carrinhos de ferramentas e transitar com segurança.
+   - **Cota de Pé-Direito Mínimo:** Alerta visual na coluna mostrando a altura mínima de teto recomendada pelo fabricante com veículo elevado.
+   - **Alternador de Visualização:** Botão `[ 📏 Ocultar/Exibir Linhas de Medidas ]` para permitir fotos limpas e realistas do equipamento montado no box da oficina.
+
+---
+
+### ⚡ Pipeline de Carregamento Progressivo (LOD) & CDN Inteligente
+
+Elimina completamente a barreira de baixar arquivos gigantescos de 50MB a 100MB em conexões 4G instáveis de oficinas mecânicas:
+
+```
+cdn.athena.com.br/ar/{SKU_OU_SLUG}/
+        ├── manifest.json       (Metadados, dimensões reais, clearance zone, hotspots)
+        ├── lod_low.glb         (Wireframe / Low-Poly < 500 KB - carrega em ~100ms)
+        ├── lod_medium.glb      (Malha com sombras e cores sólidas ~2MB)
+        ├── lod_high.glb        (Geometria detalhada com parafusos, mangueiras e soldas)
+        ├── textures_pbr/       (Texturas KTX2 / Basis Universal de alta fidelidade)
+        └── model_apple.usdz    (Arquivo otimizado com footprint para Quick Look iOS)
+```
+
+#### Fases de Carregamento em Tempo Real:
+1. **Fase 1 (Instantânea ~50ms):** Retículo de piso ativo + projeção da caixa de medidas e área de segurança no chão.
+2. **Fase 2 (100–300ms):** Renderização imediata do modelo *low-poly* (~300 a 800 KB). O usuário já interage, posiciona e rotaciona.
+3. **Fase 3 (Background stream):** Injeção de materiais PBR de alta fidelidade (reflexos metálicos, pintura eletrostática e adesivos).
+4. **Monitor de Performance Dinâmico (FPS Guard):**
+   - $\text{FPS} \ge 50$: Eleva o modelo para o nível máximo de detalhes.
+   - $30 \le \text{FPS} < 50$: Mantém LOD intermediário estável.
+   - $\text{FPS} < 30$: Rebaixa sombras e texturas dinamicamente para preservar fluidez de 60 FPS no tracking da câmera.
+
+---
+
+### 📱 Estratégia Multiplataforma (Android WebXR vs. iOS Quick Look)
+- **Android (Chrome/Edge/Samsung Internet):**
+  - Execução 100% nativa em **Three.js + WebXR Device API**.
+  - O usuário permanece dentro da página da Athena sem abrir apps de terceiros.
+  - Interface customizada com botões flutuantes: *"📸 Tirar Foto"*, *"📏 Medidas"* e *"💬 Falar com Consultor"*.
+- **iOS (iPhone/iPad - Safari):**
+  - Como o Safari restringe o WebXR pleno sem flags experimentais, o pipeline gera automaticamente o `.usdz` equivalente.
+  - Abertura suave via **Apple Quick Look (com sensor LiDAR em iPhones Pro)**, que oferece ancoragem de solo milimétrica e sombras de contato ultra-realistas.
+
+---
+
+### 📝 Checklist de Implementação da Engine AR Industrial
+
+- [ ] **3.1 Arquitetura do Módulo Core (`src/ar-engine/`):**
+  - Implementar gerenciador de sessão WebXR com fallbacks inteligentes e controle de ciclo de vida (`WebXRSession.js`).
+  - Desenvolver o retículo de ancoragem no chão com interpolação de matrizes para eliminar vibrações de tracking (`HitTestReticle.js`).
+- [ ] **3.2 Sistema de Gestos & Ancoragem 1:1:**
+  - Travar transformações no plano $Y=0$ com rotação de 2 dedos e bloqueio de escala acidental (`FloorPlacementController.js`).
+- [ ] **3.3 Camada de Medidas Técnicas & Área de Segurança:**
+  - Criar shaders/wireframes leves para projeção de piso: footprint da máquina, zona de segurança para o operador e cota vertical de teto.
+  - Adicionar controle de visibilidade na UI para alternar entre "Modo Técnico (com cotas)" e "Modo Realista (foto limpa)".
+- [ ] **3.4 Script de Pipeline de Otimização e LOD (`scripts/optimize-ar-models.cjs`):**
+  - Script CLI com `@gltf-transform/core`, `draco3d` e compressão de textura para converter GLBs brutos em `lod_low`, `lod_medium`, `lod_high` e gerar `manifest.json`.
+- [ ] **3.5 Integração com Cloudflare R2:**
+  - Estruturação dos manifests e modelos no bucket R2 com headers CORS e cache agressivo de borda (`Cache-Control: public, max-age=31536000, immutable`).
+- [ ] **3.6 Componente Declarativo para o Catálogo:**
+  - Criar `<AthenaIndustrialAR product={product} />` integrado na aba 3D/AR de `ProductDetailPage.jsx`.
+
+---
+
+## 📌 4. Outras Melhorias & Tarefas Futuras do Backlog
+
+- [ ] **Carteira Digital & Cashback Athena (Evolução do A-Points):**
+  - Transformar o programa de fidelidade em saldo direto de Cashback em R$ (ex: 1% a 2% das vendas faturadas no Omie).
+  - Exibir selo/badge dinâmico nos cards do catálogo: *"⚡ Ganhe R$ 180 de Cashback nesta compra"*.
+  - Permitir simulação e aplicação do saldo em carteira diretamente no carrinho (`CartDrawer.jsx`) e no pedido WhatsApp.
+- [ ] **Sincronização Bidirecional via Webhooks do Omie:** Receber atualizações de estoque e preço do Omie em tempo real via webhook HTTP.
+- [ ] **Cálculo de Frete Automatizado:** Integração com Melhor Envio / Correios / Transportadoras para cotação em tempo real na página do produto.
+- [ ] **Exportação de Relatórios de Vendas / Cotações:** Download de orçamentos e pedidos em PDF para envio formal a oficinas e concessionárias.
+- [ ] **Otimização Contínua de SEO:** Gerar automaticamente dados estruturados Schema.org `hasVariant` para o Google Shopping indexar cada variação.
+
+---
+
+## 🗂️ 5. [CONCLUÍDO] Saneamento, Reclassificação e Otimização de Categorias de Produtos
+
+### 📌 Diagnóstico da Situação Inicial
+- **Total de produtos auditados:** 727
+- **Total de categorias cadastradas:** 51 ➔ Reduzidas para 46 com eliminação de redundâncias e micro-categorias.
+- **Problema central resolvido:** 81 produtos de Estética Automotiva e 26 parafusadeiras desmembrados de `cat_ferramentas`. Itens de macacos resgatados de Elevadores.
+- **Produtos órfãos:** 4 produtos vinculados às suas categorias corretas.
+- **Categorias solitárias (0 a 1 produto):** Reduzidas a 0!
+
+---
+
+### 📝 Checklist Detalhado para Execução
+
+#### Fase 1: Correções Críticas & Imediatas
+- [x] **1.1 Vincular os produtos órfãos:**
+  - `prod_omie_11876439233` ("PASTA VEGETAL DE MONTAGEM E DESMONTAGEM") ➔ Vinculado a `cat_desmontadoras`.
+  - `prod_omie_11929046930` ("PROGRAMADOR SENSOR TPMS VENU 90") ➔ Vinculado a `cat_1789998064578` (*Válvulas/TPMS*).
+  - `prod_omie_11876016891` ("ELEVADOR GANGORRA 1.5TON PORTATIL") ➔ Vinculado a `cat_elevadores` (*Elevadores*).
+  - `prod_omie_11880776500` ("JG CHAVE HEXALOBULAR TIPO CANIVETE C/08 PECAS") ➔ Vinculado a `cat_1789405752776` (*Soquetes*).
+- [x] **1.2 Excluir categoria vazia:**
+  - Excluída `cat_1789413312442` ("Canetas para testes e diagnósticos", slug: `canetas-para-testes-e-diagnosticos`) com 0 produtos.
+- [x] **1.3 Correção de título com prompt de imagem:**
+  - Corrigido `prod_mahovi_mah-6004`: de `"tire o qr code, o texto descrição e redimensione para 1200x1200 - Mahovi MAH-6004"` ➔ `"Balanceadora de Rodas Computadorizada Linha Leve - Mahovi MAH-6004"`.
+
+#### Fase 2: Fusão e Exclusão de Micro-Categorias Redundantes (1 a 3 produtos)
+- [x] **2.1 Apertadeira de rodas (1 produto):**
+  - Movido `prod_sigma_sgt-7530` ("Apertadeira de Rodas 1\" 1.500 Nm 24V") ➔ `cat_1788453768939` (*Chaves de impacto*).
+  - Excluída categoria `cat_1789067041029`.
+- [x] **2.2 Transmissão Automática (1 produto):**
+  - Movido `prod_delta_dt-mft01` ("Máquina para Troca de Fluido da Transmissão Automática") ➔ `cat_1788371138282` (*Troca de fluido*).
+  - Excluída categoria `cat_1789670494368`.
+- [x] **2.3 Fumaça & Nitrogênio (2 produtos):**
+  - Movido `prod_mahovi_mah4040_fumaca` ("Gerador de Fumaça para Vazamentos") ➔ `cat_scanners` (*Scanners & Diagnóstico*).
+  - Movido `prod_mahovi_mah-4014` ("Máquina de Calibragem c/ Nitrogênio 70L") ➔ `cat_1790016852133` (*Calibradores e Medidores*).
+  - Excluída categoria `cat_1788376758844`.
+- [x] **2.4 Endoscópios e Boroscópios (1 produto):**
+  - Movido `prod_1790341413049` ("Câmera Sonda Endoscópio/Boroscópio USB Tipo-C") ➔ `cat_scanners` (*Scanners & Diagnóstico*).
+  - Excluída categoria `cat_1790341326840`.
+- [x] **2.5 Extensão para controle de torque (1 produto):**
+  - Movido `prod_1789406547431` ("Kit Extensões para Controle de Torque 1/2″") ➔ `cat_1789075823822` (*Torquímetro*).
+  - Excluída categoria `cat_1789406515276`.
+- [x] **2.6 Suporte para Motor:**
+  - Resgatado `prod_1790178303116` ("Suporte para Motor 450 kg") preso em `cat_elevadores` e unificado com `prod_1790178643434` ("Suporte para Motor 600 kg") em `cat_1790178421551`.
+
+#### Fase 3: Descentralização de Produtos Mal Alocados
+- [x] **3.1 Limpar Macacos da Categoria Elevadores:**
+  - Movidos 5 macacos Sigma (`prod_sigma_sgt-3035`, `sgt-3040`, `sgt-3050`, `sgt-2025`, `sgt-2030`) ➔ `cat_1789587656316` (*Macaco Hidráulico*).
+- [x] **3.2 Redistribuir itens desalocados de "Acessórios diversos":**
+  - Guincho 2T (`prod_1790179415072`) e Cavaletes (`prod_lapek_lpk-sup`) ➔ *Macaco Hidráulico*.
+  - Saca Núcleo e Tampas de Válvula (`LPK-50033`, `50035`, `50036`, `50037`, `50038`) ➔ *Válvulas para pneus*.
+  - Alicate Balanceador (`LPK-50039`) ➔ *Desmontadoras & Balanceadoras*.
+  - Jogo de Soquetes 46 Peças (`prod_delta_dt-jsq01`) ➔ *Soquetes*.
+  - Saca Polia e Sacador GDI (`0699930039`, `DT-SAC07`) ➔ *Ferramentas de extração*.
+  - Funis e Seringas de Óleo/Fluido ➔ *Troca e Coleta de Óleo*.
+  - Medidor Angular de Torque (`DT-MAT01`) ➔ *Torquímetro*.
+  - Kit Limpeza de Bicos (`DT-ADA01`) ➔ *Limpador e Testador de Injetores*.
+  - Auxiliar SKX-018 e Cabo OBD Bateria (`DT-ATB01`) ➔ *Teste de bateria*.
+  - Tapetes Antiderrapantes (`prod_mahovi_wal-4020`) ➔ *Elevadores*.
+- [x] **3.3 Descentralizar itens específicos de "Ferramentas & Armários":**
+  - 81 produtos migrados para a nova categoria dedicada **Estética Automotiva & Pintura** (`cat_estetica_pintura`).
+  - 26 parafusadeiras industriais migradas para **Parafusadeira & Desparafusadeira** (`cat_1789409045834`).
+- [x] **3.4 Descentralizar itens de "Ferramentas Automotivas" e "Ferramentas de Extração":**
+  - Calibrador Digital (`prod_mahovi_mah-5010`) ➔ *Calibradores e Medidores*.
+  - Carregador SKX-038 ➔ *Teste de bateria*.
+  - Detector de Continuidade SKX-088 ➔ *Scanners & Diagnóstico*.
+  - Visor ATF (`prod_1788380306494`) ➔ *Troca de fluido*.
+  - Trolley Veículos MAH-103 ➔ *Macaco Hidráulico*.
+  - Kit Êmbolo Freio e Molas de Freio ➔ *Sistema de freios*.
+  - Encolhedor de Molas e Extrator de Terminais ➔ *Suspensão e Direção*.
+  - Reset Powershift DPS6 ➔ *Embreagem e Transmissão*.
+  - Extratores de Bicos Diesel ➔ *Limpador e Testador de Injetores*.
+  - Spring Lock Ar Condicionado ➔ *Ferramentas para Ar Condicionado*.
+
+---
+
+## 🛒 6. [ARQUITETURA DE CATÁLOGO & UX] Sistema Hierárquico de Categorias, Subcategorias e Filtros Facetados (Inspirado no Modelo KaBuM!)
+
+### 📌 Diagnóstico & Motivação
+- Atualmente o site conta com **cerca de 50 categorias planas (flat taxonomy)**.
+- **Problema de UX:** Uma lista com 50 opções no cabeçalho ou menu mobile polui a visão do cliente, gera o "paradoxo da escolha" e dificulta encontrar produtos específicos rapidamente.
+- **Inspirador:** A estrutura da **KaBuM!**, **Amazon** e **Mercado Livre**, onde existem **poucos Macro-Departamentos visíveis** (ex: *Hardware*, *Periféricos*, *Gamer*), e dentro deles se desdobram **Subcategorias (Nível 2)** e **Sub-subcategorias (Nível 3)**, acompanhadas de uma **barra lateral de filtros facetados dinâmicos** (Marca, Encaixe, Voltagem, Preço, Tipo de Ponta).
+
+---
+
+### 🔍 Estudo de Caso: Composição do Kit de Ferramentas / Soquetes
+
+#### 1. Identificação do Produto
+A lista fornecida pelo cliente detalha com precisão a composição clássica de um **Jogo de Soquetes e Ferramentas Profissional de 178 Peças com Maleta (Encaixes 1/4", 3/8" e 1/2")** (padrão consagrado por montadoras e marcas premium como Gedore Red, Chiaperini/Titanium, Robust e Vonder):
+
+- **Pontas Bits (Encaixe 5/16" - 24 peças):** Hexagonais (7 a 14mm), Phillips (PH3 e PH4), Fenda (8 a 12mm), Torx (T40 a T70) e Torx c/ Guia (T40 a T70).
+- **Chaves Manuais (30 peças):** 9 Chaves L Hexagonais abauladas (1,5 a 10mm), 9 Chaves L Torx (T10 a T50) e 12 Chaves Combinadas c/ Catraca Reversível (8 a 19mm).
+- **Soquetes & Acessórios 1/4" (64 peças):** Curtos (4 a 14mm), Longos (4 a 10mm), Torx Fêmea (E4 a E8), Chaves Soquete (Hex, PH, Fenda, Torx, Torx Guia, Multidentadas XZN M8/M10/M12) e Acessórios (Catraca, Extensões, Junta, Cabos).
+- **Soquetes & Acessórios 3/8" (28 peças):** Curtos (10 a 19mm), Longos (10 a 15mm), Soquete de Vela 18mm, Torx Fêmea (E10 a E18) e Acessórios.
+- **Soquetes & Acessórios 1/2" (32 peças):** Curtos (10 a 32mm), Longos (16 e 18mm), Impacto Liga Leve (17, 19 e 21mm), Soquetes de Vela (16 e 21mm), Torx Fêmea (E20 e E24) e Acessórios (Catraca, Extensões 5" e 10", Junta, Cabos).
+
+#### 2. Entendimento Estratégico (Kit vs Variação vs Peça Avulsa)
+- **Não é uma variação de um único parafuso/chave:** É um **Kit Completo (Jogo Fechado)** com SKU próprio no Omie ERP.
+- **Onde entra o sistema de Variações:** Se o fornecedor oferecer a maleta em diferentes tamanhos/quantidades de peças (ex: *Maleta 94 peças*, *Maleta 150 peças*, *Maleta 178 peças*, *Maleta 216 peças*), aí sim teremos 1 produto pai com seletor de variação por quantidade de peças!
+- **Peças Avulsas:** Chaves individuais (ex: Chave Combinada com Catraca) continuam existindo como produtos com variação de medida (8mm, 10mm, 13mm, 17mm, 19mm) para quem perdeu uma peça ou precisa só de uma medida específica.
+
+#### 3. Oportunidade no Hermes Agent (Upselling & Resposta Técnica Cirúrgica)
+- Quando o Hermes indexa a composição interna desse kit, se um cliente perguntar:
+  > *"Vocês têm soquete Torx fêmea E14 ou soquete de vela 16mm?"*
+- O Hermes pode responder com inteligência consultiva:
+  > *"Temos sim! Temos tanto a peça avulsa por R$ X quanto o nosso **Jogo Completo de Soquetes de 178 Peças com Maleta**, que já vem com o E14, os soquetes de vela de 16mm e 21mm, mais 3 catracas e chaves combinadas com catraca de 8 a 19mm!"*
+
+---
+
+### 🏛️ Nova Arquitetura de Categorias Hierárquicas (Modelo KaBuM!)
+
+Em vez de 50 categorias na cara do cliente, o catálogo passa a ter **6 a 8 Macro-Departamentos**, com subcategorias e sub-subcategorias expansíveis:
+
+```mermaid
+graph TD
+  Dept[Macro-Departamentos - Nível 1] --> D1[🚗 Funilaria, Pintura & Estética]
+  Dept --> D2[🛞 Borracharia & Alinhamento]
+  Dept --> D3[⚙️ Elevação & Mecânica Pesada]
+  Dept --> D4[⚡ Auto Elétrica & Diagnóstico]
+  Dept --> D5[🛢️ Troca de Óleo & Fluidos]
+  Dept --> D6[🔧 Ferramentas Manuais & Soquetes]
+  Dept --> D7[🧰 Armazenamento & Bancadas]
+  Dept --> D8[💨 Pneumática & Ar Comprimido]
+
+  D6 --> Sub1[Jogos & Maletas Completas]
+  D6 --> Sub2[Soquetes & Acessórios]
+  D6 --> Sub3[Chaves Manuais]
+  D6 --> Sub4[Torquímetros & Medição]
+  D6 --> Sub5[Pontas & Bits]
+
+  Sub2 --> SubSub1[Encaixe 1/4 pol]
+  Sub2 --> SubSub2[Encaixe 3/8 pol]
+  Sub2 --> SubSub3[Encaixe 1/2 pol]
+  Sub2 --> SubSub4[Encaixe 3/4 e 1 pol]
+  Sub2 --> SubSub5[Soquetes de Impacto]
+```
+
+#### Mapeamento Detalhado dos Departamentos & Subcategorias:
+
+1. **🚗 Funilaria, Pintura & Estética Automotiva:**
+   - **Subcategorias:** Repuxadeiras & Solda (Spotters), Politrizes & Lixadeiras, Pistolas de Pintura & Airless, Tornadores & Higienização, Acessórios & Consumíveis.
+2. **🛞 Borracharia, Pneus & Alinhamento:**
+   - **Subcategorias:** Alinhadores de Direção (3D / Laser), Balanceadoras de Rodas, Desmontadoras de Pneus, Calibradores & Válvulas TPMS, Tartarugas & Vulcanização.
+3. **⚙️ Elevação & Mecânica Pesada:**
+   - **Subcategorias:** Elevadores Automotivos (2 colunas, 4 colunas, tesoura), Macacos Hidráulicos (Jacaré, Garrafa, Transmissão), Prensas Hidráulicas, Guinchos & Cavaletes, Suportes para Motores.
+4. **⚡ Auto Elétrica, Diagnóstico & Injeção:**
+   - **Subcategorias:** Scanners Automotivos & Diagnóstico, Testadores & Carregadores de Bateria, Limpeza & Teste de Injetores, Osciloscópios & Detectores de Vazamento (Fumaça), Câmeras Endoscópicas.
+5. **🛢️ Troca de Óleo, Fluidos & Lubrificação:**
+   - **Subcategorias:** Máquinas de Troca de Fluido de Câmbio (ATF), Pingadeiras & Coletores de Óleo, Propulsoras de Graxa & Bombas Pneumáticas, Funis, Seringas & Medidores.
+6. **🔧 Ferramentas Manuais & Soquetes:**
+   - **Subcategorias:** Jogos & Maletas Completas (Kits 178p, 216p, etc.), Soquetes & Acessórios (1/4", 3/8", 1/2", Impacto), Chaves Manuais (Catraca, Combinadas, Torx, Allen, Fenda/PH), Torquímetros & Goniômetros, Pontas, Bits & Adaptadores, Ferramentas Especiais de Sincronismo & Extração.
+7. **🧰 Armazenamento & Organização de Oficina:**
+   - **Subcategorias:** Carrinhos de Ferramentas (com/sem gavetas, bandejas), Bancadas de Trabalho & Painéis Perfurados, Armários & Gaveteiros Modulares.
+8. **💨 Pneumática & Ar Comprimido:**
+   - **Subcategorias:** Chaves de Impacto Pneumáticas, Parafusadeiras Pneumáticas, Compressores de Ar & Reservatórios, Mangueiras, Filtros & Engates Rápidos.
+
+---
+
+### 🎛️ Filtros Facetados Dinâmicos na Barra Lateral (Estilo KaBuM!)
+
+Para evitar criar categorias infinitas para cada detalhe técnico, a página de listagem ganha **filtros inteligentes acumulativos**:
+
+| Filtro Facetado | Opções de Seleção Dinâmica |
+| :--- | :--- |
+| **Encaixe** | `1/4"`, `3/8"`, `1/2"`, `3/4"`, `1"` |
+| **Perfil da Ponta** | `Sextavado`, `Torx (Macho)`, `Torx Fêmea (E)`, `XZN Multidentado`, `Allen (Hexagonal)`, `Phillips (PH)`, `Fenda Simples` |
+| **Tipo de Item** | `Jogo / Maleta Completa`, `Peça Avulsa`, `Acessório (Catraca, Extensão, Cabo)` |
+| **Material / Acabamento** | `Cromo Vanádio (Cr-V)`, `Cromo Molibdênio (Impacto)`, `Aço Fosfatizado` |
+| **Alimentação** | `Manual`, `Pneumático`, `Elétrico 220V`, `Elétrico 110V`, `Bateria (18V / 20V)` |
+| **Marca** | `Gedore Red`, `Sigma Tools`, `Mahovi`, `Wolfcar`, `StarkX`, `Delta`, `Lapek`, `Chiaperini` |
+| **Faixa de Preço** | Slider / Checkbox: *Até R$ 100*, *R$ 100 - R$ 500*, *R$ 500 - R$ 2.000*, *Acima de R$ 2.000* |
+| **Disponibilidade** | `Pronta Entrega (Em Estoque)`, `Sob Encomenda` |
+
+---
+
+### 📝 Checklist de Implementação da Arquitetura Hierárquica
+
+- [ ] **6.1 Modelo de Dados (Supabase / Postgres):**
+  - Adicionar colunas `parent_id` (UUID/String apontando para a categoria pai) e `level` (1=Departamento, 2=Subcategoria, 3=Sub-subcategoria) na tabela `categories`.
+  - Criar índice para busca rápida por hierarquia (`CREATE INDEX idx_categories_parent_id ON categories(parent_id);`).
+- [ ] **6.2 Backend API:**
+  - Criar rota `GET /api/categories/tree` que devolve a árvore hierárquica já aninhada para montagem rápida do menu.
+  - Atualizar endpoint de produtos para filtrar recursivamente (ao selecionar um Departamento pai, trazer todos os produtos de suas subcategorias).
+- [ ] **6.3 Frontend — Menu Megamenu / Drawer Mobile:**
+  - Criar componente de Megamenu no desktop (hover no departamento abre as subcategorias em colunas limpas).
+  - No mobile, menu estilo acordeão multinível com botão voltar suave.
+- [ ] **6.4 Frontend — Barra Lateral de Filtros (Faceted Search):**
+  - Implementar componente `FacetedFilterSidebar.jsx` na página de categorias com contadores dinâmicos de produtos por filtro (ex: `Encaixe 1/2" (45)`).
+- [ ] **6.5 Breadcrumb Inteligente:**
+  - Exibir trilha de navegação clicável na página do produto: `Home > Ferramentas Manuais > Soquetes & Acessórios > Maletas e Jogos > Produto`.
+- [ ] **6.6 Hermes Agent Brain & Skills:**
+  - Atualizar as skills do Hermes (`athena-catalogo-fidelidade` e `athena-site`) para compreender a nova taxonomia em árvore e sugerir kits completos com base na composição de peças.
+
+---
+
+## 🧠 7. [IA & ASSISTENTE ADMIN] Evolução do Sistema Inteligente de Cadastro e Parser Semântico de Produtos (Independente do Hermes)
+
+> [!IMPORTANT]
+> **Divisão Clara de Responsabilidades:**  
+> O **Hermes Agent** é estritamente o atendente conversacional no WhatsApp (CRM/Vendas), cuja função é apenas **consultar** o catálogo existente para responder a clientes.  
+> O Hermes **NÃO gera nomes, títulos, descrições ou cadastros de produtos**.  
+> Para a geração e padronização inteligente de produtos no painel administrativo, será utilizado um **Motor de IA Dedicado de Backoffice (Google Gemini / OpenAI)** totalmente desacoplado do Hermes.
+
+### 📌 Diagnóstico: Por que o Sistema Atual Falhou ao Ler a Composição?
+1. **Regras Estáticas vs. Inteligência Semântica:**  
+   O sistema atual dentro de `AdminPanel.jsx` (`isLineASectionHeader`, `detectAllSectionsInDescription`, `optimizeDescriptionAndSpecs`) opera 100% à base de expressões regulares lineares (regex) e listas fixas de palavras-chave. Ele não possui um modelo de linguagem (LLM como Google Gemini) conectado nem inteligência de raciocínio de contexto.
+2. **Fragmentação de Cabeçalhos Markdown (Falta de Hierarquia H2/H3):**  
+   Quando o usuário colou `## Composição do Kit` seguido de vários subcabeçalhos `### Pontas Bits...`, `### Chaves...`, `### Soquetes...`, o parser tratou cada `###` como uma nova seção plana independente de nível 1, desmembrando o kit em 5 abas soltas e confusas em vez de manter uma única aba limpa de "Itens Inclusos / Composição".
+3. **Incapacidade de Agregação e Raciocínio Numérico:**  
+   O sistema não consegue ler `05 pontas...`, `04 pontas...`, `13 soquetes...` e somar os valores para deduzir que se trata de uma **Maleta/Jogo com 178 peças**.
+4. **Filtro de Especificações Restrito:**  
+   O extrator de `specs` só procura grandezas físicas genéricas (`LxAxP mm`, `kg`, `220V`, `psi`, `m³`). Ele ignora termos de ferramentas manuais como encaixes (`1/4"`, `3/8"`, `1/2"`), perfis (`Torx`, `XZN`, `Sextavado`), acabamento (`Cr-V`), chaves com catraca reversível e soquetes de impacto para liga leve.
+5. **Ausência de Geração Semântica de Tags e SEO:**  
+   Não são inferidas tags automáticas essenciais para busca como `jogo de soquetes`, `maleta de ferramentas`, `178 pecas`, `catraca reversivel`, `soquete torx`, prejudicando o buscador interno da loja e o ranqueamento no Google.
+
+---
+
+### 🚀 Plano de Evolução em 2 Camadas (Assistente de Cadastro do Admin):
+
+#### Camada 1: Heurística / Parser Algorítmico Especializado em Ferramentas (Offline, Instantâneo & Sem Custo)
+- **Suporte a Cabeçalhos Hierárquicos (Subseções H2 ➔ H3):**  
+  Identificar que subcabeçalhos `###` dentro de uma seção de composição pertencem à mesma aba pai, agrupando tudo com subtítulos em negrito e marcadores alinhados.
+- **Kit Piece Aggregator (Somador de Peças de Kits):**  
+  Algoritmo que percorre linhas iniciadas por quantidades (`• 05...`, `• 12...`, `13...`) e calcula a soma total das peças. Se a soma for superior a 10 peças, exibe o card inteligente:  
+  *💡 Detectamos que este produto é um **Kit/Jogo de Ferramentas com 178 peças**.*
+- **Extrator Especializado de Especificações de Ferramentas:**  
+  Extrair automaticamente para a tabela de especificações:
+  - `Quantidade de Peças: 178 peças`
+  - `Encaixes: 1/4", 3/8" e 1/2"`
+  - `Catracas Reversíveis: 3 unidades (1/4", 3/8" e 1/2")`
+  - `Chaves com Catraca: 12 peças (8 a 19 mm)`
+  - `Perfis: Sextavado, Torx Macho e Fêmea (E), XZN Multidentado, Hexagonal, Phillips e Fenda`
+  - `Soquetes de Impacto: 17, 19 e 21 mm para rodas de liga leve`
+  - `Soquetes de Vela: 16, 18 e 21 mm`
+- **Gerador de Tags de Alta Relevância:**  
+  Injetar tags no formulário baseadas no vocabulário técnico detectado.
+
+#### Camada 2: Motor de IA Dedicado para o Painel Admin (Google Gemini API)
+- **Endpoint Backend Seguro:** `POST /api/admin/ai/analyze-product` chamando a API do Gemini com o schema estruturado de catálogo automotivo da Athena.
+- **Botão "✨ Sugerir com IA / Catálogo Athena" no Formulário:**  
+  O lojista pode simplesmente colar qualquer texto bruto, ficha de fabricante ou texto de catálogo.
+- **Retorno Estruturado em 1 Clique:**
+  1. *Título Otimizado para SEO e Catálogo:* ex: *"Jogo de Soquetes e Ferramentas 178 Peças 1/4\", 3/8\" e 1/2\" com Maleta e Chaves Catraca"*.
+  2. *Slug Limpo e Canônico:* `jogo-de-soquetes-e-ferramentas-178-pecas-com-maleta`.
+  3. *Departamento e Subcategoria Sugeridos:* `Ferramentas Manuais & Soquetes ➔ Jogos e Maletas Completas`.
+  4. *Descrição Comercial Enriquecida:* Texto de alta conversão sem jargões confusos.
+  5. *Abas Formatadas (Composição do Kit, Diferenciais, Aplicações).*
+  6. *Ficha Técnica Normalizada (`specs`).*
+  7. *Tags de Busca Estratégicas para o Buscador da Loja e SEO.*
+- **Modal de Revisão "Antes vs. Depois":**  
+  O lojista visualiza o comparativo campo a campo com opção de aceitar tudo ou ajustar antes de salvar.
+
+---
+
+### 📝 Checklist de Implementação do Assistente IA
+
+- [ ] **7.1 Parser Heurístico Hierárquico no Frontend:**  
+  Atualizar `parseDescriptionSections` em `AdminPanel.jsx` / submódulo de edição para suportar subcabeçalhos (`###`) aninhados dentro de abas de Composição e Itens Inclusos.
+- [ ] **7.2 Kit Piece Aggregator & Tool Specs Extractor:**  
+  Criar helper em `src/utils/toolSpecsParser.js` que soma automaticamente itens de kits de ferramentas e gera as especificações técnicas de encaixes, perfis e catracas.
+- [ ] **7.3 Endpoint Backend do Copiloto IA de Cadastro:**  
+  Criar `backend/services/aiProductAssistantService.js` e rota `POST /api/admin/ai/analyze-product` integrados ao Google Gemini, com prompt e schema JSON estrito de catálogo B2B automotivo (sem qualquer vínculo com o Hermes).
+- [ ] **7.4 Interface do Copiloto no AdminPanel:**  
+  Adicionar botão "✨ Sugerir com IA" ao lado do campo de descrição com modal de prévia das sugestões (título, categoria, tags, specs e abas).
+- [ ] **7.5 Validação com Fichas Técnicas Complexas:**  
+  Testar com textos reais de kits completos (Gedore, Sigma, Mahovi) garantindo precisão em títulos, encaixes e contagem de peças.
+
+---
+
+## 🛡️ 8. [SEGURANÇA & INFRAESTRUTURA] Hardening Cloudflare, Turnstile & Mitigação de DoS
+
+### 8.1 Correções de Segurança na Cloudflare (Security Insights)
+- [x] **Criar `security.txt` e `.well-known/security.txt` (RFC 9116):**
+  - Implementado em `public/.well-known/security.txt` e `public/security.txt` com e-mails oficiais de reporte responsável.
+- [x] **Configurar Content-Security-Policy (CSP) Estrito:**
+  - Implementado no `vercel.json` com liberação granular para GTM, Meta Pixel, TikTok Pixel, Cloudflare Turnstile, Clarity, Google Fonts, Model Viewer 3D e ViaCEP, bloqueando injeções arbitrárias de scripts/frames de terceiros.
+- [ ] **Forçar versão mínima TLS 1.2 (SSL/TLS ➔ Edge Certificates):**
+  - *Problema:* Subdomínios aceitam TLS 1.0 e 1.1 obsoletos.
+  - *Solução:* Configurar "Minimum TLS Version" para `TLS 1.2` no painel da Cloudflare.
+- [ ] **Ativar "Always Use HTTPS" (SSL/TLS ➔ Edge Certificates):**
+  - *Problema:* Requisições HTTP sem SSL não são forçadas para HTTPS.
+  - *Solução:* Habilitar a chave "Always Use HTTPS" para redirecionar tráfego inseguro automaticamente.
+- [ ] **Ativar HSTS (HTTP Strict Transport Security):**
+  - *Problema:* Ausência de cabeçalho HSTS permitindo ataques Man-in-the-Middle.
+  - *Solução:* Ativar HSTS com `max-age: 6 meses` e `include subdomains`.
+- [ ] **Proxy no CNAME `rifa.athenaconsultoria.com.br` (DNS ➔ Records):**
+  - *Problema:* CNAME sem proxy (nuvem cinza), expondo o IP de origem.
+  - *Solução:* Ativar nuvem laranja (Proxied) se o subdomínio estiver ativo, ou remover se for legado.
+- [ ] **Ajuste do Registro TXT de DMARC (DNS ➔ Records):**
+  - *Problema:* Sintaxe ou ausência de política DMARC de e-mail.
+  - *Solução:* Criar ou corrigir registro TXT `_dmarc.athenaconsultoria.com.br` com:
+    `v=DMARC1; p=none; rua=mailto:athena.consultoria.automotiva@gmail.com`.
+- [ ] **Ativar 2FA / MFA na conta Cloudflare:**
+  - *Problema:* Usuário root da Cloudflare sem autenticação de dois fatores.
+  - *Solução:* Ativar aplicativo autenticador (TOTP) no perfil da conta Cloudflare.
+
+### 8.2 Proteção de Login & Anti-Brute Force (Passo 3)
+- [x] **Configurar Chaves do Cloudflare Turnstile:**
+  - `CLOUDFLARE_TURNSTILE_SITE_KEY` e `CLOUDFLARE_TURNSTILE_SECRET_KEY` salvas em `backend/.env`.
+  - `VITE_TURNSTILE_SITE_KEY` salva no `.env` da raiz (Vite).
+- [x] **Delay Progressivo (Slow Down):**
+  - Implementado com `express-slow-down`. Após 3 tentativas falhas consecutivas do IP, adiciona delay cumulativo (+1s, +2s, +3s até teto de 4s).
+- [x] **Desafio CAPTCHA Obrigatório (Turnstile):**
+  - A partir da 5ª tentativa falha (da conta ou do IP), o widget do Cloudflare Turnstile é exigido no frontend (`LoginPage.jsx`) e validado pelo backend via API `siteverify` da Cloudflare.
+- [x] **Bloqueio de Conta & IP com Desbloqueio no Admin:**
+  - Na 8ª tentativa falha (5 + 3), a conta é travada no PostgreSQL (`users.is_locked = true`), o IP é gravado em `security_ip_blocklist` e memória.
+  - Implementado botão de ação "Desbloquear Conta Imediatamente" e badges visuais no painel de administração (`ClientsManagementTab.jsx` e `CustomerDetailModal.jsx`).
+  - Endpoints administrativos dedicados criados: `POST /api/admin/users/:id/unlock` e `POST /api/admin/security/unblock-ip`.
+- [x] **Hardening Geral contra DoS na API:**
+  - Reduzido `express.json` global de 50MB para 2MB (mantendo 50MB isolado exclusivamente na rota `/api/upload`).
+  - Sanitização de consultas e teto de segurança contra DoS na paginação (`Math.min(100, limit)` em `GET /api/products`), preservando integridade de carregamento do catálogo.
+  - Rate limit dedicado estrito de 5 requisições a cada 15 min adicionado em `POST /api/auth/forgot-password`.
+
+### 8.3 [FUTURO] Autenticação Multi-Fator (MFA / 2FA) & Reautenticação Sensível
+- [ ] **MFA Obrigatório para Contas Administrativas (/admin):**
+  - Implementar suporte a TOTP (RFC 6238 / Google Authenticator / Authy / 1Password) para todos os usuários com papel `admin`.
+  - Fluxo de setup: geração de QR Code base32 (`otplib`), validação do primeiro código de 6 dígitos e emissão de códigos de backup de emergência (Recovery Codes) com hash bcrypt.
+- [ ] **MFA Opcional para Clientes B2B & Oficinas:**
+  - Permitir que clientes ativem verificação em 2 etapas voluntariamente em suas configurações de conta (`/minha-conta`).
+- [ ] **Reautenticação Mandatória (Step-up Authentication / OWASP):**
+  - Exigir confirmação de senha primária (ou token MFA) antes de operações de alto impacto:
+    - Alteração de senha, e-mail de acesso ou telefone cadastral.
+    - Geração de Link de Acesso Emergencial (Magic Link) pelo administrador para clientes.
+    - Exclusão de contas ou alteração de papéis/permissões (`role`).
+- [ ] **Blindagem Permanente de Sessões Magic Link:**
+  - Sessões emitidas via Link Emergencial já estão bloqueadas contra alteração de senha/e-mail; manter essa restrição e formalizar exigência de login com senha completa para modificações cadastrais.
+
+---
+
+## 📈 9. [TELEMETRIA & TRÁFEGO PAGO] Google Ads, TikTok Pixel & Meta CAPI
+
+- [x] **Filtro Automático de Equipe (Staff Block):**
+  - Bloquear automaticamente o disparo de eventos do Meta Pixel, GA4/GTM e TikTok Pixel quando logado como Staff (`admin`, `vendedor`, `editor`, `gerente`, `operador`, `logistica`), mantendo 100% ativo para Clientes (`cliente` / `customer`) e visitantes.
+- [x] **Eventos Ricos com Descrição em Português e Diretório Completo:**
+  - Implementado enriquecimento automático em `src/utils/metaPixel.js` (`descricao`, `diretorio`, `secao`, `pagina_anterior`, `url_completa`) + `<meta name="referrer" content="no-referrer-when-downgrade" />` em `index.html`.
+- [x] **Sincronização Dual Meta Pixel (`2181846082544846` e `2198770257418355`) + Ponte Direta GA4 (`G-8LBCQ5SBNR`):**
+  - Todos os eventos padrão e personalizados disparam simultaneamente nos 2 conjuntos de dados da Meta e direto para o GA4.
+- [ ] **Configurar Tag de Conversão e Remarketing do Google Ads (`AW-XXXXXXXXXX`):**
+  - Quando finalizar a criação da conta/faturamento no Google Ads, copiar o ID de Conversão (`AW-...`) e o Rótulo de Conversão de "Pedir Cotação" e inserir em `src/utils/metaPixel.js` + GTM (`GTM-K63VC8QP`).
+- [ ] **Gerar e Inserir Token da Meta CAPI (`META_CAPI_ACCESS_TOKEN`) no Render:**
+  - Confirmar conta de desenvolvedor em `https://developers.facebook.com/apps/`, gerar o token no Gerenciador de Eventos para os conjuntos de dados `2181846082544846` e `2198770257418355`, e salvar nas variáveis de ambiente do Render.
+- [x] **Integrar TikTok Pixel (`DBCEG2JC77UASCMGEM1G`):**
+  - Pixel criado no TikTok Ads Manager (`DBCEG2JC77UASCMGEM1G`) e ativado em `index.html` + `src/utils/metaPixel.js` com bloqueio de Staff/Admin, Advanced Matching de clientes e envio automático de todos os eventos ricos (`PageView`, `ViewContent`, `AddToCart`, `Search`, `InitiateCheckout`, `Contact`, `SubmitForm`, `FindLocation`, `CalculateShipping`, `ViewCategory`, `ViewBrand`).
+
+---
+
+## 🤖 10. [AUTOMAÇÃO & IA FUTURA] Coleta e Entrega de Credenciais com Iris (Secretária no Hermes)
+
+- [ ] **10.1 Coleta e Entrega Automatizada de Credenciais via WhatsApp:**
+  - Integrar a agente **Iris** (perfil de secretária do Hermes Agent no WhatsApp) para automatizar a comunicação de produtos digitais.
+  - Quando um pedido digital for faturado/aprovado, a Iris pode acionar o cliente para confirmar modelo/número de série e, assim que o login e senha forem emitidos, realizar o envio automático seguro das credenciais por WhatsApp.
+- [ ] **10.2 Ponte Webhook entre Athena OS e Hermes / Iris:**
+  - Conectar a esteira administrativa de ativações digitais (`DigitalActivationsTab.jsx`) diretamente com a API do Hermes, permitindo disparar a entrega com 1 clique ou via gatilho de status.
+
+---
+
+## 💎 11. [E-COMMERCE AVANÇADO B2B] Arquitetura de Conversão, Fiscal e Operações
+
+> Este módulo reúne conceitos essenciais de e-commerce e faturamento B2B automotivo mapeados para expansão da Athena Soluções Automotivas.
+
+### 🔥 11.1 [ALTA PRIORIDADE] Multi-Pagamento (Split de Pagamento por Pedido)
+- [ ] **Divisão de Pagamento em Múltiplos Cartões ou Cartão + Pix:**
+  - *Problema:* Em equipamentos de alto valor (scanners de R$ 8.000 a R$ 25.000, elevadores e alinhadores 3D), o cliente frequentemente não tem limite integral em um único cartão de crédito.
+  - *Solução:* Permitir dividir o total da compra em **2 cartões de crédito diferentes** (ex: R$ 5.000 em um e R$ 7.000 em outro) ou **Entrada no Pix + Restante no Cartão de Crédito**.
+  - *Implementação:*
+    - Interface no checkout para definir valor do Método 1 e valor do Método 2.
+    - Orquestração de cobranças parciais no gateway Asaas e confirmação do pedido somente após a quitação de ambas as fatias.
+
+### 🛡️ 11.2 [EM EXECUÇÃO] Blindagem Financeira & Idempotência em Pagamentos (Idempotency Keys)
+- [x] **Prevenção de Duplo Débito por Repetição de Requisição:**
+  - Envio de chave de idempotência (`x-idempotency-key`) no header e corpo da cobrança a partir do frontend.
+  - Tabela `payment_idempotency_keys` no PostgreSQL para registrar hashes de requisição, status de processamento (`PROCESSING`, `COMPLETED`, `FAILED`) e replay de resposta idêntica sem duplicar chamada no Asaas.
+  - Bloqueio imediato de cliques duplos e instabilidades de rede durante o processamento de cartões de crédito e Pix.
+
+### 🔄 11.3 [EM EXECUÇÃO] Recorrência & Gestão de Expiração de Licenças (SaaS / Assinaturas de SGW & Scanners)
+- [x] **Ciclo de Vida de Validade das Licenças Digitais:**
+  - Atribuição de validade padrão (ex: 365 dias para SGW Multimarcas e atualizações de scanner).
+  - Campos no banco: `validity_days`, `expires_at`, `renewal_status` (`active`, `expiring_soon`, `expired`, `renewed`).
+  - Painel do Cliente com contador de dias restantes e botão de "Renovar Licença com 1 Clique".
+  - Fila de renovações com réguas D-30, D-15 e D-7 para retenção proativa de oficinas e previsibilidade de receita recorrente.
+
+### 📑 11.4 Inteligência Fiscal B2B: Matriz DIFAL & Substituição Tributária (ICMS-ST)
+- [ ] **Auditoria de Inscrição Estadual e Regras Interestaduais:**
+  - Validação de contribuinte de ICMS (PJ com IE ativa) vs. não-contribuinte na venda de equipamentos.
+  - Alerta transparente de faturamento interestadual (DIFAL / ST) para evitar surpresas fiscais em barreiras estaduais.
+  - Integração dos dados cadastrais completos com o emissor de notas fiscais (Omie / Asaas Fiscal).
+
+### 🚛 11.5 Gestão de Frete Pesado & Logística Especializada (Cubagem, Carga Pesada & Doca)
+- [ ] **Cálculo de Frete Fracionado e Infraestrutura de Descarga:**
+  - Cálculo de cubagem volumétrica `(C x L x A) / 300` para transportadoras de carga pesada (Braspress, Jadlog Cargo, Rodonaves).
+  - Pergunta técnica no checkout de equipamentos pesados (> 100kg): *"A sua oficina possui rampa/doca ou precisa de caminhão com plataforma hidráulica elevatória?"*.
+  - Notificação de agendamento de entrega técnica para montagem no local.
+
+### 🛒 11.6 Recuperação de Carrinho Abandonado via WhatsApp (Lead Recovery)
+- [ ] **Régua Automatizada de Recuperação de Vendas Pendentes:**
+  - Captura imediata de Nome, WhatsApp e E-mail no passo 1 do checkout antes de selecionar pagamento.
+  - Rotina de background: após 30 a 45 minutos sem pagamento confirmado, disparo amigável no WhatsApp perguntando se o cliente precisa de suporte técnico ou auxílio com o número de série.
+  - Link direto de retomada de carrinho com 1 clique.
+
+### 🔧 11.7 Gestão de Pós-Venda, Garantia & RMA (Logística Reversa & Assistência)
+- [ ] **Módulo de Suporte & Troca de Equipamentos:**
+  - Aba na área do cliente para abertura de chamados de garantia e suporte técnico.
+  - Emissão de código de postagem reversa e checklist de envio de scanners com manuais e cabos.
+  - Histórico de calibração e laudo técnico vinculado ao número de série do equipamento.
+
+---
+
+## 📰 12. [CONTEÚDO & SEO AUTOMATIZADO] Motor Autônomo de Blog & Artigos Técnicos com IA (Gemini + Imagen 3 / Flux + R2)
+
+> Este módulo estrutura uma máquina autônoma de geração de tráfego orgânico qualificado para a Athena, capturando mecânicos, funileiros e donos de autocenter no momento exato de suas dúvidas técnicas (SEO de Cauda Longa), convertendo leitores em leads comerciais para o WhatsApp e vendas diretas.
+
+### 📌 12.1 Arquitetura & Fluxo Autônomo de Publicação Diária
+
+```mermaid
+flowchart TD
+    Trends["1. Coleta de Dúvidas & Tendências<br/>(Google Trends / Dores de Oficina / Perguntas Frequentes)"] --> TextAI["2. Motor de Redação Técnica (Gemini API)<br/>(Voz de Especialista Athena, Normas Técnicas, FAQs)"]
+    TextAI --> ImageAI["3. Pipeline de Imagens Automatizado<br/>(Google Imagen 3 / Flux 1 + Branding Sharp + Produtos Reais)"]
+    ImageAI --> Storage["4. Upload Otimizado WebP no Cloudflare R2<br/>(CDN de Alta Velocidade)"]
+    Storage --> Publish["5. Persistência no PostgreSQL & Renderização SPA<br/>(Rota /blog/:slug + Schema.org Article)"]
+    Publish --> SEO["6. Atualização Automática de Sitemap & Notificação<br/>(sitemap.xml + Alerta Telegram com 1 clique de aprovação)"]
+```
+
+---
+
+### 🧠 12.2 Diretrizes de Conteúdo & Proteção Contra Penalizações do Google (Helpful Content)
+- **Tom de Voz de Especialista Técnico:**
+  - A IA não deve produzir textos genéricos de enciclopédia; cada artigo deve ter a persona de um Engenheiro Mecânico / Consultor Técnico da Athena.
+  - Inclusão mandatória de parâmetros reais de oficina: torques (Nm / kgf.m), vazão de ar (PCM), amperagem, bitolas, normas (DIN, ABNT, ISO) e procedimentos de segurança.
+- **Linkagem Interna Inteligente (Internal Linking):**
+  - A IA consulta o banco de dados da Athena (`products`) e insere automaticamente links e cards interativos para os equipamentos relacionados àquele tema (com botão *"Cotar no WhatsApp"* e foto real do item).
+- **Dados Estruturados para o Google:**
+  - Injeção automática de Schema.org `Article`, `FAQPage` (para aparecer nos rich snippets de perguntas do Google) e `BreadcrumbList`.
+
+---
+
+### 🎨 12.3 Pipeline Híbrido de Geração de Imagens Fotorrealistas
+- **1. Capa Fotorrealista por IA (Google Imagen 3 / Flux 1):**
+  - Ao concluir o artigo, o Gemini gera um prompt descritivo em inglês com foco em fotorrealismo de oficina profissional (iluminação de estúdio automotivo, mecânico utilizando a ferramenta, profundidade de campo, 8k).
+  - O backend chama a API de imagem, baixa o buffer, converte para `.webp` compactado e sobe para o bucket **Cloudflare R2** da Athena.
+- **2. Camada de Branding Automatizada (Sharp / Canvas):**
+  - Aplicação opcional de marca d'água sutil ou moldura estilizada com logotipo da Athena Soluções Automotivas e título do post em destaque (otimizando a taxa de cliques para compartilhamentos no WhatsApp, LinkedIn e Google Discover).
+- **3. Injeção de Fotos Oficiais de Produtos do Catálogo:**
+  - No corpo do texto, produtos citados puxam suas fotos oficiais do catálogo da Athena (Sigma Tools, Mahovi, Delta, Lapek, Stärkx) em carrosséis interativos.
+
+---
+
+### 📝 12.4 Checklist de Implementação:
+- [ ] **12.4.1 Modelagem de Dados no PostgreSQL:**
+  - Criar tabela `blog_posts`: `id`, `title`, `slug`, `excerpt`, `content` (Markdown/HTML), `cover_image`, `author`, `category`, `tags` (jsonb), `related_product_ids` (jsonb), `faq_schema` (jsonb), `reading_time_minutes`, `status` (`draft`, `published`), `published_at`, `created_at`.
+- [ ] **12.4.2 Serviço Backend de Geração de Artigo & Imagem (`blogGenerationService.js`):**
+  - Função para selecionar temas de alta busca (balanceamento, alinhamento 3D, politrizes, elevadores, scanners).
+  - Integração com Gemini API para estruturação de título, introdução, passos práticos, tabela técnica, FAQs e chamada comercial (CTA).
+  - Integração com API de geração de imagem (Google Imagen 3 ou Flux 1) + upload no Cloudflare R2 via `r2Service.js`.
+- [ ] **12.4.3 Frontend do Blog (Página de Listagem & Detalhes):**
+  - Rota `/blog` com grid de artigos, filtro por categorias (Oficina & Elétrica, Detalhamento & Pintura, Pneus & Alinhamento), busca e barra de artigos em destaque.
+  - Rota `/blog/:slug` com leitura limpa, barra de progresso de leitura, sumário interativo, cards de produtos citados integrados ao carrinho/cotação e botão de compartilhamento no WhatsApp.
+- [ ] **12.4.4 SEO & Sitemap Automático:**
+  - Atualização do `backend/generateSitemap.js` para incluir todas as URLs de posts publicados dinamicamente.
+  - Metatags dinâmicas (`og:title`, `og:image`, `og:description`, `article:published_time`).
+- [ ] **12.4.5 Fluxo Human-in-the-Loop via Telegram:**
+  - Agendador diário (cron) que gera o post como `draft` e envia um card no Telegram da equipe com prévia da foto, título e botão inline *"Aprovar & Publicar Agora"* ou *"Editar"*.
+
+---
+
+## 📱 13. [PLANEJAMENTO] Automação Social & Conversão via ManyChat (Instagram Direct & Athena CRM)
+
+### 📌 Contexto & Motivação
+- A estratégia com maior taxa de conversão e engajamento orgânico no Instagram para equipamentos e ferramentas de oficina é a **automação de comentários** (*"Comente X que te envio o link no direct"*).
+- Fazer esse atendimento manualmente é inviável, lento e resulta em perda de vendas quando clientes comentam fora do horário comercial (noites e finais de semana).
+- Utilizando o **ManyChat** (parceiro oficial homologado pela Meta), a resposta é disparada em menos de **2 segundos**, 24h por dia, sem risco de bloqueio.
+
+---
+
+### 🔄 Arquitetura do Fluxo de Conversão (ManyChat ➔ Catálogo ➔ CRM)
+
+```mermaid
+flowchart TD
+    Post["1. Post / Reels no Instagram<br/>(Ex: Demonstração Scanner Raven / Elevador)"] --> Comment["2. Cliente Comenta Palavra-Chave<br/>('RAVEN', 'PREÇO', 'COTAÇÃO', 'QUERO')"]
+    Comment --> ManyChat["3. ManyChat (API Oficial Meta em <2s)"]
+    
+    ManyChat --> PublicReply["4. Resposta Pública no Comentário<br/>('Te mandamos todos os detalhes no direct! Dá uma olhada lá 🚀')<br/>(Aquece o algoritmo do Instagram)"]
+    ManyChat --> DirectMsg["5. Mensagem Automática no Direct<br/>(Link clicável do produto no Catálogo Athena + Ficha Técnica)"]
+    
+    DirectMsg --> Catalog["6. Navegação no Catálogo Athena<br/>(athenaconsultoria.com.br/produto/:slug)"]
+    DirectMsg --> WhatsApp["7. Botão CTA: Falar com Consultor Técnico<br/>(Lidiane ou Henrique no WhatsApp Oficial)"]
+    
+    ManyChat -.->|Webhook Opcional| CRM["8. Athena CRM (/api/crm/leads)<br/>(Criação automática do Lead no Funil de Vendas)"]
+```
+
+---
+
+### 📝 Checklist de Implementação:
+- [ ] **13.1 Conexão da Conta Oficial:**
+  - Conectar a conta comercial do Instagram `@athena.solucoes.automotivas` ao ManyChat via login com Facebook Meta Business.
+- [ ] **13.2 Configuração da Ferramenta de Comentários (Instagram Comment Growth Tool):**
+  - Mapear gatilhos por palavras-chave de interesse: `RAVEN`, `ELEVADOR`, `MAHOVI`, `POLITRIZ`, `PREÇO`, `COTAÇÃO`, `CATALOGO`, `QUERO`.
+  - Configurar variação de 3 a 5 respostas públicas randômicas para evitar respostas idênticas (ex: *"Acabamos de te enviar no direct!"*, *"Confira sua caixa de mensagens 🚀"*, *"Enviamos a ficha técnica e valores no direct!"*).
+- [ ] **13.3 Template de Mensagens no Direct com Links Oficiais:**
+  - Mensagem acolhedora com apresentação técnica rápida.
+  - Link direto e clicável para o produto ou categoria no catálogo Athena (`https://www.athenaconsultoria.com.br/produto/...`).
+  - Botão de ação direta para o WhatsApp comercial com mensagem parametrizada (ex: *"Olá! Vim pelo Instagram e tenho interesse no Scanner Raven 3"*).
+- [ ] **13.4 Webhook de Integração com o Athena CRM:**
+  - Criar endpoint no backend Athena (`POST /api/webhooks/manychat`) para receber dados do lead (nome, username do Instagram, equipamento de interesse).
+  - Alimentar automaticamente a coluna *"Primeiro Contato"* do Kanban do CRM para acompanhamento dos vendedores.
+
+
+
+
+

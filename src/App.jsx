@@ -1,0 +1,1929 @@
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import Header from './components/Header';
+import HeroSlim from './components/HeroSlim';
+import HomeBannerCarousel from './components/HomeBannerCarousel';
+import Catalog from './components/Catalog';
+import ServerErrorPage from './pages/ServerErrorPage';
+import { lazyWithRetry } from './utils/lazyWithRetry';
+
+// Lazy-loaded pages and heavy panels with auto-retry on new deployments
+const AdminPanel = lazyWithRetry(() => import('./components/AdminPanel'));
+const ProductDetailPage = lazyWithRetry(() => import('./pages/ProductDetailPage'));
+const CategoryPage = lazyWithRetry(() => import('./pages/CategoryPage'));
+const BrandPage = lazyWithRetry(() => import('./pages/BrandPage'));
+const AboutPage = lazyWithRetry(() => import('./pages/AboutPage'));
+const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'));
+const CustomerAccountPage = lazyWithRetry(() => import('./pages/CustomerAccountPage'));
+const NotFoundPage = lazyWithRetry(() => import('./pages/NotFoundPage'));
+const LegalPage = lazyWithRetry(() => import('./pages/LegalPage'));
+const ThankYouPage = lazyWithRetry(() => import('./pages/ThankYouPage'));
+
+import Footer from './components/Footer';
+import Toast from './components/Toast';
+import ErrorBoundary from './components/ErrorBoundary';
+import BottomNavBar from './components/BottomNavBar';
+import ComparisonFloatingBar from './components/ComparisonFloatingBar';
+import ProductComparisonModal from './components/ProductComparisonModal';
+import CartDrawer from './components/CartDrawer';
+import InstallmentModal from './components/InstallmentModal';
+import APointsBanner from './components/APointsBanner';
+import EmailVerificationModal from './components/EmailVerificationModal';
+import ForceChangePasswordModal from './components/ForceChangePasswordModal';
+import CookieConsentBanner from './components/CookieConsentBanner';
+import { CartProvider, useCart } from './context/CartContext';
+
+import { INITIAL_CATEGORIES, INITIAL_BRANDS, INITIAL_PRODUCTS, INITIAL_BANNERS } from './data/initialData';
+import { MACRO_DEPARTMENTS } from './data/departmentsData';
+import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
+import { 
+  safeStorageGet, 
+  safeStorageSet, 
+  safeStorageRemove, 
+  idbGet, 
+  idbSet,
+  saveSession, 
+  getSession, 
+  touchSession, 
+  clearSession, 
+  isSessionExpired,
+  getLocalCatalogVersion,
+  setLocalCatalogVersion,
+  clearCatalogCache
+} from './utils/storage';
+
+import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
+import { trackMetaEvent, trackMetaCustom, pushGtmEvent } from './utils/metaPixel';
+
+const REMOTE_API_BASE_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !/^192\.168\./.test(window.location.hostname) && !/^127\./.test(window.location.hostname)
+  ? '/api'
+  : (import.meta.env.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api');
+const LOCAL_API_BASE_URL = typeof window !== 'undefined' 
+  ? `${window.location.protocol}//${window.location.hostname}:3001/api` 
+  : 'http://localhost:3001/api';
+const IS_LOCALHOST = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' || 
+  window.location.hostname === '127.0.0.1' || 
+  window.location.hostname === '0.0.0.0' ||
+  /^192\.168\./.test(window.location.hostname) ||
+  /^10\./.test(window.location.hostname) ||
+  /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname)
+);
+
+export let activeApiBaseUrl = IS_LOCALHOST ? LOCAL_API_BASE_URL : REMOTE_API_BASE_URL;
+const API_BASE_URL = activeApiBaseUrl;
+
+// Helper component to connect global cart checkout modal with CartContext
+function GlobalCartCheckout({ currentUser }) {
+  const { isCheckoutOpen, checkoutTarget, closeCheckout, clearCart } = useCart();
+
+  if (!isCheckoutOpen || !checkoutTarget) return null;
+
+  return (
+    <InstallmentModal
+      isOpen={isCheckoutOpen}
+      onClose={closeCheckout}
+      items={checkoutTarget.items || []}
+      currentUser={currentUser}
+      onOrderCompleted={() => {
+        clearCart();
+      }}
+    />
+  );
+}
+
+function PageLoadingFallback({ message = 'Carregando...' }) {
+  return (
+    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 p-8 text-slate-500">
+      <div className="w-9 h-9 border-3 border-amber-500 border-t-transparent rounded-full animate-spin" />
+      <span className="text-xs font-bold tracking-wider uppercase text-slate-400">{message}</span>
+    </div>
+  );
+}
+
+export default function App() {
+  const [products, setProducts] = useState(() => {
+    const saved = safeStorageGet('athena_products', null);
+    if (Array.isArray(saved) && saved.length > 0) {
+      return saved;
+    }
+    return INITIAL_PRODUCTS;
+  });
+
+  const [categories, setCategories] = useState(() => {
+    const saved = safeStorageGet('athena_categories', null);
+    if (Array.isArray(saved) && saved.length > 0) {
+      const merged = [...saved];
+      INITIAL_CATEGORIES.forEach((ic) => {
+        if (!merged.some((c) => c.id === ic.id || (c.slug && c.slug === ic.slug))) {
+          merged.push(ic);
+        }
+      });
+      return merged;
+    }
+    return INITIAL_CATEGORIES;
+  });
+
+  const [brands, setBrands] = useState(() => {
+    const saved = safeStorageGet('athena_brands', null);
+    if (Array.isArray(saved) && saved.length > 0) {
+      const merged = [...saved];
+      INITIAL_BRANDS.forEach((ib) => {
+        if (!merged.some((b) => b.id === ib.id || (b.slug && b.slug === ib.slug))) {
+          merged.push(ib);
+        }
+      });
+      return merged;
+    }
+    return INITIAL_BRANDS;
+  });
+
+  const [banners, setBanners] = useState(() => {
+    const saved = safeStorageGet('athena_banners', null);
+    if (Array.isArray(saved) && saved.length > 0) return saved;
+    return INITIAL_BANNERS;
+  });
+
+  const [departments, setDepartments] = useState(() => {
+    const saved = safeStorageGet('athena_departments', null);
+    if (Array.isArray(saved) && saved.length > 0) {
+      return saved;
+    }
+    return MACRO_DEPARTMENTS;
+  });
+
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+
+  // Authenticated User State (OWASP Secure Session with Inactivity Timeout & Expiration)
+  const [currentUser, setCurrentUser] = useState(() => {
+    return getSession();
+  });
+
+  // Clean HTML5 Router (Zero "#" symbols, beautiful URLs like /admin, /produto/elevador)
+  const getRouteFromUrl = () => {
+    const path = window.location.pathname.replace(/^\//, '');
+    if (path) return path;
+    if (window.location.hash) {
+      return window.location.hash.replace('#/', '').replace('#', '');
+    }
+    return 'catalog';
+  };
+
+  const [currentRoute, setCurrentRoute] = useState(getRouteFromUrl);
+  const [previousRoute, setPreviousRoute] = useState(null);
+  const [activeAdminTab, setActiveAdminTab] = useState('products');
+
+  const getInitialFiltersFromUrl = () => {
+    if (typeof window === 'undefined') {
+      return { search: '', categories: [], brands: [], maxPrice: null };
+    }
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const search = params.get('busca') || params.get('q') || params.get('search') || '';
+
+      const catRaw = params.getAll('categoria').concat(params.getAll('cat'));
+      const catList = catRaw.flatMap((c) => c.split(',')).map((c) => c.trim()).filter(Boolean);
+
+      const brandRaw = params.getAll('marca').concat(params.getAll('brand'));
+      const brandList = brandRaw.flatMap((b) => b.split(',')).map((b) => b.trim()).filter(Boolean);
+
+      const priceRaw = params.get('preco_max') || params.get('precoMax') || params.get('max_price');
+      const maxPrice = priceRaw && !isNaN(Number(priceRaw)) ? Number(priceRaw) : null;
+
+      return { search, categories: catList, brands: brandList, maxPrice };
+    } catch (_) {
+      return { search: '', categories: [], brands: [], maxPrice: null };
+    }
+  };
+
+  const initialUrlFilters = useRef(getInitialFiltersFromUrl()).current;
+
+  // Multi-Selection E-commerce Filter States (Synced with URL)
+  const [searchTerm, setSearchTerm] = useState(initialUrlFilters.search);
+  const [selectedCategories, setSelectedCategories] = useState(initialUrlFilters.categories);
+  const [selectedBrands, setSelectedBrands] = useState(initialUrlFilters.brands);
+  const [maxPriceFilter, setMaxPriceFilter] = useState(initialUrlFilters.maxPrice);
+
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  // Side-by-Side Product Comparison States
+  const [comparisonList, setComparisonList] = useState([]);
+  const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+
+  // Email Security Verification Modal States
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+  const pendingVerificationActionRef = useRef(null);
+
+  const requireVerification = (actionCallback) => {
+    if (currentUser && currentUser.role !== 'admin' && !currentUser.isVerified) {
+      pendingVerificationActionRef.current = actionCallback || null;
+      setIsVerificationModalOpen(true);
+      return true; // Action gated for verification
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.removeItem('chunk_reload_retry');
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    if (isComparisonModalOpen) {
+      const orig = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = orig;
+      };
+    }
+  }, [isComparisonModalOpen]);
+
+  const handleToggleComparison = (product) => {
+    if (comparisonList.some((p) => p.id === product.id)) {
+      setComparisonList((prev) => prev.filter((p) => p.id !== product.id));
+      showNotification('Equipamento removido do comparador.', 'info');
+    } else {
+      if (comparisonList.length >= 3) {
+        showNotification('Você pode comparar até 3 modelos simultaneamente.', 'info');
+        return;
+      }
+      const nextCount = comparisonList.length + 1;
+      setComparisonList((prev) => [...prev, product]);
+      showNotification(`"${product.name.slice(0, 28)}..." adicionado ao comparador!`, 'success');
+
+      const brandObj = brands.find(b => b.id === product.brandId);
+      const catObj = categories.find(c => c.id === product.categoryId);
+      const prodCode = product.sku || product.id;
+      trackMetaCustom('CompareProduct', {
+        descricao: `Adicionou ao comparador técnico (${nextCount}/3): ${product.name} [${prodCode}]`,
+        product_id: prodCode,
+        product_name: product.name,
+        brand_name: brandObj?.name || '',
+        content_category: catObj?.name || '',
+        comparison_count: nextCount
+      });
+    }
+  };
+
+  const handleRemoveComparisonItem = (productId) => {
+    setComparisonList((prev) => {
+      const updated = prev.filter((p) => p.id !== productId);
+      if (updated.length === 0) setIsComparisonModalOpen(false);
+      return updated;
+    });
+  };
+
+  const handleClearComparison = () => {
+    setComparisonList([]);
+    setIsComparisonModalOpen(false);
+    showNotification('Comparador limpo.', 'info');
+  };
+
+  // Auth Handlers (OWASP Session Management)
+  const handleLoginSuccess = (userObj) => {
+    const saved = saveSession(userObj);
+    setCurrentUser(saved);
+    showNotification(`Bem-vindo, ${userObj.name}!`, 'success');
+    if (typeof React.startTransition === 'function') {
+      React.startTransition(() => {
+        if (userObj.role === 'admin' || userObj.role === 'vendedor') {
+          navigateTo('admin');
+        } else {
+          navigateTo('minha-conta');
+        }
+      });
+    } else {
+      if (userObj.role === 'admin' || userObj.role === 'vendedor') {
+        navigateTo('admin');
+      } else {
+        navigateTo('minha-conta');
+      }
+    }
+  };
+
+  const handleLogout = (msg) => {
+    clearSession();
+    setCurrentUser(null);
+    const text = typeof msg === 'string' ? msg : 'Você saiu da sua conta.';
+    showNotification(text, 'info');
+    navigateTo('catalog');
+  };
+
+  const handleSessionExpired = (msg) => {
+    clearSession();
+    setCurrentUser(null);
+    const text = typeof msg === 'string' ? msg : 'Sua sessão expirou por inatividade para sua segurança. Faça login novamente.';
+    showNotification(text, 'error');
+  };
+
+  // Helper for Authorization Headers
+  const getAuthHeaders = () => {
+    const session = getSession();
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.token ? { 'Authorization': `Bearer ${session.token}` } : {})
+    };
+  };
+
+  const handleApiUnauthorized = (res) => {
+    if (res && (res.status === 401 || res.status === 403)) {
+      handleSessionExpired('Sua sessão expirou no servidor. Por favor, faça login novamente.');
+      return true;
+    }
+    return false;
+  };
+
+  // Active Session Lifetime, Inactivity Auto-Logout (30 min) and Cross-Tab Synchronization
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let lastTouch = Date.now();
+    const handleUserActivity = () => {
+      const now = Date.now();
+      // Throttle activity updates to once every 15 seconds
+      if (now - lastTouch > 15000) {
+        lastTouch = now;
+        touchSession();
+      }
+    };
+
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach((ev) => window.addEventListener(ev, handleUserActivity, { passive: true }));
+
+    // Check session validity periodically every 15 seconds
+    const intervalId = setInterval(() => {
+      const validSession = getSession();
+      if (!validSession && currentUser) {
+        handleSessionExpired('Sua sessão expirou por inatividade (30 minutos). Faça login novamente.');
+      }
+    }, 15000);
+
+    // Cross-tab synchronization via storage event
+    const handleStorageChange = (e) => {
+      if (e.key === 'athena_user') {
+        if (!e.newValue) {
+          setCurrentUser(null);
+          if (currentRoute === 'admin') {
+            showNotification('Sessão encerrada em outra aba.', 'info');
+          }
+        } else {
+          try {
+            const updated = JSON.parse(e.newValue);
+            if (isSessionExpired(updated)) {
+              clearSession();
+              setCurrentUser(null);
+            } else {
+              setCurrentUser(updated);
+            }
+          } catch (err) {}
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      activityEvents.forEach((ev) => window.removeEventListener(ev, handleUserActivity));
+      clearInterval(intervalId);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [currentUser, currentRoute]);
+
+  // Navigation helper using HTML5 PushState (Clean URLs without hashtags)
+  const navigateTo = (routePath) => {
+    setPreviousRoute(currentRoute);
+    const cleanPath = routePath.startsWith('/') ? routePath : `/${routePath}`;
+    window.history.pushState({}, '', cleanPath);
+    setCurrentRoute(routePath.replace(/^\//, ''));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Resolve category/brand slugs from initial URL to internal IDs when catalog metadata loads
+  useEffect(() => {
+    if (categories.length > 0 && selectedCategories.length > 0) {
+      const resolved = selectedCategories.map((item) => {
+        const found = categories.find((c) => c.slug === item || c.id === item);
+        return found ? found.id : item;
+      });
+      const hasChanged = resolved.some((id, idx) => id !== selectedCategories[idx]);
+      if (hasChanged) {
+        setSelectedCategories(resolved);
+      }
+    }
+  }, [categories]);
+
+  useEffect(() => {
+    if (brands.length > 0 && selectedBrands.length > 0) {
+      const resolved = selectedBrands.map((item) => {
+        const found = brands.find((b) => b.slug === item || b.id === item);
+        return found ? found.id : item;
+      });
+      const hasChanged = resolved.some((id, idx) => id !== selectedBrands[idx]);
+      if (hasChanged) {
+        setSelectedBrands(resolved);
+      }
+    }
+  }, [brands]);
+
+  // Route change listener for browser back/forward and F5 persistence
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const route = getRouteFromUrl();
+      const isCatalog = !route || route === 'catalog' || route === 'catalogo' || route === 'inicio' || route === 'home';
+      if (isCatalog) {
+        const filters = getInitialFiltersFromUrl();
+        setSearchTerm(filters.search);
+        if (filters.categories.length > 0) setSelectedCategories(filters.categories);
+        if (filters.brands.length > 0) setSelectedBrands(filters.brands);
+        setMaxPriceFilter(filters.maxPrice);
+      }
+      setCurrentRoute((prev) => {
+        setPreviousRoute(prev);
+        return route;
+      });
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, []);
+
+  // Synchronize Catalog Filters & Search with URL query parameters (Debounced & Clean)
+  useEffect(() => {
+    const isCatalogRoute = !currentRoute || currentRoute === 'catalog' || currentRoute === 'catalogo' || currentRoute === 'inicio' || currentRoute === 'home';
+    if (!isCatalogRoute) return;
+
+    const timer = setTimeout(() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+
+        // 1. Search term
+        const cleanSearch = (searchTerm || '').trim();
+        if (cleanSearch) {
+          params.set('busca', cleanSearch);
+          params.delete('q');
+          params.delete('search');
+        } else {
+          params.delete('busca');
+          params.delete('q');
+          params.delete('search');
+        }
+
+        // 2. Categories (convert IDs to friendly slugs if available)
+        if (selectedCategories.length > 0) {
+          const catSlugs = selectedCategories.map((catId) => {
+            const found = categories.find((c) => c.id === catId);
+            return found?.slug || catId;
+          });
+          params.set('categoria', catSlugs.join(','));
+          params.delete('cat');
+        } else {
+          params.delete('categoria');
+          params.delete('cat');
+        }
+
+        // 3. Brands (convert IDs to friendly slugs if available)
+        if (selectedBrands.length > 0) {
+          const brandSlugs = selectedBrands.map((bId) => {
+            const found = brands.find((b) => b.id === bId);
+            return found?.slug || bId;
+          });
+          params.set('marca', brandSlugs.join(','));
+          params.delete('brand');
+        } else {
+          params.delete('marca');
+          params.delete('brand');
+        }
+
+        // 4. Max Price
+        if (maxPriceFilter !== null && maxPriceFilter > 0) {
+          params.set('preco_max', String(maxPriceFilter));
+          params.delete('precoMax');
+        } else {
+          params.delete('preco_max');
+          params.delete('precoMax');
+        }
+
+        const queryString = params.toString();
+        const pathname = window.location.pathname;
+        const basePath = pathname === '/catalogo' ? '/catalogo' : '/';
+        const targetUrl = queryString ? `${basePath}?${queryString}` : basePath;
+
+        const currentFullUrl = window.location.pathname + window.location.search;
+        if (currentFullUrl !== targetUrl) {
+          window.history.replaceState({}, '', targetUrl);
+        }
+      } catch (_) {}
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, selectedCategories, selectedBrands, maxPriceFilter, currentRoute, categories, brands]);
+
+  // Track Meta Pixel & Google Tag Manager PageView + Category/Brand Exploration on SPA route change
+  useEffect(() => {
+    const cleanRoute = (currentRoute || 'catalog').replace(/^\//, '');
+    const diretorio = `/${cleanRoute === 'catalog' ? 'catalogo' : cleanRoute}`;
+    const paginaAnterior = previousRoute ? `/${previousRoute === 'catalog' ? 'catalogo' : previousRoute}` : 'Acesso Direto / Externo';
+
+    let secao = 'Catálogo Principal';
+    let itemNome = 'Vitrine Geral de Equipamentos';
+    let descricaoPageView = `Navegou para Catálogo Principal (${diretorio})`;
+
+    if (cleanRoute.startsWith('produto/') || cleanRoute.startsWith('product:')) {
+      const slugOrId = (cleanRoute.includes('/') ? cleanRoute.split('/')[1] : cleanRoute.split(':')[1] || '').split('?')[0];
+      const prodObj = products.find(p => p.slug === slugOrId || String(p.id) === String(slugOrId));
+      const brandObj = prodObj ? brands.find(b => b.id === prodObj.brandId) : null;
+      const catObj = prodObj ? categories.find(c => c.id === prodObj.categoryId) : null;
+      secao = 'Página de Produto';
+      itemNome = prodObj?.name || slugOrId;
+      descricaoPageView = `Acessou Página de Produto: ${itemNome}${prodObj?.sku ? ` [${prodObj.sku}]` : ''}${brandObj?.name ? ` | Marca: ${brandObj.name}` : ''}${catObj?.name ? ` | Cat: ${catObj.name}` : ''} (${diretorio})`;
+    } else if (cleanRoute.startsWith('categoria/') || cleanRoute.startsWith('category:')) {
+      const catSlug = cleanRoute.includes('/') ? cleanRoute.split('/')[1] : cleanRoute.split(':')[1];
+      const catObj = categories.find(c => c.slug === catSlug || c.id === catSlug);
+      const count = catObj ? products.filter(p => p.categoryId === catObj.id && isProductPublished(p)).length : null;
+      secao = 'Página de Categoria';
+      itemNome = catObj?.name || catSlug;
+      descricaoPageView = `Acessou Categoria: ${itemNome}${count != null ? ` (${count} equipamentos)` : ''} (${diretorio})`;
+
+      trackMetaCustom('ViewCategory', {
+        descricao: `Explorou a categoria: ${itemNome}${count != null ? ` (${count} equipamentos disponíveis)` : ''} (${diretorio})`,
+        category_id: catObj?.id || catSlug,
+        category_name: itemNome,
+        category_slug: catObj?.slug || catSlug,
+        products_count: count,
+        diretorio,
+        pagina_anterior: paginaAnterior
+      });
+    } else if (cleanRoute.startsWith('marca/') || cleanRoute.startsWith('brand:')) {
+      const brandSlug = cleanRoute.includes('/') ? cleanRoute.split('/')[1] : cleanRoute.split(':')[1];
+      const brandObj = brands.find(b => b.slug === brandSlug || b.id === brandSlug);
+      const count = brandObj ? products.filter(p => p.brandId === brandObj.id && isProductPublished(p)).length : null;
+      secao = 'Página de Marca';
+      itemNome = brandObj?.name || brandSlug;
+      descricaoPageView = `Acessou Marca: ${itemNome}${count != null ? ` (${count} equipamentos)` : ''} (${diretorio})`;
+
+      trackMetaCustom('ViewBrand', {
+        descricao: `Explorou a marca: ${itemNome}${count != null ? ` (${count} equipamentos disponíveis)` : ''} (${diretorio})`,
+        brand_id: brandObj?.id || brandSlug,
+        brand_name: itemNome,
+        brand_slug: brandObj?.slug || brandSlug,
+        products_count: count,
+        diretorio,
+        pagina_anterior: paginaAnterior
+      });
+    } else if (cleanRoute === 'categorias' || cleanRoute === 'categories') {
+      secao = 'Índice de Categorias';
+      itemNome = 'Todas as Categorias';
+      descricaoPageView = `Acessou Índice de Todas as Categorias (${diretorio})`;
+    } else if (cleanRoute === 'marcas' || cleanRoute === 'brands') {
+      secao = 'Índice de Marcas';
+      itemNome = 'Todas as Marcas Parceiras';
+      descricaoPageView = `Acessou Índice de Todas as Marcas (${diretorio})`;
+    } else if (cleanRoute === 'sobre' || cleanRoute === 'about' || cleanRoute === 'quem-somos') {
+      secao = 'Institucional / Sobre a Athena';
+      itemNome = 'Sobre a Athena Soluções Automotivas';
+      descricaoPageView = `Acessou Página Institucional Sobre a Athena (${diretorio})`;
+    } else if (cleanRoute === 'minha-conta' || cleanRoute === 'account' || cleanRoute === 'pedidos') {
+      secao = 'Área do Cliente';
+      itemNome = 'Minha Conta / Pedidos';
+      descricaoPageView = `Acessou Área do Cliente (${diretorio})`;
+    }
+
+    const pageViewPayload = {
+      descricao: descricaoPageView,
+      diretorio,
+      secao,
+      content_name: itemNome,
+      pagina_anterior: paginaAnterior,
+      url_completa: window.location.href,
+      titulo_pagina: document.title
+    };
+
+    trackMetaEvent('PageView', pageViewPayload);
+    pushGtmEvent('virtual_page_view', {
+      ...pageViewPayload,
+      page_path: diretorio,
+      page_title: document.title
+    });
+  }, [currentRoute]);
+
+  // Track Catalog Search Terms (debounced 900ms) on Meta Pixel & GA4
+  useEffect(() => {
+    const cleanSearch = (searchTerm || '').trim();
+    if (cleanSearch.length < 3) return;
+    const timer = setTimeout(() => {
+      const qLower = cleanSearch.toLowerCase();
+      const matched = (products || []).filter(p => {
+        if (!isProductPublished(p)) return false;
+        const nameMatch = (p.name || '').toLowerCase().includes(qLower);
+        const skuMatch = (p.sku || '').toLowerCase().includes(qLower);
+        const descMatch = (p.description || '').toLowerCase().includes(qLower);
+        return nameMatch || skuMatch || descMatch;
+      });
+      const sampleNames = matched.slice(0, 3).map(p => `${p.name}${p.sku ? ` [${p.sku}]` : ''}`).join(' | ');
+
+      trackMetaEvent('Search', {
+        descricao: `Pesquisou por "${cleanSearch}" no catálogo (${matched.length} equipamentos encontrados)`,
+        search_string: cleanSearch,
+        results_count: matched.length,
+        sample_results: sampleNames || 'Nenhum resultado direto'
+      });
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Load heavy data from IndexedDB on startup
+  useEffect(() => {
+    const loadFromIndexedDB = async () => {
+      try {
+        const [idbProds, idbCats, idbBrands] = await Promise.all([
+          idbGet('athena_products'),
+          idbGet('athena_categories'),
+          idbGet('athena_brands')
+        ]);
+        if (Array.isArray(idbProds) && idbProds.length > 0) {
+          const normProds = idbProds.map(normalizeProduct);
+          setProducts((prev) => {
+            if (prev.length === 0 || prev.length <= INITIAL_PRODUCTS.length) {
+              return normProds;
+            }
+            return prev;
+          });
+        }
+        if (Array.isArray(idbCats) && idbCats.length > 0) {
+          setCategories((prev) => (prev.length <= INITIAL_CATEGORIES.length ? idbCats : prev));
+        }
+        if (Array.isArray(idbBrands) && idbBrands.length > 0) {
+          setBrands((prev) => (prev.length <= INITIAL_BRANDS.length ? idbBrands.map(normalizeBrand) : prev));
+        }
+      } catch (e) {
+        console.warn('[Athena Storage] Erro ao sincronizar IndexedDB:', e);
+      }
+    };
+    loadFromIndexedDB();
+  }, []);
+
+  // Dynamic SWR Catalog Revalidation (Background Tab Focus / Visibility Change)
+  const lastRevalidateRef = useRef(Date.now());
+  const revalidateCatalog = useCallback(async () => {
+    const now = Date.now();
+    // Throttle background revalidation to at most once every 20 seconds
+    if (now - lastRevalidateRef.current < 20000) return;
+    lastRevalidateRef.current = now;
+
+    try {
+      const vRes = await fetch(`${activeApiBaseUrl}/catalog/version`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (!vRes.ok) return;
+      const vData = await vRes.json();
+      const serverVersion = vData?.version || null;
+      const serverTotal = vData?.total || null;
+      const localVersion = getLocalCatalogVersion();
+      const cachedProds = safeStorageGet('athena_products', null);
+      const currentCount = Array.isArray(cachedProds) ? cachedProds.length : (Array.isArray(products) ? products.length : 0);
+
+      const shouldSync = Boolean((serverVersion && serverVersion !== localVersion) || (serverTotal && currentCount !== serverTotal));
+
+      if (shouldSync) {
+        console.log(`[Athena SWR] Modificação detectada no servidor (${localVersion || 'nenhum'} [${currentCount}] -> ${serverVersion || 'sync'} [${serverTotal}]). Sincronizando catálogo...`);
+        const pRes = await fetch(`${activeApiBaseUrl}/products`);
+        if (pRes.ok) {
+          const prodData = await pRes.json();
+          const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
+          if (rawProducts.length > 0) {
+            const normProds = rawProducts.map(normalizeProduct);
+            safeStorageSet('athena_products', normProds);
+            idbSet('athena_products', normProds).catch(() => {});
+            setProducts(normProds);
+            if (serverVersion) {
+              setLocalCatalogVersion(serverVersion);
+            }
+            console.log(`[Athena SWR] Catálogo atualizado em segundo plano com sucesso (versão: ${serverVersion || 'sync'}, ${normProds.length} produtos).`);
+          }
+        }
+      }
+    } catch (e) {
+      // Silently ignore background revalidation network hiccup
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleRevalidate = () => {
+      if (document.visibilityState === 'visible') {
+        revalidateCatalog();
+      }
+    };
+    window.addEventListener('focus', handleRevalidate);
+    document.addEventListener('visibilitychange', handleRevalidate);
+    return () => {
+      window.removeEventListener('focus', handleRevalidate);
+      document.removeEventListener('visibilitychange', handleRevalidate);
+    };
+  }, [revalidateCatalog]);
+
+  // Sincroniza banners atualizados no cache local e IndexedDB para reaberturas instantâneas e LCP preload
+  useEffect(() => {
+    if (Array.isArray(banners) && banners.length > 0) {
+      safeStorageSet('athena_banners', banners);
+      idbSet('athena_banners', banners).catch(() => {});
+    }
+  }, [banners]);
+
+  // Fetch from NestJS / Node backend if available (SWR Dynamic Sync)
+  useEffect(() => {
+    let retryTimer = null;
+    let isMounted = true;
+
+    const fetchBackendData = async (attempt = 1) => {
+      try {
+        let currentBaseUrl = activeApiBaseUrl;
+
+        // If on localhost, verify if local port 3001 is reachable. If not, fallback immediately to remote Render API
+        if (IS_LOCALHOST && currentBaseUrl === LOCAL_API_BASE_URL) {
+          try {
+            const probe = await fetch(`${LOCAL_API_BASE_URL}/categories`, { 
+              method: 'GET', 
+              signal: AbortSignal.timeout(1500) 
+            });
+            if (!probe.ok) {
+              currentBaseUrl = REMOTE_API_BASE_URL;
+              activeApiBaseUrl = REMOTE_API_BASE_URL;
+            }
+          } catch {
+            currentBaseUrl = REMOTE_API_BASE_URL;
+            activeApiBaseUrl = REMOTE_API_BASE_URL;
+          }
+        }
+
+        // 1. Dynamic version check: verify if client catalog is already byte-for-byte in sync with PostgreSQL
+        let serverVersion = null;
+        let serverTotal = null;
+        try {
+          const versionRes = await fetch(`${currentBaseUrl}/catalog/version`, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' },
+            signal: AbortSignal.timeout(3000)
+          });
+          if (versionRes.ok) {
+            const vData = await versionRes.json();
+            serverVersion = vData?.version || null;
+            serverTotal = vData?.total || null;
+          }
+        } catch (vErr) {
+          console.warn('[Athena SWR] Verificação rápida de versão falhou:', vErr.message);
+        }
+
+        const localVersion = getLocalCatalogVersion();
+        const idbProds = await idbGet('athena_products');
+        const cachedCount = (Array.isArray(idbProds) && idbProds.length > 0)
+          ? idbProds.length
+          : (Array.isArray(products) ? products.length : 0);
+        const countMatches = !serverTotal || cachedCount === serverTotal;
+        const hasCachedProducts = cachedCount > 50;
+        const isCatalogCurrent = Boolean(serverVersion && localVersion && serverVersion === localVersion && hasCachedProducts && countMatches);
+
+        if (serverVersion && (serverVersion !== localVersion || !countMatches)) {
+          console.log(`[Athena SWR] Desalinhamento de versão/contagem (Local: ${localVersion} [${cachedCount}], Servidor: ${serverVersion} [${serverTotal}]). Limpando cache e sincronizando...`);
+          clearCatalogCache();
+        }
+
+        // 1.5 Early dispatch for hero banners & departments so first viewport renders in <150ms
+        fetch(`${currentBaseUrl}/banners?all=true`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((bannerData) => {
+            if (Array.isArray(bannerData) && isMounted) {
+              setBanners(bannerData);
+              safeStorageSet('athena_banners', bannerData);
+              idbSet('athena_banners', bannerData).catch(() => {});
+            }
+          })
+          .catch(() => {});
+
+        // 2. Skip 3.4MB /products payload if exact PostgreSQL snapshot is already cached
+        const [prodRes, catRes, brandRes, deptRes] = await Promise.all([
+          isCatalogCurrent ? Promise.resolve(null) : fetch(`${currentBaseUrl}/products`),
+          fetch(`${currentBaseUrl}/categories`),
+          fetch(`${currentBaseUrl}/brands`),
+          fetch(`${currentBaseUrl}/departments`).catch(() => ({ ok: false }))
+        ]);
+
+        // 3. Process products if fresh data arrived
+        if (!isCatalogCurrent && prodRes) {
+          const contentType = prodRes.headers.get('content-type') || '';
+          if (prodRes.ok && contentType.includes('application/json')) {
+            const prodData = await prodRes.json();
+            const rawProducts = Array.isArray(prodData) ? prodData : (Array.isArray(prodData?.data) ? prodData.data : []);
+            const normProds = rawProducts.map(normalizeProduct);
+
+            if (isMounted) {
+              setProducts((prev) => {
+                if (normProds.length === 0) {
+                  return prev.length > 0 ? prev : INITIAL_PRODUCTS;
+                }
+
+                // Backend products are the authoritative source of truth
+                safeStorageSet('athena_products', normProds);
+                idbSet('athena_products', normProds).catch(() => {});
+
+                return normProds;
+              });
+
+              if (serverVersion) {
+                setLocalCatalogVersion(serverVersion);
+              }
+              console.log(`[Athena SWR] Catálogo sincronizado com PostgreSQL (versão: ${serverVersion || 'sync'}, ${normProds.length} produtos).`);
+            }
+          } else if (attempt <= 3 && isMounted) {
+            retryTimer = setTimeout(() => fetchBackendData(attempt + 1), 3500);
+            return;
+          }
+        } else if (isCatalogCurrent) {
+          console.log(`[Athena SWR] Catálogo 100% atualizado com PostgreSQL (versão: ${serverVersion}). 3.4MB economizados.`);
+        }
+
+        // 4. Update categories, brands, banners, departments
+        if (catRes && catRes.ok) {
+          try {
+            const catData = await catRes.json();
+            if (Array.isArray(catData) && catData.length > 0 && isMounted) {
+              setCategories(catData);
+              safeStorageSet('athena_categories', catData);
+              idbSet('athena_categories', catData).catch(() => {});
+            }
+          } catch {}
+        }
+
+        if (brandRes && brandRes.ok) {
+          try {
+            const brandData = await brandRes.json();
+            if (Array.isArray(brandData) && isMounted) {
+              const normBrands = brandData.map(normalizeBrand);
+              setBrands(normBrands);
+              safeStorageSet('athena_brands', normBrands);
+              idbSet('athena_brands', normBrands).catch(() => {});
+            }
+          } catch {}
+        }
+
+
+
+        if (deptRes && deptRes.ok && isMounted) {
+          try {
+            const deptData = await deptRes.json();
+            if (Array.isArray(deptData) && deptData.length > 0) {
+              setDepartments(deptData);
+              safeStorageSet('athena_departments', deptData);
+            }
+          } catch {}
+        }
+
+        if (isMounted) {
+          setIsBackendConnected(true);
+          setIsLoadingCatalog(false);
+        }
+      } catch (err) {
+        if (attempt <= 3 && isMounted) {
+          retryTimer = setTimeout(() => fetchBackendData(attempt + 1), 3500);
+        } else if (isMounted) {
+          setIsBackendConnected(false);
+          setIsLoadingCatalog(false);
+        }
+      }
+    };
+
+    fetchBackendData();
+    return () => {
+      isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, []);
+
+  // Sync fallback to safe storage (IndexedDB + safe LocalStorage)
+  useEffect(() => {
+    if (products && products.length > 0) {
+      safeStorageSet('athena_products', products);
+    }
+  }, [products]);
+
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      safeStorageSet('athena_categories', categories);
+    }
+  }, [categories]);
+
+  useEffect(() => {
+    if (brands && brands.length > 0) {
+      safeStorageSet('athena_brands', brands);
+    }
+  }, [brands]);
+
+  useEffect(() => {
+    if (banners && banners.length > 0) {
+      safeStorageSet('athena_banners', banners);
+    }
+  }, [banners]);
+
+  useEffect(() => {
+    if (departments && departments.length > 0) {
+      safeStorageSet('athena_departments', departments);
+    }
+  }, [departments]);
+
+  const showNotification = (message, type = 'success') => {
+    let cleanMsg = 'Notificação';
+    if (typeof message === 'string') {
+      cleanMsg = message;
+    } else if (message && typeof message === 'object') {
+      cleanMsg = message.message || message.error || 'Ação concluída com sucesso.';
+    } else if (message != null) {
+      cleanMsg = String(message);
+    }
+    setToast({ message: cleanMsg, type });
+  };
+
+  const handleAddProduct = async (newProduct) => {
+    setProducts((prev) => {
+      const next = [newProduct, ...prev];
+      safeStorageSet('athena_products', next);
+      idbSet('athena_products', next).catch(() => {});
+      return next;
+    });
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/products`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newProduct)
+      });
+      if (res.ok) {
+        setIsBackendConnected(true);
+        const savedFromServer = await res.json().catch(() => null);
+        if (savedFromServer && savedFromServer.id) {
+          setProducts((prev) => {
+            const next = prev.map((p) => (p.id === newProduct.id || p.id === savedFromServer.id ? { ...p, ...savedFromServer } : p));
+            safeStorageSet('athena_products', next);
+            idbSet('athena_products', next).catch(() => {});
+            return next;
+          });
+        }
+        fetch(`${API_BASE_URL}/catalog/version`).then(r => r.json()).then(d => {
+          if (d?.version) setLocalCatalogVersion(d.version);
+        }).catch(() => {});
+      }
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
+    }
+  };
+
+  const handleUpdateProduct = async (updatedProduct) => {
+    setProducts((prev) => {
+      const next = prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
+      safeStorageSet('athena_products', next);
+      idbSet('athena_products', next).catch(() => {});
+      return next;
+    });
+
+    try {
+      let mutationSuccess = false;
+      const res = await fetch(`${API_BASE_URL}/products/${updatedProduct.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedProduct)
+      });
+      let savedFromServer = null;
+      if (!res.ok && res.status === 404) {
+        const createRes = await fetch(`${API_BASE_URL}/products`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(updatedProduct)
+        });
+        if (createRes.ok) {
+          mutationSuccess = true;
+          savedFromServer = await createRes.json().catch(() => null);
+        }
+      } else if (res.ok) {
+        mutationSuccess = true;
+        savedFromServer = await res.json().catch(() => null);
+      }
+      if (mutationSuccess) {
+        setIsBackendConnected(true);
+        if (savedFromServer && savedFromServer.id) {
+          setProducts((prev) => {
+            const next = prev.map((p) => (p.id === updatedProduct.id ? { ...p, ...savedFromServer } : p));
+            safeStorageSet('athena_products', next);
+            idbSet('athena_products', next).catch(() => {});
+            return next;
+          });
+        }
+        fetch(`${API_BASE_URL}/catalog/version`).then(r => r.json()).then(d => {
+          if (d?.version) setLocalCatalogVersion(d.version);
+        }).catch(() => {});
+      }
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    let previousProducts = null;
+    setProducts((prev) => {
+      previousProducts = prev;
+      const next = prev.filter((p) => p.id !== productId);
+      safeStorageSet('athena_products', next);
+      idbSet('athena_products', next).catch(() => {});
+      return next;
+    });
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        setIsBackendConnected(true);
+        fetch(`${API_BASE_URL}/catalog/version`).then(r => r.json()).then(d => {
+          if (d?.version) setLocalCatalogVersion(d.version);
+        }).catch(() => {});
+      } else {
+        handleApiUnauthorized(res);
+        console.error(`Falha ao excluir produto no servidor (status ${res.status}). Revertendo.`);
+        if (previousProducts) {
+          setProducts(previousProducts);
+          safeStorageSet('athena_products', previousProducts);
+          idbSet('athena_products', previousProducts).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.error('Erro backend ao excluir produto:', e);
+      if (previousProducts) {
+        setProducts(previousProducts);
+        safeStorageSet('athena_products', previousProducts);
+        idbSet('athena_products', previousProducts).catch(() => {});
+      }
+    }
+  };
+
+  const handleAddCategory = async (newCat) => {
+    setCategories((prev) => [...prev, newCat]);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newCat)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
+    }
+  };
+
+  const handleUpdateCategory = async (updatedCat) => {
+    setCategories((prev) => prev.map((c) => (c.id === updatedCat.id ? updatedCat : c)));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories/${updatedCat.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedCat)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao atualizar categoria:', e);
+    }
+  };
+
+  const handleDeleteCategory = async (catId) => {
+    setCategories((prev) => prev.filter((c) => c.id !== catId));
+    if (selectedCategories.includes(catId)) {
+      setSelectedCategories(selectedCategories.filter(id => id !== catId));
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories/${catId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
+    }
+  };
+
+  const handleAddBrand = async (newBrand) => {
+    setBrands((prev) => [...prev, newBrand]);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/brands`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newBrand)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
+    }
+  };
+
+  const handleUpdateBrand = async (updatedBrand) => {
+    setBrands((prev) => prev.map((b) => (b.id === updatedBrand.id ? updatedBrand : b)));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/brands/${updatedBrand.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedBrand)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
+    }
+  };
+
+  const handleReorderCategories = async (newCategories) => {
+    setCategories(newCategories);
+    safeStorageSet('athena_categories', newCategories);
+    try {
+      const res = await fetch(`${API_BASE_URL}/categories/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ categories: newCategories })
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao reordenar categorias:', e);
+    }
+  };
+
+  const handleReorderBrands = async (newBrands) => {
+    setBrands(newBrands);
+    safeStorageSet('athena_brands', newBrands);
+    try {
+      const res = await fetch(`${API_BASE_URL}/brands/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ brands: newBrands })
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao reordenar marcas:', e);
+    }
+  };
+
+  const handleReorderProducts = async (newProducts) => {
+    setProducts(newProducts);
+    safeStorageSet('athena_products', newProducts);
+    try {
+      const res = await fetch(`${API_BASE_URL}/products/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ products: newProducts })
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao reordenar produtos:', e);
+    }
+  };
+
+  const handleDeleteBrand = async (brandId) => {
+    setBrands((prev) => prev.filter((b) => b.id !== brandId));
+    if (selectedBrands.includes(brandId)) {
+      setSelectedBrands(selectedBrands.filter(id => id !== brandId));
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/brands/${brandId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend:', e);
+    }
+  };
+
+  const handleAddDepartment = async (newDept) => {
+    setDepartments((prev) => [...prev, newDept]);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/departments`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newDept)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao criar macro-departamento:', e);
+    }
+  };
+
+  const handleUpdateDepartment = async (updatedDept) => {
+    setDepartments((prev) => prev.map((d) => (d.id === updatedDept.id ? updatedDept : d)));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/departments/${updatedDept.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedDept)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao atualizar macro-departamento:', e);
+    }
+  };
+
+  const handleDeleteDepartment = async (deptId) => {
+    setDepartments((prev) => prev.filter((d) => d.id !== deptId));
+    setCategories((prev) => prev.map((c) => (c.departmentId === deptId ? { ...c, departmentId: null } : c)));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/departments/${deptId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend ao excluir macro-departamento:', e);
+    }
+  };
+
+  const handleAddBanner = async (newBanner) => {
+    const bannerWithId = {
+      ...newBanner,
+      id: newBanner.id || `bnr_${Date.now()}`
+    };
+
+    setBanners((prev) => [...prev, bannerWithId]);
+    showNotification('Banner cadastrado com sucesso!', 'success');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/banners`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(bannerWithId)
+      });
+      handleApiUnauthorized(res);
+      if (res.ok) {
+        setIsBackendConnected(true);
+        const saved = await res.json();
+        setBanners((prev) => prev.map((b) => (b.id === bannerWithId.id ? saved : b)));
+      }
+    } catch (e) {
+      console.error('Erro backend banner:', e);
+    }
+  };
+
+  const handleUpdateBanner = async (updatedBanner) => {
+    setBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
+    showNotification('Banner atualizado com sucesso!', 'success');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/banners/${updatedBanner.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedBanner)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend banner:', e);
+    }
+  };
+
+  const handleDeleteBanner = async (bannerId) => {
+    setBanners((prev) => prev.filter((b) => b.id !== bannerId));
+    showNotification('Banner excluído com sucesso!', 'success');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/banners/${bannerId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend banner:', e);
+    }
+  };
+
+  const handleReorderBanners = async (orderedBanners) => {
+    setBanners(orderedBanners);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/banners/reorder`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ banners: orderedBanners })
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.error('Erro backend banner reorder:', e);
+    }
+  };
+
+  const handleEditProductFromCatalog = (product) => {
+    setEditingProduct(product);
+    navigateTo('admin');
+  };
+
+  const isAdminView = currentRoute === 'admin' && !!currentUser;
+  // In the catalog and public views, ONLY published products are visible. Drafts remain strictly hidden.
+  const publicProducts = useMemo(() => {
+    return (products || []).filter(p => isProductPublished(p));
+  }, [products]);
+
+  // Render Page Content Router
+  const renderCurrentPage = () => {
+    if (currentRoute === 'login' || currentRoute === 'cadastro' || currentRoute === 'register' || currentRoute === 'entrar') {
+      if (currentUser) {
+        if (currentUser.role === 'admin') {
+          // If admin, go to Admin Panel
+          return (
+            <AdminPanel
+              products={products}
+              categories={categories}
+              brands={brands}
+              departments={departments}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProduct={handleDeleteProduct}
+              onReorderProducts={handleReorderProducts}
+              onAddCategory={handleAddCategory}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
+              onReorderCategories={handleReorderCategories}
+              onAddDepartment={handleAddDepartment}
+              onUpdateDepartment={handleUpdateDepartment}
+              onDeleteDepartment={handleDeleteDepartment}
+              onAddBrand={handleAddBrand}
+              onUpdateBrand={handleUpdateBrand}
+              onDeleteBrand={handleDeleteBrand}
+              onReorderBrands={handleReorderBrands}
+              banners={banners}
+              onAddBanner={handleAddBanner}
+              onUpdateBanner={handleUpdateBanner}
+              onDeleteBanner={handleDeleteBanner}
+              onReorderBanners={handleReorderBanners}
+              showNotification={showNotification}
+              editingProduct={editingProduct}
+              setEditingProduct={setEditingProduct}
+              onNavigate={navigateTo}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+              API_BASE_URL={API_BASE_URL}
+              activeAdminTab={activeAdminTab}
+              setActiveAdminTab={setActiveAdminTab}
+            />
+          );
+        }
+        return (
+          <CustomerAccountPage
+            currentUser={currentUser}
+            onUpdateUser={(u) => setCurrentUser(u)}
+            onLogout={handleLogout}
+            onNavigate={navigateTo}
+            API_BASE_URL={API_BASE_URL}
+            showNotification={showNotification}
+            onStartVerification={() => requireVerification()}
+          />
+        );
+      }
+
+      return (
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onNavigate={navigateTo}
+          API_BASE_URL={API_BASE_URL}
+        />
+      );
+    }
+
+    if (currentRoute === 'minha-conta' || currentRoute === 'minha_conta' || currentRoute === 'account' || currentRoute === 'perfil' || currentRoute === 'pedidos' || currentRoute === 'orders' || currentRoute === 'pontos' || currentRoute === 'points') {
+      if (!currentUser) {
+        return (
+          <LoginPage
+            onLoginSuccess={handleLoginSuccess}
+            onNavigate={navigateTo}
+            API_BASE_URL={API_BASE_URL}
+          />
+        );
+      }
+      return (
+        <CustomerAccountPage
+          currentUser={currentUser}
+          onUpdateUser={(u) => setCurrentUser(u)}
+          onLogout={handleLogout}
+          onNavigate={navigateTo}
+          API_BASE_URL={API_BASE_URL}
+          showNotification={showNotification}
+          initialTab={currentRoute === 'pontos' || currentRoute === 'points' ? 'points' : 'orders'}
+          onStartVerification={() => requireVerification()}
+        />
+      );
+    }
+
+    if (currentRoute.startsWith('produto/') || currentRoute.startsWith('product:')) {
+      const rawSlug = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
+      const slugOrId = rawSlug ? rawSlug.split('?')[0].split('#')[0] : '';
+      return (
+        <ProductDetailPage
+          productSlugOrId={slugOrId}
+          products={products}
+          categories={categories}
+          brands={brands}
+          onNavigate={navigateTo}
+          isPreview={slugOrId === 'preview'}
+          previousRoute={previousRoute}
+          currentUser={currentUser}
+          onEditProduct={handleEditProductFromCatalog}
+          comparisonList={comparisonList}
+          onToggleComparison={handleToggleComparison}
+          API_BASE_URL={API_BASE_URL}
+          isLoadingCatalog={isLoadingCatalog}
+          onProductLoaded={(loadedProd) => {
+            if (!loadedProd || !loadedProd.id) return;
+            setProducts((prev) => {
+              if (prev.some((p) => p.id === loadedProd.id || (p.slug && p.slug === loadedProd.slug))) {
+                return prev;
+              }
+              return [...prev, loadedProd];
+            });
+          }}
+        />
+      );
+    }
+
+    if (currentRoute.startsWith('categoria/') || currentRoute.startsWith('category:')) {
+      const catSlugOrId = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
+      const targetCat = categories.find(c => c.slug === catSlugOrId || c.id === catSlugOrId) || categories[0];
+      return (
+        <CategoryPage
+          categoryId={targetCat.id}
+          categories={categories}
+          products={publicProducts}
+          brands={brands}
+          onSelectProduct={(p) => navigateTo(`produto/${p.slug || p.id}`)}
+          isAdmin={isAdminView}
+          onEditProduct={handleEditProductFromCatalog}
+          onDeleteProduct={handleDeleteProduct}
+          onNavigate={navigateTo}
+          comparisonList={comparisonList}
+          onToggleComparison={handleToggleComparison}
+        />
+      );
+    }
+
+    if (currentRoute.startsWith('marca/') || currentRoute.startsWith('brand:')) {
+      const brandSlugOrId = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
+      const targetBrand = brands.find(b => b.slug === brandSlugOrId || b.id === brandSlugOrId) || brands[0];
+      return (
+        <BrandPage
+          brandId={targetBrand.id}
+          brands={brands}
+          products={publicProducts}
+          categories={categories}
+          onSelectProduct={(p) => navigateTo(`produto/${p.slug || p.id}`)}
+          isAdmin={isAdminView}
+          onEditProduct={handleEditProductFromCatalog}
+          onDeleteProduct={handleDeleteProduct}
+          onNavigate={navigateTo}
+          comparisonList={comparisonList}
+          onToggleComparison={handleToggleComparison}
+        />
+      );
+    }
+
+    if (currentRoute === 'categories') {
+      return (
+        <div className="py-12">
+          <div className="container-custom space-y-8">
+            <div className="text-center max-w-2xl mx-auto space-y-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold shadow-xs">
+                <Layers className="w-3.5 h-3.5 text-amber-600" /> Nossas Linhas de Produtos
+              </div>
+              <h2 className="text-3xl font-extrabold text-slate-900">
+                Explore por Categoria
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600">
+                Clique em qualquer categoria para visualizar a página de equipamentos dedicados.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+              {categories
+                .filter((cat) => (publicProducts || []).some((p) => p.categoryId === cat.id))
+                .map((cat) => {
+                const catProducts = publicProducts.filter((p) => p.categoryId === cat.id);
+                return (
+                  <div 
+                    key={cat.id} 
+                    onClick={() => navigateTo(`categoria/${cat.slug || cat.id}`)}
+                    className="card p-5 bg-white border border-slate-200/90 hover:border-amber-400 cursor-pointer flex flex-col justify-between space-y-3 group shadow-2xs hover:shadow-md transition-all rounded-2xl"
+                  >
+                    <div className="space-y-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                        <Layers className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900 group-hover:text-amber-600 transition-colors line-clamp-2 leading-snug">
+                        {cat.name}
+                      </h3>
+                      {cat.description ? (
+                        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                          {cat.description}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="font-bold text-amber-800 text-[11px]">
+                        {catProducts.length} {catProducts.length === 1 ? 'equipamento' : 'equipamentos'}
+                      </span>
+                      <span className="text-slate-500 group-hover:text-slate-900 flex items-center gap-1 font-bold text-[11px]">
+                        Ver página <ArrowRight className="w-3.5 h-3.5 text-amber-600 group-hover:translate-x-0.5 transition-transform" />
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentRoute === 'brands') {
+      return (
+        <div className="py-12">
+          <div className="container-custom space-y-8">
+            <div className="text-center max-w-2xl mx-auto space-y-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold shadow-xs">
+                <Tag className="w-3.5 h-3.5 text-sky-600" /> Fabricantes & Parceiros
+              </div>
+              <h2 className="text-3xl font-extrabold text-slate-900">
+                Marcas de Confiança
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600">
+                Trabalhamos com os líderes do setor de equipamentos para oferecer alta performance.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {brands
+                .filter((b) => (publicProducts || []).some((p) => p.brandId === b.id))
+                .map((b) => {
+                const brandProducts = publicProducts.filter((p) => p.brandId === b.id);
+                return (
+                  <div 
+                    key={b.id}
+                    onClick={() => navigateTo(`marca/${b.slug || b.id}`)}
+                    className="card p-6 bg-white border-slate-200 hover:border-sky-400 cursor-pointer flex flex-col justify-between space-y-4 group shadow-xs hover:shadow-md transition-all"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-full h-24 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center p-3">
+                        <img 
+                          src={b.logo || 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80'} 
+                          alt={b.name} 
+                          className="max-h-full object-contain filter group-hover:scale-105 transition-transform"
+                        />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 group-hover:text-sky-600 transition-colors">
+                        {b.name}
+                      </h3>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {b.description}
+                      </p>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-200 flex items-center justify-between text-xs">
+                      <span className="font-bold text-sky-600">
+                        {brandProducts.length} equipamento(s)
+                      </span>
+                      <span className="text-slate-500 group-hover:text-slate-900 flex items-center gap-1 font-bold">
+                        Ver página <ArrowRight className="w-3.5 h-3.5 text-sky-600 group-hover:translate-x-1 transition-transform" />
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentRoute === 'about' || currentRoute === 'sobre') {
+      return <AboutPage onNavigate={navigateTo} brands={brands} />;
+    }
+
+    if (currentRoute === 'termos-de-uso' || currentRoute === 'termos' || currentRoute === 'terms') {
+      return <LegalPage initialTab="terms" onNavigate={navigateTo} />;
+    }
+
+    if (currentRoute === 'politica-de-privacidade' || currentRoute === 'privacidade' || currentRoute === 'privacy') {
+      return <LegalPage initialTab="privacy" onNavigate={navigateTo} />;
+    }
+
+    if (currentRoute === 'politica-de-cookies' || currentRoute === 'cookies') {
+      return <LegalPage initialTab="cookies" onNavigate={navigateTo} />;
+    }
+
+    if (
+      currentRoute === 'obrigado' ||
+      currentRoute === 'solicitacao-recebida' ||
+      currentRoute === 'sucesso' ||
+      currentRoute === 'agradecimento' ||
+      currentRoute === 'thank-you'
+    ) {
+      return <ThankYouPage onNavigate={navigateTo} />;
+    }
+
+    if (currentRoute === 'admin') {
+      // Guard admin route: if not logged in, redirect to login page!
+      if (!currentUser) {
+        return (
+          <LoginPage
+            onLoginSuccess={handleLoginSuccess}
+            onNavigate={navigateTo}
+            API_BASE_URL={API_BASE_URL}
+          />
+        );
+      }
+
+      return (
+        <AdminPanel
+          products={products}
+          categories={categories}
+          brands={brands}
+          departments={departments}
+          onAddProduct={handleAddProduct}
+          onUpdateProduct={handleUpdateProduct}
+          onDeleteProduct={handleDeleteProduct}
+          onReorderProducts={handleReorderProducts}
+          onAddCategory={handleAddCategory}
+          onUpdateCategory={handleUpdateCategory}
+          onDeleteCategory={handleDeleteCategory}
+          onReorderCategories={handleReorderCategories}
+          onAddDepartment={handleAddDepartment}
+          onUpdateDepartment={handleUpdateDepartment}
+          onDeleteDepartment={handleDeleteDepartment}
+          onAddBrand={handleAddBrand}
+          onUpdateBrand={handleUpdateBrand}
+          onDeleteBrand={handleDeleteBrand}
+          onReorderBrands={handleReorderBrands}
+          banners={banners}
+          onAddBanner={handleAddBanner}
+          onUpdateBanner={handleUpdateBanner}
+          onDeleteBanner={handleDeleteBanner}
+          onReorderBanners={handleReorderBanners}
+          showNotification={showNotification}
+          editingProduct={editingProduct}
+          setEditingProduct={setEditingProduct}
+          onNavigate={navigateTo}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          API_BASE_URL={API_BASE_URL}
+          activeAdminTab={activeAdminTab}
+          setActiveAdminTab={setActiveAdminTab}
+        />
+      );
+    }
+
+    if (currentRoute === '404') {
+      return <NotFoundPage onNavigate={navigateTo} />;
+    }
+
+    if (currentRoute === '500') {
+      return <ServerErrorPage onNavigate={navigateTo} onRetry={() => window.location.reload()} />;
+    }
+
+    // Default Catalog Page
+    if (!currentRoute || currentRoute === 'catalog' || currentRoute === 'catalogo' || currentRoute === 'inicio' || currentRoute === 'home') {
+      return (
+        <>
+          <HomeBannerCarousel
+            banners={banners}
+            isLoading={isLoadingCatalog}
+            onNavigate={navigateTo}
+          />
+
+          <HeroSlim
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            categories={categories}
+            selectedCategory={selectedCategories[0] || 'all'}
+            setSelectedCategory={(catId) => {
+              if (catId === 'all') setSelectedCategories([]);
+              else setSelectedCategories([catId]);
+            }}
+            products={publicProducts}
+            brands={brands}
+            onNavigate={navigateTo}
+            onSelectProduct={(product) => navigateTo(`produto/${product.slug || product.id}`)}
+          />
+
+          <APointsBanner onNavigate={navigateTo} currentUser={currentUser} />
+
+          <Catalog
+            products={publicProducts}
+            categories={categories}
+            brands={brands}
+            departments={departments}
+            selectedCategories={selectedCategories}
+            setSelectedCategories={setSelectedCategories}
+            selectedBrands={selectedBrands}
+            setSelectedBrands={setSelectedBrands}
+            maxPriceFilter={maxPriceFilter}
+            setMaxPriceFilter={setMaxPriceFilter}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            onSelectProduct={(product) => navigateTo(`produto/${product.slug || product.id}`)}
+            isAdmin={isAdminView}
+            onEditProduct={handleEditProductFromCatalog}
+            onDeleteProduct={handleDeleteProduct}
+            onOpenAddProduct={() => {
+              setEditingProduct(null);
+              navigateTo('admin');
+            }}
+            comparisonList={comparisonList}
+            onToggleComparison={handleToggleComparison}
+          />
+        </>
+      );
+    }
+
+    // Unrecognized route -> 404 Not Found Page
+    return <NotFoundPage onNavigate={navigateTo} />;
+  };
+
+  return (
+    <ErrorBoundary>
+      <CartProvider 
+        showNotification={showNotification} 
+        brands={brands} 
+        categories={categories}
+        requireVerification={requireVerification}
+      >
+        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-amber-500 selection:text-white">
+          
+          {/* Header */}
+          <Header
+            activeTab={currentRoute}
+            onNavigate={navigateTo}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            productsCount={publicProducts.length}
+            categoriesCount={categories.length}
+            brandsCount={brands.length}
+            categories={categories}
+            brands={brands}
+            departments={departments}
+            products={publicProducts}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            activeAdminTab={activeAdminTab}
+            onSelectAdminTab={(tab) => {
+              setActiveAdminTab(tab);
+              if (currentRoute !== 'admin') {
+                navigateTo('admin');
+              }
+            }}
+          />
+
+          {/* Main Page Content */}
+          <main className="flex-1 pt-16 sm:pt-20">
+            <React.Suspense fallback={<PageLoadingFallback />}>
+              {renderCurrentPage()}
+            </React.Suspense>
+          </main>
+
+          {/* Floating WhatsApp Action Button (Desktop Only) */}
+          <a
+            href="https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento."
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (requireVerification(() => {
+                window.open('https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento.', '_blank');
+              })) {
+                e.preventDefault();
+              }
+            }}
+            className="hidden md:flex fixed bottom-6 right-6 z-40 p-3.5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-500 hover:scale-110 active:scale-95 transition-all items-center gap-2 group text-xs font-extrabold"
+            title="Falar no WhatsApp (61) 98348-5671"
+          >
+            <MessageCircle className="w-6 h-6 fill-current text-white shrink-0" />
+            <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 text-white font-bold">
+              (61) 98348-5671
+            </span>
+          </a>
+
+          {/* Comparison Floating Action Bar */}
+          <ComparisonFloatingBar
+            comparisonList={comparisonList}
+            onOpenModal={() => setIsComparisonModalOpen(true)}
+            onRemoveItem={handleRemoveComparisonItem}
+            onClearComparison={handleClearComparison}
+          />
+
+          {/* Side-by-Side Product Comparison Modal */}
+          <ProductComparisonModal
+            isOpen={isComparisonModalOpen}
+            onClose={() => setIsComparisonModalOpen(false)}
+            comparisonList={comparisonList}
+            categories={categories}
+            brands={brands}
+            onRemoveItem={handleRemoveComparisonItem}
+            onClearComparison={handleClearComparison}
+            onNavigate={navigateTo}
+          />
+
+          {/* App-style Bottom Navigation Bar for Mobile */}
+          <BottomNavBar activeTab={currentRoute} onNavigate={navigateTo} currentUser={currentUser} />
+
+          {/* Cart Drawer */}
+          <CartDrawer />
+
+          {/* Global Checkout Modal */}
+          <GlobalCartCheckout currentUser={currentUser} />
+
+          {/* Email Security Verification Modal */}
+          <EmailVerificationModal
+            isOpen={isVerificationModalOpen}
+            currentUser={currentUser}
+            onVerified={(updatedUser) => {
+              saveSession(updatedUser);
+              setCurrentUser(updatedUser);
+              setIsVerificationModalOpen(false);
+              if (pendingVerificationActionRef.current) {
+                const action = pendingVerificationActionRef.current;
+                pendingVerificationActionRef.current = null;
+                action();
+              }
+            }}
+            onLogout={(msg) => {
+              setIsVerificationModalOpen(false);
+              pendingVerificationActionRef.current = null;
+              handleLogout(msg);
+            }}
+            API_BASE_URL={API_BASE_URL}
+            showNotification={showNotification}
+          />
+
+          {/* Force Change Password Modal for Support Temporary Passwords */}
+          <ForceChangePasswordModal
+            isOpen={Boolean(currentUser?.mustChangePassword)}
+            currentUser={currentUser}
+            onSuccess={(updatedUser) => {
+              saveSession(updatedUser);
+              setCurrentUser(updatedUser);
+            }}
+            onLogout={(msg) => {
+              handleLogout(msg);
+            }}
+            API_BASE_URL={API_BASE_URL}
+            showNotification={showNotification}
+          />
+
+          {/* Toast Notification */}
+          <Toast toast={toast} onClose={() => setToast(null)} />
+
+          {/* Footer */}
+          <div className="pb-14 md:pb-0">
+            <Footer setActiveTab={navigateTo} currentUser={currentUser} />
+          </div>
+
+          {/* Cookie & LGPD Consent Floating Banner */}
+          <CookieConsentBanner onNavigate={navigateTo} />
+
+        </div>
+      </CartProvider>
+    </ErrorBoundary>
+  );
+}

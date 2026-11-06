@@ -1,0 +1,208 @@
+# Athena Soluções Automotivas — Catálogo Digital de Equipamentos
+
+[![Vercel Deployment](https://img.shields.io/badge/Frontend-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com)
+[![Render Deployment](https://img.shields.io/badge/Backend-Render-46E3B7?style=for-the-badge&logo=render)](https://render.com)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=for-the-badge&logo=postgresql)](https://postgresql.org)
+[![Cloudflare R2](https://img.shields.io/badge/Storage-Cloudflare_R2-F38020?style=for-the-badge&logo=cloudflare)](https://developers.cloudflare.com/r2/)
+[![Swagger Docs](https://img.shields.io/badge/API_Docs-Swagger_UI_v3.1-85EA2D?style=for-the-badge&logo=swagger)](docs/API_REFERENCE.md)
+[![OpenAPI 3.1](https://img.shields.io/badge/OpenAPI-3.1.0-6BA539?style=for-the-badge&logo=openapi-initiative)](docs/openapi.json)
+
+**Athena Soluções Automotivas** é uma plataforma web moderna, rápida e de alta performance desenvolvida para exibição, gerenciamento e cotação comercial de equipamentos automotivos de linha pesada e leve (elevadores, scanners de diagnóstico, alinhadores 3D, desmontadoras de pneus e ferramentas especiais).
+
+---
+
+## Principais Funcionalidades
+
+### Catálogo & Filtros E-commerce (Estilo KaBuM! / Amazon)
+- **Painel Lateral Fixo (Sticky Sidebar)** com busca integrada por palavra-chave.
+- **Seleção Múltipla com Checkboxes `[x]`**: Permite selecionar simultaneamente várias marcas e várias categorias.
+- **Cruzamento Inteligente de Filtros**: Bloqueia e desabilita (`disabled`) automaticamente opções incompatíveis com contadores dinâmicos `(Qtd)` em tempo real.
+- **Paginação `-- Ver mais --` / `-- Ver menos --`**: Exibe inicialmente as principais marcas/categorias e expande as demais sob demanda.
+- **Slider Dinâmico de Preço Máximo**: Filtra equipamentos dentro do orçamento desejado pelo cliente.
+- **Paginação do Catálogo**: Organização limpa de 20 equipamentos por página com barra de navegação.
+
+### Páginas Dedicadas de Produtos (`/#/produto/:slug`)
+- **URLs Amigáveis para SEO**: Rotas limpas baseadas no slug do equipamento.
+- **Navegação Inteligente "Voltar"**: Identifica se o visitante veio de uma marca, categoria ou link direto e adapta a navegação de retorno.
+- **Recomendação de Produtos Relacionados**: Exibe automaticamente 3 produtos complementares (mesma categoria/marca diferente, mesma marca/categoria diferente e destaque).
+- **Anexos e Documentos Opcionais**: Sistema de upload para manuais e fichas técnicas em PDF com o botão formatado **`Baixe <NomeFormatado>`**.
+- **Cotação Direta via WhatsApp**: Botão preenchendo mensagem oficial com dados e especificações do equipamento.
+
+### Páginas de Fabricantes & Parceiros (`/#/marca/:slug`)
+- Exibição de logo oficial da marca armazenada no Cloudinary CDN.
+- Botão **`Visitar Site Oficial ↗`** para redirecionar diretamente ao site oficial do fabricante parceiro (ex: Engecass, Launch, Raven, Napro, Sun).
+
+### Painel Administrativo Completo (`/#/admin`)
+- **Gestão de Status (`Publicado` vs `Rascunho`)**: Permite criar e visualizar rascunhos em modo de pré-visualização exclusiva antes da publicação.
+- **Reordenação Comercial Prioritária**: Botões **Subir** e **Descer** para colocar marcas parceiras estratégicas no topo dos filtros.
+- **Gerador de Alt Text para SEO com IA**: Gera descrições acessíveis automáticas para imagens de produtos.
+- **Upload Direto para Nuvem Cloudinary**: Processamento de imagens JPG/PNG e PDFs de manuais convertidos para CDN global de alta velocidade.
+
+---
+
+## Tecnologias Utilizadas
+
+### Frontend (Interface do Usuário)
+- **React (v18)** + **Vite** — Build super rápido e estrutura SPA baseada em Hash Router.
+- **Tailwind CSS (v4)** — Design moderno, responsivo e adaptado para performance de 60 FPS (sem blurs pesados de GPU).
+- **Lucide React Icons** — Conjunto de ícones vetoriais modernos.
+
+### Backend & Nuvem
+- **Node.js + Express API** — Servidor REST API responsável pelas rotas de produtos, categorias, marcas e uploads.
+- **PostgreSQL (`pg`)** — Banco de dados relacional permanente hospedado na nuvem Render com migrações automáticas.
+- **Cloudinary SDK** — Object storage para armazenamento de mídia CDN.
+
+---
+
+## Estrutura do Projeto
+
+```text
+athena/
+├── backend/                  # Servidor API Node.js + Express
+│   ├── data/                 # Fallback local em arquivo JSON (athena-db.json)
+│   ├── server.js             # Servidor REST API, Gateway Hermes e integrações
+│   ├── swaggerDocument.js    # Especificação Swagger / OpenAPI 3.1 modular
+│   └── package.json
+├── docs/                     # Documentação Técnica e Especificações
+│   ├── API_REFERENCE.md      # Guia canônico completo de endpoints e integração AI
+│   └── openapi.json          # Contrato OpenAPI 3.1.0 para ferramentas e agentes
+├── public/                   # Logotipo e assets estáticos
+├── src/
+│   ├── components/           # Componentes reutilizáveis (Header, Footer, Catalog, FilterSidebar, AdminPanel, ProductCard)
+│   ├── data/                 # Dados iniciais de seed (initialData.js)
+│   ├── pages/                # Páginas estáticas e dinâmicas (ProductDetailPage, CategoryPage, BrandPage, AboutPage)
+│   ├── App.jsx               # Roteador principal e gerenciador de estado
+│   ├── main.jsx
+│   └── index.css             # Design System Tailwind v4
+├── render.yaml               # Arquivo de configuração Render Blueprint
+├── package.json
+└── README.md
+```
+
+---
+
+## Documentação da API & Swagger Interativo
+
+- **Swagger UI Interativo**: [http://localhost:3001/api-docs](http://localhost:3001/api-docs) (ou em produção na rota `/api-docs` ou `/api/docs`).
+- **Guia Completo para Agentes (Hermes & AGY)**: Consulte [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) com payloads detalhados, headers, códigos de erro e snippets em `curl`, Node.js e Python.
+- **Especificação OpenAPI 3.1**: Arquivo físico em [`docs/openapi.json`](docs/openapi.json) ou endpoint público `GET /api/openapi.json`.
+
+---
+
+## Arquitetura de Segurança, Auditoria & Telemetria (OWASP & LGPD)
+
+A plataforma Athena adota o princípio de **Defesa em Profundidade**, separando com clareza a segurança de infraestrutura (server-side, inviolável) da telemetria de experiência do usuário (client-side, consentida):
+
+### 1. Segurança Server-Side (Invasores, Scanners e Bots)
+- **Borda & Proteção DDoS (Cloudflare Edge):** WAF ativo, filtragem de reputação de IP e mitigação de ataques em massa antes do tráfego tocar a infraestrutura da aplicação.
+- **Isolamento de Origem (`ATHENA_ORIGIN_SECRET`):** O backend no Render exige um cabeçalho estático criptográfico injetado exclusivamente pela Cloudflare. Qualquer tentativa direta de acesso ao endpoint `*.onrender.com` é sumariamente rejeitada com **HTTP 403 Forbidden**.
+- **Quarentena de IP & Banimento Progressivo:**
+  - 1ª a 6ª falha de autenticação: incremento do contador de tentativas.
+  - 7ª falha consecutiva: IP em quarentena preventiva por 24 horas (`HTTP 403`).
+  - 8ª falha consecutiva ou acionamento de **Honeypot Trap** (`/.env`, `/wp-admin`, etc.): banimento definitivo persistido na tabela `security_ip_blocklist` do PostgreSQL.
+  - **Política Anti-Engenharia Social:** O desbloqueio é bloqueado via API/painel web e requer intervenção administrativa direta no banco de dados.
+- **Auditoria Forense Estruturada (OWASP A09:2021):** O servidor emite logs JSON padronizados com o identificador `[SECURITY_AUDIT]` nos logs do Render, capturando IP real (`X-Forwarded-For`), rota, método e motivo. **Essa auditoria opera 100% no servidor e independe de cookies ou de ações do atacante no navegador.**
+
+### 2. Telemetria Comportamental & Antifraude Visual (Microsoft Clarity)
+- **Finalidade:** Mapas de calor (heatmaps), detecção de sinais de frustração (*rage clicks*, *dead clicks*) e auditoria visual de fraudes comerciais no checkout (compras com cartões clonados ou preenchimento robótico de formulários).
+- **Conformidade LGPD & Modo Cookieless:**
+  - Integração dinâmica através do banner [`CookieConsentBanner.jsx`](src/components/CookieConsentBanner.jsx) conectado à API `window.clarity('consent', true/false)`.
+  - Caso o visitante recuse cookies analíticos, o Clarity opera em modo estritamente *cookieless* em memória, sem persistir identificadores no dispositivo.
+  - **Mascaramento Rigoroso de Dados:** Senhas, e-mails sensíveis e campos de faturamento bancário são automaticamente mascarados e nunca transmitidos nem gravados.
+
+---
+
+## Variáveis de Ambiente (Environment Variables)
+
+### Backend (Render / Produção)
+| Variável | Descrição |
+| :--- | :--- |
+| `DATABASE_URL` | URL de conexão do PostgreSQL (Supabase / Render) |
+| `ATHENA_ORIGIN_SECRET` | Token secreto compartilhado entre Cloudflare Transform Rule e Render |
+| `CLOUDFLARE_TURNSTILE_SECRET_KEY` | Chave secreta de validação de CAPTCHA server-side |
+| `CLOUDINARY_CLOUD_NAME` | Nome da conta Cloudinary (`y0p1s8mx`) |
+| `CLOUDINARY_API_KEY` | Chave de API do Cloudinary |
+| `CLOUDINARY_API_SECRET` | Chave secreta do Cloudinary |
+| `R2_ACCESS_KEY_ID` | Chave de acesso do Cloudflare R2 (Object Storage) |
+| `R2_SECRET_ACCESS_KEY` | Segredo do Cloudflare R2 |
+| `R2_BUCKET_NAME` | Nome do bucket R2 para imagens e mídias |
+
+### Frontend (Vercel / Produção)
+| Variável | Descrição |
+| :--- | :--- |
+| `VITE_API_URL` | URL pública da API do Backend (ex: `https://athena-backend-hu1m.onrender.com/api`) |
+
+---
+
+## Como Executar Localmente
+
+### 1. Clonar o repositório
+```bash
+git clone https://github.com/Intern-Yago/Athena.git
+cd Athena
+```
+
+### 2. Instalar dependências do Frontend
+```bash
+npm install
+```
+
+### 3. Instalar dependências do Backend
+```bash
+cd backend
+npm install
+cd ..
+```
+
+### 4. Executar em modo de desenvolvimento
+```bash
+# Executar o Frontend React
+npm run dev
+
+# Em outro terminal, executar o Backend Node.js
+npm run server
+```
+
+O Frontend estará disponível em `http://localhost:5173` e a API do Backend em `http://localhost:3001/api`.
+
+---
+
+## Testes Automatizados e Unitários
+
+O projeto possui uma suíte completa de testes unitários e de integração nativa utilizando o **Node.js Test Runner** (`node:test` e `node:assert/strict`), sem dependências pesadas externas e com execução em milissegundos.
+
+### Executar a suíte de testes:
+```bash
+npm test
+```
+
+### Executar com relatório de cobertura de código (Code Coverage):
+```bash
+npm run test:coverage
+```
+
+### Cobertura da Suíte de Testes:
+1. **Segurança & RBAC (`tests/unit/auth-roles.test.js`)**:
+   - Isolamento de permissões administrativas (`requireAdmin`) e operacionais (`requireStaff`).
+   - Mitigação de escalada de privilégios via links emergenciais (`isMagicLinkSession`).
+2. **Isolamento de Origem & CORS (`tests/unit/cors-and-network.test.js`)**:
+   - Validação de origens autorizadas (`www.athenaconsultoria.com.br`, Vercel previews, localhost).
+   - Bloqueio estrito de domínios invasores e sites clonados.
+   - Detecção de redes privadas RFC 1918 e proxies canônicos Cloudflare.
+3. **Regras de Negócio & Cupons (`tests/unit/coupon-evaluator.test.js`)**:
+   - Cálculo de descontos percentuais e fixos com teto de desconto (`maxDiscount`).
+   - Regra estrita de valor mínimo de gateway (R$ 5,00) e pedidos promocionais 100% OFF.
+   - Validação de limite global de uso, limite por cliente e cupons com e-mail exclusivo.
+4. **Política de Senhas Fortes (`tests/unit/password-validator.test.js`)**:
+   - Validação OWASP ASVS (mínimo 8 caracteres, maiúsculas, minúsculas, números e caracteres especiais).
+5. **Normalização Frontend (`tests/unit/frontend-utils.test.js`)**:
+   - Reescruta de URLs de imagem legadas para o CDN canônico Cloudflare R2 (`images.athenaconsultoria.com.br`).
+   - Normalização de modelos 3D (.glb) e validação de visibilidade de catálogo.
+
+---
+
+## Suporte Comercial & Contato
+
+- **Empresa**: Athena Soluções Automotivas
+- **WhatsApp**: [(61) 98348-5671](https://wa.me/5561983485671)
+- **Instagram**: [@athena.solucoes.automotivas](https://www.instagram.com/athena.solucoes.automotivas/)

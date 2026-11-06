@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/jpeg" href="/logo.jpg" />
+    <link rel="shortcut icon" href="/logo.jpg" />
+    <link rel="apple-touch-icon" href="/logo.jpg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Diretivas de Privacidade Estritas: Bloqueio Total de Indexação e Crawlers -->
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
+    <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
+    <!-- Bloqueador Defensivo: Impede qualquer rastreamento de Analytics, Clarity, Meta Pixel ou TikTok Pixel no CRM -->
+    <script>
+      (function() {
+        window['ga-disable-default'] = true;
+        window['clarity'] = function() {};
+        window['fbq'] = function() {};
+        window['ttq'] = { track: function(){}, page: function(){}, identify: function(){} };
+        window['dataLayer'] = [];
+      })();
+    </script>
+    <title>Athena CRM & Radar de Expansão DF</title>
+    <meta name="description" content="Sistema Operacional Comercial da Athena - Gestão de Funis, Vendas e Radar de Expansão" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-slate-950 text-slate-100 antialiased font-['Plus_Jakarta_Sans',sans-serif] selection:bg-amber-500 selection:text-slate-950">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,31 @@
+# Robots.txt - Athena Soluções Automotivas
+# https://www.athenaconsultoria.com.br
+# Permissão universal para todos os robôs de busca, redes sociais e agentes de IA
+
+User-agent: *
+Allow: /
+Allow: /produto/
+Allow: /categoria/
+Allow: /marca/
+Allow: /sobre
+Allow: /sitemap.xml
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /ai-catalog.json
+Allow: /.well-known/ai-catalog.json
+Allow: /facebook-catalog.xml
+Allow: /facebook-catalog.csv
+Allow: /api/feeds/
+
+# Proteção de rotas administrativas e API interna
+Disallow: /admin
+Disallow: /api/
+Allow: /api/feeds/
+Disallow: /api-docs
+
+# Sitemaps e Recursos para Inteligência Artificial (LLMs / ARD)
+Sitemap: https://www.athenaconsultoria.com.br/sitemap.xml
+# AI Resource Catalog: https://www.athenaconsultoria.com.br/.well-known/ai-catalog.json
+# LLM Context: https://www.athenaconsultoria.com.br/llms.txt
+
+

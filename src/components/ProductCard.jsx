@@ -1,0 +1,756 @@
+import React, { useState } from 'react';
+import { stripFormattingTags } from './FormattedDescription';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles, Layers } from 'lucide-react';
+import { useCart } from '../context/CartContext';
+import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
+import { isProductPublished } from '../utils/imageUrl';
+import { isVariantVisibleInCatalog } from '../utils/productVariants';
+import { trackMetaEvent } from '../utils/metaPixel';
+import ProductVariantSelectModal from './ProductVariantSelectModal';
+
+export default function ProductCard({ 
+  product, 
+  category, 
+  brand, 
+  onSelectProduct, 
+  isAdmin, 
+  onEditProduct, 
+  onDeleteProduct,
+  isInComparison,
+  onToggleComparison,
+  viewMode = 'grid'
+}) {
+  const [activePreviewImage, setActivePreviewImage] = useState(null);
+  const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
+  const { addToCart, openDirectCheckout, requireVerification } = useCart();
+  
+  const variants = Array.isArray(product.variants) 
+    ? product.variants.filter(v => isVariantVisibleInCatalog(v, product))
+    : [];
+  const hasVariants = variants.length > 0;
+
+  // Imagem base do card: foto principal do produto ou primeira variação com foto (Cenário B.1)
+  const fallbackVariantImage = variants.find(v => v.image && typeof v.image === 'string' && v.image.trim() !== '')?.image || '';
+  const baseCardImage = (product.image || (Array.isArray(product.images) && product.images[0]) || fallbackVariantImage || '').trim();
+  const currentCardImage = activePreviewImage || baseCardImage;
+
+  // Regra de Negocio Athena:
+  // Se o orcamento estiver ATIVO (priceNegotiable !== false ou price_negotiable !== false), NAO mostra o valor do produto (fica Sob Consulta) e direciona para orcamento.
+  // Se o orcamento estiver DESATIVADO e tiver preco (> 0), mostra o valor e joga para comprar no site.
+  const hasPrice = Number(product.price) > 0;
+  const isQuoteOnly = Boolean(
+    product.priceNegotiable === true ||
+    product.price_negotiable === true ||
+    (product.priceNegotiable !== false && product.price_negotiable !== false)
+  );
+  const canBuyOnline = hasPrice && !isQuoteOnly;
+
+  const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
+  const pixCustomerPrice = canBuyOnline 
+    ? (paymentGateways?.pix?.formattedCustomerAmount || formatBRL(product.price))
+    : 'Sob Consulta';
+
+  const earnedPoints = (product.aPoints && Number(product.aPoints) > 0) 
+    ? Number(product.aPoints) 
+    : (canBuyOnline ? Math.floor(product.price / 50) : 0);
+
+  const formattedPrice = canBuyOnline 
+    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
+    : 'Sob Consulta';
+
+  const whatsappText = canBuyOnline
+    ? encodeURIComponent(
+        `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de comprar o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'} - Valor: ${pixCustomerPrice} no PIX / Cartão). Poderia me orientar para concluir o pedido?`
+      )
+    : encodeURIComponent(
+        `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de um orçamento para o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'}). Poderia me informar valor, prazo de entrega e formas de pagamento?`
+      );
+
+  const handleCardWhatsAppClick = (e) => {
+    const prodSku = String((product.sku && product.sku.trim()) || product.id);
+    const brandName = brand?.name || 'Athena';
+    const catName = category?.name || 'Equipamentos Automotivos';
+    const descText = `Clicou em Cotar no WhatsApp (Card do Catálogo): ${product.name} [${prodSku}] | Marca: ${brandName} | Cat: ${catName}`;
+
+    trackMetaEvent('Lead', {
+      descricao: descText,
+      content_ids: [prodSku],
+      content_name: product.name,
+      brand_name: brandName,
+      content_category: catName,
+      lead_source: 'catalog_card_whatsapp',
+      origem_clique: 'Card do Catálogo',
+      value: Number(product.price || product.preco_venda || 1.00),
+      currency: 'BRL'
+    });
+
+    trackMetaEvent('Contact', {
+      descricao: descText,
+      content_ids: [prodSku],
+      content_name: product.name,
+      brand_name: brandName,
+      content_category: catName,
+      origem_clique: 'Card do Catálogo',
+      value: Number(product.price || product.preco_venda || 1.00),
+      currency: 'BRL'
+    });
+
+    if (requireVerification && requireVerification(() => {
+      window.open(`https://wa.me/5561983485671?text=${whatsappText}`, '_blank');
+    })) {
+      e.preventDefault();
+    }
+  };
+
+  const isDraft = !isProductPublished(product);
+  if (isDraft && !isAdmin) {
+    return null;
+  }
+
+  // ==========================================
+  // LIST VIEW LAYOUT
+  // ==========================================
+  if (viewMode === 'list') {
+    return (
+      <div className="group flex flex-col md:flex-row bg-white border border-slate-200 hover:border-amber-400 hover:shadow-md transition-all rounded-2xl overflow-hidden">
+        
+        {/* Left: Large Photo Area */}
+        <div 
+          className="relative w-full md:w-80 h-64 md:h-auto bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4 cursor-pointer shrink-0 border-b md:border-b-0 md:border-r border-slate-200/80 overflow-hidden"
+          onClick={() => onSelectProduct(product)}
+        >
+          {currentCardImage ? (
+            <img 
+              src={currentCardImage} 
+              alt={product.altText || product.name}
+              loading="lazy"
+              decoding="async"
+              width="320"
+              height="256"
+              className="w-full h-full max-h-56 object-contain group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center text-slate-300 select-none">
+              <Package className="w-12 h-12 stroke-[1.5]" />
+              <span className="text-[10px] text-slate-400 font-semibold mt-1">Sem foto cadastrada</span>
+            </div>
+          )}
+
+          {/* Badges Overlay */}
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 pointer-events-none">
+            {product._matchedVia && (
+              <span className="badge bg-indigo-600 text-white font-extrabold text-[10px] px-2 py-0.5 shadow-xs flex items-center gap-1">
+                <Link2 className="w-2.5 h-2.5 shrink-0" />
+                <span className="truncate max-w-[130px]">Compatível c/ {product._matchedVia.name}</span>
+              </span>
+            )}
+            {product.productType === 'digital' && (
+              <span className="badge bg-emerald-600 text-white font-extrabold text-[10px] px-2 py-0.5 shadow-xs flex items-center gap-1">
+                <Zap className="w-2.5 h-2.5" />
+                <span>Licença Digital</span>
+              </span>
+            )}
+            {product.badge && (
+              <span className="badge bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2.5 py-0.5 shadow-xs">
+                {product.badge}
+              </span>
+            )}
+            {isDraft && isAdmin && (
+              <span className="badge bg-slate-700 text-white font-bold text-[10px] px-2.5 py-0.5">
+                Rascunho
+              </span>
+            )}
+          </div>
+
+          {/* Comparison Toggle */}
+          {onToggleComparison && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleComparison(product);
+              }}
+              className={`absolute bottom-3 left-3 z-20 px-2.5 py-1 rounded-lg text-[11px] font-extrabold flex items-center gap-1.5 shadow-md transition-all ${
+                isInComparison
+                  ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-300'
+                  : 'bg-slate-900/80 hover:bg-slate-950 text-white backdrop-blur-xs'
+              }`}
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5" />
+              <span>{isInComparison ? 'Comparando' : 'Comparar'}</span>
+            </button>
+          )}
+
+          {/* Quick Add to Cart / Quote Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (hasVariants) {
+                setIsVariantModalOpen(true);
+              } else {
+                addToCart(product);
+              }
+            }}
+            className="absolute bottom-3 right-3 z-20 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs shadow-md border border-amber-300/80 flex items-center gap-1.5 transition-all cursor-pointer group/btn"
+            title={hasVariants ? "Escolher Opções e Quantidades" : (canBuyOnline ? "Adicionar ao Carrinho" : "Adicionar à Lista de Orçamento")}
+          >
+            {hasVariants ? (
+              <Layers className="w-3.5 h-3.5 text-slate-950 transition-transform group-hover/btn:scale-110" />
+            ) : (
+              <ShoppingCart className="w-3.5 h-3.5 text-slate-950 transition-transform group-hover/btn:scale-110" />
+            )}
+            <span className="font-extrabold text-[11px]">
+              {hasVariants ? '+ Opções' : (canBuyOnline ? '+ Carrinho' : '+ Orçamento')}
+            </span>
+          </button>
+        </div>
+
+        {/* Right: Detailed Content Area */}
+        <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+          <div className="space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {brand && (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
+                    <Tag className="w-3 h-3 text-amber-600" />
+                    {brand.name}
+                  </span>
+                )}
+                {category && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-md">
+                    {category.name}
+                  </span>
+                )}
+
+                {/* Variants Swatches / Badge in List View */}
+                {hasVariants && (
+                  <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    {variants.some(v => v.colorHex) ? (
+                      <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Cores:</span>
+                        <div className="flex items-center gap-1">
+                          {variants.slice(0, 5).map(v => (
+                            <span
+                              key={v.id}
+                              onMouseEnter={() => {
+                                const preview = v.image || product.image;
+                                if (preview) setActivePreviewImage(preview);
+                              }}
+                              onMouseLeave={() => setActivePreviewImage(null)}
+                              className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-2xs inline-block transition-transform hover:scale-125 cursor-pointer"
+                              style={{ backgroundColor: v.colorHex || '#ccc' }}
+                              title={`${v.name}${v.sku ? ` (${v.sku})` : ''}`}
+                            />
+                          ))}
+                          {variants.length > 5 && (
+                            <span className="text-[10px] text-slate-500 font-extrabold">
+                              +{variants.length - 5}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                        {variants.length} opções disponíveis
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Admin Actions */}
+              {isAdmin && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => onEditProduct(product)}
+                    className="p-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 text-xs flex items-center gap-1 font-bold px-2.5"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Editar</span>
+                  </button>
+                  <button
+                    onClick={() => onDeleteProduct(product.id)}
+                    className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 text-xs flex items-center justify-center p-2"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <h3 
+              onClick={() => onSelectProduct(product)}
+              className="text-base sm:text-lg font-bold text-slate-900 hover:text-amber-600 cursor-pointer transition-colors leading-snug"
+            >
+              {product.name}
+            </h3>
+
+            <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+              {stripFormattingTags(product.description)}
+            </p>
+
+            {/* Technical Specs List */}
+            {product.specs && product.specs.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-2 bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
+                {product.specs.slice(0, 4).map((spec, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs text-slate-700">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate font-medium">{spec}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Bar: Action & Quote */}
+          <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide block">
+                {canBuyOnline ? 'À Vista no PIX' : 'Condição Comercial'}
+              </span>
+              <span className="text-sm font-extrabold text-amber-800 font-display bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 inline-block mt-0.5">
+                {canBuyOnline ? pixCustomerPrice : 'Sob Consulta'}
+              </span>
+              {canBuyOnline && (
+                <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+                  {getBestInstallmentText(product.price, 12)}
+                </span>
+              )}
+              {earnedPoints > 0 && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md mt-1">
+                  <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
+                  <span>+{earnedPoints} A-Points</span>
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => onSelectProduct(product)}
+                className="btn-secondary text-xs py-2 px-3.5 font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileText className="w-3.5 h-3.5 text-slate-600" />
+                <span>Ver Ficha</span>
+              </button>
+
+              {canBuyOnline ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (hasVariants) {
+                        setIsVariantModalOpen(true);
+                      } else {
+                        addToCart(product);
+                      }
+                    }}
+                    className="py-2 px-3 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar ao Carrinho"}
+                  >
+                    {hasVariants ? (
+                      <Layers className="w-3.5 h-3.5 text-amber-700" />
+                    ) : (
+                      <ShoppingCart className="w-3.5 h-3.5 text-amber-700" />
+                    )}
+                    <span>{hasVariants ? '+ Opções' : '+ Carrinho'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (hasVariants) {
+                        setIsVariantModalOpen(true);
+                      } else {
+                        openDirectCheckout(product);
+                      }
+                    }}
+                    className="py-2 px-4 rounded-xl text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-600 shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>{hasVariants ? 'Comprar Opção' : 'Comprar Agora'}</span>
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (hasVariants) {
+                        setIsVariantModalOpen(true);
+                      } else {
+                        addToCart(product);
+                      }
+                    }}
+                    className="py-2 px-3 rounded-xl text-xs font-black text-slate-900 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar à lista de orçamento"}
+                  >
+                    {hasVariants ? (
+                      <Layers className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                    ) : (
+                      <ShoppingCart className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                    )}
+                    <span>{hasVariants ? '+ Opções' : '+ Orçamento'}</span>
+                  </button>
+
+                  <a
+                    href={`https://wa.me/5561983485671?text=${whatsappText}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={handleCardWhatsAppClick}
+                    className="py-2 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
+                    <span>{hasPrice ? 'Consultar Orçamento' : 'Solicitar Cotação'}</span>
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // GRID VIEW LAYOUT (LARGE CARDS)
+  // ==========================================
+  return (
+    <div className="group flex flex-col h-full bg-white border border-slate-200 hover:border-amber-400 hover:shadow-lg transition-all duration-200 rounded-2xl overflow-hidden">
+      
+      {/* Large Image Container */}
+      <div 
+        className="relative h-64 sm:h-72 w-full bg-gradient-to-b from-slate-50 to-slate-100/70 flex items-center justify-center p-4 cursor-pointer overflow-hidden border-b border-slate-100" 
+        onClick={() => onSelectProduct(product)}
+      >
+        {currentCardImage ? (
+          <img 
+            src={currentCardImage} 
+            alt={product.altText || product.name}
+            loading="lazy"
+            decoding="async"
+            width="320"
+            height="288"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-slate-300 select-none">
+            <Package className="w-14 h-14 stroke-[1.5]" />
+            <span className="text-[10px] text-slate-400 font-semibold mt-1.5">Sem foto cadastrada</span>
+          </div>
+        )}
+
+        {/* Top Badges (Category & Custom Badges) */}
+        <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none z-10">
+          <div className="flex flex-col gap-1.5">
+            {product._matchedVia && (
+              <span className="bg-indigo-600 text-white font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-indigo-500 w-fit flex items-center gap-1 max-w-[200px]" title={`Compatível com: ${product._matchedVia.name}`}>
+                <Link2 className="w-3 h-3 shrink-0" />
+                <span className="truncate">Compatível c/ {product._matchedVia.name}</span>
+              </span>
+            )}
+            {product.productType === 'digital' && (
+              <span className="bg-emerald-600 text-white font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-emerald-500 w-fit flex items-center gap-1">
+                <Zap className="w-3 h-3" />
+                <span>Licença Digital</span>
+              </span>
+            )}
+            {product.badge && (
+              <span className="bg-amber-500 text-slate-950 font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-amber-400">
+                {product.badge}
+              </span>
+            )}
+            {isDraft && isAdmin && (
+              <span className="bg-slate-800 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-lg">
+                Rascunho
+              </span>
+            )}
+          </div>
+
+          {category && (
+            <span className="bg-slate-900/85 backdrop-blur-xs text-white text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded-full shadow-xs border border-white/20 max-w-[170px] truncate">
+              {category.name}
+            </span>
+          )}
+        </div>
+
+        {/* Admin Quick Action Overlay */}
+        {isAdmin && (
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => onEditProduct(product)}
+              className="p-2 rounded-lg bg-sky-600 text-white hover:bg-sky-700 shadow-md transition-transform active:scale-95 flex items-center justify-center"
+              title="Editar Produto"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onDeleteProduct(product.id)}
+              className="p-2 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-md transition-transform active:scale-95 flex items-center justify-center"
+              title="Excluir Produto"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Comparison Toggle Button */}
+        {onToggleComparison && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleComparison(product);
+            }}
+            className={`absolute bottom-3 left-3 z-20 px-2.5 py-1 rounded-lg text-[11px] font-extrabold flex items-center gap-1.5 shadow-md transition-all ${
+              isInComparison
+                ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-300'
+                : 'bg-slate-900/85 hover:bg-slate-950 text-white backdrop-blur-xs'
+            }`}
+            title={isInComparison ? 'Remover da comparação' : 'Comparar com outros modelos'}
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+            <span>{isInComparison ? 'Comparando' : 'Comparar'}</span>
+          </button>
+        )}
+
+        {/* Quick Add to Cart / Quote Button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (hasVariants) {
+              setIsVariantModalOpen(true);
+            } else {
+              addToCart(product);
+            }
+          }}
+          className="absolute bottom-3 right-3 z-20 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs shadow-md border border-amber-300/80 flex items-center gap-1.5 transition-all cursor-pointer group/btn"
+          title={hasVariants ? "Escolher Opções e Quantidades" : (canBuyOnline ? "Adicionar ao Carrinho" : "Adicionar à Lista de Orçamento")}
+        >
+          {hasVariants ? (
+            <Layers className="w-4 h-4 text-slate-950 transition-transform group-hover/btn:scale-110" />
+          ) : (
+            <ShoppingCart className="w-4 h-4 text-slate-950 transition-transform group-hover/btn:scale-110" />
+          )}
+          <span className="hidden min-[380px]:inline font-extrabold text-[11px]">
+            {hasVariants ? '+ Opções' : (canBuyOnline ? '+ Carrinho' : '+ Orçamento')}
+          </span>
+        </button>
+
+        {/* Quick View Hover Prompt */}
+        <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none hidden sm:flex">
+          <span className="px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md">
+            <Eye className="w-4 h-4" /> Ver Ficha Técnica
+          </span>
+        </div>
+      </div>
+
+      {/* Content Body */}
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3 sm:space-y-4">
+        
+        <div className="space-y-2">
+          {/* Brand Tag & Variants Swatches */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            {brand && (
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                <Tag className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span className="text-amber-700 font-extrabold uppercase tracking-wider">{brand.name}</span>
+              </div>
+            )}
+
+            {/* Variants Swatches / Badge in Grid View */}
+            {hasVariants && (
+              <div className="flex items-center gap-1.5 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                {variants.some(v => v.colorHex) ? (
+                  <div className="flex items-center gap-1">
+                    {variants.slice(0, 6).map(v => (
+                      <span
+                        key={v.id}
+                        onMouseEnter={() => {
+                          const preview = v.image || product.image;
+                          if (preview) setActivePreviewImage(preview);
+                        }}
+                        onMouseLeave={() => setActivePreviewImage(null)}
+                        className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-2xs inline-block transition-transform hover:scale-125 cursor-pointer"
+                        style={{ backgroundColor: v.colorHex || '#ccc' }}
+                        title={`${v.name}${v.sku ? ` (${v.sku})` : ''}`}
+                      />
+                    ))}
+                    {variants.length > 6 && (
+                      <span className="text-[10px] text-slate-400 font-extrabold">
+                        +{variants.length - 6}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    {variants.length} opções
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Title */}
+          <h3 
+            onClick={() => onSelectProduct(product)}
+            className="text-sm sm:text-base font-extrabold text-slate-900 line-clamp-2 hover:text-amber-600 cursor-pointer transition-colors leading-snug"
+          >
+            {product.name}
+          </h3>
+
+          {/* Short Description */}
+          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+            {stripFormattingTags(product.description)}
+          </p>
+        </div>
+
+        {/* Specs Highlights (Up to 3 items) */}
+        {product.specs && product.specs.length > 0 && (
+          <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+            {product.specs.slice(0, 3).map((spec, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-xs text-slate-700">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="truncate font-medium">{spec}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Price & Action Buttons */}
+        <div className="pt-3 border-t border-slate-200/80 space-y-3">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide">
+                {canBuyOnline ? 'À Vista no PIX' : 'Condição Comercial'}
+              </span>
+              <span className="text-xs font-extrabold text-amber-800 font-display bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-300">
+                {canBuyOnline ? pixCustomerPrice : 'Sob Consulta'}
+              </span>
+            </div>
+            {canBuyOnline && (
+              <span className="text-[10px] text-slate-500 font-medium block text-right">
+                {getBestInstallmentText(product.price, 12)}
+              </span>
+            )}
+            {earnedPoints > 0 && (
+              <div className="flex items-center justify-between pt-0.5">
+                <span className="text-[10px] text-slate-400 font-medium">Pontos no pedido:</span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded">
+                  <Sparkles className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                  <span>+{earnedPoints} A-Points</span>
+                </span>
+              </div>
+            )}
+          </div>
+
+          {canBuyOnline ? (
+            <div className="grid grid-cols-12 gap-1.5">
+              <button
+                onClick={() => onSelectProduct(product)}
+                className="col-span-5 btn-secondary text-xs py-2.5 px-1.5 w-full justify-center font-bold cursor-pointer truncate"
+              >
+                <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                <span>Detalhes</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasVariants) {
+                    setIsVariantModalOpen(true);
+                  } else {
+                    addToCart(product);
+                  }
+                }}
+                className="col-span-3 py-2.5 px-1 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar ao Carrinho"}
+              >
+                {hasVariants ? (
+                  <Layers className="w-3.5 h-3.5 text-amber-700" />
+                ) : (
+                  <ShoppingCart className="w-3.5 h-3.5 text-amber-700" />
+                )}
+                <span className="hidden min-[400px]:inline">{hasVariants ? 'Opções' : '+'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (hasVariants) {
+                    setIsVariantModalOpen(true);
+                  } else {
+                    openDirectCheckout(product);
+                  }
+                }}
+                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-600 shadow-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              >
+                <CreditCard className="w-3.5 h-3.5 shrink-0" />
+                <span>{hasVariants ? 'Opção' : 'Comprar'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-12 gap-1.5">
+              <button
+                onClick={() => onSelectProduct(product)}
+                className="col-span-4 btn-secondary text-xs py-2.5 px-1.5 w-full justify-center font-bold cursor-pointer truncate"
+              >
+                <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                <span>Detalhes</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasVariants) {
+                    setIsVariantModalOpen(true);
+                  } else {
+                    addToCart(product);
+                  }
+                }}
+                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-900 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer truncate"
+                title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar à lista de orçamento"}
+              >
+                {hasVariants ? (
+                  <Layers className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                ) : (
+                  <ShoppingCart className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                )}
+                <span className="text-[11px] font-black">{hasVariants ? '+ Opções' : '+ Orçamento'}</span>
+              </button>
+
+              <a
+                href={`https://wa.me/5561983485671?text=${whatsappText}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleCardWhatsAppClick}
+                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs transition-colors bg-emerald-600 hover:bg-emerald-700 text-white truncate"
+                title="Cotar este item no WhatsApp"
+              >
+                <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
+                <span>Cotar</span>
+              </a>
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* Quick Select Modal for Multi-Variant Quotes / Orders */}
+      {hasVariants && isVariantModalOpen && (
+        <ProductVariantSelectModal
+          isOpen={isVariantModalOpen}
+          onClose={() => setIsVariantModalOpen(false)}
+          product={product}
+          brand={brand}
+          category={category}
+          onSelectProduct={onSelectProduct}
+        />
+      )}
+    </div>
+  );
+}

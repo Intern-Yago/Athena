@@ -1,0 +1,2920 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  User, 
+  Package, 
+  MapPin, 
+  Lock, 
+  Phone, 
+  Mail, 
+  Building, 
+  FileText, 
+  CheckCircle2, 
+  Clock, 
+  Truck, 
+  AlertCircle, 
+  LogOut, 
+  ChevronRight, 
+  ExternalLink, 
+  MessageCircle, 
+  Save, 
+  Eye, 
+  EyeOff, 
+  Search,
+  ShoppingCart,
+  ShieldCheck,
+  ArrowRight,
+  Loader2,
+  Sparkles,
+  Coins,
+  Gift,
+  TrendingUp,
+  X,
+  Copy,
+  Check,
+  Zap,
+  Bell,
+  CreditCard,
+  Plus,
+  Trash2,
+  Edit3,
+  Key,
+  RefreshCw,
+  AlertTriangle
+} from 'lucide-react';
+import { saveSession } from '../utils/storage';
+import { formatCpfCnpj, fetchCnpjData, formatPhone, getPasswordValidation } from '../utils/documentUtils';
+
+export default function CustomerAccountPage({
+  currentUser,
+  onUpdateUser,
+  onLogout,
+  onNavigate,
+  API_BASE_URL,
+  showNotification,
+  initialTab = 'orders',
+  onStartVerification
+}) {
+  const [activeTab, setActiveTab] = useState(initialTab || 'orders'); // 'orders' | 'points' | 'profile' | 'address' | 'security'
+  // Profile State
+  const [profileForm, setProfileForm] = useState({
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone ? formatPhone(currentUser.phone) : '',
+    document: currentUser?.document || '',
+    companyName: currentUser?.companyName || currentUser?.company_name || ''
+  });
+
+  // Multi-Address Book State
+  const getInitialAddresses = () => {
+    if (Array.isArray(currentUser?.addresses) && currentUser.addresses.length > 0) {
+      return currentUser.addresses;
+    }
+    if (currentUser?.address && (currentUser.address.street || currentUser.address.cep)) {
+      return [{
+        id: 'addr_default',
+        label: 'Endereço Principal',
+        isDefault: true,
+        ...currentUser.address
+      }];
+    }
+    return [];
+  };
+
+  const [addressesList, setAddressesList] = useState(getInitialAddresses);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState(null);
+  const [modalAddressForm, setModalAddressForm] = useState({
+    label: '',
+    cep: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    isDefault: false
+  });
+  const [searchingModalCep, setSearchingModalCep] = useState(false);
+
+  // Address State
+  const [addressForm, setAddressForm] = useState({
+    cep: currentUser?.address?.cep || '',
+    street: currentUser?.address?.street || '',
+    number: currentUser?.address?.number || '',
+    complement: currentUser?.address?.complement || '',
+    neighborhood: currentUser?.address?.neighborhood || '',
+    city: currentUser?.address?.city || '',
+    state: currentUser?.address?.state || ''
+  });
+
+  // Password State
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Orders State
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [copiedKey, setCopiedKey] = useState(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [searchingCep, setSearchingCep] = useState(false);
+  const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
+  const [cnpjSuccessMsg, setCnpjSuccessMsg] = useState(null);
+  const [cnpjErrorMsg, setCnpjErrorMsg] = useState(null);
+
+  // Points State & Rewards
+  const [pointsData, setPointsData] = useState({ 
+    points: currentUser?.a_points || currentUser?.aPoints || 0,
+    pointsAvailable: currentUser?.a_points || currentUser?.aPoints || 0,
+    pointsPending: 0,
+    transactions: [],
+    rewards: []
+  });
+  const [loadingPoints, setLoadingPoints] = useState(false);
+  const [redeemingReward, setRedeemingReward] = useState(null);
+  const [redeemSuccess, setRedeemSuccess] = useState(null);
+  const [confirmRedeemReward, setConfirmRedeemReward] = useState(null);
+  const [redeemDeliveryMethod, setRedeemDeliveryMethod] = useState('shipping'); // 'shipping' | 'pickup' | 'with_order'
+  const [redeemAddress, setRedeemAddress] = useState({
+    cep: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: ''
+  });
+  const [redeemNotes, setRedeemNotes] = useState('');
+  const [searchingRedeemCep, setSearchingRedeemCep] = useState(false);
+  const [saveAsDefaultAddress, setSaveAsDefaultAddress] = useState(true);
+
+  const docInfo = useMemo(() => {
+    return formatCpfCnpj(profileForm.document);
+  }, [profileForm.document]);
+
+  const triggerCnpjLookup = async (manualRaw = null) => {
+    const raw = manualRaw || profileForm.document.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+    if (raw.length !== 14) return;
+    setIsSearchingCnpj(true);
+    setCnpjErrorMsg(null);
+    setCnpjSuccessMsg(null);
+    try {
+      const data = await fetchCnpjData(raw);
+      setProfileForm(prev => ({
+        ...prev,
+        companyName: data.tradeName || data.companyName || prev.companyName,
+        phone: prev.phone || data.phone || ''
+      }));
+      setAddressForm(prev => ({
+        ...prev,
+        cep: prev.cep || data.zip || '',
+        street: prev.street || data.street || '',
+        number: prev.number || data.number || '',
+        neighborhood: prev.neighborhood || data.district || '',
+        city: prev.city || data.city || '',
+        state: prev.state || data.state || ''
+      }));
+      setCnpjSuccessMsg(`Empresa localizada: ${data.companyName} (${data.city}/${data.state})`);
+      setTimeout(() => setCnpjSuccessMsg(null), 5000);
+    } catch (err) {
+      setCnpjErrorMsg(err.message || 'Erro ao consultar CNPJ');
+      setTimeout(() => setCnpjErrorMsg(null), 4000);
+    } finally {
+      setIsSearchingCnpj(false);
+    }
+  };
+
+  const handleDocumentChange = (e) => {
+    const info = formatCpfCnpj(e.target.value);
+    setProfileForm(prev => ({ ...prev, document: info.formatted }));
+
+    if (info.isCnpj && info.isComplete && !profileForm.companyName) {
+      triggerCnpjLookup(info.raw);
+    }
+  };
+
+  // Sync tab with initialTab
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  // Sync state when currentUser updates
+  useEffect(() => {
+    if (currentUser) {
+      setProfileForm({
+        name: currentUser.name || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        document: currentUser.document || '',
+        companyName: currentUser.companyName || currentUser.company_name || ''
+      });
+
+      if (Array.isArray(currentUser.addresses) && currentUser.addresses.length > 0) {
+        setAddressesList(currentUser.addresses);
+      } else if (currentUser.address && (currentUser.address.street || currentUser.address.cep)) {
+        setAddressesList([{
+          id: 'addr_default',
+          label: 'Endereço Principal',
+          isDefault: true,
+          ...currentUser.address
+        }]);
+      }
+
+      if (currentUser.address) {
+        setAddressForm({
+          cep: currentUser.address.cep || '',
+          street: currentUser.address.street || '',
+          number: currentUser.address.number || '',
+          complement: currentUser.address.complement || '',
+          neighborhood: currentUser.address.neighborhood || '',
+          city: currentUser.address.city || '',
+          state: currentUser.address.state || ''
+        });
+      }
+    }
+  }, [currentUser]);
+
+  // Fetch Customer Orders
+  const fetchCustomerOrders = async () => {
+      if (!currentUser?.token) {
+        setLoadingOrders(false);
+        return;
+      }
+      setLoadingOrders(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/customer/orders`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentUser.token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setOrders(Array.isArray(data) ? data : []);
+        } else {
+          setOrders([]);
+        }
+      } catch (err) {
+        console.warn('Erro ao buscar pedidos do cliente:', err);
+        setOrders([]);
+      } finally {
+        setLoadingOrders(false);
+      }
+  };
+
+  const fetchPoints = async () => {
+    if (!currentUser?.token) return;
+    setLoadingPoints(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/points/me`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPointsData(data || { points: 0, pointsAvailable: 0, pointsPending: 0, transactions: [], rewards: [] });
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar A-Points:', err);
+    } finally {
+      setLoadingPoints(false);
+    }
+  };
+
+  // Digital Licenses & Renewals State (SaaS / SGW)
+  const [licenses, setLicenses] = useState([]);
+  const [loadingLicenses, setLoadingLicenses] = useState(false);
+  const [copiedLicenseKey, setCopiedLicenseKey] = useState(null);
+
+  const fetchLicenses = async () => {
+    if (!currentUser?.token) return;
+    setLoadingLicenses(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/customer/licenses`, {
+        headers: {
+          'Authorization': `Bearer ${currentUser.token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLicenses(Array.isArray(data) ? data : (data.licenses || []));
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar licenças digitais:', err);
+    } finally {
+      setLoadingLicenses(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomerOrders();
+    fetchPoints();
+    fetchLicenses();
+  }, [currentUser, API_BASE_URL]);
+
+  const handleRedeemReward = (reward) => {
+    if (!currentUser?.token) {
+      showNotification?.('Faça login para resgatar sua recompensa.', 'error');
+      return;
+    }
+    const currentBal = Number(pointsData.pointsAvailable ?? pointsData.points ?? 0);
+    const cost = Number(reward.pointsCost || reward.points_cost || 0);
+
+    if (currentBal < cost) {
+      showNotification?.(`Saldo insuficiente. Você possui ${currentBal} pontos e a recompensa requer ${cost} pontos.`, 'error');
+      return;
+    }
+
+    // Inicializa formulário de recebimento / entrega do brinde
+    setRedeemDeliveryMethod('shipping');
+    setRedeemAddress({
+      cep: currentUser?.address?.cep || addressForm.cep || '',
+      street: currentUser?.address?.street || addressForm.street || '',
+      number: currentUser?.address?.number || addressForm.number || '',
+      complement: currentUser?.address?.complement || addressForm.complement || '',
+      neighborhood: currentUser?.address?.neighborhood || addressForm.neighborhood || '',
+      city: currentUser?.address?.city || addressForm.city || '',
+      state: currentUser?.address?.state || addressForm.state || ''
+    });
+    setRedeemNotes('');
+    setConfirmRedeemReward(reward);
+  };
+
+  // Busca de CEP dentro do modal de resgate
+  const handleRedeemCepBlur = async () => {
+    const cleanCep = (redeemAddress.cep || '').replace(/\D/g, '');
+    if (cleanCep.length === 8) {
+      setSearchingRedeemCep(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setRedeemAddress((prev) => ({
+            ...prev,
+            street: data.logradouro || prev.street,
+            neighborhood: data.bairro || prev.neighborhood,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state
+          }));
+          showNotification?.('Endereço preenchido automaticamente via CEP!', 'success');
+        } else {
+          showNotification?.('CEP não localizado. Preencha os campos manualmente.', 'info');
+        }
+      } catch (e) {
+        console.warn('Erro ao consultar ViaCEP no modal:', e);
+      } finally {
+        setSearchingRedeemCep(false);
+      }
+    }
+  };
+
+  const executeRedeemReward = async (reward) => {
+    if (!reward) return;
+
+    const isVoucher = reward.category === 'vouchers' || reward.id.startsWith('rw_cupom');
+
+    if (!isVoucher && redeemDeliveryMethod === 'shipping') {
+      if (!redeemAddress.cep || !redeemAddress.street || !redeemAddress.number || !redeemAddress.neighborhood || !redeemAddress.city || !redeemAddress.state) {
+        showNotification?.('Por favor, preencha todos os campos obrigatórios do endereço (CEP, logradouro, número, bairro, cidade e UF).', 'error');
+        return;
+      }
+    }
+
+    setRedeemingReward(reward.id);
+    try {
+      const res = await fetch(`${API_BASE_URL}/rewards/redeem`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
+        },
+        body: JSON.stringify({ 
+          rewardId: reward.id,
+          deliveryMethod: isVoucher ? 'voucher' : redeemDeliveryMethod,
+          shippingAddress: (!isVoucher && redeemDeliveryMethod === 'shipping') ? redeemAddress : null,
+          deliveryNotes: redeemNotes,
+          saveAsDefaultAddress
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao processar resgate.');
+
+      showNotification?.(data.message || 'Resgate realizado com sucesso!', 'success');
+      setRedeemSuccess({
+        reward,
+        remainingPoints: data.remainingPoints,
+        txId: data.transactionId,
+        deliveryMethod: isVoucher ? 'voucher' : redeemDeliveryMethod
+      });
+
+      if (currentUser?.id && onUpdateUser) {
+        const updatedUserData = { ...currentUser, a_points: data.remainingPoints, aPoints: data.remainingPoints };
+        if (!isVoucher && redeemDeliveryMethod === 'shipping' && saveAsDefaultAddress) {
+          updatedUserData.address = redeemAddress;
+          setAddressForm(redeemAddress);
+        }
+        onUpdateUser(updatedUserData);
+      }
+      fetchPoints();
+      setConfirmRedeemReward(null);
+    } catch (err) {
+      showNotification?.(err.message || 'Erro ao resgatar recompensa.', 'error');
+    } finally {
+      setRedeemingReward(null);
+    }
+  };
+
+  // Auto Search CEP via ViaCEP
+  const handleCepBlur = async () => {
+    const cleanCep = (addressForm.cep || '').replace(/\D/g, '');
+    if (cleanCep.length === 8) {
+      setSearchingCep(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setAddressForm((prev) => ({
+            ...prev,
+            street: data.logradouro || prev.street,
+            neighborhood: data.bairro || prev.neighborhood,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state
+          }));
+          showNotification('Endereço preenchido automaticamente via CEP!', 'success');
+        } else {
+          showNotification('CEP não localizado. Por favor, digite o endereço manualmente.', 'info');
+        }
+      } catch (e) {
+        console.warn('Erro ao consultar ViaCEP:', e);
+      } finally {
+        setSearchingCep(false);
+      }
+    }
+  };
+
+  // Update Profile Info
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/customer/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          name: profileForm.name.trim(),
+          phone: profileForm.phone.trim(),
+          document: profileForm.document.trim(),
+          companyName: profileForm.companyName.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        const updatedUser = {
+          ...currentUser,
+          name: profileForm.name.trim(),
+          phone: profileForm.phone.trim(),
+          document: profileForm.document.trim(),
+          companyName: profileForm.companyName.trim(),
+          company_name: profileForm.companyName.trim()
+        };
+        saveSession(updatedUser);
+        if (onUpdateUser) onUpdateUser(updatedUser);
+        showNotification('Seus dados cadastrais foram atualizados com sucesso!', 'success');
+      } else {
+        showNotification(data.error || 'Erro ao atualizar dados.', 'error');
+      }
+    } catch (err) {
+      showNotification('Não foi possível conectar ao servidor.', 'error');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  // Multi-Address Actions
+  const openNewAddressModal = () => {
+    setEditingAddressId(null);
+    setModalAddressForm({
+      label: addressesList.length === 0 ? 'Matriz / Principal' : '',
+      cep: '',
+      street: '',
+      number: '',
+      complement: '',
+      neighborhood: '',
+      city: '',
+      state: '',
+      isDefault: addressesList.length === 0
+    });
+    setIsAddressModalOpen(true);
+  };
+
+  const openEditAddressModal = (addr) => {
+    setEditingAddressId(addr.id);
+    setModalAddressForm({
+      label: addr.label || '',
+      cep: addr.cep || '',
+      street: addr.street || '',
+      number: addr.number || '',
+      complement: addr.complement || '',
+      neighborhood: addr.neighborhood || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      isDefault: !!addr.isDefault
+    });
+    setIsAddressModalOpen(true);
+  };
+
+  const handleModalCepBlur = async () => {
+    const cleanCep = (modalAddressForm.cep || '').replace(/\D/g, '');
+    if (cleanCep.length === 8) {
+      setSearchingModalCep(true);
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          setModalAddressForm(prev => ({
+            ...prev,
+            street: data.logradouro || prev.street,
+            neighborhood: data.bairro || prev.neighborhood,
+            city: data.localidade || prev.city,
+            state: data.uf || prev.state
+          }));
+          showNotification('Endereço localizado via CEP!', 'success');
+        } else {
+          showNotification('CEP não localizado. Preencha manualmente.', 'info');
+        }
+      } catch (e) {
+        console.warn('Erro ao consultar ViaCEP:', e);
+      } finally {
+        setSearchingModalCep(false);
+      }
+    }
+  };
+
+  const handleSaveAddressModal = async (e) => {
+    e.preventDefault();
+    setSavingAddress(true);
+    try {
+      let nextList = [...addressesList];
+      const isFirst = nextList.length === 0;
+      const shouldBeDefault = modalAddressForm.isDefault || isFirst;
+
+      if (shouldBeDefault) {
+        nextList = nextList.map(a => ({ ...a, isDefault: false }));
+      }
+
+      if (editingAddressId) {
+        nextList = nextList.map(a => a.id === editingAddressId ? {
+          ...a,
+          ...modalAddressForm,
+          label: (modalAddressForm.label || '').trim() || 'Endereço',
+          isDefault: shouldBeDefault
+        } : a);
+      } else {
+        nextList.push({
+          id: `addr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          ...modalAddressForm,
+          label: (modalAddressForm.label || '').trim() || `Endereço ${nextList.length + 1}`,
+          isDefault: shouldBeDefault
+        });
+      }
+
+      if (!nextList.some(a => a.isDefault) && nextList.length > 0) {
+        nextList[0].isDefault = true;
+      }
+
+      const defaultAddr = nextList.find(a => a.isDefault) || nextList[0] || null;
+
+      const res = await fetch(`${API_BASE_URL}/customer/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          addresses: nextList,
+          address: defaultAddr ? {
+            cep: defaultAddr.cep,
+            street: defaultAddr.street,
+            number: defaultAddr.number,
+            complement: defaultAddr.complement,
+            neighborhood: defaultAddr.neighborhood,
+            city: defaultAddr.city,
+            state: defaultAddr.state
+          } : null
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setAddressesList(nextList);
+        const updatedUser = {
+          ...currentUser,
+          addresses: nextList,
+          address: defaultAddr
+        };
+        saveSession(updatedUser);
+        if (onUpdateUser) onUpdateUser(updatedUser);
+        setIsAddressModalOpen(false);
+        setEditingAddressId(null);
+        showNotification('Endereço salvo com sucesso!', 'success');
+      } else {
+        showNotification(data.error || 'Erro ao salvar endereço.', 'error');
+      }
+    } catch (err) {
+      showNotification('Não foi possível conectar ao servidor.', 'error');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const handleSetDefaultAddress = async (addressId) => {
+    const nextList = addressesList.map(a => ({
+      ...a,
+      isDefault: a.id === addressId
+    }));
+    const defaultAddr = nextList.find(a => a.id === addressId);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/customer/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          addresses: nextList,
+          address: defaultAddr ? {
+            cep: defaultAddr.cep,
+            street: defaultAddr.street,
+            number: defaultAddr.number,
+            complement: defaultAddr.complement,
+            neighborhood: defaultAddr.neighborhood,
+            city: defaultAddr.city,
+            state: defaultAddr.state
+          } : null
+        })
+      });
+      if (res.ok) {
+        setAddressesList(nextList);
+        const updatedUser = {
+          ...currentUser,
+          addresses: nextList,
+          address: defaultAddr
+        };
+        saveSession(updatedUser);
+        if (onUpdateUser) onUpdateUser(updatedUser);
+        showNotification('Endereço padrão atualizado!', 'success');
+      }
+    } catch (err) {
+      showNotification('Erro ao definir endereço padrão.', 'error');
+    }
+  };
+
+  const handleDeleteAddress = async (addressId) => {
+    if (!window.confirm('Tem certeza de que deseja excluir este endereço?')) return;
+    const nextList = addressesList.filter(a => a.id !== addressId);
+    if (nextList.length > 0 && !nextList.some(a => a.isDefault)) {
+      nextList[0].isDefault = true;
+    }
+    const defaultAddr = nextList.find(a => a.isDefault) || nextList[0] || null;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/customer/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          addresses: nextList,
+          address: defaultAddr ? {
+            cep: defaultAddr.cep,
+            street: defaultAddr.street,
+            number: defaultAddr.number,
+            complement: defaultAddr.complement,
+            neighborhood: defaultAddr.neighborhood,
+            city: defaultAddr.city,
+            state: defaultAddr.state
+          } : null
+        })
+      });
+      if (res.ok) {
+        setAddressesList(nextList);
+        const updatedUser = {
+          ...currentUser,
+          addresses: nextList,
+          address: defaultAddr
+        };
+        saveSession(updatedUser);
+        if (onUpdateUser) onUpdateUser(updatedUser);
+        showNotification('Endereço excluído com sucesso!', 'success');
+      }
+    } catch (err) {
+      showNotification('Erro ao excluir endereço.', 'error');
+    }
+  };
+
+  // Update Address
+  const handleSaveAddress = async (e) => {
+    e.preventDefault();
+    setSavingAddress(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/customer/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          address: addressForm
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        const updatedUser = {
+          ...currentUser,
+          address: addressForm
+        };
+        saveSession(updatedUser);
+        if (onUpdateUser) onUpdateUser(updatedUser);
+        showNotification('Endereço de entrega salvo com sucesso!', 'success');
+      } else {
+        showNotification(data.error || 'Erro ao salvar endereço.', 'error');
+      }
+    } catch (err) {
+      showNotification('Não foi possível conectar ao servidor.', 'error');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  // Update Password
+  const handleSavePassword = async (e) => {
+    e.preventDefault();
+    if (!passwordForm.currentPassword) {
+      showNotification('Digite sua senha atual.', 'error');
+      return;
+    }
+    const pwdVal = getPasswordValidation(passwordForm.newPassword);
+    if (!pwdVal.isValid) {
+      if (!pwdVal.minLength) {
+        showNotification('A nova senha deve ter no mínimo 8 caracteres.', 'error');
+      } else if (!pwdVal.hasUpper) {
+        showNotification('A nova senha deve conter ao menos uma letra maiúscula (A-Z).', 'error');
+      } else if (!pwdVal.hasLower) {
+        showNotification('A nova senha deve conter ao menos uma letra minúscula (a-z).', 'error');
+      } else if (!pwdVal.hasNumber) {
+        showNotification('A nova senha deve conter ao menos um número (0-9).', 'error');
+      } else if (!pwdVal.hasSpecial) {
+        showNotification('A nova senha deve conter ao menos um caractere especial (!@#$%...).', 'error');
+      }
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showNotification('A confirmação da nova senha não confere.', 'error');
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/customer/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('Senha alterada com sucesso! Utilize-a em seu próximo login.', 'success');
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        showNotification(data.error || 'Senha atual incorreta.', 'error');
+      }
+    } catch (err) {
+      showNotification('Não foi possível conectar ao servidor.', 'error');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  // Pedidos com pagamento pendente
+  const pendingOrders = useMemo(() => {
+    return orders.filter(order => {
+      const pStatus = String(order.payment_status || order.status || '').toLowerCase();
+      const isPaid = ['paid', 'free', 'faturado', 'aprovado'].includes(pStatus);
+      const isCancelled = ['cancelled', 'cancelado'].includes(pStatus);
+      return !isPaid && !isCancelled;
+    });
+  }, [orders]);
+
+  // Régua de cobrança e notificações: D1, D15, D30 e a cada 30 dias subsequentes
+  const getPendingDunningInfo = (createdAt) => {
+    if (!createdAt) return { diffDays: 0, label: 'Hoje', isMilestone: false, milestoneText: 'Aguardando processamento bancário.' };
+    const diffDays = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return {
+        diffDays: 0,
+        label: 'Iniciado hoje',
+        isMilestone: false,
+        milestoneText: 'Pedido realizado hoje. Aguardando compensação da instituição financeira (PIX ou Boleto).'
+      };
+    }
+    if (diffDays === 1) {
+      return {
+        diffDays: 1,
+        label: 'Há 1 dia (Régua D1)',
+        isMilestone: true,
+        milestoneText: '🔔 Lembrete D1: Seu pedido foi iniciado ontem e está com estoque reservado. Conclua hoje para envio imediato!'
+      };
+    }
+    if (diffDays === 15) {
+      return {
+        diffDays: 15,
+        label: 'Há 15 dias (Régua D15)',
+        isMilestone: true,
+        milestoneText: '🔔 Lembrete D15: Cotação/pedido há 15 dias em aberto. Converse com seu consultor para manter as condições da proposta.'
+      };
+    }
+    if (diffDays === 30) {
+      return {
+        diffDays: 30,
+        label: 'Há 30 dias (Régua D30)',
+        isMilestone: true,
+        milestoneText: '🔔 Lembrete D30: Pedido em aberto há 1 mês. Caso precise de 2ª via ou novo prazo de faturamento, avise nossa equipe.'
+      };
+    }
+    if (diffDays > 30 && (diffDays - 30) % 30 === 0) {
+      const cycle = Math.floor(diffDays / 30);
+      return {
+        diffDays,
+        label: `Há ${diffDays} dias (${cycle}º mês)`,
+        isMilestone: true,
+        milestoneText: `🔔 Lembrete Periódico (${cycle}º mês): Pedido em aberto há ${diffDays} dias. Entre em contato para regularizar.`
+      };
+    }
+
+    let nextMilestone = 1;
+    if (diffDays >= 30) {
+      nextMilestone = 30 + (Math.floor((diffDays - 30) / 30) + 1) * 30;
+    } else if (diffDays >= 15) {
+      nextMilestone = 30;
+    } else if (diffDays >= 1) {
+      nextMilestone = 15;
+    }
+
+    return {
+      diffDays,
+      label: `Há ${diffDays} dias`,
+      isMilestone: false,
+      milestoneText: `Aguardando confirmação bancária há ${diffDays} dias. Próximo lembrete no marco D${nextMilestone}.`
+    };
+  };
+
+  // Status mapping badge helper
+  // Status mapping badge helper (Athena OS v2.1 decoupled status support)
+  const getStatusBadge = (orderOrStatus) => {
+    const isObj = typeof orderOrStatus === 'object' && orderOrStatus !== null;
+    const paymentStatus = isObj ? (orderOrStatus.payment_status || orderOrStatus.status) : orderOrStatus;
+    const fulfillmentStatus = isObj ? orderOrStatus.fulfillment_status : null;
+
+    if (fulfillmentStatus === 'delivered' || paymentStatus === 'entregue' || paymentStatus === 'concluido') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Entregue
+        </span>
+      );
+    }
+    if (fulfillmentStatus === 'shipped' || paymentStatus === 'enviado' || paymentStatus === 'em_transporte') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-sky-50 text-sky-700 border border-sky-200">
+          <Truck className="w-3.5 h-3.5 text-sky-600" /> Despachado / Em Trânsito
+        </span>
+      );
+    }
+    if (fulfillmentStatus === 'picking' || fulfillmentStatus === 'ready') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-purple-50 text-purple-700 border border-purple-200">
+          <Package className="w-3.5 h-3.5 text-purple-600" /> Em Separação no Estoque
+        </span>
+      );
+    }
+    if (paymentStatus === 'paid' || paymentStatus === 'free' || paymentStatus === 'faturado' || paymentStatus === 'aprovado') {
+      const hasDigital = isObj && Array.isArray(orderOrStatus.items) && orderOrStatus.items.some(i => i.fulfillment_type === 'digital' || i.fulfillmentType === 'digital' || i.productType === 'digital' || i.product_type === 'digital');
+      if (hasDigital) {
+        if (fulfillmentStatus === 'delivered' || orderOrStatus.activation_status === 'activated') {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Acesso Liberado
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-800 border border-amber-200" title="Logo enviaremos seu acesso">
+            <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" /> Aguardando Liberação de Acesso
+          </span>
+        );
+      }
+
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Pagamento Aprovado
+        </span>
+      );
+    }
+    if (paymentStatus === 'cancelled' || paymentStatus === 'cancelado') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+          <AlertCircle className="w-3.5 h-3.5 text-rose-600" /> Cancelado
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+        <Clock className="w-3.5 h-3.5 text-amber-600" /> Aguardando Pagamento
+      </span>
+    );
+  };
+
+  return (
+    <div className="py-8 bg-slate-50 min-h-[calc(100vh-140px)]">
+      <div className="container-custom space-y-6">
+        
+        {/* Compact, Modern Header Profile Bar */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-700 font-black text-xl shrink-0 shadow-2xs">
+              {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'C'}
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-amber-700">
+                  <User className="w-3 h-3 text-amber-600" /> Área do Cliente
+                </span>
+                {currentUser?.isVerified ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> E-mail Verificado
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onStartVerification}
+                    className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition-colors cursor-pointer"
+                    title="Clique para validar seu e-mail"
+                  >
+                    <AlertCircle className="w-3 h-3 text-amber-600" /> Confirmar E-mail
+                  </button>
+                )}
+              </div>
+              <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-snug">
+                Olá, {currentUser?.name || 'Cliente Athena'}!
+              </h1>
+              <p className="text-xs text-slate-500 flex flex-wrap items-center gap-2">
+                <span>{currentUser?.email}</span>
+                {currentUser?.phone && (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span>{currentUser.phone}</span>
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
+            {/* Quick A-Points Chip */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('points')}
+              className="flex-1 md:flex-initial px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-amber-50/60 text-slate-800 hover:text-amber-900 border border-slate-200 hover:border-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>{pointsData.points || currentUser?.a_points || currentUser?.aPoints || 0} A-Points</span>
+            </button>
+
+            {currentUser?.role === 'admin' && (
+              <button
+                onClick={() => onNavigate('admin')}
+                className="flex-1 md:flex-initial px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+              >
+                <span>Painel Admin</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <button
+              onClick={() => onLogout('Você saiu da sua conta.')}
+              className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-700 border border-slate-200 hover:border-red-200 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sair</span>
+            </button>
+          </div>
+        </div>
+
+        {/* PENDING PAYMENTS ALERT BANNER */}
+        {pendingOrders.length > 0 && (
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/15 to-orange-500/10 border-2 border-amber-400/80 rounded-2xl p-4 sm:p-5 shadow-xs animate-in fade-in">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                  <Clock className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-amber-950 flex items-center gap-2 flex-wrap">
+                    <span>Você possui {pendingOrders.length} pedido{pendingOrders.length > 1 ? 's' : ''} aguardando pagamento</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 px-2 py-0.5 rounded-full">
+                      Ação Necessária
+                    </span>
+                  </h3>
+                  <p className="text-xs text-amber-900/80 mt-1">
+                    Mantenha seus pedidos em dia para garantir o envio imediato e o congelamento dos preços de tabela. Notificamos no 1º, 15º, 30º dia e a cada 30 dias após o início da compra.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('orders')}
+                  className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Ver Pedido{pendingOrders.length > 1 ? 's' : ''}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'orders'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-100/80'
+            }`}
+          >
+            <Package className="w-4 h-4" />
+            <span>Meus Pedidos & Cotações</span>
+            {orders.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'orders' ? 'bg-amber-800 text-white' : 'bg-slate-200 text-slate-800'}`}>
+                {orders.length}
+              </span>
+            )}
+            {pendingOrders.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-amber-950 animate-pulse">
+                {pendingOrders.length} pendente{pendingOrders.length > 1 ? 's' : ''}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('licenses')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'licenses'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-100/80'
+            }`}
+          >
+            <Key className="w-4 h-4 text-amber-500" />
+            <span>Minhas Licenças & SGW</span>
+            {licenses.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'licenses' ? 'bg-amber-800 text-white' : 'bg-slate-200 text-slate-800'}`}>
+                {licenses.length}
+              </span>
+            )}
+            {licenses.some(l => l.isExpiringSoon || l.isExpired) && (
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('points')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'points'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-100/80'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <span>Meus A-Points</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'points' ? 'bg-amber-800 text-white' : 'bg-amber-100 text-amber-800'}`}>
+              {pointsData.points || currentUser?.a_points || currentUser?.aPoints || 0} pts
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'profile'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-100/80'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            <span>Dados Cadastrais</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('address')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'address'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-100/80'
+            }`}
+          >
+            <MapPin className="w-4 h-4" />
+            <span>Meus Endereços</span>
+            {addressesList.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'address' ? 'bg-amber-800 text-white' : 'bg-slate-200 text-slate-800'}`}>
+                {addressesList.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'security'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white bg-slate-100/80'
+            }`}
+          >
+            <Lock className="w-4 h-4" />
+            <span>Segurança & Senha</span>
+          </button>
+        </div>
+
+        {/* TAB 1: MEUS PEDIDOS */}
+        {activeTab === 'orders' && (
+          <div className="space-y-4">
+            {loadingOrders ? (
+              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs space-y-3">
+                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-xs text-slate-500 font-bold">Carregando seus pedidos e cotações...</p>
+              </div>
+            ) : orders.length > 0 ? (
+              <div className="space-y-4">
+                {orders.map((order) => {
+                  const pStatus = String(order.payment_status || order.status || '').toLowerCase();
+                  const isPaid = ['paid', 'free', 'faturado', 'aprovado'].includes(pStatus);
+                  const isCancelled = ['cancelled', 'cancelado'].includes(pStatus);
+                  const isPending = !isPaid && !isCancelled;
+                  const dunning = isPending ? getPendingDunningInfo(order.created_at || order.createdAt) : null;
+
+                  return (
+                    <div 
+                      key={order.id}
+                      className={`bg-white rounded-3xl border shadow-xs p-6 space-y-4 transition-colors ${
+                        isPending ? 'border-amber-300 ring-1 ring-amber-200/50' : 'border-slate-200 hover:border-amber-400'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-slate-900 font-mono">
+                              Pedido #{order.order_number || order.id.slice(0, 8)}
+                            </span>
+                            {order.order_type === 'points_redemption' ? (
+                              <span className="text-[10px] font-black uppercase bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <Coins className="w-3 h-3" />
+                                <span>Resgate A-Points</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                Venda Comercial
+                              </span>
+                            )}
+                            <span className="text-[11px] text-slate-400">
+                              • {new Date(order.created_at || order.createdAt || Date.now()).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            Total:{' '}
+                            <strong className="text-slate-900 font-extrabold font-mono">
+                              {order.order_type === 'points_redemption' 
+                                ? `${order.points_spent || 0} pts` 
+                                : order.total_amount > 0 
+                                  ? `R$ ${Number(order.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` 
+                                  : 'Sob Cotação Direta'}
+                            </strong>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                          {getStatusBadge(order)}
+                          <a
+                            href={`https://wa.me/5561983485671?text=Ol%C3%A1%2C+sou+o+cliente+${encodeURIComponent(currentUser?.name || '')}+e+gostaria+de+informa%C3%A7%C3%B5es+sobre+o+meu+pedido+%23${order.order_number || order.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Falar no WhatsApp</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* PENDING PAYMENT NOTICE & DUNNING TIMELINE */}
+                      {isPending && dunning && (
+                        <div className={`p-4 rounded-2xl border space-y-2.5 transition-all ${
+                          dunning.isMilestone 
+                            ? 'bg-amber-100/70 border-amber-400 text-amber-950 ring-1 ring-amber-400/50' 
+                            : 'bg-amber-50/70 border-amber-200/80 text-amber-900'
+                        }`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                              <span className="text-xs font-black uppercase tracking-wider text-amber-900">
+                                {dunning.isMilestone ? `🔔 Alerta de Cobrança — ${dunning.label}` : `Aguardando Pagamento (${dunning.label})`}
+                              </span>
+                            </div>
+                            {dunning.isMilestone && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 self-start sm:self-auto">
+                                Lembrete Ativo
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-amber-900/90 leading-relaxed font-medium">
+                            {dunning.milestoneText}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                            <a
+                              href={`https://wa.me/5561983485671?text=${encodeURIComponent(
+                                `Olá! Sou o cliente ${currentUser?.name || ''} e gostaria de concluir o pagamento do meu pedido #${order.order_number || order.id}${order.total_amount > 0 ? ` no valor de R$ ${Number(order.total_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}. Pode me auxiliar?`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>Concluir Pagamento no WhatsApp</span>
+                            </a>
+                            {Boolean(order.payment_url || order.invoice_url) && (
+                              <a
+                                href={order.payment_url || order.invoice_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Acessar Link Bancário / Boleto / PIX</span>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* PHYSICAL SHIPMENT & TRACKING CARD */}
+                    {order.shipments && order.shipments.length > 0 && order.shipments.some(s => s.tracking_code || s.status === 'shipped') && (
+                      <div className="p-3.5 bg-sky-50/70 rounded-2xl border border-sky-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-black uppercase text-sky-900 flex items-center gap-1.5">
+                            <Truck className="w-3.5 h-3.5 text-sky-600" />
+                            <span>Rastreamento da Encomenda</span>
+                          </span>
+                          <span className="text-[10px] font-bold text-sky-700 bg-white px-2 py-0.5 rounded-full border border-sky-200">
+                            {order.shipments[0].carrier || 'Transportadora'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-sky-100 font-mono text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-500 text-[11px]">Código de Rastreio:</span>
+                            <strong className="text-slate-900">{order.shipments[0].tracking_code || 'Aguardando despacho'}</strong>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {order.shipments[0].tracking_code && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(order.shipments[0].tracking_code);
+                                  setCopiedKey(order.shipments[0].tracking_code);
+                                  setTimeout(() => setCopiedKey(null), 2000);
+                                }}
+                                className="text-[10px] font-bold text-sky-700 hover:text-sky-800 flex items-center gap-1 cursor-pointer"
+                              >
+                                {copiedKey === order.shipments[0].tracking_code ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                <span>{copiedKey === order.shipments[0].tracking_code ? 'Copiado!' : 'Copiar Código'}</span>
+                              </button>
+                            )}
+                            {order.shipments[0].tracking_url && (
+                              <a
+                                href={order.shipments[0].tracking_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[10px] font-bold text-sky-700 hover:text-sky-800 flex items-center gap-1"
+                              >
+                                <span>Acompanhar Entrega</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* DIGITAL ACTIVATIONS & LICENSE KEYS CARD */}
+                    {order.digital_activations && order.digital_activations.length > 0 && (
+                      <div className="p-3.5 bg-purple-50/70 rounded-2xl border border-purple-200 space-y-2">
+                        <span className="text-[11px] font-black uppercase text-purple-900 flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Licenças Digitais / Softwares</span>
+                        </span>
+                        {order.digital_activations.map((da, daIdx) => (
+                          <div key={daIdx} className="bg-white p-2.5 rounded-xl border border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <p className="font-bold text-slate-900 text-xs">{da.software_name || 'Software Athena'}</p>
+                              <p className="text-[10px] text-slate-500">
+                                Status: <strong className="capitalize">{da.status === 'activated' ? 'Ativado com Sucesso' : 'Em fila de ativação técnica'}</strong>
+                              </p>
+                            </div>
+                            {da.license_key ? (
+                              <div className="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 font-mono text-xs">
+                                <span className="font-bold text-slate-800">{da.license_key}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(da.license_key);
+                                    setCopiedKey(da.license_key);
+                                    setTimeout(() => setCopiedKey(null), 2000);
+                                  }}
+                                  className="text-[10px] font-bold text-purple-700 hover:text-purple-800 flex items-center gap-1 cursor-pointer"
+                                >
+                                  {copiedKey === da.license_key ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                  <span>{copiedKey === da.license_key ? 'Copiado!' : 'Copiar Chave'}</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                Aguardando liberação pelo suporte técnico
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Order Items */}
+                    <div className="space-y-2">
+                      <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Itens do Equipamento</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {(order.items || []).map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                            {item.image && (
+                              <img src={item.image} alt={item.name} className="w-12 h-12 object-contain bg-white rounded-xl border border-slate-200 p-1 shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-slate-900 truncate">{item.name}</p>
+                              <p className="text-[11px] text-slate-500">Qtd: {item.quantity || 1}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs space-y-4 max-w-lg mx-auto">
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600 shadow-xs">
+                  <ShoppingCart className="w-8 h-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-base font-bold text-slate-900">
+                    Você ainda não possui pedidos ou cotações
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Navegue por nossas linhas de elevadores, scanners de IA, alinhadores 3D e ferramentas para solicitar orçamentos personalizados.
+                  </p>
+                </div>
+                <button
+                  onClick={() => onNavigate('catalog')}
+                  className="btn-gold text-xs font-bold py-3 px-6 mx-auto inline-flex items-center gap-2 shadow-md cursor-pointer"
+                >
+                  <span>Explorar Catálogo de Equipamentos</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+
+        {/* TAB: LICENÇAS DIGITAIS & SGW (RECORRÊNCIA E EXPIRAÇÃO) */}
+        {activeTab === 'licenses' && (
+          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                <div>
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700 flex items-center gap-1.5 mb-1">
+                    <Key className="w-3.5 h-3.5 text-amber-600" />
+                    Softwares & Acessos Digitais
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    Minhas Licenças & SGW Multimarcas
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Acompanhe o ciclo de vida, as credenciais e o prazo de renovação das suas liberações técnicas.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchLicenses}
+                  disabled={loadingLicenses}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingLicenses ? 'animate-spin text-amber-600' : ''}`} />
+                  <span>Atualizar</span>
+                </button>
+              </div>
+
+              {loadingLicenses ? (
+                <div className="py-16 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-amber-600 mx-auto mb-3" />
+                  <p className="text-xs font-bold text-slate-600">Carregando suas licenças...</p>
+                </div>
+              ) : licenses.length === 0 ? (
+                <div className="text-center py-16 px-4 bg-slate-50/70 rounded-3xl border border-dashed border-slate-200 space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center">
+                    <Key className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-extrabold text-slate-900 text-sm">Nenhuma licença digital ativa no momento</h3>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      Quando você adquire o SGW Multimarcas ou pacotes de atualização para scanners, seus acessos, prazos e renovações aparecem aqui.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onNavigate('catalog')}
+                    className="btn-gold text-xs font-bold py-2.5 px-5 mx-auto inline-flex items-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    <span>Ver Produtos Digitais no Catálogo</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {licenses.map((lic) => {
+                    const daysRemaining = lic.daysRemaining;
+                    const isExpiringSoon = lic.isExpiringSoon;
+                    const isExpired = lic.isExpired;
+                    const isActivated = lic.status === 'activated';
+
+                    return (
+                      <div
+                        key={lic.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition-all hover:border-amber-300 space-y-4"
+                      >
+                        {/* Top: Software name & Status Badge */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="p-2 rounded-xl bg-amber-50 text-amber-700">
+                                <Key className="w-4 h-4" />
+                              </span>
+                              <div>
+                                <h3 className="font-black text-slate-900 text-sm sm:text-base">
+                                  {lic.software_name}
+                                </h3>
+                                <p className="text-[11px] text-slate-500 font-medium">
+                                  Pedido: <strong>#{lic.order_number || lic.order_id}</strong>
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="self-start sm:self-auto">
+                            {!isActivated ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                                <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+                                <span>Aguardando Liberação de Acesso</span>
+                              </span>
+                            ) : isExpired ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-50 text-rose-800 border border-rose-200">
+                                <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                                <span>Licença Expirada</span>
+                              </span>
+                            ) : isExpiringSoon ? (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-950 border border-amber-300 animate-pulse">
+                                <Clock className="w-3.5 h-3.5 text-amber-700" />
+                                <span>Expira em {daysRemaining} dia{daysRemaining > 1 ? 's' : ''}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Ativa • {daysRemaining !== null ? `${daysRemaining} dias restantes` : 'Vitalícia'}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-100 text-xs">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Equipamento Vinculado
+                            </span>
+                            <div className="font-bold text-slate-800">
+                              {lic.equipment_model || 'Não informado'}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-mono">
+                              SN: {lic.equipment_serial || 'Não informado'}
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Ciclo de Validade
+                            </span>
+                            <div className="text-slate-700">
+                              Ativado em: <strong className="text-slate-900">{lic.activated_at ? new Date(lic.activated_at).toLocaleDateString('pt-BR') : 'Aguardando'}</strong>
+                            </div>
+                            <div className="text-slate-700">
+                              Vencimento: <strong className={isExpired ? 'text-rose-600' : isExpiringSoon ? 'text-amber-700' : 'text-slate-900'}>
+                                {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString('pt-BR') : 'Vitalício / Definitivo'}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* License Key / Credential Display */}
+                        {lic.license_key && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900 text-white">
+                            <div className="space-y-0.5">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block">
+                                Credenciais / Chave de Acesso Liberada
+                              </span>
+                              <div className="font-mono text-xs font-extrabold text-amber-100 break-all select-all">
+                                {lic.license_key}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(lic.license_key);
+                                setCopiedLicenseKey(lic.id);
+                                setTimeout(() => setCopiedLicenseKey(null), 2500);
+                              }}
+                              className="btn-gold text-xs font-bold py-1.5 px-3 self-start sm:self-auto flex items-center gap-1.5 cursor-pointer"
+                            >
+                              {copiedLicenseKey === lic.id ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Copiado!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>Copiar Chave</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Renewal Action Trigger */}
+                        {(isExpiringSoon || isExpired || isActivated) && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                            <div className="text-[11px] text-slate-500">
+                              {isExpired ? (
+                                <span className="text-rose-700 font-bold flex items-center gap-1">
+                                  <AlertTriangle className="w-3.5 h-3.5" />
+                                  Seu acesso está expirado. Renove agora para reativar seu equipamento na oficina.
+                                </span>
+                              ) : isExpiringSoon ? (
+                                <span className="text-amber-800 font-bold flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  Evite interrupções nos atendimentos da oficina renovando antes do vencimento.
+                                </span>
+                              ) : (
+                                <span>Precisa estender a validade ou renovar antecipadamente?</span>
+                              )}
+                            </div>
+
+                            <a
+                              href={`https://wa.me/5561998888888?text=${encodeURIComponent(
+                                `Olá equipe Athena! Gostaria de renovar minha licença do "${lic.software_name}" para o equipamento ${lic.equipment_model || ''} (Serial: ${lic.equipment_serial || ''}) do Pedido #${lic.order_number || lic.order_id}.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-black shadow-xs transition-colors cursor-pointer ${
+                                isExpired
+                                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                                  : isExpiringSoon
+                                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                              }`}
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                              <span>{isExpired ? 'Reativar Licença Agora' : isExpiringSoon ? 'Renovar Acesso Imediato' : 'Consultar Renovação'}</span>
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: PROGRAMA DE FIDELIDADE (MEUS A-POINTS) */}
+        {activeTab === 'points' && (
+          <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+              
+              {/* Sober Minimalist Header */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  Programa de Fidelidade Athena
+                </span>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Meus A-Points
+                </h2>
+                <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
+                  A cada <strong>R$ 50,00 faturados</strong> em compras elegíveis de equipamentos e ferramentas, você recebe <strong>1 A-Point</strong> automaticamente. Seus pontos são válidos por 12 meses e podem ser trocados por produtos do catálogo de recompensas ou abatimentos comerciais.
+                </p>
+              </div>
+
+              {/* Balance Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Saldo Disponível */}
+                <div className="bg-slate-900 rounded-2xl p-6 text-white flex flex-col justify-between gap-4 border border-slate-800 shadow-sm">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-slate-400">Saldo Disponível para Resgate</p>
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-4xl sm:text-5xl font-black text-amber-400 font-mono tracking-tight">
+                        {pointsData.pointsAvailable ?? pointsData.points ?? currentUser?.a_points ?? 0}
+                      </span>
+                      <span className="text-sm font-bold text-slate-300">
+                        A-Points
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Pontos liberados para troca em produtos do catálogo ou desconto em novos pedidos.
+                    </p>
+                  </div>
+
+                  <a
+                    href={`https://wa.me/5561983485671?text=Ol%C3%A1%21+Sou+o+cliente+${encodeURIComponent(currentUser?.name || '')}+e+gostaria+de+consultar+o+resgate+dos+meus+${pointsData.pointsAvailable ?? pointsData.points ?? 0}+A-Points+no+meu+pr%C3%B3ximo+pedido.`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs border border-amber-400"
+                  >
+                    <MessageCircle className="w-4 h-4 text-slate-950" />
+                    <span>Resgatar com Consultor no WhatsApp</span>
+                  </a>
+                </div>
+
+                {/* Saldo Pendente ou Benefício Estimado */}
+                <div className="bg-slate-50 rounded-2xl p-6 text-slate-900 flex flex-col justify-between gap-4 border border-slate-200">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-500">Pontos em Processamento</p>
+                      {pointsData.pointsPending > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Em validação
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Atualizado
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-4xl sm:text-5xl font-black text-slate-800 font-mono tracking-tight">
+                        {pointsData.pointsPending || 0}
+                      </span>
+                      <span className="text-sm font-bold text-slate-500">
+                        Pontos Pendentes
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      {pointsData.pointsPending > 0
+                        ? 'Pontos de compras recentes aguardando prazo de liquidação/faturamento.'
+                        : 'Você não possui pontos pendentes. Suas compras faturadas no ERP são creditadas aqui automaticamente.'}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600">
+                    <span>Validade dos pontos:</span>
+                    <strong className="font-bold text-slate-900">12 meses a partir do crédito</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Regras Estratégicas */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                    <h3 className="text-xs font-black">R$ 50 = 1 A-Point</h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Sem limite artificial de pontos por pedido. Quanto mais você compra, mais acumula.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <Gift className="w-4 h-4 text-amber-600 shrink-0" />
+                    <h3 className="text-xs font-black">Catálogo de Recompensas</h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Resgate produtos, ferramentas e consumíveis sem desembolso financeiro adicional.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <Coins className="w-4 h-4 text-amber-600 shrink-0" />
+                    <h3 className="text-xs font-black">Pontos + Dinheiro</h3>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Utilize seus pontos para abater parcelas e valores em equipamentos de maior porte.
+                  </p>
+                </div>
+              </div>
+
+              {/* Mensagem de sucesso de resgate se houver */}
+              {redeemSuccess && (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-black">Resgate registrado com sucesso!</p>
+                      <p className="text-[11px] text-emerald-800">
+                        Item: <strong>{redeemSuccess.reward.name}</strong> • Saldo restante: <strong>{redeemSuccess.remainingPoints} pts</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={`https://wa.me/5561983485671?text=Ol%C3%A1%21+Acabei+de+resgatar+a+recompensa+*${encodeURIComponent(redeemSuccess.reward.name)}*+pelo+site+com+meus+pontos+(Protocolo%3A+${redeemSuccess.txId}).+Como+fa%C3%A7o+para+receber%3F`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0"
+                  >
+                    Confirmar Envio no WhatsApp &rarr;
+                  </a>
+                </div>
+              )}
+
+              {/* CATÁLOGO DE RECOMPENSAS */}
+              <div className="pt-4 border-t border-slate-100 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                      <Gift className="w-4 h-4 text-amber-600" /> Catálogo de Recompensas
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Escolha produtos e vantagens para resgatar com seus pontos disponíveis.
+                    </p>
+                  </div>
+                  <span className="text-xs font-extrabold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/70">
+                    Saldo: {pointsData.pointsAvailable ?? pointsData.points ?? 0} pts
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {((pointsData.rewards && pointsData.rewards.length > 0) ? pointsData.rewards : [
+                    { id: 'rw_espuma_cera', name: 'Espuma Aplicadora de Cera 100mm', pointsCost: 50, description: 'Espuma macia para aplicação uniforme de ceras e selantes.' },
+                    { id: 'rw_toalha_microfibra', name: 'Toalha de Microfibra Especial 40x40cm', pointsCost: 100, description: 'Toalha de alta gramatura anti-risco para secagem e acabamento.' },
+                    { id: 'rw_luva_microfibra', name: 'Luva de Lavagem em Microfibra', pointsCost: 150, description: 'Luva anatômica macia para limpeza segura de veículos.' },
+                    { id: 'rw_kit_soquetes', name: 'Jogo de Soquetes e Bits 10 Peças', pointsCost: 300, description: 'Conjunto compacto de ferramentas para bancada e oficina.' },
+                    { id: 'rw_cupom_300', name: 'Voucher R$ 300 em Equipamentos', pointsCost: 600, description: 'Abatimento direto na compra de elevadores, desmontadoras ou scanners.' },
+                    { id: 'rw_cupom_600', name: 'Voucher R$ 600 em Equipamentos Premium', pointsCost: 1200, description: 'Abatimento especial na compra de alinhadores 3D ou recicladoras.' }
+                  ]).map((reward) => {
+                    const cost = Number(reward.pointsCost || reward.points_cost || 0);
+                    const userBalance = Number(pointsData.pointsAvailable ?? pointsData.points ?? 0);
+                    const canRedeem = userBalance >= cost;
+                    const diff = cost - userBalance;
+
+                    return (
+                      <div 
+                        key={reward.id}
+                        className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-amber-300 transition-all shadow-xs flex flex-col justify-between gap-3"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono font-black text-xs text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                              {cost} pts
+                            </span>
+                            {reward.cashCost > 0 && (
+                              <span className="text-[10px] font-bold text-slate-500">
+                                + R$ {Number(reward.cashCost).toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-xs font-black text-slate-900 leading-snug">
+                            {reward.name}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                            {reward.description}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100">
+                          {canRedeem ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRedeemReward(reward)}
+                              disabled={redeemingReward === reward.id}
+                              className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              {redeemingReward === reward.id ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Processando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Gift className="w-3.5 h-3.5 text-amber-400" />
+                                  <span>Resgatar Recompensa</span>
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <div className="w-full py-1.5 px-2.5 rounded-xl bg-slate-100 text-slate-400 font-medium text-[11px] text-center">
+                              Faltam {diff} pts
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* EXTRATO DE MOVIMENTAÇÕES (LEDGER COMPLETO) */}
+              <div className="pt-4 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Extrato de Movimentações
+                  </h4>
+                  <span className="text-[10px] text-slate-400">
+                    Histórico auditável de compras, resgates e estornos
+                  </span>
+                </div>
+
+                {loadingPoints ? (
+                  <div className="p-6 text-center text-xs text-slate-400">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto text-amber-600 mb-2" />
+                    Carregando extrato de pontos...
+                  </div>
+                ) : pointsData.transactions && pointsData.transactions.length > 0 ? (
+                  <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden shadow-2xs">
+                    {pointsData.transactions.map((tx, idx) => {
+                      const pts = Number(tx.pointsEarned || tx.points_earned || 0);
+                      const isNegative = pts < 0 || tx.type === 'REDEEM' || tx.type === 'REVERSE';
+                      const isPending = tx.status === 'pending';
+
+                      return (
+                        <div key={idx} className="p-3.5 flex items-center justify-between text-xs bg-white hover:bg-slate-50/80 transition-colors gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-extrabold text-slate-900 truncate">
+                                {tx.type === 'REDEEM' ? 'Resgate de Recompensa' :
+                                 tx.type === 'REVERSE' ? 'Estorno / Devolução de Venda' :
+                                 tx.type === 'BONUS' ? 'Bônus de Campanha Promocional' :
+                                 tx.orderId ? `Compra Faturada #${tx.orderId}` : 'Crédito de Equipamentos'}
+                              </p>
+
+                              {/* Type Badge */}
+                              {tx.type === 'REDEEM' && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-blue-100 text-blue-800">
+                                  Resgate
+                                </span>
+                              )}
+                              {tx.type === 'REVERSE' && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-red-100 text-red-800">
+                                  Estorno
+                                </span>
+                              )}
+                              {tx.type === 'BONUS' && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-100 text-purple-800">
+                                  Bônus
+                                </span>
+                              )}
+                              {isPending && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800">
+                                  Pendente
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              {new Date(tx.createdAt || tx.created_at || Date.now()).toLocaleDateString('pt-BR')}
+                              {tx.orderValue > 0 && ` • Compra: R$ ${Number(tx.orderValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                              {tx.notes && ` • ${tx.notes}`}
+                              {tx.expiresAt && ` • Validade: ${new Date(tx.expiresAt).toLocaleDateString('pt-BR')}`}
+                            </p>
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            <span className={`font-mono font-black text-xs px-2.5 py-1 rounded-lg border ${
+                              isNegative 
+                                ? 'text-red-700 bg-red-50 border-red-200' 
+                                : isPending
+                                ? 'text-amber-700 bg-amber-50 border-amber-200'
+                                : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            }`}>
+                              {pts > 0 ? `+${pts}` : pts} pts
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 space-y-1">
+                    <p className="font-bold text-slate-700">Nenhuma movimentação de A-Points registrada ainda.</p>
+                    <p>Seus pedidos faturados no ERP Omie geram 1 ponto a cada R$ 50 e aparecerão aqui automaticamente.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: DADOS CADASTRAIS */}
+        {activeTab === 'profile' && (
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-2xl mx-auto">
+            <form onSubmit={handleSaveProfile} className="space-y-5">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <User className="w-4 h-4 text-amber-600" /> Dados Pessoais & da Oficina
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Mantenha suas informações sempre atualizadas para facilitar a emissão de orçamentos e notas fiscais.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nome Completo / Responsável *</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                      placeholder="Ex: Carlos Eduardo da Silva"
+                      className="form-input text-xs !pl-10"
+                    />
+                    <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">E-mail de Acesso (Não alterável)</label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      disabled
+                      value={profileForm.email}
+                      className="form-input text-xs !pl-10 bg-slate-100 text-slate-500 cursor-not-allowed"
+                    />
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">WhatsApp / Telefone *</label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      required
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm({ ...profileForm, phone: formatPhone(e.target.value) })}
+                      placeholder="(61) 99999-9999"
+                      className="form-input text-xs !pl-10 font-mono"
+                    />
+                    <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-700">
+                      {docInfo.isCnpj ? 'CNPJ (Pessoa Jurídica)' : 'CPF ou CNPJ'}
+                    </label>
+                    {docInfo.isCnpj && (
+                      <button
+                        type="button"
+                        onClick={() => triggerCnpjLookup()}
+                        disabled={isSearchingCnpj || profileForm.document.replace(/[^0-9a-zA-Z]/g, '').length !== 14}
+                        className="text-[10px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+                      >
+                        {isSearchingCnpj ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                            <span>Consultando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-3 h-3 text-amber-600" />
+                            <span>Buscar CNPJ</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={profileForm.document}
+                      onChange={handleDocumentChange}
+                      placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                      className="form-input text-xs !pl-10 font-mono"
+                    />
+                    <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    {isSearchingCnpj && (
+                      <Loader2 className="w-4 h-4 text-amber-600 animate-spin absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    )}
+                  </div>
+                  {cnpjSuccessMsg && (
+                    <p className="text-[10px] font-semibold text-emerald-700 mt-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span>{cnpjSuccessMsg}</span>
+                    </p>
+                  )}
+                  {cnpjErrorMsg && (
+                    <p className="text-[10px] font-semibold text-rose-600 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                      <span>{cnpjErrorMsg}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Nome da Oficina / Razão Social - ONLY SHOWN IF CNPJ */}
+                {docInfo.isCnpj && (
+                  <div className="animate-fadeIn">
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Nome da Oficina / Razão Social *</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={profileForm.companyName}
+                        onChange={(e) => setProfileForm({ ...profileForm, companyName: e.target.value })}
+                        placeholder="Ex: Centro Automotivo Modelo LTDA"
+                        className="form-input text-xs !pl-10"
+                        required={docInfo.isCnpj}
+                      />
+                      <Building className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="btn-gold text-xs font-bold py-3 px-6 inline-flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{savingProfile ? 'Salvando Alterações...' : 'Salvar Dados Cadastrais'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* TAB 3: MEUS ENDEREÇOS (CADERNO DE ENDEREÇOS MULTI-ENDEREÇO) */}
+        {activeTab === 'address' && (
+          <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-amber-600" /> Meus Endereços Cadastrados
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Gerencie seus endereços para faturamento de Notas Fiscais (NF-e) e entrega técnica de equipamentos.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openNewAddressModal}
+                  className="btn-gold text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Novo Endereço</span>
+                </button>
+              </div>
+
+              {addressesList.length === 0 ? (
+                <div className="p-8 sm:p-12 text-center rounded-2xl bg-slate-50/70 border border-dashed border-slate-300 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
+                    <MapPin className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-slate-900">Nenhum endereço cadastrado ainda</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Cadastre seu endereço principal para agilizar o fechamento de pedidos e emissão da Nota Fiscal.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openNewAddressModal}
+                    className="btn-gold text-xs font-bold py-2.5 px-4 rounded-xl inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Cadastrar Primeiro Endereço</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {addressesList.map((addr) => {
+                    const isDefault = Boolean(addr.isDefault);
+                    return (
+                      <div
+                        key={addr.id}
+                        className={`rounded-2xl p-5 border transition-all flex flex-col justify-between space-y-3 ${
+                          isDefault
+                            ? 'bg-amber-50/30 border-amber-400 ring-1 ring-amber-300/50 shadow-xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5 truncate">
+                              <Building className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <span>{addr.label || 'Endereço'}</span>
+                            </span>
+                            {isDefault ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 shrink-0">
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span>Padrão</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefaultAddress(addr.id)}
+                                className="text-[10px] font-bold text-amber-700 hover:text-amber-800 hover:underline cursor-pointer"
+                              >
+                                Tornar Padrão
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="text-xs text-slate-600 space-y-0.5 leading-relaxed">
+                            <p className="font-semibold text-slate-900">
+                              {addr.street}, {addr.number || 'S/N'}
+                              {addr.complement ? ` • ${addr.complement}` : ''}
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              {addr.neighborhood} — {addr.city}/{addr.state}
+                            </p>
+                            <p className="text-[11px] font-mono text-slate-500">
+                              CEP: {addr.cep}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEditAddressModal(addr)}
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Editar este endereço"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Editar</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAddress(addr.id)}
+                            className="p-1.5 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Excluir este endereço"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Excluir</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* MODAL ADICIONAR / EDITAR ENDEREÇO */}
+            {isAddressModalOpen && (
+              <div
+                className="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-3 sm:p-4 overscroll-none animate-in fade-in duration-150"
+                onClick={() => setIsAddressModalOpen(false)}
+              >
+                <div
+                  className="relative bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] my-auto animate-in zoom-in-95 duration-150"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <h4 className="font-extrabold text-sm sm:text-base">
+                        {editingAddressId ? 'Editar Endereço' : 'Cadastrar Novo Endereço'}
+                      </h4>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddressModalOpen(false)}
+                      className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSaveAddressModal} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Apelido do Endereço *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ex: Matriz, Filial Vicente Pires, Oficina 2"
+                        value={modalAddressForm.label}
+                        onChange={(e) => setModalAddressForm({ ...modalAddressForm, label: e.target.value })}
+                        className="form-input text-xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold text-slate-700">CEP *</label>
+                          {searchingModalCep && <Loader2 className="w-3 h-3 text-amber-600 animate-spin" />}
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          placeholder="00000-000"
+                          value={modalAddressForm.cep}
+                          onChange={(e) => {
+                            let v = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            if (v.length > 5) v = `${v.slice(0, 5)}-${v.slice(5)}`;
+                            setModalAddressForm({ ...modalAddressForm, cep: v });
+                          }}
+                          onBlur={handleModalCepBlur}
+                          className="form-input text-xs font-mono"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Logradouro / Rua *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ex: Av. das Indústrias"
+                          value={modalAddressForm.street}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, street: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Número *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="123 ou S/N"
+                          value={modalAddressForm.number}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, number: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Complemento</label>
+                        <input
+                          type="text"
+                          placeholder="Galpão 4, Sala 1, Lote 12"
+                          value={modalAddressForm.complement}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, complement: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Bairro *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Distrito Industrial"
+                          value={modalAddressForm.neighborhood}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, neighborhood: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Cidade *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Brasília"
+                          value={modalAddressForm.city}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, city: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">UF *</label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={2}
+                          placeholder="DF"
+                          value={modalAddressForm.state}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, state: e.target.value.toUpperCase() })}
+                          className="form-input text-xs uppercase"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={modalAddressForm.isDefault}
+                          onChange={(e) => setModalAddressForm({ ...modalAddressForm, isDefault: e.target.checked })}
+                          className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-800">
+                          Definir este endereço como padrão para novos pedidos
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddressModalOpen(false)}
+                        className="btn-secondary text-xs font-bold py-2 px-4 cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingAddress}
+                        className="btn-gold text-xs font-bold py-2 px-5 flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        {savingAddress ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Salvando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3.5 h-3.5" />
+                            <span>Salvar Endereço</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: SEGURANÇA & SENHA */}
+        {activeTab === 'security' && (
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-xl mx-auto">
+            <form onSubmit={handleSavePassword} className="space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-amber-600" /> Alteração de Senha
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Para sua segurança, informe sua senha atual antes de cadastrar uma nova senha.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Senha Atual *</label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    required
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    placeholder="••••••••"
+                    className="form-input text-xs !pl-10 !pr-10"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
+                  >
+                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Nova Senha (Mín. 8 caracteres) *</label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    placeholder="••••••••"
+                    className="form-input text-xs !pl-10 !pr-10"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                    tabIndex={-1}
+                    title={showNewPassword ? "Ocultar senha" : "Ver senha"}
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {(() => {
+                  if (!passwordForm.newPassword) return null;
+                  const val = getPasswordValidation(passwordForm.newPassword);
+                  return (
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 mt-2 space-y-1.5 text-[10px]">
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="text-slate-500">Critérios de Segurança:</span>
+                        <span className={val.isValid ? 'text-emerald-600' : 'text-amber-600'}>
+                          {val.isValid ? 'Senha Segura ✓' : 'Em preenchimento...'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1">
+                        <span className={val.minLength ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
+                          {val.minLength ? '✓' : '○'} Mín. 8 caracteres
+                        </span>
+                        <span className={val.hasUpper ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
+                          {val.hasUpper ? '✓' : '○'} Letra maiúscula (A-Z)
+                        </span>
+                        <span className={val.hasLower ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
+                          {val.hasLower ? '✓' : '○'} Letra minúscula (a-z)
+                        </span>
+                        <span className={val.hasNumber ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
+                          {val.hasNumber ? '✓' : '○'} Número (0-9)
+                        </span>
+                        <span className={`col-span-2 ${val.hasSpecial ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
+                          {val.hasSpecial ? '✓' : '○'} Caractere especial (!@#$%...)
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700">Confirmar Nova Senha *</label>
+                  {passwordForm.confirmPassword && (
+                    <span className={`text-[10px] font-bold ${passwordForm.newPassword === passwordForm.confirmPassword ? 'text-emerald-600' : 'text-rose-500'}`}>
+                      {passwordForm.newPassword === passwordForm.confirmPassword ? '✓ Conferem' : '✕ Diferentes'}
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    placeholder="••••••••"
+                    className="form-input text-xs !pl-10 !pr-10"
+                  />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                    tabIndex={-1}
+                    title={showConfirmPassword ? "Ocultar confirmação" : "Ver confirmação"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="btn-gold text-xs font-bold py-3 px-6 w-full justify-center inline-flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+                >
+                  <Lock className="w-4 h-4" />
+                  <span>{savingPassword ? 'Atualizando Senha...' : 'Atualizar Minha Senha'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+      </div>
+
+      {/* MODAL PERSONALIZADO DE CONFIRMAÇÃO DE RESGATE & ESCOLHA DE ENTREGA */}
+      {confirmRedeemReward && (() => {
+        const isVoucher = confirmRedeemReward.category === 'vouchers' || confirmRedeemReward.id.startsWith('rw_cupom');
+        const cost = confirmRedeemReward.pointsCost || confirmRedeemReward.points_cost || 0;
+        const currentBal = pointsData.pointsAvailable ?? pointsData.points ?? 0;
+        const afterBal = Math.max(0, currentBal - cost);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-3xl bg-slate-900 border border-slate-700 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-slate-100">
+              
+              {/* Header com gradiente */}
+              <div className="p-4 sm:p-5 border-b border-slate-800 bg-linear-to-b from-amber-500/10 to-transparent flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <Gift className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">Confirmar Resgate</h3>
+                    <p className="text-xs text-slate-400">
+                      {isVoucher ? 'Voucher Digital A-Points' : 'Envio e Entrega do Brinde'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConfirmRedeemReward(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Corpo com Scroll */}
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-4 text-xs">
+                
+                {/* Item Resgatado Card */}
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center gap-3.5">
+                  {confirmRedeemReward.image ? (
+                    <img
+                      src={confirmRedeemReward.image}
+                      alt={confirmRedeemReward.name}
+                      className="w-14 h-14 rounded-xl object-cover bg-white shrink-0 border border-slate-800"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                      <Gift className="w-7 h-7" />
+                    </div>
+                  )}
+                  <div className="space-y-1 min-w-0">
+                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                      {confirmRedeemReward.category || 'Recompensa Fidelidade'}
+                    </span>
+                    <h4 className="text-sm font-bold text-white leading-snug truncate">
+                      {confirmRedeemReward.name}
+                    </h4>
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black bg-red-500/10 text-red-400 border border-red-500/20">
+                      - {cost} A-Points
+                    </span>
+                  </div>
+                </div>
+
+                {/* Comparativo de Saldo */}
+                <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span>Seu saldo atual:</span>
+                    <span className="font-bold text-white">{currentBal} pts</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span>Custo deste resgate:</span>
+                    <span className="font-bold text-red-400">- {cost} pts</span>
+                  </div>
+                  <div className="border-t border-slate-800 pt-1.5 flex items-center justify-between font-bold">
+                    <span className="text-slate-300">Saldo restante após resgate:</span>
+                    <span className="text-emerald-400 font-extrabold text-sm">{afterBal} pts</span>
+                  </div>
+                </div>
+
+                {/* Seção de Entrega (se for item físico) */}
+                {!isVoucher ? (
+                  <div className="space-y-3 pt-1">
+                    <label className="text-xs font-bold text-slate-200 block uppercase tracking-wider">
+                      Como deseja receber seu brinde? *
+                    </label>
+
+                    {/* 3 Opções de Entrega */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRedeemDeliveryMethod('shipping')}
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-1 transition-all cursor-pointer ${
+                          redeemDeliveryMethod === 'shipping'
+                            ? 'bg-amber-500/10 border-amber-500 text-amber-300 font-bold ring-1 ring-amber-500'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Package className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs">Enviar no Endereço</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-normal leading-tight">
+                          Correios / Transportadora
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setRedeemDeliveryMethod('pickup')}
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-1 transition-all cursor-pointer ${
+                          redeemDeliveryMethod === 'pickup'
+                            ? 'bg-amber-500/10 border-amber-500 text-amber-300 font-bold ring-1 ring-amber-500'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Building className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs">Retirar no Balcão</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-normal leading-tight">
+                          Sede Athena (DF)
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setRedeemDeliveryMethod('with_order')}
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-1 transition-all cursor-pointer ${
+                          redeemDeliveryMethod === 'with_order'
+                            ? 'bg-amber-500/10 border-amber-500 text-amber-300 font-bold ring-1 ring-amber-500'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Truck className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs">Próximo Pedido</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-normal leading-tight">
+                          Junto com vendedor
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Formulário de Endereço (se 'shipping') */}
+                    {redeemDeliveryMethod === 'shipping' && (
+                      <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 animate-in fade-in">
+                        <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
+                          <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5" /> Endereço de Entrega
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {searchingRedeemCep ? 'Buscando CEP...' : 'Preenchimento automático via CEP'}
+                          </span>
+                        </div>
+
+                        {/* CEP com Busca */}
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                            CEP *
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={redeemAddress.cep}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, cep: e.target.value })}
+                              onBlur={handleRedeemCepBlur}
+                              placeholder="70000-000"
+                              maxLength={9}
+                              className="flex-1 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-amber-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleRedeemCepBlur}
+                              disabled={searchingRedeemCep}
+                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold transition-colors cursor-pointer shrink-0"
+                            >
+                              {searchingRedeemCep ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Buscar'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Rua e Número */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="col-span-2">
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Logradouro / Rua *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.street}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, street: e.target.value })}
+                              placeholder="Rua, Avenida, Setor..."
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Número *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.number}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, number: e.target.value })}
+                              placeholder="Ex: 100"
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Complemento e Bairro */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Complemento
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.complement}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, complement: e.target.value })}
+                              placeholder="Galpão, Sala..."
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Bairro *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.neighborhood}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, neighborhood: e.target.value })}
+                              placeholder="Bairro ou Setor"
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Cidade e UF */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="col-span-2">
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              Cidade *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.city}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, city: e.target.value })}
+                              placeholder="Cidade"
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-300 block mb-1">
+                              UF *
+                            </label>
+                            <input
+                              type="text"
+                              value={redeemAddress.state}
+                              onChange={(e) => setRedeemAddress({ ...redeemAddress, state: e.target.value.toUpperCase() })}
+                              placeholder="DF"
+                              maxLength={2}
+                              className="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs uppercase font-mono focus:outline-none focus:border-amber-500 text-center"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Checkbox Salvar Padrão */}
+                        <label className="flex items-center gap-2 pt-1 text-[11px] text-slate-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={saveAsDefaultAddress}
+                            onChange={(e) => setSaveAsDefaultAddress(e.target.checked)}
+                            className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0 cursor-pointer"
+                          />
+                          <span>Salvar como meu endereço padrão de entrega na Athena</span>
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Alerta de Retirada na Sede */}
+                    {redeemDeliveryMethod === 'pickup' && (
+                      <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/30 text-slate-300 space-y-1.5 animate-in fade-in">
+                        <p className="font-bold text-amber-400 flex items-center gap-1.5">
+                          <Building className="w-4 h-4" /> Retirada no Balcão da Sede Athena
+                        </p>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Sede Física: <strong>Brasília / DF (Arniqueira / Park Way)</strong>.<br />
+                          Horário de Atendimento: Segunda a Sexta, das 08h às 18h.<br />
+                          Após a confirmação, seu brinde é reservado e nosso time avisará no seu WhatsApp quando estiver pronto para retirada.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Alerta de Despacho com Próximo Pedido */}
+                    {redeemDeliveryMethod === 'with_order' && (
+                      <div className="p-3.5 rounded-2xl bg-slate-950 border border-sky-500/30 text-slate-300 space-y-1.5 animate-in fade-in">
+                        <p className="font-bold text-sky-400 flex items-center gap-1.5">
+                          <Truck className="w-4 h-4" /> Envio Junto com seu Próximo Pedido
+                        </p>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Se você já está negociando um equipamento ou vai realizar uma compra com seu consultor, o brinde será anexado na mesma remessa de entrega técnica sem custo de frete.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Observação Adicional */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                        Observações de Entrega (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={redeemNotes}
+                        onChange={(e) => setRedeemNotes(e.target.value)}
+                        placeholder="Ex: Deixar na portaria, entregar aos cuidados do chefe de oficina..."
+                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                  </div>
+                ) : (
+                  /* Voucher Digital Info */
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-slate-300 space-y-2">
+                    <p className="font-bold text-amber-400 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" /> Voucher Digital Vinculado
+                    </p>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Este voucher ficará disponível no seu extrato e nosso consultor poderá aplicar a bonificação diretamente como abatimento na proposta ou faturamento do seu próximo equipamento no Omie ERP.
+                    </p>
+                  </div>
+                )}
+
+                <p className="text-[11px] text-slate-500 leading-relaxed text-center pt-1">
+                  Ao confirmar, os pontos serão debitados da sua conta e um comprovante oficial com protocolo e detalhes de entrega será enviado para o seu e-mail.
+                </p>
+              </div>
+
+              {/* Ações (Footer fixo) */}
+              <div className="p-4 sm:p-5 border-t border-slate-800 bg-slate-900/80 flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setConfirmRedeemReward(null)}
+                  disabled={redeemingReward === confirmRedeemReward.id}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors cursor-pointer text-center"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => executeRedeemReward(confirmRedeemReward)}
+                  disabled={redeemingReward === confirmRedeemReward.id}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition-colors shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {redeemingReward === confirmRedeemReward.id ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Processando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Confirmar Resgate</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}

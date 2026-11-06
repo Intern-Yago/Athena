@@ -1,0 +1,12444 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Package, 
+  Layers, 
+  Box,
+  Ruler,
+  Tag, 
+  Hash,
+  Plus, 
+  Trash2, 
+  Edit3, 
+  Check, 
+  X, 
+  Shield,
+  Upload,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Link as LinkIcon,
+  ToggleLeft,
+  ToggleRight,
+  FileText,
+  Paperclip,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  MousePointer,
+  Globe,
+  Users,
+  Calendar,
+  Clock,
+  Printer,
+  LogOut,
+  UserCheck,
+  UserX,
+  Lock,
+  Star,
+  Key,
+  Settings,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronDown,
+  ChevronUp,
+  Calculator,
+  Landmark,
+  QrCode,
+  CreditCard,
+  AlertTriangle,
+  HelpCircle,
+  ArrowUpDown,
+  Film,
+  Play,
+  ExternalLink,
+  Loader2,
+  Gift,
+  Truck,
+  Zap,
+  Coins,
+  GripVertical,
+  Move,
+  RefreshCw,
+  CheckCircle2,
+  Mail,
+  Send,
+  Inbox,
+  Bell,
+  ShieldCheck,
+  Menu,
+  KeyRound,
+  Copy,
+  Phone,
+  Building2,
+  MessageCircle,
+  Images,
+  FolderTree,
+  Disc,
+  Droplet,
+  Wrench,
+  Wind,
+  Grid,
+  Receipt,
+  Cpu
+} from 'lucide-react';
+import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl, getVideoEmbedInfo } from '../pages/ProductDetailPage';
+import PdfCatalogGenerator from './PdfCatalogGenerator';
+import RichTextEditor from './RichTextEditor';
+import FormattedDescription from './FormattedDescription';
+import CouponManager from './CouponManager';
+import ImageLibraryModal from './ImageLibraryModal';
+import CustomerDetailModal from './CustomerDetailModal';
+import SmartLinkPicker from './SmartLinkPicker';
+import Product3DViewer from './Product3DViewer';
+import { safeStorageSet, saveSession } from '../utils/storage';
+import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
+import { cleanAlphanumeric, normalizeSearchText } from '../utils/productSearch';
+import { isProductPublished } from '../utils/imageUrl';
+import { isProductQuoteOnly, getVariantAvailability, getVariantStockNumber, hasProductValidImages, validateProductImagePublishStatus } from '../utils/productVariants';
+import ProductVariantsManager from './admin/ProductVariantsManager';
+import ClientsManagementTab from './admin/ClientsManagementTab';
+import OrdersManagementTab from './admin/OrdersManagementTab';
+import FulfillmentKanbanTab from './admin/FulfillmentKanbanTab';
+import DigitalActivationsTab from './admin/DigitalActivationsTab';
+import {
+  ADMIN_CACHE_KEYS,
+  getCachedAdminData,
+  setCachedAdminData,
+  preloadAdminOperationalData
+} from '../utils/adminDataCache';
+import { MACRO_DEPARTMENTS, getDepartmentByCategoryId, getDepartmentById } from '../data/departmentsData';
+
+/**
+ * Searchable Combobox Component (Filtragem em tempo real com busca e fallback completo)
+ */
+/**
+ * Searchable Combobox Component (Filtragem em tempo real com busca flexível e suporte a imagens)
+ */
+function SearchableSelect({
+  label,
+  value,
+  onChange,
+  options = [],
+  placeholder = 'Selecione uma opção...',
+  onAddNew,
+  addNewLabel = 'Nova',
+  colorTheme = 'amber',
+  required = false
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const containerRef = React.useRef(null);
+  const inputRef = React.useRef(null);
+
+  const getOptId = (opt) => (opt?.id !== undefined ? opt.id : (opt?.value !== undefined ? opt.value : ''));
+  const getOptName = (opt) => (opt?.name !== undefined ? opt.name : (opt?.label !== undefined ? opt.label : String(opt || '')));
+
+  const selectedOption = options.find((opt) => getOptId(opt) === value);
+
+  // Close on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isOpen]);
+
+  // Focus input automatically when dropdown opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  // Normalize string to ignore accents and uppercase/lowercase
+  const normalize = (str) =>
+    (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  const cleanAlphanumeric = (str) =>
+    (str || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+
+  const filteredOptions = searchTerm.trim() === ''
+    ? options
+    : options.filter((opt) => {
+        const query = normalize(searchTerm);
+        const cleanQuery = cleanAlphanumeric(searchTerm);
+
+        const name = normalize(getOptName(opt));
+        const cleanName = cleanAlphanumeric(getOptName(opt));
+        const sku = normalize(opt.sku || '');
+        const cleanSku = cleanAlphanumeric(opt.sku || '');
+        const brand = normalize(opt.brand || '');
+        const category = normalize(opt.category || '');
+        const slug = normalize(opt.slug || '');
+        const id = normalize(String(getOptId(opt)));
+
+        return (
+          name.includes(query) ||
+          cleanName.includes(cleanQuery) ||
+          sku.includes(query) ||
+          cleanSku.includes(cleanQuery) ||
+          brand.includes(query) ||
+          category.includes(query) ||
+          slug.includes(query) ||
+          id.includes(query)
+        );
+      });
+
+  const MAX_DISPLAY_ITEMS = 30;
+  const displayedOptions = filteredOptions.slice(0, MAX_DISPLAY_ITEMS);
+
+  const isAmber = colorTheme === 'amber';
+  const themeText = isAmber ? 'text-amber-700 hover:text-amber-900' : 'text-sky-700 hover:text-sky-900';
+  const themeActiveBg = isAmber ? 'bg-amber-50 text-amber-900 font-bold' : 'bg-sky-50 text-sky-900 font-bold';
+  const themeBorderFocus = isAmber ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-sky-500 ring-2 ring-sky-500/20';
+
+  return (
+    <div className="relative" ref={containerRef}>
+      {/* Header Label and Quick Creation Trigger */}
+      {label && (
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs font-bold text-slate-700">{label}</label>
+          {onAddNew && (
+            <button
+              type="button"
+              onClick={onAddNew}
+              className={`text-[11px] ${themeText} font-bold hover:underline flex items-center gap-0.5 cursor-pointer`}
+            >
+              <Plus className="w-3 h-3" /> {addNewLabel}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full min-h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs flex items-center justify-between gap-2 text-left cursor-pointer transition-all hover:bg-white hover:border-slate-300 ${
+          isOpen ? `bg-white ${themeBorderFocus} shadow-xs` : ''
+        }`}
+      >
+        <div className="flex items-center gap-2 truncate">
+          {selectedOption ? (
+            <span className="font-semibold text-slate-900 truncate">
+              {getOptName(selectedOption)}
+            </span>
+          ) : (
+            <span className="text-slate-400 font-medium">{placeholder}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0 text-slate-400">
+          <ChevronDown
+            className={`w-4 h-4 transition-transform duration-200 ${
+              isOpen ? (isAmber ? 'rotate-180 text-amber-600' : 'rotate-180 text-sky-600') : ''
+            }`}
+          />
+        </div>
+      </button>
+
+      {/* Hidden input for HTML5 form validation */}
+      {required && (
+        <input
+          type="text"
+          value={value || ''}
+          required
+          onChange={() => {}}
+          className="sr-only"
+          tabIndex={-1}
+        />
+      )}
+
+      {/* Floating Options Dropdown with Real-time Filtering */}
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+          {/* Search Input Filter Bar */}
+          <div className="p-2 border-b border-slate-100 bg-slate-50/90">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Digitar para filtrar opções..."
+                className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-7 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-500"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  } else if (e.key === 'Enter' && filteredOptions.length === 1) {
+                    e.preventDefault();
+                    onChange(getOptId(filteredOptions[0]));
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }
+                }}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchTerm('');
+                    if (inputRef.current) inputRef.current.focus();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50">
+            {displayedOptions.length > 0 ? (
+              displayedOptions.map((opt) => {
+                const optId = getOptId(opt);
+                const optName = getOptName(opt);
+                const isSelected = optId === value;
+                return (
+                  <div
+                    key={optId}
+                    onClick={() => {
+                      onChange(optId);
+                      setIsOpen(false);
+                      setSearchTerm('');
+                    }}
+                    className={`px-3 py-2.5 rounded-xl text-xs flex items-center justify-between gap-2 cursor-pointer transition-colors ${
+                      isSelected
+                        ? themeActiveBg
+                        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {opt.image && (
+                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
+                          <img src={opt.image} alt="" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <span className="truncate font-bold block text-slate-900">{optName}</span>
+                        {(opt.brand || opt.category || opt.sku) && (
+                          <span className="text-[10px] text-slate-500 truncate block font-normal">
+                            {[opt.brand, opt.category, opt.sku ? `SKU: ${opt.sku}` : null].filter(Boolean).join(' • ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <Check
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          isAmber ? 'text-amber-600' : 'text-sky-600'
+                        }`}
+                      />
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-4 text-center space-y-2">
+                <p className="text-xs text-slate-500">
+                  Nenhum item encontrado para "<strong>{searchTerm}</strong>"
+                </p>
+                {onAddNew && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(false);
+                      onAddNew();
+                    }}
+                    className={`inline-flex items-center gap-1 text-xs font-bold ${themeText} hover:underline`}
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Criar nova opção
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer with options count */}
+          <div className="px-3 py-1.5 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between">
+            <span>
+              {filteredOptions.length > MAX_DISPLAY_ITEMS 
+                ? `Exibindo 30 de ${filteredOptions.length} itens (digite para filtrar)`
+                : `${filteredOptions.length} de ${options.length} ${options.length === 1 ? 'opção' : 'opções'}`
+              }
+            </span>
+            {searchTerm && (
+              <span className={isAmber ? 'text-amber-600 font-medium' : 'text-sky-600 font-medium'}>
+                Filtro: "{searchTerm}"
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Radial / Circular Progress Indicator (Shopify-style live upload spinner)
+ */
+function RadialProgressCircle({ progress = 0, size = 48, strokeWidth = 4 }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const validProgress = Math.min(100, Math.max(0, progress));
+  const strokeDashoffset = circumference - (validProgress / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg className="w-full h-full -rotate-90 transform" viewBox={`0 0 ${size} ${size}`}>
+        {/* Background track circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(255, 255, 255, 0.25)"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        {/* Animated fill circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#f59e0b"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className="transition-all duration-200 ease-out"
+        />
+      </svg>
+      <span className="absolute text-[11px] font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+        {Math.round(validProgress)}%
+      </span>
+    </div>
+  );
+}
+
+const DEPT_AVAILABLE_ICONS = [
+  { name: 'Layers', label: 'Camadas' },
+  { name: 'FolderTree', label: 'Estrutura' },
+  { name: 'Sparkles', label: 'Estética / Brilho' },
+  { name: 'Disc', label: 'Disco / Pneus' },
+  { name: 'Cpu', label: 'Eletrônica / Chip' },
+  { name: 'Droplet', label: 'Óleos / Fluidos' },
+  { name: 'Wrench', label: 'Mecânica / Chave' },
+  { name: 'Wind', label: 'Pneumática / Ar' },
+  { name: 'Box', label: 'Caixa / Móveis' },
+  { name: 'Zap', label: 'Elétrica / Potência' },
+  { name: 'Truck', label: 'Pesados / Transporte' },
+  { name: 'Shield', label: 'Segurança' },
+  { name: 'Package', label: 'Equipamentos' },
+  { name: 'Grid', label: 'Grade Geral' }
+];
+
+function MacroIcon({ name, className = 'w-5 h-5' }) {
+  switch (name) {
+    case 'Sparkles': return <Sparkles className={className} />;
+    case 'Disc': return <Disc className={className} />;
+    case 'Layers': return <Layers className={className} />;
+    case 'Cpu': return <Cpu className={className} />;
+    case 'Droplet': return <Droplet className={className} />;
+    case 'Wrench': return <Wrench className={className} />;
+    case 'Wind': return <Wind className={className} />;
+    case 'Box': return <Box className={className} />;
+    case 'Zap': return <Zap className={className} />;
+    case 'Truck': return <Truck className={className} />;
+    case 'Shield': return <Shield className={className} />;
+    case 'Package': return <Package className={className} />;
+    case 'Grid': return <Grid className={className} />;
+    case 'FolderTree':
+    default:
+      return <FolderTree className={className} />;
+  }
+}
+
+export default function AdminPanel({
+  products,
+  categories,
+  brands,
+  departments = MACRO_DEPARTMENTS,
+  onAddProduct,
+  onUpdateProduct,
+  onDeleteProduct,
+  onReorderProducts,
+  onAddCategory,
+  onUpdateCategory,
+  onDeleteCategory,
+  onReorderCategories,
+  onAddDepartment,
+  onUpdateDepartment,
+  onDeleteDepartment,
+  onAddBrand,
+  onUpdateBrand,
+  onDeleteBrand,
+  onReorderBrands,
+  banners = [],
+  onAddBanner,
+  onUpdateBanner,
+  onDeleteBanner,
+  onReorderBanners,
+  showNotification,
+  editingProduct,
+  setEditingProduct,
+  onNavigate,
+  currentUser,
+  onLogout,
+  API_BASE_URL,
+  activeAdminTab: propActiveAdminTab,
+  setActiveAdminTab: propSetActiveAdminTab
+}) {
+  const [internalActiveAdminTab, setInternalActiveAdminTab] = useState('products');
+  const activeAdminTab = propActiveAdminTab !== undefined ? propActiveAdminTab : internalActiveAdminTab;
+  const setActiveAdminTab = propSetActiveAdminTab || setInternalActiveAdminTab;
+  const [mobileAdminMenuOpen, setMobileAdminMenuOpen] = useState(false);
+  const [imageSourceMode, setImageSourceMode] = useState('upload');
+  const [productImageUrlInput, setProductImageUrlInput] = useState('');
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+
+  // Home Banners State (Carousel Management)
+  const [editingBanner, setEditingBanner] = useState(null);
+  const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
+  const [bannerToDelete, setBannerToDelete] = useState(null);
+  const [isSelectingBannerMedia, setIsSelectingBannerMedia] = useState(null); // 'desktop' | 'mobile' | null
+  const [isSelectingBrandMedia, setIsSelectingBrandMedia] = useState(false);
+
+  // Drag and Drop Reordering States
+  const [draggedProductId, setDraggedProductId] = useState(null);
+  const [dragOverProductId, setDragOverProductId] = useState(null);
+  const [draggedCategoryId, setDraggedCategoryId] = useState(null);
+  const [dragOverCategoryId, setDragOverCategoryId] = useState(null);
+  const [draggedBrandId, setDraggedBrandId] = useState(null);
+  const [dragOverBrandId, setDragOverBrandId] = useState(null);
+  const [bannerForm, setBannerForm] = useState({
+    title: '',
+    desktopImage: '',
+    mobileImage: '',
+    linkUrl: '',
+    targetBlank: false,
+    isActive: true,
+    publishAt: '',
+    unpublishAt: '',
+    order: 0
+  });
+
+  // Category Modal State (Creating / Editing)
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    description: '',
+    slug: '',
+    icon: 'Layers',
+    departmentId: 'dept_ferramentas_manuais'
+  });
+  const [categoryDeptFilter, setCategoryDeptFilter] = useState('all');
+  const [isInlineDeptOpen, setIsInlineDeptOpen] = useState(false);
+  const [inlineDeptForm, setInlineDeptForm] = useState({
+    name: '',
+    shortName: ''
+  });
+
+  // Macro-Category (Departments) Modal & Details State
+  const [editingDept, setEditingDept] = useState(null);
+  const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
+  const [deptForm, setDeptForm] = useState({
+    name: '',
+    shortName: '',
+    icon: 'Layers',
+    order: 0
+  });
+  const [selectedMacroForDetails, setSelectedMacroForDetails] = useState(null);
+
+  // User Role checks
+  const userRole = currentUser?.role || 'admin';
+  const isAdminRole = userRole === 'admin';
+  const canEditContent = userRole === 'admin' || userRole === 'editor' || userRole === 'edicao';
+  const isStaff = ['admin', 'vendedor', 'editor', 'edicao'].includes(userRole);
+
+  // Authorization Headers helper
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    ...(currentUser?.token ? { 'Authorization': `Bearer ${currentUser.token}` } : {})
+  });
+
+  // Employees & Users Management State
+  const [usersList, setUsersList] = useState([]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'vendedor'
+  });
+  const [showUserModalPassword, setShowUserModalPassword] = useState(false);
+
+  // Clients & Password Support State
+  const [clientSearch, setClientSearch] = useState('');
+  const [tempPasswordModal, setTempPasswordModal] = useState(null); // { user, tempPassword, message }
+  const [copiedTempPass, setCopiedTempPass] = useState(false);
+  const [generatingTempForId, setGeneratingTempForId] = useState(null);
+  const [sendingResetForId, setSendingResetForId] = useState(null);
+  const [selectedCustomerForModal, setSelectedCustomerForModal] = useState(null);
+
+  // Separated lists
+  const employeesList = React.useMemo(() => (usersList || []).filter(u => u.role !== 'cliente'), [usersList]);
+  const clientsList = React.useMemo(() => (usersList || []).filter(u => u.role === 'cliente'), [usersList]);
+
+  const filteredClients = React.useMemo(() => {
+    const q = (clientSearch || '').trim().toLowerCase();
+    if (!q) return clientsList;
+    const cleanDoc = q.replace(/\D/g, '');
+    return clientsList.filter(c => {
+      const matchName = c.name && c.name.toLowerCase().includes(q);
+      const matchEmail = c.email && c.email.toLowerCase().includes(q);
+      const matchPhone = c.phone && c.phone.toLowerCase().includes(q);
+      const matchDoc = cleanDoc && c.document && c.document.replace(/\D/g, '').includes(cleanDoc);
+      return matchName || matchEmail || matchPhone || matchDoc;
+    });
+  }, [clientsList, clientSearch]);
+
+  const handleGenerateTempPassword = async (user) => {
+    if (!user?.id) return;
+    const confirmed = window.confirm(
+      `Confirma gerar uma senha temporária imediata para "${user.name}" (${user.email})?\n\n` +
+      `• A senha atual será substituída por uma chave de acesso provisória.\n` +
+      `• Ao logar com ela, o cliente será OBRIGADO a cadastrar uma nova senha definitiva.`
+    );
+    if (!confirmed) return;
+
+    setGeneratingTempForId(user.id);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/users/${user.id}/generate-temp-password`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao gerar senha temporária.');
+      }
+      setTempPasswordModal({
+        user,
+        tempPassword: data.temporaryPassword,
+        message: data.message
+      });
+      setCopiedTempPass(false);
+      showNotification && showNotification(`Senha provisória gerada para ${user.name}!`, 'success');
+      fetchUsers();
+    } catch (err) {
+      showNotification && showNotification(err.message, 'error');
+    } finally {
+      setGeneratingTempForId(null);
+    }
+  };
+
+  const handleSendResetEmail = async (user) => {
+    if (!user?.id) return;
+    setSendingResetForId(user.id);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/users/${user.id}/send-reset-email`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao enviar e-mail de redefinição.');
+      }
+      showNotification && showNotification(data.message || `E-mail com código enviado para ${user.email}!`, 'success');
+    } catch (err) {
+      showNotification && showNotification(err.message, 'error');
+    } finally {
+      setSendingResetForId(null);
+    }
+  };
+
+  // A-Points Adjustment State
+  const [pointsModalUser, setPointsModalUser] = useState(null);
+  const [pointsAdjustment, setPointsAdjustment] = useState('');
+  const [pointsReason, setPointsReason] = useState('');
+  const [isSavingPoints, setIsSavingPoints] = useState(false);
+
+  const handleSavePointsAdjustment = async (e) => {
+    e.preventDefault();
+    if (!pointsModalUser || !pointsAdjustment) return;
+    setIsSavingPoints(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/points/adjust`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          userId: pointsModalUser.id,
+          userEmail: pointsModalUser.email,
+          points: Number(pointsAdjustment),
+          reason: pointsReason || 'Ajuste administrativo de pontos'
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification && showNotification('Pontos do cliente atualizados com sucesso!', 'success');
+        setPointsModalUser(null);
+        setPointsAdjustment('');
+        setPointsReason('');
+        fetchUsers();
+      } else {
+        showNotification && showNotification(data.error || 'Erro ao ajustar pontos.', 'error');
+      }
+    } catch (err) {
+      showNotification && showNotification('Falha de conexão com o servidor.', 'error');
+    } finally {
+      setIsSavingPoints(false);
+    }
+  };
+
+  // Fetch Users List
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/users`, {
+        headers: getAuthHeaders()
+      });
+      if (res.status === 401 || res.status === 403) {
+        onLogout && onLogout('Sua sessão expirou no servidor.');
+        return;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setUsersList(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (isStaff) {
+      fetchUsers();
+      preloadAdminOperationalData(API_BASE_URL, currentUser?.token);
+    }
+  }, [isStaff, currentUser?.token]);
+
+  // Omie ERP Reconciliation & Loyalty State (com cache Stale-While-Revalidate)
+  const [omieSyncStatus, setOmieSyncStatus] = useState(
+    () => getCachedAdminData(ADMIN_CACHE_KEYS.OMIE_SYNC_STATUS)?.data || null
+  );
+  const [loadingOmieSync, setLoadingOmieSync] = useState(false);
+  const [reconcilingOmie, setReconcilingOmie] = useState(false);
+  const [omieManualLinks, setOmieManualLinks] = useState({});
+  const [omieSearchFilter, setOmieSearchFilter] = useState('');
+
+  const fetchOmieSyncStatus = async (forceRefresh = false) => {
+    if (!isAdminRole) return;
+    const cached = getCachedAdminData(ADMIN_CACHE_KEYS.OMIE_SYNC_STATUS);
+    if (cached && !forceRefresh) {
+      setOmieSyncStatus(cached.data);
+      if (cached.isFresh) return;
+    }
+    if (!cached) {
+      setLoadingOmieSync(true);
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/omie/sync-status`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOmieSyncStatus(data);
+        setCachedAdminData(ADMIN_CACHE_KEYS.OMIE_SYNC_STATUS, data);
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar status Omie:', e);
+    } finally {
+      setLoadingOmieSync(false);
+    }
+  };
+
+  const handleRunReconciliation = async () => {
+    if (!isAdminRole) return;
+    setReconcilingOmie(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/omie/reconcile`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao executar reconciliação.');
+      showNotification(data.message || 'Vínculos atualizados com sucesso!', 'success');
+      fetchOmieSyncStatus(true);
+    } catch (err) {
+      showNotification(err.message, 'error');
+    } finally {
+      setReconcilingOmie(false);
+    }
+  };
+
+  const handleManualLinkOmie = async (productId, variantId = null) => {
+    const key = variantId ? `${productId}_${variantId}` : productId;
+    const omieId = omieManualLinks[key] || omieManualLinks[productId];
+    if (!omieId) {
+      showNotification('Informe o código ou ID do Omie para vincular.', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/omie/link-product`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ 
+          athenaProductId: productId, 
+          variantId: variantId || undefined,
+          omieProductId: omieId,
+          omieCode: omieId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao vincular produto.');
+      showNotification(data.message || 'Item vinculado ao Omie com sucesso!', 'success');
+      fetchOmieSyncStatus(true);
+    } catch (err) {
+      showNotification(err.message, 'error');
+    }
+  };
+
+  // Assisted Commercial Loyalty State (Mesa de Vendas / Balcão Omie)
+  const [loyaltyOpMode, setLoyaltyOpMode] = useState('credit'); // 'credit' | 'debit'
+  const [debitCustomerSearch, setDebitCustomerSearch] = useState('');
+  const [selectedDebitCustomer, setSelectedDebitCustomer] = useState(null);
+
+  // Debit fields
+  const [debitPointsAmount, setDebitPointsAmount] = useState('');
+  const [debitReason, setDebitReason] = useState('');
+  const [debitOmieOrder, setDebitOmieOrder] = useState('');
+  const [isProcessingDebit, setIsProcessingDebit] = useState(false);
+  const [debitSuccessBanner, setDebitSuccessBanner] = useState(null);
+
+  // Credit fields (Bonificação / Ajuste Fiscal de Pedido)
+  const [creditPointsAmount, setCreditPointsAmount] = useState('');
+  const [creditReason, setCreditReason] = useState('');
+  const [creditOmieOrder, setCreditOmieOrder] = useState('');
+  const [creditSaleRealValue, setCreditSaleRealValue] = useState('');
+  const [creditBilledValue, setCreditBilledValue] = useState('');
+  const [isProcessingCredit, setIsProcessingCredit] = useState(false);
+  const [creditSuccessBanner, setCreditSuccessBanner] = useState(null);
+
+  const parseBrlLoyaltyNumber = (val) => {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    const clean = String(val).replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '');
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const calcRealVal = parseBrlLoyaltyNumber(creditSaleRealValue);
+  const calcBilledVal = parseBrlLoyaltyNumber(creditBilledValue);
+  const calcTotalDuePoints = Math.floor(calcRealVal / 50);
+  const calcAlreadyEarnedPoints = Math.floor(calcBilledVal / 50);
+  const calcSuggestedPoints = Math.max(0, calcTotalDuePoints - calcAlreadyEarnedPoints);
+
+  const handleApplyCalculatorPoints = () => {
+    if (calcSuggestedPoints > 0) {
+      setCreditPointsAmount(String(calcSuggestedPoints));
+      if (!creditReason) {
+        if (calcBilledVal > 0) {
+          setCreditReason(`Ajuste fiscal ref. venda R$ ${calcRealVal.toLocaleString('pt-BR')} faturada R$ ${calcBilledVal.toLocaleString('pt-BR')}`);
+        } else {
+          setCreditReason(`Ajuste comercial ref. venda de R$ ${calcRealVal.toLocaleString('pt-BR')}`);
+        }
+      }
+    }
+  };
+
+  const handleExecuteCommercialCredit = async (e) => {
+    e.preventDefault();
+    if (!selectedDebitCustomer || !creditPointsAmount) {
+      showNotification && showNotification('Selecione um cliente e informe a pontuação a creditar.', 'error');
+      return;
+    }
+
+    const numPoints = parseInt(creditPointsAmount, 10);
+    if (!numPoints || numPoints <= 0) {
+      showNotification && showNotification('A pontuação a creditar deve ser maior que zero.', 'error');
+      return;
+    }
+
+    setIsProcessingCredit(true);
+    setCreditSuccessBanner(null);
+
+    try {
+      const realValNum = parseBrlLoyaltyNumber(creditSaleRealValue);
+      const res = await fetch(`${API_BASE_URL}/admin/loyalty/credit`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          customerId: selectedDebitCustomer.id,
+          points: numPoints,
+          reason: creditReason || (realValNum > 0 ? `Ajuste fiscal ref. venda R$ ${realValNum.toLocaleString('pt-BR')}` : 'Bonificação comercial de pontos'),
+          orderId: creditOmieOrder || null,
+          saleRealValue: realValNum > 0 ? realValNum : null
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showNotification && showNotification(data.message || 'Pontos creditados com sucesso!', 'success');
+        setCreditSuccessBanner(data);
+        setCreditPointsAmount('');
+        setCreditReason('');
+        setCreditOmieOrder('');
+        setCreditSaleRealValue('');
+        setCreditBilledValue('');
+        fetchUsers();
+        setSelectedDebitCustomer(prev => prev ? ({ ...prev, aPoints: data.newBalance, a_points: data.newBalance }) : null);
+      } else {
+        showNotification && showNotification(data.error || 'Erro ao processar crédito de pontos.', 'error');
+      }
+    } catch (err) {
+      showNotification && showNotification('Falha de conexão com o servidor.', 'error');
+    } finally {
+      setIsProcessingCredit(false);
+    }
+  };
+
+  const handleExecuteCommercialDebit = async (e) => {
+    e.preventDefault();
+    if (!selectedDebitCustomer || !debitPointsAmount) {
+      showNotification && showNotification('Selecione um cliente e informe a pontuação a debitar.', 'error');
+      return;
+    }
+
+    const numPoints = parseInt(debitPointsAmount, 10);
+    if (!numPoints || numPoints <= 0) {
+      showNotification && showNotification('A pontuação deve ser maior que zero.', 'error');
+      return;
+    }
+
+    const customerBalance = Number(selectedDebitCustomer.aPoints || selectedDebitCustomer.a_points || 0);
+    if (customerBalance < numPoints) {
+      showNotification && showNotification(`Saldo insuficiente. O cliente possui apenas ${customerBalance} pts.`, 'error');
+      return;
+    }
+
+    setIsProcessingDebit(true);
+    setDebitSuccessBanner(null);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/loyalty/debit`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          customerId: selectedDebitCustomer.id,
+          points: numPoints,
+          reason: debitReason || `Desconto comercial negociado no pedido Omie ${debitOmieOrder || 'direto'}`,
+          orderId: debitOmieOrder || null
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showNotification && showNotification(data.message || 'Pontos debitados com sucesso!', 'success');
+        setDebitSuccessBanner(data);
+        setDebitPointsAmount('');
+        setDebitReason('');
+        setDebitOmieOrder('');
+        fetchUsers();
+        setSelectedDebitCustomer(prev => prev ? ({ ...prev, aPoints: data.remainingPoints, a_points: data.remainingPoints }) : null);
+      } else {
+        showNotification && showNotification(data.error || 'Erro ao processar débito.', 'error');
+      }
+    } catch (err) {
+      showNotification && showNotification('Falha de conexão com o servidor.', 'error');
+    } finally {
+      setIsProcessingDebit(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdminRole && (activeAdminTab === 'settings' || activeAdminTab === 'omie')) {
+      fetchNotificationSettings();
+      fetchTelegramStatus();
+    }
+    if (isAdminRole && activeAdminTab === 'omie') {
+      fetchOmieSyncStatus();
+    }
+  }, [isAdminRole, activeAdminTab]);
+
+  // Search, Filter & Pagination State for Products Table
+  const [adminProductSearch, setAdminProductSearch] = useState('');
+  const [adminBrandFilter, setAdminBrandFilter] = useState('');
+  const [adminCategoryFilter, setAdminCategoryFilter] = useState('');
+  const [adminStatusFilter, setAdminStatusFilter] = useState('');
+  const [adminPage, setAdminPage] = useState(1);
+  const [adminItemsPerPage, setAdminItemsPerPage] = useState(10);
+  const [adminSortField, setAdminSortField] = useState('name');
+  const [adminSortDirection, setAdminSortDirection] = useState('asc');
+  const [focusedFulfillmentOrder, setFocusedFulfillmentOrder] = useState(null);
+
+  const handleAdminSort = (field) => {
+    if (adminSortField === field) {
+      setAdminSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setAdminSortField(field);
+      setAdminSortDirection('asc');
+    }
+    setAdminPage(1);
+  };
+
+  // Reset to page 1 on filter or per-page change
+  useEffect(() => {
+    setAdminPage(1);
+  }, [adminProductSearch, adminBrandFilter, adminCategoryFilter, adminStatusFilter, adminItemsPerPage]);
+
+  // Password & Profile Settings Form State
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showAdminCurrentPass, setShowAdminCurrentPass] = useState(false);
+  const [showAdminNewPass, setShowAdminNewPass] = useState(false);
+  const [showAdminConfirmPass, setShowAdminConfirmPass] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: currentUser?.name || 'Administrador Geral',
+    email: currentUser?.email || 'administracao@athenaconsultoria.com.br'
+  });
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfileForm({
+        name: currentUser.name || 'Administrador Geral',
+        email: currentUser.email || 'administracao@athenaconsultoria.com.br'
+      });
+    }
+  }, [currentUser]);
+
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Notification & Receipt Email Settings State
+  const [notificationSettings, setNotificationSettings] = useState({
+    receiptNotificationEmail: '',
+    loyaltyNotificationEmail: '',
+    purchaseNotificationEmail: '',
+    emailNotificationsEnabled: true,
+    sendCustomerCopy: true,
+    smtpConfigured: true,
+    smtpSender: '',
+    resendApiKey: '',
+    hasResendApiKey: false,
+    resendFromEmail: '',
+    brevoApiKey: '',
+    hasBrevoApiKey: false,
+    brevoSenderEmail: '',
+    activeProvider: 'smtp'
+  });
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [savingNotifications, setSavingNotifications] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [showAdvancedEmailSettings, setShowAdvancedEmailSettings] = useState(false);
+  const [showApiSettings, setShowApiSettings] = useState(false);
+
+  // Product Form State
+  const [productForm, setProductForm] = useState(
+    editingProduct || {
+      name: '',
+      slug: '',
+      categoryId: categories[0]?.id || '',
+      brandId: brands[0]?.id || '',
+      price: '',
+      priceNegotiable: true,
+      aPoints: '',
+      productType: 'physical',
+      requiresEquipmentSerial: false,
+      priceSource: 'manual',
+      stockSource: 'manual',
+      badge: '',
+      tags: [],
+      status: 'published',
+      isFeatured: false,
+      image: '',
+      images: [],
+      altText: '',
+      description: '',
+      specs: ['Elevada resistência e durabilidade', 'Manual e certificado inclusos', 'Garantia de fábrica'],
+      attachments: [],
+      videoUrl: '',
+      customTabs: [],
+      compatibleProductIds: [],
+      recommendedProductIds: [],
+      sku: '',
+      stock: 0,
+      omieCode: '',
+      variants: [],
+      model3d: {
+        glb: '',
+        usdz: '',
+        fileName: '',
+        fileSize: '',
+        dimensions: { width: '', height: '', depth: '' }
+      }
+    }
+  );
+
+  // Drag and Drop Gallery Image Reordering States
+  const [draggedImgIndex, setDraggedImgIndex] = useState(null);
+  const [dragOverImgIndex, setDragOverImgIndex] = useState(null);
+
+  const handleReorderProductImage = (fromIndex, toIndex, allImages) => {
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
+    const reordered = [...allImages];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    setProductForm(prev => ({
+      ...prev,
+      image: reordered[0] || '',
+      images: reordered
+    }));
+    setDraggedImgIndex(null);
+    setDragOverImgIndex(null);
+  };
+
+  // Modal History Stack for navigating between related products
+  const [productModalHistory, setProductModalHistory] = useState([]);
+
+  const navigateToProductInModal = (targetProduct) => {
+    if (!targetProduct) return;
+    setProductModalHistory(prev => [...prev, { form: { ...productForm }, editing: editingProduct }]);
+    setEditingProduct(targetProduct);
+    const targetForm = {
+      ...targetProduct,
+      aPoints: (targetProduct.aPoints != null && Number(targetProduct.aPoints) > 0) ? targetProduct.aPoints : '',
+      isFeatured: !!targetProduct.isFeatured,
+      productType: targetProduct.productType || 'physical',
+      requiresEquipmentSerial: targetProduct.requiresEquipmentSerial !== undefined ? !!targetProduct.requiresEquipmentSerial : (targetProduct.requires_equipment_serial !== undefined ? !!targetProduct.requires_equipment_serial : (targetProduct.productType === 'digital' || targetProduct.product_type === 'digital')),
+      tags: Array.isArray(targetProduct.tags)
+        ? [...targetProduct.tags]
+        : (typeof targetProduct.tags === 'string' ? targetProduct.tags.split(/[,;\s]+/).map(t => t.trim().replace(/^#/, '')).filter(Boolean) : []),
+      images: Array.isArray(targetProduct.images) ? [...targetProduct.images] : (targetProduct.image ? [targetProduct.image] : []),
+      specs: Array.isArray(targetProduct.specs) ? [...targetProduct.specs] : [],
+      attachments: Array.isArray(targetProduct.attachments) ? [...targetProduct.attachments] : [],
+      videoUrl: targetProduct.videoUrl || targetProduct.youtubeVideoUrl || '',
+      customTabs: Array.isArray(targetProduct.customTabs) ? [...targetProduct.customTabs] : [],
+      compatibleProductIds: Array.isArray(targetProduct.compatibleProductIds) ? [...targetProduct.compatibleProductIds] : [],
+      recommendedProductIds: Array.isArray(targetProduct.recommendedProductIds) ? [...targetProduct.recommendedProductIds] : [],
+      variants: Array.isArray(targetProduct.variants) ? [...targetProduct.variants] : []
+    };
+    setProductForm(targetForm);
+    setTagInput('');
+    initialProductFormRef.current = JSON.stringify(targetForm);
+
+    const modalForm = document.getElementById('productMainForm');
+    if (modalForm) {
+      modalForm.scrollTop = 0;
+    }
+    showNotification(`Abrindo "${targetProduct.name}" no modal de edição.`, 'info');
+  };
+
+  const navigateBackInProductModal = () => {
+    if (productModalHistory.length === 0) return;
+    const prevEntry = productModalHistory[productModalHistory.length - 1];
+    setProductModalHistory(prev => prev.slice(0, -1));
+    setEditingProduct(prevEntry.editing || null);
+    setProductForm(prevEntry.form);
+    setTagInput('');
+    initialProductFormRef.current = JSON.stringify(prevEntry.form);
+
+    const modalForm = document.getElementById('productMainForm');
+    if (modalForm) {
+      modalForm.scrollTop = 0;
+    }
+    showNotification(`Retornando para "${prevEntry.form?.name || 'Equipamento Anterior'}".`, 'info');
+  };
+
+  // Product Search Tags State (#hashtags)
+  const [tagInput, setTagInput] = useState('');
+  const [showAllTags, setShowAllTags] = useState(false);
+
+  const handleAddTag = (rawTag) => {
+    if (!rawTag) return;
+    const items = String(rawTag)
+      .split(/[,;]+/)
+      .map(t => t.trim().replace(/^#/, '').replace(/\s+/g, ' ').toLowerCase())
+      .filter(t => t && t.length >= 2);
+    if (items.length === 0) return;
+    const currentTags = Array.isArray(productForm.tags) ? productForm.tags : [];
+    const newTags = items.filter(t => !currentTags.includes(t));
+    if (newTags.length > 0) {
+      setProductForm(prev => ({
+        ...prev,
+        tags: [...(Array.isArray(prev.tags) ? prev.tags : []), ...newTags]
+      }));
+    }
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (tagToRemove) => {
+    setProductForm(prev => ({
+      ...prev,
+      tags: (Array.isArray(prev.tags) ? prev.tags : []).filter(t => t !== tagToRemove)
+    }));
+  };
+
+  const handleTagKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleAddTag(tagInput);
+    }
+  };
+
+  // Attachment Form State (Upload vs Direct URL)
+  const [newAttachmentForm, setNewAttachmentForm] = useState({
+    title: '',
+    url: '',
+    mode: 'url' // 'url' | 'upload'
+  });
+
+  // 3D Model Form State (Upload vs Direct URL)
+  const [model3dMode, setModel3dMode] = useState('url'); // 'url' | 'upload'
+  const [model3dUploading, setModel3dUploading] = useState(false);
+
+  // State for Editing Existing Attachment / PDF
+  const [editingAttachmentId, setEditingAttachmentId] = useState(null);
+  const [editingAttachmentForm, setEditingAttachmentForm] = useState({
+    title: '',
+    url: '',
+    mode: 'url',
+    fileName: '',
+    fileSize: ''
+  });
+
+  // Quick Category Modal State
+  const [isQuickCatModalOpen, setIsQuickCatModalOpen] = useState(false);
+  const [quickCatName, setQuickCatName] = useState('');
+
+  // Live Gateway Price Simulation Visibility
+  const [showPriceSimulations, setShowPriceSimulations] = useState(false);
+  const [priceSimulationTab, setPriceSimulationTab] = useState('credit');
+
+  // Brand Modal State
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [editingBrand, setEditingBrand] = useState(null);
+  const [brandForm, setBrandForm] = useState({
+    name: '',
+    description: '',
+    logo: '',
+    websiteUrl: '',
+    imageSourceMode: 'upload'
+  });
+
+  const [isProductModalOpen, setIsProductModalOpen] = useState(!!editingProduct);
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [isDraggingBrandLogo, setIsDraggingBrandLogo] = useState(false);
+  const [previewingImage, setPreviewingImage] = useState(null);
+
+  // Product Variant Dedicated Modal States
+  const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
+  const [editingVariantIndex, setEditingVariantIndex] = useState(null);
+  const [variantModalForm, setVariantModalForm] = useState({
+    id: '',
+    name: '',
+    sku: '',
+    colorHex: '',
+    price: '',
+    image: '',
+    stockQty: '',
+    statusControl: 'auto',
+    isActive: true,
+    showInCatalog: true,
+  });
+  const [isDraggingVariantImage, setIsDraggingVariantImage] = useState(false);
+  const [isUploadingVariantImage, setIsUploadingVariantImage] = useState(false);
+  const [isSelectingVariantMedia, setIsSelectingVariantMedia] = useState(false);
+  const [pendingVariantImageCallback, setPendingVariantImageCallback] = useState(null);
+
+  // Shopify-style image upload queue & progress state
+  const [uploadingImages, setUploadingImages] = useState([]);
+  const isUploadingImages = uploadingImages.length > 0;
+  const gallerySectionRef = React.useRef(null);
+  const specsSectionRef = React.useRef(null);
+
+  const scrollToGallery = () => {
+    if (gallerySectionRef.current) {
+      gallerySectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const scrollToSpecs = () => {
+    if (specsSectionRef.current) {
+      specsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  // Custom Confirmation Modal Popup State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Sim, Confirmar',
+    cancelText: 'Cancelar',
+    type: 'danger',
+    onConfirm: null
+  });
+
+  // Cloudflare R2 Image Library Modal State
+  const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+
+  const isAnyModalOpen = isProductModalOpen || isVariantModalOpen || isPdfModalOpen || isCategoryModalOpen || isBrandModalOpen || isUserModalOpen || isQuickCatModalOpen || confirmModal?.isOpen || !!previewingImage || isLibraryModalOpen || isBannerModalOpen || !!bannerToDelete || isDeptModalOpen || !!selectedMacroForDetails;
+
+  // Background body scroll lock while any modal is open
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      const orig = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = orig;
+      };
+    }
+  }, [isAnyModalOpen]);
+
+  useEffect(() => {
+    const shouldReopen = sessionStorage.getItem('athena_reopen_editor');
+    if (shouldReopen === 'true') {
+      sessionStorage.removeItem('athena_reopen_editor');
+      try {
+        const savedDraft = sessionStorage.getItem('athena_preview_draft_product');
+        if (savedDraft) {
+          const draft = JSON.parse(savedDraft);
+          setProductForm(draft);
+          setIsProductModalOpen(true);
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  const askConfirmation = ({
+    title,
+    message,
+    confirmText = 'Sim, Confirmar',
+    cancelText = 'Cancelar',
+    type = 'danger',
+    onConfirm
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      type,
+      onConfirm
+    });
+  };
+
+  const closeConfirmation = () => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false, onConfirm: null }));
+  };
+
+  // Reference to snapshot initial product form state to detect unsaved changes
+  const initialProductFormRef = React.useRef(null);
+
+  const hasUnsavedProductChanges = () => {
+    if (!isProductModalOpen) return false;
+    if (!initialProductFormRef.current) return false;
+    try {
+      return JSON.stringify(productForm) !== initialProductFormRef.current;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // 1. Browser Native confirmation dialog on tab reload, close or navigate away
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isProductModalOpen && hasUnsavedProductChanges()) {
+        e.preventDefault();
+        e.returnValue = ''; // Triggers browser's native confirmation dialog
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isProductModalOpen, productForm]);
+
+  // Sync snapshot when product modal is open and snapshot not yet taken
+  useEffect(() => {
+    if (isProductModalOpen && !initialProductFormRef.current) {
+      initialProductFormRef.current = JSON.stringify(productForm);
+    }
+  }, [isProductModalOpen, productForm]);
+
+  // 2. In-app confirmation dialog on accidental click to close (backdrop, X, cancel, Esc)
+  const handleRequestCloseProductModal = () => {
+    if (hasUnsavedProductChanges()) {
+      askConfirmation({
+        title: 'Descartar alterações?',
+        message: 'Você tem modificações não salvas neste equipamento. Se fechar agora, todas as informações preenchidas serão descartadas.',
+        confirmText: 'Sim, Descartar Alterações',
+        cancelText: 'Continuar Editando',
+        type: 'warning',
+        onConfirm: () => {
+          initialProductFormRef.current = null;
+          setIsProductModalOpen(false);
+          setIsLibraryModalOpen(false);
+          setEditingProduct(null);
+          setProductModalHistory([]);
+        }
+      });
+    } else {
+      initialProductFormRef.current = null;
+      setIsProductModalOpen(false);
+      setIsLibraryModalOpen(false);
+      setEditingProduct(null);
+      setProductModalHistory([]);
+    }
+  };
+
+  // Revogar Acesso de Usuário / Funcionário
+  const handleDeleteUser = (userId, userName) => {
+    askConfirmation({
+      title: 'Revogar Acesso do Usuário?',
+      message: `Tem certeza que deseja revogar o acesso de "${userName}"? Ele não poderá mais fazer login no painel administrativo.`,
+      confirmText: 'Sim, Revogar Acesso',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/users/${userId}`, { 
+            method: 'DELETE',
+            headers: getAuthHeaders()
+          });
+          if (res.status === 401 || res.status === 403) {
+            onLogout && onLogout('Sua sessão expirou.');
+            return;
+          }
+          if (res.ok) {
+            showNotification(`Acesso de ${userName} revogado com sucesso.`, 'success');
+            setUsersList(prev => prev.filter(u => u.id !== userId));
+          } else {
+            showNotification('Erro ao remover usuário.', 'error');
+          }
+        } catch (err) {
+          showNotification('Erro de conexão ao remover usuário.', 'error');
+        }
+      }
+    });
+  };
+
+  const generateSlug = (nameStr) => {
+    return nameStr
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9 -]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  };
+
+  const extractSkuFromTitle = (str) => {
+    if (!str) return '';
+    const parts = String(str).trim().split(/\s+/);
+    if (parts.length === 0) return '';
+    const candidate = parts[parts.length - 1]; // index -1
+    const clean = candidate.replace(/^[(\[{'"]+|[)\]}'"]+$/g, '').trim();
+    return clean.length >= 2 ? clean : '';
+  };
+
+  const openNewProductModal = () => {
+    setProductModalHistory([]);
+    setEditingProduct(null);
+    const initialForm = {
+      name: '',
+      slug: '',
+      categoryId: categories[0]?.id || '',
+      brandId: brands[0]?.id || '',
+      price: '',
+      priceNegotiable: true,
+      aPoints: '',
+      productType: 'physical',
+      requiresEquipmentSerial: false,
+      priceSource: 'manual',
+      stockSource: 'manual',
+      badge: '',
+      tags: [],
+      status: 'published',
+      isFeatured: false,
+      image: '',
+      images: [],
+      altText: '',
+      description: '',
+      specs: [],
+      attachments: [],
+      videoUrl: '',
+      customTabs: [],
+      compatibleProductIds: [],
+      recommendedProductIds: [],
+      sku: '',
+      stock: 0,
+      omieCode: '',
+      variants: [],
+      model3d: {
+        glb: '',
+        usdz: '',
+        fileName: '',
+        fileSize: '',
+        dimensions: { width: '', height: '', depth: '' }
+      }
+    };
+    setProductForm(initialForm);
+    setModel3dMode('url');
+    setTagInput('');
+    initialProductFormRef.current = JSON.stringify(initialForm);
+    setNewAttachmentForm({ title: '', url: '', mode: 'url' });
+    setIsProductModalOpen(true);
+  };
+
+  const openEditProductModal = (product) => {
+    setProductModalHistory([]);
+    setEditingProduct(product);
+    const initialForm = {
+      ...product,
+      sku: product.sku || product.omieCode || '',
+      stock: product.stock != null ? product.stock : (product.estoqueQuantidade != null ? product.estoqueQuantidade : (product.inStock === false ? 0 : 1)),
+      omieCode: product.omieCode || product.sku || '',
+      aPoints: (product.aPoints != null && Number(product.aPoints) > 0) ? product.aPoints : '',
+      isFeatured: !!product.isFeatured,
+      productType: product.productType || 'physical',
+      requiresEquipmentSerial: product.requiresEquipmentSerial !== undefined ? !!product.requiresEquipmentSerial : (product.requires_equipment_serial !== undefined ? !!product.requires_equipment_serial : (product.productType === 'digital' || product.product_type === 'digital')),
+      priceSource: product.priceSource || product.price_source || ((product.omieCodigoProduto || product.omie_codigo_produto || product.omieCode) && product.omieLastSync ? 'omie' : 'manual'),
+      stockSource: product.stockSource || product.stock_source || ((product.omieCodigoProduto || product.omie_codigo_produto || product.omieCode) && product.omieLastSync ? 'omie' : 'manual'),
+      tags: Array.isArray(product.tags)
+        ? [...product.tags]
+        : (typeof product.tags === 'string' ? product.tags.split(/[,;\s]+/).map(t => t.trim().replace(/^#/, '')).filter(Boolean) : []),
+      images: Array.isArray(product.images) ? [...product.images] : (product.image ? [product.image] : []),
+      specs: Array.isArray(product.specs) ? [...product.specs] : [],
+      attachments: Array.isArray(product.attachments) ? [...product.attachments] : [],
+      videoUrl: product.videoUrl || product.youtubeVideoUrl || '',
+      customTabs: Array.isArray(product.customTabs) ? [...product.customTabs] : [],
+      compatibleProductIds: Array.isArray(product.compatibleProductIds) ? [...product.compatibleProductIds] : [],
+      recommendedProductIds: Array.isArray(product.recommendedProductIds) ? [...product.recommendedProductIds] : [],
+      variants: Array.isArray(product.variants) ? [...product.variants] : [],
+      model3d: product.model3d ? {
+        glb: product.model3d.glb || product.modelGlb || product.model3dUrl || '',
+        usdz: product.model3d.usdz || product.modelUsdz || '',
+        fileName: product.model3d.fileName || '',
+        fileSize: product.model3d.fileSize || '',
+        dimensions: {
+          width: product.model3d.dimensions?.width != null ? product.model3d.dimensions.width : '',
+          height: product.model3d.dimensions?.height != null ? product.model3d.dimensions.height : '',
+          depth: product.model3d.dimensions?.depth != null ? product.model3d.dimensions.depth : ''
+        }
+      } : {
+        glb: '',
+        usdz: '',
+        fileName: '',
+        fileSize: '',
+        dimensions: { width: '', height: '', depth: '' }
+      }
+    };
+    setProductForm(initialForm);
+    setModel3dMode(initialForm.model3d?.glb?.startsWith('data:') ? 'upload' : 'url');
+    setTagInput('');
+    initialProductFormRef.current = JSON.stringify(initialForm);
+    setNewAttachmentForm({ title: '', url: '', mode: 'url' });
+    setIsProductModalOpen(true);
+  };
+
+  // Smart Section Extractor from Description
+  // Known Section Categories & Canonical Titles
+  const KNOWN_SECTION_CATEGORIES = [
+    {
+      canonical: 'Especificações Técnicas',
+      isSpecs: true,
+      keywords: [
+        'especificações técnicas', 'especificacoes tecnicas', 'especificações', 'especificacoes',
+        'especificação', 'especificacao', 'dados técnicos', 'dados tecnicos', 'ficha técnica',
+        'ficha tecnica', 'características técnicas', 'caracteristicas tecnicas', 'especificações do produto'
+      ]
+    },
+    {
+      canonical: 'Acessórios & Itens Compatíveis',
+      isCompatibility: true,
+      keywords: [
+        'acessórios & itens compatíveis', 'acessorios & itens compativeis',
+        'acessórios e itens compatíveis', 'acessorios e itens compativeis',
+        'compatibilidade', 'compatibilidades', 'máquinas compatíveis', 'maquinas compativeis',
+        'equipamentos compatíveis', 'equipamentos compativeis', 'acessórios compatíveis',
+        'acessorios compativeis', 'montadoras e sistemas compatíveis', 'montadoras e sistemas compativeis',
+        'montadoras compatíveis', 'montadoras compativeis', 'veículos compatíveis', 'veiculos compativeis',
+        'veículos atendidos', 'veiculos atendidos', 'modelos compatíveis', 'modelos compativeis'
+      ]
+    },
+    { canonical: 'Diferenciais', keywords: ['diferenciais', 'diferencial', 'vantagens', 'vantagem', 'benefícios', 'beneficios', 'pontos fortes', 'destaques', 'por que escolher'] },
+    { canonical: 'Aplicações', keywords: ['aplicações', 'aplicacoes', 'aplicação', 'aplicacao', 'indicação de uso', 'indicacao de uso', 'onde usar', 'utilização', 'utilizacao', 'aplicabilidade'] },
+    { canonical: 'Funções & Recursos', keywords: ['funções e recursos', 'funções & recursos', 'funções', 'funcoes', 'função', 'funcao', 'recursos', 'recurso', 'características', 'caracteristicas', 'funcionamento', 'principais funções', 'tecnologia', 'sistema de operação'] },
+    {
+      canonical: 'Itens Inclusos',
+      keywords: [
+        'itens inclusos', 'item incluso', 'itens incluso', 'itens inclusos no fornecimento',
+        'acessórios inclusos', 'acessorios inclusos', 'acessório incluso', 'acessorio incluso',
+        'itens', 'item', 'acessórios', 'acessorios', 'acessorio', 'acessório',
+        'o que acompanha', 'o que vem na caixa', 'o que vem no estojo', 'o que está incluso',
+        'conteúdo da embalagem', 'conteudo da embalagem', 'conteúdo', 'conteudo',
+        'composição', 'composicao', 'acompanha', 'inclusos', 'itens que acompanham',
+        'itens fornecidos', 'acessórios fornecidos', 'acessorios fornecidos',
+        'fornecimento padrão', 'fornecimento padrao', 'estojo com', 'embalagem'
+      ]
+    },
+    { canonical: 'Requisitos de Instalação', keywords: ['requisitos de instalação', 'requisitos de instalacao', 'requisitos', 'instalação', 'instalacao', 'infraestrutura', 'exigências', 'exigencias', 'espaço necessário', 'especificações de instalação', 'preparação'] },
+    { canonical: 'Garantia & Suporte', keywords: ['garantia e suporte', 'garantia & suporte', 'garantia', 'suporte e garantia', 'assistência técnica', 'assistencia tecnica', 'certificação', 'certificacao', 'homologação', 'homologacao'] },
+    { canonical: 'Importante', keywords: ['importante', 'observações', 'observacoes', 'observação', 'observacao', 'atenção', 'atencao', 'aviso', 'avisos', 'requisitos e avisos', 'nota', 'notas', 'informações importantes', 'informacoes importantes'] }
+  ];
+
+  // Helper to determine if a line is a section header (100% linear, zero regex catastrophic backtracking)
+  // Helper to determine if a line is a section header (100% linear, zero regex catastrophic backtracking)
+  const isLineASectionHeader = (line) => {
+    if (!line) return null;
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length > 120) return null;
+
+    // Never treat a bullet point or numbered item as a section header
+    if (/^[•\-\*\+]\s+/.test(trimmed) || /^\d+[\.\)]\s+/.test(trimmed)) {
+      return null;
+    }
+
+    const isMdHeading = /^#{1,6}\s+/.test(trimmed);
+
+    // Case 1: Line contains a colon ':' -> The text before the colon indicates a new tab/section
+    const colonIdx = trimmed.indexOf(':');
+    if (colonIdx !== -1) {
+      const beforeColon = trimmed.slice(0, colonIdx)
+        .replace(/^#{1,6}\s*/, '')
+        .replace(/^\*{1,2}/, '')
+        .replace(/\*{1,2}$/, '')
+        .trim();
+      const afterColon = trimmed.slice(colonIdx + 1).trim();
+
+      // Title before colon must be short (<= 45 chars) and cannot contain periods or full sentences
+      if (beforeColon.length >= 2 && beforeColon.length <= 45 && !beforeColon.includes('.')) {
+        const normBefore = normalizeSearchText(beforeColon);
+        if (!['descricao', 'foto', 'fotos', 'preco'].includes(normBefore)) {
+          // Check known categories
+          for (const cat of KNOWN_SECTION_CATEGORIES) {
+            if (cat.keywords.some(k => {
+              const normK = normalizeSearchText(k);
+              return normBefore === normK || normBefore.startsWith(normK);
+            })) {
+              return {
+                title: cat.canonical,
+                isSpecs: !!cat.isSpecs,
+                isCompatibility: !!cat.isCompatibility,
+                rawHeader: line,
+                inlineContent: afterColon
+              };
+            }
+          }
+
+          // Custom section ending with colon (e.g. "Garantia:", "Conteúdo:")
+          const formatted = beforeColon.charAt(0).toUpperCase() + beforeColon.slice(1);
+          return {
+            title: formatted,
+            isSpecs: formatted.toLowerCase().includes('especif'),
+            isCompatibility: formatted.toLowerCase().includes('compatib'),
+            rawHeader: line,
+            inlineContent: afterColon
+          };
+        }
+      }
+    }
+
+    // Case 2: Line does NOT have a colon - MUST be a standalone title (exact match or markdown heading)
+    const clean = trimmed
+      .replace(/^#{1,6}\s*/, '')
+      .replace(/^\*{1,2}/, '')
+      .replace(/\*{1,2}$/, '')
+      .trim();
+
+    if (!clean || clean.length < 2 || clean.length > 50 || clean.includes('.')) return null;
+
+    const norm = normalizeSearchText(clean);
+    if (['descricao', 'foto', 'fotos', 'preco'].includes(norm)) {
+      return null;
+    }
+
+    // Standalone keyword check: MUST be an exact match (NEVER norm.includes to avoid matching inside sentences)
+    for (const cat of KNOWN_SECTION_CATEGORIES) {
+      if (cat.keywords.some(k => {
+        const normK = normalizeSearchText(k);
+        return norm === normK || (isMdHeading && norm.startsWith(normK));
+      })) {
+        return {
+          title: cat.canonical,
+          isSpecs: !!cat.isSpecs,
+          isCompatibility: !!cat.isCompatibility,
+          rawHeader: line,
+          inlineContent: ''
+        };
+      }
+    }
+
+    // Standalone Markdown heading (# ...)
+    if (isMdHeading && clean.length <= 45) {
+      const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
+      return {
+        title: formatted,
+        isSpecs: formatted.toLowerCase().includes('especif'),
+        isCompatibility: formatted.toLowerCase().includes('compatib'),
+        rawHeader: line,
+        inlineContent: ''
+      };
+    }
+
+    return null;
+  };
+
+  // Smart Tag Extractor from Description Text:
+  // Detects blocks like "Tags: tag1, tag2, tag3" or "Hashtags: #tag1, #tag2"
+  // Extracts the tags, adds them to productForm.tags, and strips the "Tags:" line from description.
+  const extractTagsFromDescriptionText = (rawDescription = '', existingTags = []) => {
+    if (!rawDescription || typeof rawDescription !== 'string') {
+      return { cleanedDescription: rawDescription, extractedTags: existingTags, hasExtracted: false };
+    }
+
+    const tagRegex = /(?:^|\n)\s*(?:tags?|hashtags?|palavras[- ]chaves?)\s*:\s*([^\n]+)/i;
+    const match = rawDescription.match(tagRegex);
+
+    if (!match) {
+      return { cleanedDescription: rawDescription, extractedTags: existingTags, hasExtracted: false };
+    }
+
+    const rawTagsLine = match[1] || '';
+    // Separa EXCLUSIVAMENTE por vírgula ou ponto-e-vírgula, mantendo termos compostos (ex: "caneta de teste")
+    const newTags = rawTagsLine
+      .split(/[,;]+/)
+      .map(t => t.trim().replace(/^#/, '').replace(/\s+/g, ' ').toLowerCase())
+      .filter(t => t && t.length >= 2);
+
+    if (newTags.length === 0) {
+      return { cleanedDescription: rawDescription, extractedTags: existingTags, hasExtracted: false };
+    }
+
+    // Remove the entire matched line from description and clean up excess blank lines
+    const cleanedDescription = rawDescription.replace(match[0], '').replace(/\n{3,}/g, '\n\n').trim();
+
+    const currentTagsArr = Array.isArray(existingTags) ? existingTags : [];
+    const mergedTags = Array.from(new Set([...currentTagsArr, ...newTags]));
+
+    return {
+      cleanedDescription,
+      extractedTags: mergedTags,
+      newTagsCount: mergedTags.length - currentTagsArr.length,
+      hasExtracted: true
+    };
+  };
+
+  const handleProcessDescriptionTags = () => {
+    const res = extractTagsFromDescriptionText(productForm.description, productForm.tags);
+    if (res.hasExtracted) {
+      setProductForm(prev => ({
+        ...prev,
+        description: res.cleanedDescription,
+        tags: res.extractedTags
+      }));
+      showNotification(`${res.newTagsCount > 0 ? `${res.newTagsCount} tag(s)` : 'Tags'} identificadas e adicionadas automaticamente!`, 'success');
+    }
+  };
+
+  // Linear line-by-line parser for structured descriptions
+  const parseDescriptionSections = (rawDescription = '') => {
+    if (!rawDescription || !rawDescription.trim()) return { intro: '', sections: [] };
+
+    const lines = rawDescription.split(/\r?\n/);
+    const sections = [];
+    let currentSection = null;
+    const introLines = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const headerInfo = isLineASectionHeader(line);
+
+      if (headerInfo) {
+        if (currentSection) {
+          sections.push(currentSection);
+        }
+        currentSection = {
+          title: headerInfo.title,
+          isSpecsSection: headerInfo.isSpecs,
+          isCompatibility: headerInfo.isCompatibility,
+          rawHeader: headerInfo.rawHeader,
+          lines: headerInfo.inlineContent ? [headerInfo.inlineContent] : []
+        };
+      } else {
+        if (currentSection) {
+          currentSection.lines.push(line);
+        } else {
+          introLines.push(line);
+        }
+      }
+    }
+
+    if (currentSection) {
+      sections.push(currentSection);
+    }
+
+    const formattedSections = sections.map(sec => {
+      const cleanLines = sec.lines.map(l => l.trim()).filter(Boolean);
+      const isTableSection = cleanLines.some(l => l.startsWith('|') && l.includes('|'));
+
+      let formattedContent = '';
+      if (isTableSection) {
+        // Preserva linhas de tabelas markdown sem prefixar com bullets
+        formattedContent = cleanLines.map(l => {
+          if (l.startsWith('|')) return l;
+          const stripped = l.replace(/^[•\-\*\+–—]+\s*/, '').trim();
+          return stripped ? `• ${stripped}` : '';
+        }).filter(Boolean).join('\n');
+      } else {
+        const formattedLines = cleanLines.map(l => {
+          const stripped = l.replace(/^[•\-\*\+–—]+\s*/, '').trim();
+          return stripped ? `• ${stripped}` : '';
+        }).filter(Boolean);
+        formattedContent = formattedLines.join('\n');
+      }
+
+      return {
+        title: sec.title,
+        isSpecsSection: sec.isSpecsSection,
+        isCompatibility: sec.isCompatibility,
+        content: formattedContent,
+        rawLines: cleanLines,
+        lineCount: cleanLines.length
+      };
+    }).filter(s => s.lineCount > 0);
+
+    return {
+      intro: introLines.join('\n').trim(),
+      sections: formattedSections
+    };
+  };
+
+  const extractSectionFromDescription = (rawDescription = '', targetSectionTitle = '') => {
+    if (!rawDescription || !targetSectionTitle) {
+      return { extractedContent: '', updatedDescription: rawDescription, found: false };
+    }
+
+    const parsed = parseDescriptionSections(rawDescription);
+    const targetLower = targetSectionTitle.toLowerCase().trim();
+    const matched = parsed.sections.find(s => s.title.toLowerCase().trim() === targetLower);
+
+    if (!matched) {
+      return { extractedContent: '', updatedDescription: rawDescription, found: false };
+    }
+
+    const remainingSections = parsed.sections.filter(s => s !== matched);
+    let updatedDesc = parsed.intro;
+
+    for (const s of remainingSections) {
+      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => (l.startsWith('•') || l.startsWith('-') || l.startsWith('|') ? l : `• ${l}`)).join('\n');
+    }
+
+    return {
+      extractedContent: matched.content,
+      updatedDescription: updatedDesc.trim(),
+      found: true
+    };
+  };
+
+  const autoLinkCompatibleProductsInContent = (rawText, catalogProducts = []) => {
+    if (!rawText || !Array.isArray(catalogProducts) || catalogProducts.length === 0) {
+      return { text: rawText, matchedIds: [] };
+    }
+
+    const matchedIds = [];
+    let updatedText = rawText;
+
+    for (const prod of catalogProducts) {
+      if (!prod || !prod.name) continue;
+      if (prod.id === productForm.id || (editingProduct && prod.id === editingProduct.id)) continue;
+
+      const name = prod.name.trim();
+      const codeMatches = (name.match(/\b([A-Za-z0-9]{2,6}-[A-Za-z0-9]{2,6})\b/g) || []);
+      const candidates = [name, ...codeMatches];
+
+      for (const candidate of candidates) {
+        if (!candidate || candidate.length < 4) continue;
+        const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b(${escaped})\\b`, 'i');
+        
+        if (regex.test(updatedText)) {
+          if (!matchedIds.includes(prod.id)) matchedIds.push(prod.id);
+          if (!updatedText.includes(`/produto/${prod.slug || prod.id}`)) {
+            updatedText = updatedText.replace(regex, `[${prod.name}](/produto/${prod.slug || prod.id})`);
+          }
+          break;
+        }
+      }
+    }
+
+    return { text: updatedText, matchedIds };
+  };
+
+  const detectAllSectionsInDescription = (rawDescription = '', currentCustomTabs = [], currentSpecs = []) => {
+    if (!rawDescription || !rawDescription.trim()) return [];
+
+    const parsed = parseDescriptionSections(rawDescription);
+    return parsed.sections.map(sec => {
+      const isAlreadyAdded = sec.isSpecsSection
+        ? (Array.isArray(currentSpecs) && currentSpecs.length > 0)
+        : (currentCustomTabs || []).some(
+            t => t.title && t.title.toLowerCase().trim() === sec.title.toLowerCase().trim()
+          );
+
+      return {
+        ...sec,
+        isAlreadyAdded
+      };
+    });
+  };
+
+  const handleExtractToSpecs = (item) => {
+    if (!item) return;
+    const rawLines = item.rawLines || item.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const cleaned = rawLines.map(l => l.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim()).filter(Boolean);
+
+    if (cleaned.length === 0) {
+      showNotification('Nenhuma linha de especificação válida foi identificada no texto.', 'info');
+      return;
+    }
+
+    const res = extractSectionFromDescription(productForm.description, item.title);
+    const workingDesc = res.found ? res.updatedDescription : productForm.description;
+
+    setProductForm(prev => ({
+      ...prev,
+      description: workingDesc,
+      specs: cleaned
+    }));
+
+    showNotification(`${cleaned.length} especificações técnicas cadastradas no local correto e removidas da descrição!`, 'success');
+
+    setTimeout(() => {
+      scrollToSpecs();
+    }, 80);
+  };
+
+  const handleExtractAllDetectedTabs = () => {
+    const detected = detectAllSectionsInDescription(productForm.description, productForm.customTabs, productForm.specs);
+    const unadded = detected.filter(d => !d.isAlreadyAdded);
+    if (unadded.length === 0) {
+      showNotification('Nenhuma nova seção estruturada encontrada na descrição.', 'info');
+      return;
+    }
+
+    const parsed = parseDescriptionSections(productForm.description);
+    const newTabs = [...(productForm.customTabs || [])];
+    let newSpecs = Array.isArray(productForm.specs) ? [...productForm.specs] : [];
+    let newCompatibleIds = Array.isArray(productForm.compatibleProductIds) ? [...productForm.compatibleProductIds] : [];
+    let specsAddedCount = 0;
+    let tabsAddedCount = 0;
+
+    for (const item of unadded) {
+      if (item.isSpecsSection) {
+        const cleaned = item.rawLines.map(l => l.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim()).filter(Boolean);
+        newSpecs = cleaned;
+        specsAddedCount = cleaned.length;
+      } else {
+        let contentToUse = (item.content || '').replace(/^(\s*)[-*]\s+/gm, '$1• ');
+        if (item.isCompatibility || item.title === 'Acessórios & Itens Compatíveis') {
+          const linkResult = autoLinkCompatibleProductsInContent(contentToUse, products);
+          contentToUse = linkResult.text;
+          newCompatibleIds = Array.from(new Set([...newCompatibleIds, ...linkResult.matchedIds]));
+        }
+
+        newTabs.push({
+          id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+          title: item.title,
+          content: contentToUse
+        });
+        tabsAddedCount++;
+      }
+    }
+
+    const extractedTitles = unadded.map(u => u.title.toLowerCase().trim());
+    const remainingSections = parsed.sections.filter(s => !extractedTitles.includes(s.title.toLowerCase().trim()));
+
+    let updatedDesc = parsed.intro;
+    for (const s of remainingSections) {
+      updatedDesc += (updatedDesc ? '\n\n' : '') + `${s.title}:\n` + s.rawLines.map(l => l.startsWith('|') ? l : l.replace(/^(\s*)[-*]\s+/, '$1• ').replace(/^([^•\s])/, '• $1')).join('\n');
+    }
+
+    setProductForm(prev => ({
+      ...prev,
+      description: updatedDesc.trim(),
+      specs: newSpecs,
+      customTabs: newTabs,
+      compatibleProductIds: newCompatibleIds
+    }));
+
+    showNotification(
+      `Inteligência aplicada: ${specsAddedCount > 0 ? `${specsAddedCount} especificações tabuladas e ` : ''}${tabsAddedCount} abas criadas com sucesso!`,
+      'success'
+    );
+  };
+
+  // Custom Tabs Helpers & Reordering
+  const handleAddCustomTab = (title = 'Nova Seção', tryAutoExtract = true) => {
+    let initialContent = '';
+    let updatedDesc = productForm.description;
+    let newCompatibleIds = Array.isArray(productForm.compatibleProductIds) ? [...productForm.compatibleProductIds] : [];
+
+    if (tryAutoExtract && productForm.description && productForm.description.trim()) {
+      const result = extractSectionFromDescription(productForm.description, title);
+      if (result.found && result.extractedContent) {
+        initialContent = result.extractedContent;
+        updatedDesc = result.updatedDescription;
+        
+        if (title === 'Acessórios & Itens Compatíveis') {
+          const linkResult = autoLinkCompatibleProductsInContent(initialContent, products);
+          initialContent = linkResult.text;
+          newCompatibleIds = Array.from(new Set([...newCompatibleIds, ...linkResult.matchedIds]));
+        }
+
+        showNotification(`Aba "${title}" criada com conteúdo extraído da descrição!`, 'success');
+      }
+    }
+
+    const newTab = {
+      id: `tab_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      title: title,
+      content: initialContent
+    };
+
+    setProductForm(prev => ({
+      ...prev,
+      description: updatedDesc,
+      customTabs: [...(prev.customTabs || []), newTab],
+      compatibleProductIds: newCompatibleIds
+    }));
+  };
+
+  // Reorder Custom Tabs (Move Up / Down)
+  const handleMoveCustomTab = (index, direction) => {
+    const currentTabs = Array.isArray(productForm.customTabs) ? [...productForm.customTabs] : [];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= currentTabs.length) return;
+
+    const [moved] = currentTabs.splice(index, 1);
+    currentTabs.splice(targetIndex, 0, moved);
+
+    setProductForm(prev => ({
+      ...prev,
+      customTabs: currentTabs
+    }));
+  };
+
+  // Helper to detect if a custom tab contains technical specifications
+  const isSpecsCustomTab = (tab) => {
+    if (!tab) return false;
+    const title = (tab.title || '').toLowerCase().trim();
+    const keywords = [
+      'especif', 'dados tecnic', 'dados técnic', 'ficha tecnic', 'ficha técnic', 
+      'caracteristicas tecnic', 'características técnic', 'detalhes tecnic', 'detalhes técnic'
+    ];
+    if (keywords.some(k => title.includes(k))) return true;
+
+    // Check if majority of non-empty lines follow 'Label: Value' pattern
+    if (tab.content && typeof tab.content === 'string') {
+      const lines = tab.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const withColon = lines.filter(l => l.includes(':'));
+      if (lines.length >= 2 && withColon.length >= Math.ceil(lines.length * 0.5)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Convert an existing generic custom tab into structured key-value Specs
+  const handleConvertTabToSpecs = (tabId) => {
+    const tab = (productForm.customTabs || []).find(t => t.id === tabId);
+    if (!tab || !tab.content) return;
+
+    const lines = tab.content
+      .split(/\r?\n/)
+      .map(l => l.replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      showNotification('A aba selecionada não contém linhas de texto para cadastrar.', 'info');
+      return;
+    }
+
+    setProductForm(prev => ({
+      ...prev,
+      specs: lines, // Registers all lines cleanly in the structured specs
+      customTabs: (prev.customTabs || []).filter(t => t.id !== tabId)
+    }));
+
+    showNotification(`${lines.length} especificações técnicas cadastradas no local correto e aba removida com sucesso!`, 'success');
+
+    // Smoothly focus/scroll to the Specifications Card
+    setTimeout(() => {
+      scrollToSpecs();
+    }, 80);
+  };
+
+  const handleExtractTabContentFromDescription = (tabId, tabTitle) => {
+    if (!productForm.description || !productForm.description.trim()) {
+      showNotification('A descrição principal do produto está vazia.', 'info');
+      return;
+    }
+
+    const result = extractSectionFromDescription(productForm.description, tabTitle);
+
+    if (result.found && result.extractedContent) {
+      setProductForm(prev => {
+        const updatedTabs = (prev.customTabs || []).map(t => {
+          if (t.id === tabId) {
+            const newContent = t.content && t.content.trim() 
+              ? `${t.content.trim()}\n\n${result.extractedContent}` 
+              : result.extractedContent;
+            return { ...t, content: newContent };
+          }
+          return t;
+        });
+
+        return {
+          ...prev,
+          description: result.updatedDescription,
+          customTabs: updatedTabs
+        };
+      });
+
+      showNotification(`Conteúdo de "${tabTitle}" extraído e removido da descrição!`, 'success');
+    } else {
+      showNotification(`Não encontramos um bloco com o tema "${tabTitle}" na descrição. Você pode digitar ou colar diretamente.`, 'info');
+    }
+  };
+
+  const handleUpdateCustomTab = (id, field, value) => {
+    setProductForm(prev => ({
+      ...prev,
+      customTabs: (prev.customTabs || []).map(t => t.id === id ? { ...t, [field]: value } : t)
+    }));
+  };
+
+  const handleRemoveCustomTab = (id) => {
+    setProductForm(prev => ({
+      ...prev,
+      customTabs: (prev.customTabs || []).filter(t => t.id !== id)
+    }));
+  };
+
+  // Product Variants Helpers (Colors, Sizes, Models, Omie Integration, Modal & Upload)
+  const handleOpenAddVariantModal = () => {
+    setEditingVariantIndex(null);
+    setVariantModalForm({
+      id: `var_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: '',
+      sku: '',
+      colorHex: '',
+      price: '',
+      image: '',
+      stockQty: '',
+      statusControl: 'auto',
+      isActive: true,
+      showInCatalog: true,
+    });
+    setIsVariantModalOpen(true);
+  };
+
+  const handleAddVariant = handleOpenAddVariantModal;
+
+  const handleOpenEditVariantModal = (index) => {
+    const v = (productForm.variants || [])[index];
+    if (!v) return;
+    setEditingVariantIndex(index);
+    let initialControl = v.statusControl;
+    if (!initialControl) {
+      if (v.isActive === false) initialControl = 'manual_inactive';
+      else if (v.isManualForce) initialControl = 'manual_active';
+      else initialControl = 'auto';
+    }
+    setVariantModalForm({
+      id: v.id || `var_${Date.now()}_${index}`,
+      name: v.name || '',
+      sku: v.sku || '',
+      colorHex: v.colorHex || '',
+      price: v.price !== undefined && v.price !== null ? v.price : '',
+      priceSource: v.priceSource || ((v.omieProductId || v.omieCode) ? 'omie' : 'manual'),
+      image: v.image || '',
+      stockQty: v.stockQty !== undefined && v.stockQty !== null ? v.stockQty : '',
+      stockSource: v.stockSource || ((v.omieProductId || v.omieCode) ? 'omie' : 'manual'),
+      statusControl: initialControl,
+      isActive: initialControl !== 'manual_inactive',
+      showInCatalog: v.showInCatalog !== false,
+    });
+    setIsVariantModalOpen(true);
+  };
+
+  const handleSaveVariantModal = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!variantModalForm.name.trim()) {
+      showNotification('Preencha o Nome da Opção (ex: Vermelho, 7 Gavetas, 220V).', 'error');
+      return;
+    }
+
+    const control = variantModalForm.statusControl || 'auto';
+    const isAct = control !== 'manual_inactive';
+
+    const cleanedVariant = {
+      id: variantModalForm.id || `var_${Date.now()}`,
+      name: variantModalForm.name.trim(),
+      sku: (variantModalForm.sku || '').trim(),
+      colorHex: (variantModalForm.colorHex || '').trim(),
+      price: variantModalForm.price !== '' ? Number(variantModalForm.price) : '',
+      priceSource: variantModalForm.priceSource || 'manual',
+      image: (variantModalForm.image || '').trim(),
+      stockQty: variantModalForm.stockQty !== '' ? Number(variantModalForm.stockQty) : '',
+      stockSource: variantModalForm.stockSource || 'manual',
+      statusControl: control,
+      isManualForce: control === 'manual_active',
+      isActive: isAct,
+      showInCatalog: variantModalForm.showInCatalog !== false,
+    };
+
+    setProductForm((prev) => {
+      const list = [...(prev.variants || [])];
+      if (editingVariantIndex !== null && editingVariantIndex >= 0 && editingVariantIndex < list.length) {
+        list[editingVariantIndex] = cleanedVariant;
+      } else {
+        list.push(cleanedVariant);
+      }
+      return { ...prev, variants: list };
+    });
+
+    setIsVariantModalOpen(false);
+    setEditingVariantIndex(null);
+    showNotification(
+      editingVariantIndex !== null ? 'Variação atualizada com sucesso!' : 'Variação adicionada com sucesso!',
+      'success'
+    );
+  };
+
+  const handleDuplicateVariant = (index) => {
+    const v = (productForm.variants || [])[index];
+    if (!v) return;
+    const cloned = {
+      ...v,
+      id: `var_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: `${v.name} (Cópia)`,
+      sku: v.sku ? `${v.sku}-COP` : '',
+    };
+    setProductForm((prev) => ({
+      ...prev,
+      variants: [...(prev.variants || []), cloned]
+    }));
+    showNotification(`Variação duplicada: "${cloned.name}"`, 'success');
+  };
+
+  const handleSetVariantStatus = (index, newControl) => {
+    setProductForm((prev) => {
+      const list = [...(prev.variants || [])];
+      if (list[index]) {
+        list[index] = {
+          ...list[index],
+          statusControl: newControl,
+          isActive: newControl !== 'manual_inactive',
+          isManualForce: newControl === 'manual_active'
+        };
+        const statusLabels = {
+          auto: '⚡ Automático (Estoque)',
+          manual_active: '🟢 Ativa (Prioridade Manual)',
+          manual_inactive: '🔴 Desativada (Prioridade Manual)'
+        };
+        showNotification(`Variação "${list[index].name || 'Opção'}" definida como: ${statusLabels[newControl] || newControl}.`, 'info');
+      }
+      return { ...prev, variants: list };
+    });
+  };
+
+  const handleToggleVariantActive = (index) => {
+    setProductForm((prev) => {
+      const list = [...(prev.variants || [])];
+      if (list[index]) {
+        const currentControl = list[index].statusControl || (list[index].isActive === false ? 'manual_inactive' : 'auto');
+        const nextControl = (currentControl === 'manual_inactive' || list[index].isActive === false) ? 'manual_active' : 'manual_inactive';
+        list[index] = {
+          ...list[index],
+          statusControl: nextControl,
+          isActive: nextControl !== 'manual_inactive',
+          isManualForce: nextControl === 'manual_active'
+        };
+        showNotification(`Variação "${list[index].name || 'Opção'}" agora está ${nextControl === 'manual_active' ? 'Ativa (Prioridade Manual)' : 'Desativada (Manual)'}.`, 'info');
+      }
+      return { ...prev, variants: list };
+    });
+  };
+
+  const handleToggleVariantCatalog = (index) => {
+    setProductForm((prev) => {
+      const list = [...(prev.variants || [])];
+      if (list[index]) {
+        const nextState = list[index].showInCatalog === false ? true : false;
+        list[index] = { ...list[index], showInCatalog: nextState };
+        showNotification(`Variação "${list[index].name || 'Opção'}" ${nextState ? 'será exibida' : 'oculta'} no catálogo.`, 'info');
+      }
+      return { ...prev, variants: list };
+    });
+  };
+
+  const handleRemoveVariant = (index) => {
+    setProductForm((prev) => {
+      const list = (prev.variants || []).filter((_, idx) => idx !== index);
+      return { ...prev, variants: list };
+    });
+    showNotification('Variação removida.', 'info');
+  };
+
+  const handleVariantImageFileUpload = async (file) => {
+    if (!file || !file.type.startsWith('image/')) {
+      showNotification('Selecione uma imagem válida para a variação.', 'error');
+      return;
+    }
+
+    setIsUploadingVariantImage(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target.result;
+      setVariantModalForm((prev) => ({ ...prev, image: base64Data }));
+      showNotification('Enviando foto da variação para a nuvem...', 'info');
+
+      try {
+        const cleanName = (variantModalForm.name || 'variacao').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
+        const res = await fetch(`${API_BASE_URL}/upload`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            file: base64Data,
+            folder: 'athena_variacoes',
+            filename: `var-${cleanName}-${Date.now().toString(36)}`
+          })
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          onLogout && onLogout('Sua sessão expirou.');
+          setIsUploadingVariantImage(false);
+          return;
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          setVariantModalForm((prev) => ({ ...prev, image: data.url }));
+          showNotification('Foto da variação salva na nuvem R2!', 'success');
+        } else {
+          showNotification('Foto salva localmente na variação.', 'info');
+        }
+      } catch (err) {
+        showNotification('Foto da variação salva localmente.', 'info');
+      } finally {
+        setIsUploadingVariantImage(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDropVariantImage = (e) => {
+    e.preventDefault();
+    setIsDraggingVariantImage(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleVariantImageFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handlePasteVariantModal = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          handleVariantImageFileUpload(file);
+          return;
+        }
+      }
+    }
+  };
+
+  // Attachments & PDFs Helpers (Upload + Direct Link with Custom Name)
+  const handleAddAttachmentSubmit = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!newAttachmentForm.url.trim()) {
+      showNotification('Insira a URL do arquivo PDF ou faça o upload.', 'error');
+      return;
+    }
+    const cleanUrl = newAttachmentForm.url.trim();
+    const extractedFileName = cleanUrl.split('/').pop().split('?')[0] || 'documento.pdf';
+    const displayTitle = newAttachmentForm.title.trim() || formatAttachmentLabel(extractedFileName);
+
+    const newAtt = {
+      id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      title: displayTitle,
+      name: displayTitle,
+      fileName: extractedFileName,
+      url: cleanUrl,
+      fileSize: newAttachmentForm.fileSize || 'PDF'
+    };
+
+    setProductForm(prev => ({
+      ...prev,
+      attachments: [...(prev.attachments || []), newAtt]
+    }));
+
+    setNewAttachmentForm({ title: '', url: '', mode: 'url' });
+    showNotification(`PDF "${displayTitle}" adicionado com sucesso!`, 'success');
+  };
+
+  const handleAttachmentFileUpload = (file) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      showNotification('Por favor, selecione um arquivo no formato PDF.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Url = event.target.result;
+      const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+      const sizeStr = sizeInMB > 0 ? `${sizeInMB} MB` : `${Math.round(file.size / 1024)} KB`;
+      const autoTitle = formatAttachmentLabel(file.name);
+      const displayTitle = newAttachmentForm.title.trim() || autoTitle;
+
+      const newAtt = {
+        id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        title: displayTitle,
+        name: displayTitle,
+        fileName: file.name,
+        url: base64Url,
+        fileSize: sizeStr
+      };
+
+      setProductForm(prev => ({
+        ...prev,
+        attachments: [...(prev.attachments || []), newAtt]
+      }));
+
+      setNewAttachmentForm({ title: '', url: '', mode: 'upload' });
+      showNotification(`PDF "${displayTitle}" anexado com sucesso!`, 'success');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAttachment = (attId) => {
+    setProductForm(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter(a => a.id !== attId)
+    }));
+    if (editingAttachmentId === attId) {
+      setEditingAttachmentId(null);
+    }
+  };
+
+  const handleStartEditAttachment = (att) => {
+    setEditingAttachmentId(att.id);
+    setEditingAttachmentForm({
+      title: att.title || att.name || '',
+      url: att.url || '',
+      mode: att.url?.startsWith('data:') ? 'upload' : 'url',
+      fileName: att.fileName || '',
+      fileSize: att.fileSize || 'PDF'
+    });
+  };
+
+  const handleSaveEditAttachment = (attId) => {
+    if (!editingAttachmentForm.url || !editingAttachmentForm.url.trim()) {
+      showNotification('Insira a URL do arquivo PDF ou faça o upload.', 'error');
+      return;
+    }
+    const cleanUrl = editingAttachmentForm.url.trim();
+    const extractedFileName = cleanUrl.split('/').pop().split('?')[0] || editingAttachmentForm.fileName || 'documento.pdf';
+    const displayTitle = editingAttachmentForm.title?.trim() || formatAttachmentLabel(extractedFileName);
+
+    setProductForm(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).map(a => {
+        if (a.id === attId) {
+          return {
+            ...a,
+            title: displayTitle,
+            name: displayTitle,
+            fileName: editingAttachmentForm.fileName || extractedFileName,
+            url: cleanUrl,
+            fileSize: editingAttachmentForm.fileSize || a.fileSize || 'PDF'
+          };
+        }
+        return a;
+      })
+    }));
+
+    setEditingAttachmentId(null);
+    showNotification(`PDF "${displayTitle}" atualizado com sucesso!`, 'success');
+  };
+
+  const handleEditAttachmentFileUpload = (file) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      showNotification('Por favor, selecione um arquivo no formato PDF.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Url = event.target.result;
+      const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+      const sizeStr = sizeInMB > 0 ? `${sizeInMB} MB` : `${Math.round(file.size / 1024)} KB`;
+      const autoTitle = formatAttachmentLabel(file.name);
+
+      setEditingAttachmentForm(prev => ({
+        ...prev,
+        title: prev.title || autoTitle,
+        fileName: file.name,
+        url: base64Url,
+        fileSize: sizeStr
+      }));
+
+      showNotification(`Arquivo PDF "${file.name}" carregado.`, 'info');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUpdateAttachmentTitle = (attId, newTitle) => {
+    setProductForm(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).map(a => a.id === attId ? { ...a, title: newTitle, name: newTitle } : a)
+    }));
+  };
+
+  // 3D Model & WebAR Handlers
+  const handle3dFileUpload = (file) => {
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.glb') && !name.endsWith('.gltf')) {
+      showNotification('Por favor, selecione um arquivo no formato .glb ou .gltf.', 'error');
+      return;
+    }
+    setModel3dUploading(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+      setProductForm(prev => ({
+        ...prev,
+        model3d: {
+          ...(prev.model3d || {}),
+          glb: dataUrl,
+          fileName: file.name,
+          fileSize: `${sizeMb} MB`
+        }
+      }));
+      setModel3dUploading(false);
+      showNotification(`Modelo 3D "${file.name}" anexado (${sizeMb} MB)!`, 'success');
+    };
+    reader.onerror = () => {
+      setModel3dUploading(false);
+      showNotification('Erro ao processar o arquivo 3D.', 'error');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUseSample3dModel = () => {
+    setProductForm(prev => ({
+      ...prev,
+      model3d: {
+        glb: '/models/tool_cart.glb',
+        fileName: 'tool_cart.glb',
+        fileSize: '3.17 MB',
+        dimensions: {
+          width: 1.27,
+          height: 0.96,
+          depth: 0.75
+        }
+      }
+    }));
+    showNotification('Modelo 3D de teste (Carrinho Wolfcar) aplicado com sucesso!', 'success');
+  };
+
+  const handleUseAnimatedSampleModel = () => {
+    setProductForm(prev => ({
+      ...prev,
+      model3d: {
+        glb: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/models/commercial_refrigerator.glb',
+        fileName: 'commercial_refrigerator.glb',
+        fileSize: '9.66 MB',
+        hasAnimations: true,
+        hotspotPosition: '0.35m -0.15m 0.38m',
+        dimensions: {
+          width: 0.85,
+          height: 1.95,
+          depth: 0.72
+        }
+      }
+    }));
+    showNotification('Modelo 3D animado com abertura interativa de porta aplicado!', 'success');
+  };
+
+  const handleRemove3dModel = () => {
+    setProductForm(prev => ({
+      ...prev,
+      model3d: {
+        glb: '',
+        usdz: '',
+        fileName: '',
+        fileSize: '',
+        dimensions: { width: '', height: '', depth: '' }
+      }
+    }));
+    showNotification('Modelo 3D removido deste equipamento.', 'info');
+  };
+
+  const handleAddSpec = (specText = '') => {
+    setProductForm(prev => ({
+      ...prev,
+      specs: [...(prev.specs || []), specText]
+    }));
+  };
+
+  const handleUpdateSpec = (index, value) => {
+    setProductForm(prev => {
+      const next = [...(prev.specs || [])];
+      next[index] = value;
+      return { ...prev, specs: next };
+    });
+  };
+
+  const handleRemoveSpec = (index) => {
+    setProductForm(prev => {
+      const next = (prev.specs || []).filter((_, i) => i !== index);
+      return { ...prev, specs: next };
+    });
+  };
+
+  const handleMoveSpec = (index, direction) => {
+    setProductForm(prev => {
+      const specs = [...(prev.specs || [])];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= specs.length) return prev;
+      const temp = specs[index];
+      specs[index] = specs[targetIndex];
+      specs[targetIndex] = temp;
+      return { ...prev, specs };
+    });
+  };
+
+  const optimizeDescriptionAndSpecs = (rawText = '', nameText = '') => {
+    let text = (rawText || '').trim();
+    if (!text) return { cleanDescription: '', extractedSpecs: [] };
+
+    const extractedSpecs = [];
+    const seen = new Set();
+    const segmentsToRemove = [];
+
+    const addSpec = (spec, originalSegment) => {
+      let clean = spec.trim().replace(/^[•\-\*–—\d+\.\)]+\s*/, '').trim();
+      if (clean.length >= 3 && clean.length <= 140 && !seen.has(clean.toLowerCase())) {
+        seen.add(clean.toLowerCase());
+        extractedSpecs.push(clean);
+      }
+      if (originalSegment && typeof originalSegment === 'string' && originalSegment.trim().length > 3) {
+        segmentsToRemove.push(originalSegment.trim());
+      }
+    };
+
+    const lines = text.split(/\r?\n|[;•·\t]/).map(l => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      if (line.includes(':')) {
+        const parts = line.split(':');
+        if (parts[0].trim().length > 1 && parts[1].trim().length > 0 && line.length < 90) {
+          addSpec(line, line);
+        }
+      }
+    }
+
+    const dimMatch1 = text.match(/(?:tamanho(?:\s*do\s*produto)?|dimens[õo]es(?:\s*do\s*produto)?|medidas(?:\s*do\s*produto)?)\s*[:=]?\s*([\d\.,\s\*xX×\-\/]+(?:mm|cm|m|pol|"))/i);
+    if (dimMatch1) {
+      const rawVal = dimMatch1[1].trim().replace(/\s*[\*xX×]\s*/g, ' × ');
+      addSpec(`Dimensões: ${rawVal}`, dimMatch1[0]);
+    } else {
+      const dimMatch2 = text.match(/\b(\d+[\.,]?\d*)\s*[\*xX×]\s*(\d+[\.,]?\d*)\s*[\*xX×]\s*(\d+[\.,]?\d*)\s*(mm|cm|m)\b/i);
+      if (dimMatch2) {
+        addSpec(`Dimensões: ${dimMatch2[1]} × ${dimMatch2[2]} × ${dimMatch2[3]} ${dimMatch2[4]}`, dimMatch2[0]);
+      }
+    }
+
+    const weightMatch = text.match(/(?:peso\s*bruto|peso\s*líquido|peso\s*total|peso)\s*[:=]?\s*([\d\.,]+\s*(?:kg|t|ton|toneladas|g))/i);
+    if (weightMatch) {
+      const isBruto = /bruto/i.test(weightMatch[0]);
+      const isLiquido = /l[íi]quido/i.test(weightMatch[0]);
+      const label = isBruto ? 'Peso Bruto' : (isLiquido ? 'Peso Líquido' : 'Peso');
+      addSpec(`${label}: ${weightMatch[1].trim()}`, weightMatch[0]);
+    }
+
+    const volMatch = text.match(/(?:volume(?:\s*do\s*produto)?)\s*[:=]?\s*([^\.\n,;]+?(?:m³|m3|m|litros|l|cm³))/i);
+    if (volMatch) {
+      let val = volMatch[1].trim();
+      if (/^[\d\.,\s]+m$/i.test(val)) val = val.replace(/m$/i, 'm³');
+      addSpec(`Volume: ${val}`, volMatch[0]);
+    }
+
+    const espMatch = text.match(/(?:espessura(?:\s*da\s*chapa|\s*do\s*aço)?)\s*(?:de\s*)?[:=]?\s*([\d\.,]+\s*(?:mm|cm|pol|"))/i);
+    if (espMatch) {
+      addSpec(`Espessura da Chapa: ${espMatch[1].trim()}`, espMatch[0]);
+    }
+
+    const tampoMatch = text.match(/(?:opções\s*(?:com|de)?\s*tampo|tampo)\s*(?:de\s*|:)?\s*([^\.\n;]+?(?:aço\s*inox|madeira|inox|aço|mdf|emborrachado)[^\.\n;]*)/i);
+    if (tampoMatch) {
+      const formattedTampo = tampoMatch[0].trim().replace(/^opções\s*(?:com|de)?\s*tampo\s*(?:de\s*|:)?/i, 'Tampo ');
+      addSpec(`Opções de Tampo: ${formattedTampo}`, tampoMatch[0]);
+    }
+
+    const capMatch = text.match(/(capacidade\s*(?:de\s*carga)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:kg|t|ton|toneladas|litros|l|mah|bar|psi))/i);
+    if (capMatch) {
+      addSpec(`Capacidade: ${capMatch[0].replace(/^capacidade\s*(?:de\s*carga)?\s*(?:de|:)?\s*/i, '').trim()}`, capMatch[0]);
+    }
+
+    const altMatch = text.match(/(altura\s*(?:máxima|de\s*elevação)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:mm|cm|m))/i);
+    if (altMatch) {
+      addSpec(`Altura de Elevação: ${altMatch[0].replace(/^altura\s*(?:máxima|de\s*elevação)?\s*(?:de|:)?\s*/i, '').trim()}`, altMatch[0]);
+    }
+
+    const motorMatch = text.match(/(motor\s*(?:trifásico|monofásico|elétrico|hidráulico)?\s*(?:de\s*[\d\.,]+\s*(?:hp|cv|kw))?\s*(?:220v|380v|110v|12v|24v)?(?:\/380v|\/220v)?)/i) ||
+                       text.match(/(tensão|voltagem|alimentação)\s*(?:de|:)?\s*(?:220v|380v|110v|12v|24v|bivolt)(?:\/380v|\/220v)?/i);
+    if (motorMatch) {
+      addSpec(`Motor / Alimentação: ${motorMatch[0].replace(/^(motor|tensão|voltagem|alimentação)\s*(?:de|:)?\s*/i, '').trim()}`, motorMatch[0]);
+    }
+
+    const pressMatch = text.match(/(pressão\s*(?:de\s*trabalho|máxima)?\s*(?:de|:)?\s*[\d\.,\-\s]+(?:bar|psi))/i);
+    if (pressMatch) {
+      addSpec(`Pressão de Trabalho: ${pressMatch[0].replace(/^pressão\s*(?:de\s*trabalho|máxima)?\s*(?:de|:)?\s*/i, '').trim()}`, pressMatch[0]);
+    }
+
+    const torqMatch = text.match(/(torque\s*(?:máximo)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:nm|kgfm))/i);
+    if (torqMatch) {
+      addSpec(`Torque Máximo: ${torqMatch[0].replace(/^torque\s*(?:máximo)?\s*(?:de|:)?\s*/i, '').trim()}`, torqMatch[0]);
+    }
+
+    const displayMatch = text.match(/(tela|display|monitor)\s*(?:touchscreen|lcd|led|colorido)?\s*(?:de\s*[\d\.,]+(?:\s*polegadas|\s*pol|"))?/i);
+    if (displayMatch && displayMatch[0].length > 6) {
+      addSpec(`Display: ${displayMatch[0].replace(/^(tela|display|monitor)\s*(?:de|:)?\s*/i, '').trim()}`, displayMatch[0]);
+    }
+
+    const protoMatch = text.match(/(protocolos?\s*(?:suportados?)?:?\s*(?:can-fd|doip|j2534|obd2|iso[\d\-]+)[\w\s\-,/]+)/i);
+    if (protoMatch) {
+      addSpec(`Protocolos: ${protoMatch[0].replace(/^protocolos?\s*(?:suportados?)?:?\s*/i, '').trim()}`, protoMatch[0]);
+    }
+
+    const batMatch = text.match(/(bateria\s*(?:interna|recarregável)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:mah|ah))/i);
+    if (batMatch) {
+      addSpec(`Bateria: ${batMatch[0].replace(/^bateria\s*(?:interna|recarregável)?\s*(?:de|:)?\s*/i, '').trim()}`, batMatch[0]);
+    }
+
+    const aroMatch = text.match(/(?:aro|diâmetro(?:\s*do\s*aro)?)\s*(?:de|:)?\s*([\d\.,\s\-"a]+(?:pol|"))/i);
+    if (aroMatch) {
+      addSpec(`Diâmetro do Aro: ${aroMatch[1].trim()}`, aroMatch[0]);
+    }
+
+    const encaixeMatch = text.match(/(encaixe\s*(?:quadrado)?\s*(?:de|:)?\s*[\d\.,/]+(?:\s*pol|"))/i);
+    if (encaixeMatch) {
+      addSpec(`Encaixe: ${encaixeMatch[0].replace(/^encaixe\s*(?:quadrado)?\s*(?:de|:)?\s*/i, '').trim()}`, encaixeMatch[0]);
+    }
+
+    const garMatch = text.match(/(garantia\s*(?:de\s*fábrica)?\s*(?:de|:)?\s*[\d\.,]+\s*(?:meses|anos?))/i);
+    if (garMatch) {
+      addSpec(`Garantia: ${garMatch[0].replace(/^garantia\s*(?:de\s*fábrica)?\s*(?:de|:)?\s*/i, '').trim()}`, garMatch[0]);
+    }
+
+    let cleanDesc = text;
+
+    for (const seg of segmentsToRemove) {
+      const escaped = seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      cleanDesc = cleanDesc.replace(new RegExp(escaped, 'gi'), '');
+    }
+
+    cleanDesc = cleanDesc
+      .replace(/\b(TAMANHO(\s*DO\s*PRODUTO)?|PESO(\s*BRUTO|\s*L[IÍ]QUIDO)?|VOLUME(\s*DO\s*PRODUTO)?|ESPESSURA(\s*DA\s*CHAPA)?|DIMENS[ÕO]ES|MEDIDAS)\b[:=]?/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .replace(/\s*,\s*,+/g, ',')
+      .replace(/\s*\.\s*\.+/g, '.')
+      .replace(/\s*,\s*\./g, '.')
+      .replace(/^\s*[,;.\-–—]\s*/, '')
+      .trim();
+
+    const commonPrefixFixes = [
+      { pattern: /^onjunto\b/i, fix: 'Conjunto' },
+      { pattern: /^quipamento\b/i, fix: 'Equipamento' },
+      { pattern: /^levador\b/i, fix: 'Elevador' },
+      { pattern: /^ompressor\b/i, fix: 'Compressor' },
+      { pattern: /^alanceador/i, fix: 'Balanceador' },
+      { pattern: /^esmontadora/i, fix: 'Desmontadora' },
+      { pattern: /^trutura/i, fix: 'Estrutura' },
+      { pattern: /^strutura/i, fix: 'Estrutura' },
+      { pattern: /^carrinho\b/i, fix: 'Carrinho' },
+      { pattern: /^armário\b/i, fix: 'Armário' },
+      { pattern: /^armario\b/i, fix: 'Armário' }
+    ];
+
+    for (const { pattern, fix } of commonPrefixFixes) {
+      if (pattern.test(cleanDesc)) {
+        cleanDesc = cleanDesc.replace(pattern, fix);
+        break;
+      }
+    }
+
+    if (cleanDesc.length > 0) {
+      cleanDesc = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
+    }
+
+    cleanDesc = cleanDesc.replace(/\.\s+([a-zà-ú])/g, (_, letter) => `. ${letter.toUpperCase()}`);
+
+    if (cleanDesc.length > 0 && !/[.!?]$/.test(cleanDesc)) {
+      cleanDesc += '.';
+    }
+
+    return {
+      cleanDescription: cleanDesc,
+      extractedSpecs
+    };
+  };
+
+  const parseSpecsFromText = (descriptionText, nameText = '') => {
+    const { extractedSpecs } = optimizeDescriptionAndSpecs(descriptionText, nameText);
+    return extractedSpecs;
+  };
+
+  const handleOptimizeDescriptionAndSpecs = () => {
+    if (!productForm.description || !productForm.description.trim()) {
+      showNotification('Digite ou cole a descrição do produto para otimizar.', 'error');
+      return;
+    }
+
+    const { cleanDescription, extractedSpecs } = optimizeDescriptionAndSpecs(productForm.description, productForm.name);
+
+    const currentSpecsLower = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
+    const newItems = extractedSpecs.filter(s => !currentSpecsLower.has(s.toLowerCase().trim()));
+    const updatedSpecs = [...(productForm.specs || []), ...newItems];
+
+    setProductForm(prev => ({
+      ...prev,
+      description: cleanDescription || prev.description,
+      specs: updatedSpecs
+    }));
+
+    if (newItems.length > 0) {
+      showNotification(`Descrição otimizada e ${newItems.length} especificação(ões) adicionada(s) à tabela.`, 'success');
+    } else {
+      showNotification('Descrição otimizada e formatada com sucesso.', 'success');
+    }
+  };
+
+  const handleExtractSpecsFromDescription = () => {
+    const extracted = parseSpecsFromText(productForm.description, productForm.name);
+    if (extracted.length === 0) {
+      showNotification('Nenhum dado técnico identificado na descrição atual. Digite mais detalhes técnicos acima.', 'error');
+      return;
+    }
+
+    const currentSpecsLower = new Set((productForm.specs || []).map(s => s.toLowerCase().trim()));
+    const newItems = extracted.filter(s => !currentSpecsLower.has(s.toLowerCase().trim()));
+
+    if (newItems.length > 0) {
+      setProductForm(prev => ({
+        ...prev,
+        specs: [...(prev.specs || []), ...newItems]
+      }));
+      showNotification(`${newItems.length} especificação(ões) extraída(s) com sucesso da descrição.`, 'success');
+    } else {
+      showNotification('Todas as especificações identificadas na descrição já estão na lista.', 'info');
+    }
+  };
+
+  const handleMultipleImageUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files).filter(f => f && f.type && f.type.startsWith('image/'));
+    if (fileList.length === 0) {
+      showNotification('Selecione arquivos de imagem válidos (JPG/PNG/WEBP).', 'error');
+      return;
+    }
+
+    // 1. Create immediate local preview placeholder tasks with individual AbortControllers
+    const newTasks = fileList.map((file, idx) => ({
+      id: `up_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+      file,
+      fileName: file.name,
+      tempUrl: URL.createObjectURL(file),
+      progress: 12,
+      status: 'uploading', // 'uploading' | 'done' | 'error'
+      abortController: new AbortController()
+    }));
+
+    setUploadingImages((prev) => [...prev, ...newTasks]);
+    showNotification(`Enviando ${newTasks.length} imagem(ns)...`, 'info');
+
+    // Smoothly center the gallery in view so user sees progress immediately
+    setTimeout(() => {
+      scrollToGallery();
+    }, 60);
+
+    // 2. Upload each file concurrently with progressive radial feedback
+    for (const task of newTasks) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result;
+
+        // Progressive smooth radial animation
+        const progressTimer = setInterval(() => {
+          setUploadingImages((prev) =>
+            prev.map((t) => {
+              if (t.id === task.id && t.status === 'uploading') {
+                const next = t.progress + Math.floor(Math.random() * 18 + 8);
+                return { ...t, progress: Math.min(next, 94) };
+              }
+              return t;
+            })
+          );
+        }, 220);
+
+        try {
+          const cleanTitle = (productForm.title || productForm.name || '').trim();
+          const tokens = cleanTitle.split(/\s+/).filter(Boolean);
+          const lastToken = tokens.length > 0 ? tokens[tokens.length - 1].replace(/[^a-zA-Z0-9\-_]/g, '') : '';
+          const cleanBrand = (productForm.brand || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
+          const generatedFilename = cleanBrand && lastToken
+            ? `${cleanBrand}-${lastToken.toLowerCase()}`
+            : lastToken
+            ? lastToken.toLowerCase()
+            : cleanBrand
+            ? cleanBrand
+            : (task.name || 'produto').replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+          const res = await fetch(`${API_BASE_URL}/upload`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ 
+              file: base64Data, 
+              folder: 'athena_produtos',
+              filename: generatedFilename
+            }),
+            signal: task.abortController.signal
+          });
+
+          clearInterval(progressTimer);
+
+          if (res.status === 401 || res.status === 403) {
+            onLogout && onLogout('Sua sessão expirou.');
+            setUploadingImages((prev) => prev.filter((t) => t.id !== task.id));
+            return;
+          }
+
+          const uploadedUrl = res.ok ? (await res.json()).url : base64Data;
+
+          // Check if this task was removed or cancelled while in flight
+          let wasAborted = false;
+          setUploadingImages((prev) => {
+            const exists = prev.some((t) => t.id === task.id);
+            if (!exists) {
+              wasAborted = true;
+              return prev;
+            }
+            return prev.map((t) => (t.id === task.id ? { ...t, progress: 100, status: 'done' } : t));
+          });
+
+          // If the task was cancelled by user while in flight, delete uploaded photo immediately to prevent R2 inflation
+          if (wasAborted) {
+            if (uploadedUrl && (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://'))) {
+              fetch(`${API_BASE_URL}/upload/delete`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ url: uploadedUrl })
+              }).catch(() => {});
+            }
+            try { URL.revokeObjectURL(task.tempUrl); } catch (err) {}
+            return;
+          }
+
+          // Add to productForm images using FUNCTIONAL update to avoid stale closures
+          setProductForm((prev) => {
+            const currentImages = Array.isArray(prev.images) ? [...prev.images] : [];
+            const newImages = currentImages.includes(uploadedUrl) ? currentImages : [...currentImages, uploadedUrl];
+            return {
+              ...prev,
+              image: prev.image || uploadedUrl,
+              images: newImages
+            };
+          });
+
+          // Graceful transition cleanup
+          setTimeout(() => {
+            setUploadingImages((prev) => prev.filter((t) => t.id !== task.id));
+            try {
+              URL.revokeObjectURL(task.tempUrl);
+            } catch (err) {}
+          }, 450);
+
+        } catch (err) {
+          clearInterval(progressTimer);
+          if (err.name === 'AbortError') {
+            // Cancelled cleanly by user, no error notification needed
+            return;
+          }
+          setUploadingImages((prev) =>
+            prev.map((t) => (t.id === task.id ? { ...t, status: 'error', error: 'Falha no upload' } : t))
+          );
+          showNotification(`Erro ao enviar foto "${task.fileName}".`, 'error');
+        }
+      };
+      reader.readAsDataURL(task.file);
+    }
+  };
+
+  const cancelUploadTask = (taskId) => {
+    setUploadingImages((prev) => {
+      const task = prev.find((t) => t.id === taskId);
+      if (task && task.abortController) {
+        try { task.abortController.abort(); } catch (e) {}
+      }
+      if (task && task.tempUrl) {
+        try { URL.revokeObjectURL(task.tempUrl); } catch (e) {}
+      }
+      return prev.filter((t) => t.id !== taskId);
+    });
+  };
+
+  const handleImageFileUpload = (file) => {
+    if (file) handleMultipleImageUpload([file]);
+  };
+
+  const handleDropImage = (e) => {
+    e.preventDefault();
+    setIsDraggingImage(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleMultipleImageUpload(e.dataTransfer.files);
+    }
+  };
+
+  const handleBrandLogoFileUpload = async (file) => {
+    if (!file || !file.type.startsWith('image/')) {
+      showNotification('Selecione uma imagem válida para a logo da marca.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target.result;
+      setBrandForm((prev) => ({ ...prev, logo: base64Data }));
+      showNotification('Enviando logo para a nuvem...', 'info');
+
+      try {
+        const cleanBrand = (brandForm.name || 'marca').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
+        const res = await fetch(`${API_BASE_URL}/upload`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ 
+            file: base64Data, 
+            folder: 'athena_marcas',
+            filename: `logo-${cleanBrand}`
+          })
+        });
+        if (res.status === 401 || res.status === 403) {
+          onLogout && onLogout('Sua sessão expirou.');
+          return;
+        }
+        if (res.ok) {
+          const data = await res.json();
+          setBrandForm((prev) => ({ ...prev, logo: data.url }));
+          showNotification('Logo enviada com sucesso!', 'success');
+        }
+      } catch (err) {
+        showNotification('Logo salva localmente.', 'info');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDropBrandLogo = (e) => {
+    e.preventDefault();
+    setIsDraggingBrandLogo(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleBrandLogoFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleAttachmentUpload = async (file) => {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64Data = e.target.result;
+      const fileSizeFormatted = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+      
+      showNotification(`Enviando anexo "${file.name}" para a nuvem...`, 'info');
+
+      let finalUrl = base64Data;
+      try {
+        const cleanAttName = (file.name || 'anexo').replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const res = await fetch(`${API_BASE_URL}/upload`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ 
+            file: base64Data, 
+            folder: 'athena_anexos',
+            filename: cleanAttName
+          })
+        });
+        if (res.status === 401 || res.status === 403) {
+          onLogout && onLogout('Sua sessão expirou.');
+          return;
+        }
+        if (res.ok) {
+          const data = await res.json();
+          finalUrl = data.url;
+        }
+      } catch (err) {
+        console.error('Upload fallback:', err);
+      }
+
+      const newAtt = {
+        id: `att_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+        fileName: file.name,
+        url: finalUrl,
+        fileSize: fileSizeFormatted
+      };
+
+      setProductForm((prev) => ({
+        ...prev,
+        attachments: [...(prev.attachments || []), newAtt]
+      }));
+
+      showNotification(`Anexo "${file.name}" salvo na nuvem com sucesso!`, 'success');
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const removeAttachment = (attId) => {
+    setProductForm((prev) => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter(a => a.id !== attId)
+    }));
+    showNotification('Anexo removido.', 'info');
+  };
+
+  const generateAutoAltText = () => {
+    const cat = categories.find((c) => c.id === productForm.categoryId)?.name || '';
+    const brand = brands.find((b) => b.id === productForm.brandId)?.name || '';
+    const autoText = `${productForm.name || 'Equipamento'} ${cat} ${brand} Athena Soluções Automotivas`.trim();
+    setProductForm((prev) => ({ ...prev, altText: autoText }));
+    showNotification('Alt Text gerado para SEO!', 'info');
+  };
+
+  const toggleProductStatus = (product) => {
+    if (!canEditContent) return;
+
+    // If trying to publish a draft product, check if brand or category is in draft
+    if (product.status === 'draft') {
+      const brand = brands.find(b => b.id === product.brandId);
+      const category = categories.find(c => c.id === product.categoryId);
+
+      if (brand && brand.status === 'draft') {
+        showNotification(
+          `Bloqueado: A marca "${brand.name}" está em Rascunho. Ative/publique a marca no painel para liberar a publicação deste equipamento.`,
+          'warning'
+        );
+        return;
+      }
+
+      if (category && category.status === 'draft') {
+        showNotification(
+          `Bloqueado: A categoria "${category.name}" está em Rascunho. Ative/publique a categoria no painel para liberar este equipamento.`,
+          'warning'
+        );
+        return;
+      }
+
+      // Regra de Negócio: Proteção contra Rascunho Órfão (Bloqueia publicação sem fotos válidas)
+      const imgValidation = validateProductImagePublishStatus(product);
+      if (!imgValidation.canPublish) {
+        showNotification(
+          imgValidation.message.replace(' O produto foi salvo como rascunho.', ''),
+          'warning'
+        );
+        return;
+      }
+    }
+
+    const newStatus = product.status === 'published' ? 'draft' : 'published';
+    const updated = { ...product, status: newStatus };
+    onUpdateProduct(updated);
+    showNotification(
+      `Status do equipamento "${product.name}" alterado para ${newStatus === 'published' ? 'Publicado' : 'Rascunho'}.`,
+      'info'
+    );
+  };
+
+  const toggleBrandStatus = (brandObj) => {
+    if (!canEditContent) return;
+    const newStatus = brandObj.status === 'draft' ? 'published' : 'draft';
+    const updatedBrand = { ...brandObj, status: newStatus };
+    onUpdateBrand(updatedBrand);
+
+    if (newStatus === 'draft') {
+      const relatedProds = products.filter(p => p.brandId === brandObj.id && p.status === 'published');
+      relatedProds.forEach(p => {
+        onUpdateProduct({ ...p, status: 'draft' });
+      });
+      showNotification(
+        `Marca "${brandObj.name}" colocada em Rascunho. ${relatedProds.length} equipamento(s) foram colocados em Rascunho e bloqueados.`,
+        'warning'
+      );
+    } else {
+      showNotification(
+        `Marca "${brandObj.name}" foi Publicada! Agora você pode liberar os equipamentos desta marca.`,
+        'success'
+      );
+    }
+  };
+
+  const toggleCategoryStatus = (catObj) => {
+    if (!canEditContent) return;
+    const newStatus = catObj.status === 'draft' ? 'published' : 'draft';
+    const updatedCat = { ...catObj, status: newStatus };
+    onUpdateCategory(updatedCat);
+
+    if (newStatus === 'draft') {
+      const relatedProds = products.filter(p => p.categoryId === catObj.id && p.status === 'published');
+      relatedProds.forEach(p => {
+        onUpdateProduct({ ...p, status: 'draft' });
+      });
+      showNotification(
+        `Categoria "${catObj.name}" colocada em Rascunho. ${relatedProds.length} equipamento(s) foram colocados em Rascunho e bloqueados.`,
+        'warning'
+      );
+    } else {
+      showNotification(
+        `Categoria "${catObj.name}" foi Publicada! Agora você pode liberar os equipamentos desta categoria.`,
+        'success'
+      );
+    }
+  };
+
+  const moveCategoryOrder = (index, direction) => {
+    if (!canEditContent) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
+
+    const newCategories = [...categories];
+    const temp = newCategories[index];
+    newCategories[index] = newCategories[targetIndex];
+    newCategories[targetIndex] = temp;
+
+    newCategories.forEach((c, idx) => { c.order = idx + 1; });
+    if (onReorderCategories) {
+      onReorderCategories(newCategories);
+    }
+    showNotification(`Ordem das categorias atualizada!`, 'success');
+  };
+
+  const autoSortCategoriesByCount = () => {
+    if (!canEditContent) return;
+    const newCategories = [...categories].sort((a, b) => {
+      const countA = products.filter(p => p.categoryId === a.id).length;
+      const countB = products.filter(p => p.categoryId === b.id).length;
+      if (countB !== countA) return countB - countA;
+      return a.name.localeCompare(b.name);
+    });
+
+    newCategories.forEach((c, idx) => { c.order = idx + 1; });
+    if (onReorderCategories) {
+      onReorderCategories(newCategories);
+    }
+    showNotification('Categorias reordenadas por quantidade de produtos com sucesso!', 'success');
+  };
+
+  const moveBrandOrder = (index, direction) => {
+    if (!canEditContent) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= brands.length) return;
+
+    const newBrands = [...brands];
+    const temp = newBrands[index];
+    newBrands[index] = newBrands[targetIndex];
+    newBrands[targetIndex] = temp;
+
+    newBrands.forEach((b, idx) => { b.order = idx + 1; });
+    if (onReorderBrands) {
+      onReorderBrands(newBrands);
+    }
+    showNotification(`Ordem das marcas atualizada!`, 'success');
+  };
+
+  const autoSortBrandsByCount = () => {
+    if (!canEditContent) return;
+    const newBrands = [...brands].sort((a, b) => {
+      const countA = products.filter(p => p.brandId === a.id).length;
+      const countB = products.filter(p => p.brandId === b.id).length;
+      if (countB !== countA) return countB - countA;
+      return a.name.localeCompare(b.name);
+    });
+
+    newBrands.forEach((b, idx) => { b.order = idx + 1; });
+    if (onReorderBrands) {
+      onReorderBrands(newBrands);
+    }
+    showNotification('Marcas reordenadas por quantidade de produtos com sucesso!', 'success');
+  };
+
+  const moveProductOrder = (productId, direction) => {
+    if (!canEditContent) return;
+    const index = products.findIndex(p => p.id === productId);
+    if (index === -1) return;
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= products.length) return;
+
+    const newProducts = [...products];
+    const temp = newProducts[index];
+    newProducts[index] = newProducts[targetIndex];
+    newProducts[targetIndex] = temp;
+
+    if (onReorderProducts) {
+      onReorderProducts(newProducts);
+    }
+    showNotification('Ordem dos produtos atualizada!', 'success');
+  };
+
+  const handleProductDrop = (draggedId, targetId) => {
+    if (!draggedId || !targetId || draggedId === targetId || !canEditContent) {
+      setDraggedProductId(null);
+      setDragOverProductId(null);
+      return;
+    }
+    const fromIndex = products.findIndex(p => p.id === draggedId);
+    const toIndex = products.findIndex(p => p.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedProductId(null);
+      setDragOverProductId(null);
+      return;
+    }
+
+    const newProducts = [...products];
+    const [moved] = newProducts.splice(fromIndex, 1);
+    newProducts.splice(toIndex, 0, moved);
+
+    if (onReorderProducts) {
+      onReorderProducts(newProducts);
+    }
+    setDraggedProductId(null);
+    setDragOverProductId(null);
+    showNotification(`Equipamento "${moved.name}" reordenado com sucesso!`, 'success');
+  };
+
+  const handleCategoryDrop = (draggedId, targetId) => {
+    if (!draggedId || !targetId || draggedId === targetId || !canEditContent) {
+      setDraggedCategoryId(null);
+      setDragOverCategoryId(null);
+      return;
+    }
+    const fromIndex = categories.findIndex(c => c.id === draggedId);
+    const toIndex = categories.findIndex(c => c.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedCategoryId(null);
+      setDragOverCategoryId(null);
+      return;
+    }
+
+    const newCategories = [...categories];
+    const [moved] = newCategories.splice(fromIndex, 1);
+    newCategories.splice(toIndex, 0, moved);
+    newCategories.forEach((c, idx) => { c.order = idx + 1; });
+
+    if (onReorderCategories) {
+      onReorderCategories(newCategories);
+    }
+    setDraggedCategoryId(null);
+    setDragOverCategoryId(null);
+    showNotification(`Categoria "${moved.name}" reordenada com sucesso!`, 'success');
+  };
+
+  const handleBrandDrop = (draggedId, targetId) => {
+    if (!draggedId || !targetId || draggedId === targetId || !canEditContent) {
+      setDraggedBrandId(null);
+      setDragOverBrandId(null);
+      return;
+    }
+    const fromIndex = brands.findIndex(b => b.id === draggedId);
+    const toIndex = brands.findIndex(b => b.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedBrandId(null);
+      setDragOverBrandId(null);
+      return;
+    }
+
+    const newBrands = [...brands];
+    const [moved] = newBrands.splice(fromIndex, 1);
+    newBrands.splice(toIndex, 0, moved);
+    newBrands.forEach((b, idx) => { b.order = idx + 1; });
+
+    if (onReorderBrands) {
+      onReorderBrands(newBrands);
+    }
+    setDraggedBrandId(null);
+    setDragOverBrandId(null);
+    showNotification(`Marca "${moved.name}" reordenada com sucesso!`, 'success');
+  };
+
+  const openNewBrandModal = () => {
+    setEditingBrand(null);
+    setBrandForm({
+      name: '',
+      description: '',
+      logo: '',
+      websiteUrl: '',
+      imageSourceMode: 'upload'
+    });
+    setIsBrandModalOpen(true);
+  };
+
+  const openEditBrandModal = (brandObj) => {
+    setEditingBrand(brandObj);
+    setBrandForm({
+      name: brandObj.name || '',
+      description: brandObj.description || '',
+      logo: brandObj.logo || '',
+      websiteUrl: brandObj.websiteUrl || '',
+      imageSourceMode: 'upload'
+    });
+    setIsBrandModalOpen(true);
+  };
+
+  const handleBrandSubmit = (e) => {
+    e.preventDefault();
+    if (!brandForm.name.trim()) {
+      showNotification('Informe o nome da marca.', 'error');
+      return;
+    }
+
+    const slug = generateSlug(brandForm.name);
+    const newBrandObj = {
+      id: editingBrand ? editingBrand.id : `brand_${Date.now()}`,
+      name: brandForm.name.trim(),
+      slug: slug,
+      description: brandForm.description || 'Fabricante parceiro de equipamentos automotivos.',
+      logo: brandForm.logo || 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80',
+      websiteUrl: brandForm.websiteUrl.trim() || '',
+      order: editingBrand ? editingBrand.order : brands.length + 1
+    };
+
+    if (editingBrand) {
+      if (onUpdateBrand) {
+        onUpdateBrand(newBrandObj);
+      } else {
+        const updatedBrands = brands.map(b => b.id === editingBrand.id ? newBrandObj : b);
+        safeStorageSet('athena_brands', updatedBrands);
+      }
+      showNotification(`Marca "${newBrandObj.name}" atualizada!`, 'success');
+    } else {
+      onAddBrand(newBrandObj);
+      setProductForm(prev => ({ ...prev, brandId: newBrandObj.id }));
+      showNotification(`Marca "${newBrandObj.name}" criada com sucesso!`, 'success');
+    }
+
+    setIsBrandModalOpen(false);
+    setEditingBrand(null);
+  };
+
+  // BANNER HANDLERS & SCHEDULE HELPERS
+  const formatDateTimeLocal = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const formatScheduleLabel = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getBannerScheduleInfo = (banner) => {
+    const isActive = banner?.isActive !== false;
+    if (!isActive) {
+      return { status: 'paused', label: 'Pausado', badgeClass: 'bg-slate-200 text-slate-700' };
+    }
+
+    const now = Date.now();
+    const pub = banner?.publishAt || banner?.publish_at;
+    const unpub = banner?.unpublishAt || banner?.unpublish_at;
+
+    const pubTime = pub ? new Date(pub).getTime() : null;
+    const unpubTime = unpub ? new Date(unpub).getTime() : null;
+
+    if (pubTime && !isNaN(pubTime) && now < pubTime) {
+      return {
+        status: 'scheduled',
+        label: `Agendado para ${formatScheduleLabel(pub)}`,
+        badgeClass: 'bg-amber-100 text-amber-900 border border-amber-300 font-bold',
+        isScheduled: true
+      };
+    }
+
+    if (unpubTime && !isNaN(unpubTime) && now > unpubTime) {
+      return {
+        status: 'expired',
+        label: `Encerrado em ${formatScheduleLabel(unpub)}`,
+        badgeClass: 'bg-red-100 text-red-800 border border-red-200',
+        isExpired: true
+      };
+    }
+
+    if (unpubTime && !isNaN(unpubTime)) {
+      return {
+        status: 'active',
+        label: `Ativo no Site (até ${formatScheduleLabel(unpub)})`,
+        badgeClass: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
+        isActive: true
+      };
+    }
+
+    return {
+      status: 'active',
+      label: 'Ativo no Site',
+      badgeClass: 'bg-emerald-100 text-emerald-800',
+      isActive: true
+    };
+  };
+
+  const openNewBannerModal = () => {
+    setEditingBanner(null);
+    setBannerForm({
+      title: '',
+      desktopImage: '',
+      mobileImage: '',
+      linkUrl: '',
+      targetBlank: false,
+      isActive: true,
+      publishAt: '',
+      unpublishAt: '',
+      order: (banners || []).length + 1
+    });
+    setIsBannerModalOpen(true);
+  };
+
+  const openEditBannerModal = (bannerObj) => {
+    setEditingBanner(bannerObj);
+    setBannerForm({
+      title: bannerObj.title || '',
+      desktopImage: bannerObj.desktopImage || bannerObj.desktop_image || '',
+      mobileImage: bannerObj.mobileImage || bannerObj.mobile_image || '',
+      linkUrl: bannerObj.linkUrl || bannerObj.link_url || '',
+      targetBlank: Boolean(bannerObj.targetBlank !== undefined ? bannerObj.targetBlank : bannerObj.target_blank),
+      isActive: bannerObj.isActive !== undefined ? Boolean(bannerObj.isActive) : true,
+      publishAt: formatDateTimeLocal(bannerObj.publishAt || bannerObj.publish_at),
+      unpublishAt: formatDateTimeLocal(bannerObj.unpublishAt || bannerObj.unpublish_at),
+      order: bannerObj.order || 0
+    });
+    setIsBannerModalOpen(true);
+  };
+
+  const handleBannerSubmit = async (e) => {
+    e.preventDefault();
+    if (!bannerForm.desktopImage.trim()) {
+      showNotification('A imagem para Desktop é obrigatória.', 'error');
+      return;
+    }
+
+    const bannerData = {
+      id: editingBanner ? editingBanner.id : `bnr_${Date.now()}`,
+      title: bannerForm.title.trim() || 'Banner Athena',
+      desktopImage: bannerForm.desktopImage.trim(),
+      mobileImage: bannerForm.mobileImage.trim(),
+      linkUrl: bannerForm.linkUrl.trim(),
+      targetBlank: Boolean(bannerForm.targetBlank),
+      isActive: Boolean(bannerForm.isActive),
+      publishAt: bannerForm.publishAt ? new Date(bannerForm.publishAt).toISOString() : null,
+      unpublishAt: bannerForm.unpublishAt ? new Date(bannerForm.unpublishAt).toISOString() : null,
+      order: editingBanner ? (bannerForm.order || 0) : (banners || []).length + 1
+    };
+
+    if (editingBanner) {
+      if (onUpdateBanner) {
+        await onUpdateBanner(bannerData);
+      }
+    } else {
+      if (onAddBanner) {
+        await onAddBanner(bannerData);
+      }
+    }
+    setIsBannerModalOpen(false);
+    setEditingBanner(null);
+  };
+
+  const handleToggleBannerActive = async (banner) => {
+    const updated = {
+      ...banner,
+      isActive: !(banner.isActive !== false)
+    };
+    if (onUpdateBanner) {
+      await onUpdateBanner(updated);
+    }
+  };
+
+  const handleMoveBanner = async (index, direction) => {
+    const newBanners = [...(banners || [])];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= newBanners.length) return;
+
+    const temp = newBanners[index];
+    newBanners[index] = newBanners[targetIdx];
+    newBanners[targetIdx] = temp;
+
+    const reordered = newBanners.map((b, idx) => ({ ...b, order: idx + 1 }));
+    if (onReorderBanners) {
+      await onReorderBanners(reordered);
+    }
+  };
+
+  const openNewCategoryModal = () => {
+    setEditingCategory(null);
+    setCategoryForm({
+      name: '',
+      description: '',
+      slug: '',
+      icon: 'Layers',
+      departmentId: categoryDeptFilter !== 'all' ? categoryDeptFilter : (departments?.[0]?.id || 'dept_ferramentas_manuais')
+    });
+    setIsInlineDeptOpen(false);
+    setInlineDeptForm({ name: '', shortName: '' });
+    setIsCategoryModalOpen(true);
+  };
+
+  const openEditCategoryModal = (cat) => {
+    setEditingCategory(cat);
+    const existingDept = getDepartmentByCategoryId(cat.id, categories);
+    setCategoryForm({
+      name: cat.name || '',
+      description: cat.description || '',
+      slug: cat.slug || '',
+      icon: cat.icon || 'Layers',
+      departmentId: cat.departmentId || existingDept?.id || 'dept_ferramentas_manuais'
+    });
+    setIsInlineDeptOpen(false);
+    setInlineDeptForm({ name: '', shortName: '' });
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleSaveInlineDept = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!inlineDeptForm.name.trim()) {
+      showNotification('Informe o nome da macro-categoria.', 'error');
+      return;
+    }
+    const newDeptObj = {
+      id: `dept_${Date.now()}`,
+      name: inlineDeptForm.name.trim(),
+      shortName: inlineDeptForm.shortName.trim() || inlineDeptForm.name.trim(),
+      icon: 'Layers',
+      order: (departments?.length || 0) + 1
+    };
+
+    if (onAddDepartment) {
+      onAddDepartment(newDeptObj);
+    }
+    setCategoryForm(prev => ({ ...prev, departmentId: newDeptObj.id }));
+    setInlineDeptForm({ name: '', shortName: '' });
+    setIsInlineDeptOpen(false);
+    showNotification(`Macro-categoria "${newDeptObj.name}" criada e selecionada!`, 'success');
+  };
+
+  const handleCategorySubmit = (e) => {
+    e.preventDefault();
+    if (!categoryForm.name.trim()) {
+      showNotification('Informe o nome da categoria.', 'error');
+      return;
+    }
+
+    const catSlug = categoryForm.slug.trim() || generateSlug(categoryForm.name);
+    const categoryObj = {
+      id: editingCategory ? editingCategory.id : `cat_${Date.now()}`,
+      name: categoryForm.name.trim(),
+      slug: catSlug,
+      description: categoryForm.description.trim() || 'Equipamentos e soluções para oficina automotiva.',
+      icon: categoryForm.icon || 'Layers',
+      order: editingCategory ? editingCategory.order : categories.length + 1,
+      departmentId: categoryForm.departmentId || 'dept_ferramentas_manuais'
+    };
+
+    if (editingCategory) {
+      if (onUpdateCategory) {
+        onUpdateCategory(categoryObj);
+      } else {
+        const updated = categories.map(c => c.id === editingCategory.id ? categoryObj : c);
+        safeStorageSet('athena_categories', updated);
+      }
+      showNotification(`Categoria "${categoryObj.name}" atualizada com sucesso!`, 'success');
+    } else {
+      onAddCategory(categoryObj);
+      setProductForm(prev => ({ ...prev, categoryId: categoryObj.id }));
+      showNotification(`Categoria "${categoryObj.name}" criada com sucesso!`, 'success');
+    }
+
+    setIsCategoryModalOpen(false);
+    setIsInlineDeptOpen(false);
+    setInlineDeptForm({ name: '', shortName: '' });
+    setEditingCategory(null);
+  };
+
+  // Macro-Category (Departments) Handlers
+  const openNewDeptModal = () => {
+    setEditingDept(null);
+    setDeptForm({
+      name: '',
+      shortName: '',
+      icon: 'Layers',
+      order: departments.length + 1
+    });
+    setIsDeptModalOpen(true);
+  };
+
+  const openEditDeptModal = (dept, e) => {
+    if (e) e.stopPropagation();
+    setEditingDept(dept);
+    setDeptForm({
+      name: dept.name || '',
+      shortName: dept.shortName || dept.name || '',
+      icon: dept.icon || 'Layers',
+      order: dept.order || 0
+    });
+    setIsDeptModalOpen(true);
+  };
+
+  const handleDeptSubmit = (e) => {
+    e.preventDefault();
+    if (!deptForm.name.trim()) {
+      showNotification('Informe o nome da macro-categoria.', 'error');
+      return;
+    }
+
+    const deptObj = {
+      id: editingDept ? editingDept.id : `dept_${Date.now()}`,
+      name: deptForm.name.trim(),
+      shortName: deptForm.shortName.trim() || deptForm.name.trim(),
+      icon: deptForm.icon || 'Layers',
+      order: editingDept ? (editingDept.order || 0) : departments.length + 1
+    };
+
+    if (editingDept) {
+      if (onUpdateDepartment) {
+        onUpdateDepartment(deptObj);
+      }
+      showNotification(`Macro-categoria "${deptObj.name}" atualizada com sucesso!`, 'success');
+      if (selectedMacroForDetails?.id === deptObj.id) {
+        setSelectedMacroForDetails(deptObj);
+      }
+    } else {
+      if (onAddDepartment) {
+        onAddDepartment(deptObj);
+      }
+      showNotification(`Macro-categoria "${deptObj.name}" criada com sucesso!`, 'success');
+    }
+
+    setIsDeptModalOpen(false);
+    setEditingDept(null);
+  };
+
+  const handleDeleteDept = (dept, e) => {
+    if (e) e.stopPropagation();
+    const count = categories.filter(c => {
+      if (c.departmentId) return c.departmentId === dept.id;
+      return (dept.categoryIds || []).includes(c.id);
+    }).length;
+
+    const confirmMsg = count > 0
+      ? `Atenção: A macro-categoria "${dept.name}" possui ${count} categoria(s) vinculada(s). Ao excluí-la, essas categorias ficarão sem macro associada.\n\nDeseja realmente excluir?`
+      : `Deseja realmente excluir a macro-categoria "${dept.name}"?`;
+
+    if (window.confirm(confirmMsg)) {
+      if (onDeleteDepartment) {
+        onDeleteDepartment(dept.id);
+      }
+      showNotification(`Macro-categoria "${dept.name}" excluída.`, 'info');
+      if (selectedMacroForDetails?.id === dept.id) {
+        setSelectedMacroForDetails(null);
+      }
+    }
+  };
+
+  const handleQuickCategoryCreate = (e) => {
+    e.preventDefault();
+    if (!quickCatName.trim()) return;
+
+    const slug = generateSlug(quickCatName);
+    const newCat = {
+      id: `cat_${Date.now()}`,
+      name: quickCatName.trim(),
+      slug: slug,
+      order: categories.length + 1,
+      description: 'Equipamentos e ferramentas da linha.',
+      icon: 'Layers',
+      departmentId: categoryDeptFilter !== 'all' ? categoryDeptFilter : 'dept_ferramentas_manuais'
+    };
+
+    onAddCategory(newCat);
+    setProductForm(prev => ({ ...prev, categoryId: newCat.id }));
+    setQuickCatName('');
+    setIsQuickCatModalOpen(false);
+    showNotification(`Categoria "${newCat.name}" criada!`, 'success');
+  };
+
+  const handleProductSubmit = (e) => {
+    e.preventDefault();
+
+    if (isUploadingImages) {
+      showNotification('Aguarde o término do envio das fotos para salvar o equipamento.', 'error');
+      scrollToGallery();
+      return;
+    }
+
+    if (!productForm.name.trim()) {
+      showNotification('Por favor, informe o nome do produto.', 'error');
+      return;
+    }
+
+    const finalSlug = (productForm.slug || '').trim() || generateSlug(productForm.name);
+    const cleanedSpecs = (productForm.specs || []).filter(s => typeof s === 'string' ? s.trim() !== '' : Boolean(s));
+
+    // Extract any remaining tags from description before saving
+    const tagRes = typeof extractTagsFromDescriptionText === 'function' 
+      ? extractTagsFromDescriptionText(productForm.description, productForm.tags)
+      : { hasExtracted: false, cleanedDescription: productForm.description || '', extractedTags: productForm.tags || [] };
+    const finalDescription = tagRes.hasExtracted ? tagRes.cleanedDescription : (productForm.description || '');
+    const mergedTags = tagRes.hasExtracted ? tagRes.extractedTags : (productForm.tags || []);
+
+    const rawSku = (productForm.sku || '').trim();
+    const autoSku = extractSkuFromTitle(productForm.name);
+    const finalSku = rawSku || autoSku || (productForm.omieCode || '').trim() || '';
+    const stockQty = productForm.stock !== '' && productForm.stock != null && !isNaN(productForm.stock) 
+      ? Math.max(0, parseInt(productForm.stock, 10)) 
+      : 0;
+    const inStock = stockQty > 0 || productForm.inStock === true;
+
+    const cleanedImages = Array.isArray(productForm.images)
+      ? productForm.images.filter(img => typeof img === 'string' && img.trim() !== '')
+      : [];
+    const cleanedMainImage = (productForm.image || cleanedImages[0] || '').trim();
+
+    const cleanedVariants = Array.isArray(productForm.variants)
+      ? productForm.variants.filter(v => v && (v.name || '').trim() !== '')
+      : [];
+
+    let finalStatus = productForm.status || 'published';
+    let orphanDraftWarning = null;
+
+    const candidateProduct = {
+      ...productForm,
+      image: cleanedMainImage,
+      images: cleanedImages,
+      variants: cleanedVariants
+    };
+
+    // Regra de Negócio: Proteção contra Rascunho Órfão
+    // Se um produto (com ou sem variações) for salvo sem nenhuma imagem válida em toda a sua estrutura,
+    // o sistema impede a publicação direta e o salva automaticamente como rascunho, alertando o usuário.
+    const imgValidation = validateProductImagePublishStatus(candidateProduct);
+    if (finalStatus === 'published' && !imgValidation.canPublish) {
+      finalStatus = 'draft';
+      orphanDraftWarning = imgValidation.message;
+    }
+
+    const finalProduct = {
+      ...productForm,
+      sku: finalSku,
+      omieCode: finalSku,
+      stock: stockQty,
+      estoqueQuantidade: stockQty,
+      inStock: inStock,
+      description: finalDescription,
+      slug: finalSlug,
+      status: finalStatus,
+      productType: productForm.productType || 'physical',
+      requiresEquipmentSerial: productForm.productType === 'digital' ? (productForm.requiresEquipmentSerial !== false) : false,
+      requires_equipment_serial: productForm.productType === 'digital' ? (productForm.requiresEquipmentSerial !== false) : false,
+      price: parseFloat(productForm.price) || 0,
+      priceSource: productForm.priceSource || 'manual',
+      stockSource: productForm.stockSource || 'manual',
+      aPoints: productForm.aPoints !== '' && !isNaN(productForm.aPoints) && Number(productForm.aPoints) > 0 ? parseInt(productForm.aPoints, 10) : null,
+      badge: (productForm.badge || '').trim(),
+      tags: Array.isArray(mergedTags)
+        ? mergedTags.map(t => String(t).trim().replace(/^#/, '').toLowerCase()).filter(Boolean)
+        : [],
+      compatibleProductIds: Array.isArray(productForm.compatibleProductIds) ? productForm.compatibleProductIds : [],
+      recommendedProductIds: Array.isArray(productForm.recommendedProductIds) ? productForm.recommendedProductIds : [],
+      specs: cleanedSpecs,
+      attachments: productForm.attachments || [],
+      videoUrl: (productForm.videoUrl || '').trim(),
+      customTabs: (productForm.customTabs || []).filter(t => t.title && t.title.trim() !== ''),
+      variants: cleanedVariants,
+      model3d: (productForm.model3d && (productForm.model3d.glb || productForm.model3d.usdz)) ? {
+        glb: (productForm.model3d.glb || '').trim(),
+        usdz: (productForm.model3d.usdz || '').trim(),
+        fileName: productForm.model3d.fileName || '',
+        fileSize: productForm.model3d.fileSize || '',
+        dimensions: {
+          width: productForm.model3d.dimensions?.width !== '' && !isNaN(productForm.model3d.dimensions?.width) ? parseFloat(productForm.model3d.dimensions.width) : 1.0,
+          height: productForm.model3d.dimensions?.height !== '' && !isNaN(productForm.model3d.dimensions?.height) ? parseFloat(productForm.model3d.dimensions.height) : 1.0,
+          depth: productForm.model3d.dimensions?.depth !== '' && !isNaN(productForm.model3d.dimensions?.depth) ? parseFloat(productForm.model3d.dimensions.depth) : 1.0
+        }
+      } : null,
+      image: cleanedMainImage,
+      images: cleanedImages,
+      altText: productForm.altText || productForm.name
+    };
+
+    if (editingProduct) {
+      onUpdateProduct(finalProduct);
+    } else {
+      onAddProduct({
+        ...finalProduct,
+        id: `prod_${Date.now()}`
+      });
+    }
+
+    if (orphanDraftWarning) {
+      showNotification(orphanDraftWarning, 'warning');
+    } else {
+      showNotification(
+        editingProduct ? `Produto "${finalProduct.name}" atualizado!` : `Produto "${finalProduct.name}" cadastrado!`, 
+        'success'
+      );
+    }
+
+    initialProductFormRef.current = null;
+    setIsProductModalOpen(false);
+    setIsLibraryModalOpen(false);
+    setEditingProduct(null);
+  };
+
+  const handleProductFormKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (isUploadingImages) {
+        e.preventDefault();
+        e.stopPropagation();
+        showNotification('Aguarde o término do envio das fotos para salvar o equipamento.', 'error');
+        scrollToGallery();
+        return;
+      }
+
+      const target = e.target;
+      const tagName = target?.tagName?.toLowerCase();
+
+      // Textareas support newline
+      if (tagName === 'textarea') return;
+      // Buttons support click
+      if (tagName === 'button') return;
+
+      // Tag adding input -> add tag
+      if (target?.dataset?.role === 'tag-input') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleAddTag(tagInput);
+        return;
+      }
+
+      // PDF adding input -> add PDF
+      if (target?.dataset?.role === 'pdf-input') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleAddAttachmentSubmit(e);
+        return;
+      }
+
+      // PDF editing input -> save PDF edit
+      if (target?.dataset?.role === 'pdf-edit-input') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (editingAttachmentId) {
+          handleSaveEditAttachment(editingAttachmentId);
+        }
+        return;
+      }
+
+      // Any other input field -> prevent submitting/closing modal on Enter
+      if (tagName === 'input') {
+        e.preventDefault();
+      }
+    }
+  };
+
+  // Global Keydown Listener for ESC (close modal without saving) and ENTER (save when not focused on input)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      // 1. ESC KEY -> Close whichever modal is currently active without saving
+      if (e.key === 'Escape') {
+        if (confirmModal?.isOpen) {
+          closeConfirmation();
+          return;
+        }
+        if (isLibraryModalOpen) {
+          setIsLibraryModalOpen(false);
+          setIsSelectingVariantMedia(false);
+          return;
+        }
+        if (isVariantModalOpen) {
+          setIsVariantModalOpen(false);
+          setEditingVariantIndex(null);
+          return;
+        }
+        if (previewingImage) {
+          setPreviewingImage(null);
+          return;
+        }
+        if (isPdfModalOpen) {
+          setIsPdfModalOpen(false);
+          return;
+        }
+        if (isInlineDeptOpen) {
+          setIsInlineDeptOpen(false);
+          return;
+        }
+        if (isCategoryModalOpen) {
+          setIsCategoryModalOpen(false);
+          setIsInlineDeptOpen(false);
+          return;
+        }
+        if (isBrandModalOpen) {
+          setIsBrandModalOpen(false);
+          return;
+        }
+        if (isUserModalOpen) {
+          setIsUserModalOpen(false);
+          return;
+        }
+        if (isQuickCatModalOpen) {
+          setIsQuickCatModalOpen(false);
+          return;
+        }
+        if (isProductModalOpen) {
+          handleRequestCloseProductModal();
+          return;
+        }
+      }
+
+      // 2. ENTER KEY when NOT focused on any interactive element -> Save active modal
+      if (e.key === 'Enter') {
+        const activeEl = document.activeElement;
+        const tagName = activeEl ? activeEl.tagName.toLowerCase() : '';
+        const isInteractive = ['input', 'textarea', 'select', 'button', 'a'].includes(tagName) || activeEl?.isContentEditable;
+
+        if (!isInteractive) {
+          if (isVariantModalOpen) {
+            e.preventDefault();
+            handleSaveVariantModal(e);
+          } else if (isProductModalOpen) {
+            e.preventDefault();
+            handleProductSubmit(e);
+          } else if (isCategoryModalOpen) {
+            e.preventDefault();
+            handleCategorySubmit(e);
+          } else if (isBrandModalOpen) {
+            e.preventDefault();
+            handleBrandSubmit(e);
+          } else if (isUserModalOpen) {
+            e.preventDefault();
+            handleCreateUser(e);
+          } else if (isQuickCatModalOpen) {
+            e.preventDefault();
+            handleQuickCategoryCreate(e);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [
+    isProductModalOpen,
+    isVariantModalOpen,
+    isCategoryModalOpen,
+    isInlineDeptOpen,
+    isBrandModalOpen,
+    isUserModalOpen,
+    isQuickCatModalOpen,
+    isPdfModalOpen,
+    isLibraryModalOpen,
+    confirmModal?.isOpen,
+    previewingImage,
+    editingAttachmentId,
+    productForm,
+    categoryForm,
+    brandForm,
+    userForm,
+    quickCatName,
+    editingProduct,
+    editingCategory,
+    editingBrand
+  ]);
+
+  // Submit New Employee User Form (Admin Only)
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!userForm.name || !userForm.email || !userForm.password) {
+      showNotification('Preencha nome, e-mail e senha do funcionário.', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/users`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(userForm)
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        onLogout && onLogout('Sua sessão expirou.');
+        return;
+      }
+
+      if (res.ok) {
+        showNotification(`Funcionário "${userForm.name}" cadastrado com sucesso!`, 'success');
+        setUserForm({ name: '', email: '', password: '', role: 'vendedor' });
+        setIsUserModalOpen(false);
+        fetchUsers();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showNotification(data.error || 'Erro ao cadastrar funcionário.', 'error');
+      }
+    } catch (err) {
+      showNotification('Erro ao conectar ao servidor de usuários.', 'error');
+    }
+  };
+
+  // Change Admin / User Password
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (!passwordForm.currentPassword) {
+      showNotification('Informe sua senha atual.', 'error');
+      return;
+    }
+    if (!passwordForm.newPassword || passwordForm.newPassword.length < 6) {
+      showNotification('A nova senha deve ter no mínimo 6 caracteres.', 'error');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showNotification('A confirmação da nova senha não confere.', 'error');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/${currentUser?.id || 'user_admin_default'}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        onLogout && onLogout('Sua sessão expirou.');
+        return;
+      }
+
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('Senha alterada com sucesso! Utilize a nova senha no próximo login.', 'success');
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        showNotification(data.error || 'Erro ao alterar senha. Verifique a senha atual.', 'error');
+      }
+    } catch (err) {
+      showNotification('Erro ao conectar ao servidor para alterar a senha.', 'error');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  // Update Admin Profile Info (Name / Email)
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/${currentUser?.id || 'user_admin_default'}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: profileForm.name,
+          email: profileForm.email
+        })
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        onLogout && onLogout('Sua sessão expirou.');
+        return;
+      }
+
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('Dados de perfil atualizados com sucesso!', 'success');
+        const updatedUser = {
+          ...(currentUser || {}),
+          id: currentUser?.id || 'user_admin_default',
+          name: profileForm.name,
+          email: profileForm.email,
+          role: currentUser?.role || 'admin'
+        };
+        saveSession(updatedUser);
+      } else {
+        showNotification(data.error || 'Erro ao atualizar dados do perfil.', 'error');
+      }
+    } catch (err) {
+      showNotification('Erro ao conectar ao servidor para atualizar perfil.', 'error');
+    }
+  };
+
+  // Notification & Receipt Email Handlers
+  const fetchNotificationSettings = async () => {
+    if (!isAdminRole) return;
+    setLoadingNotifications(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/settings/notifications`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotificationSettings(data);
+        if (!testEmailAddress && data.receiptNotificationEmail) {
+          setTestEmailAddress(data.receiptNotificationEmail);
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar configurações de notificação:', e);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  // Telegram Alert Bot State & Handlers
+  const [telegramStatus, setTelegramStatus] = useState({ configured: false, loading: false });
+  const [testingTelegram, setTestingTelegram] = useState(false);
+
+  const fetchTelegramStatus = async () => {
+    if (!isAdminRole) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/telegram/status`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTelegramStatus(data);
+      }
+    } catch (e) {
+      console.warn('Erro ao verificar status do Telegram:', e);
+    }
+  };
+
+  const handleTestTelegram = async () => {
+    setTestingTelegram(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/telegram/test`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || 'Falha ao conectar com o Telegram.');
+      }
+      showNotification(data.message || 'Mensagem de teste enviada com sucesso no Telegram!', 'success');
+      fetchTelegramStatus();
+    } catch (err) {
+      showNotification(err.message || 'Erro ao disparar teste no Telegram.', 'error');
+    } finally {
+      setTestingTelegram(false);
+    }
+  };
+
+  const handleSaveNotificationSettings = async (e) => {
+    if (e) e.preventDefault();
+    setSavingNotifications(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/settings/notifications`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(notificationSettings)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar configurações.');
+      showNotification(data.message || 'Configurações de e-mail salvas com sucesso!', 'success');
+      if (data.settings) setNotificationSettings(data.settings);
+    } catch (err) {
+      showNotification(err.message, 'error');
+    } finally {
+      setSavingNotifications(false);
+    }
+  };
+
+  const handleSendTestEmail = async (testType = 'general') => {
+    const target = testEmailAddress || notificationSettings.receiptNotificationEmail;
+    if (!target) {
+      showNotification('Informe um e-mail de destino para o teste.', 'error');
+      return;
+    }
+    setTestingEmail(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/settings/test-email`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          targetEmail: target,
+          testType
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.isTimeout || (data.error && data.error.includes('timeout'))) {
+          setShowApiSettings(true);
+        }
+        throw new Error(data.error || 'Falha ao enviar e-mail de teste.');
+      }
+      showNotification(data.message || `E-mail de teste enviado para ${target}!`, 'success');
+    } catch (err) {
+      if (err.message && (err.message.includes('timeout') || err.message.includes('bloqueadas'))) {
+        setShowApiSettings(true);
+      }
+      showNotification(err.message, 'error');
+    } finally {
+      setTestingEmail(false);
+    }
+  };
+
+  return (
+    <div className="py-6 sm:py-8">
+      <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        
+        {/* Admin Header Banner */}
+        <div className="bg-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-400/30">
+                  <Shield className="w-3.5 h-3.5" /> PAINEL ADMINISTRATIVO ATHENA
+                </div>
+                {currentUser && (
+                  <>
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-800 text-slate-200 text-xs font-bold border border-slate-700">
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{currentUser.name} ({userRole.toUpperCase()})</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/80 text-emerald-300 text-[11px] font-medium border border-emerald-500/40" title="Sessão protegida: encerramento automático após 30 minutos de inatividade">
+                      <Lock className="w-3 h-3 text-emerald-400" />
+                      <span>Sessão Protegida (30m)</span>
+                    </span>
+                  </>
+                )}
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+                Gestão da Plataforma
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 max-w-xl">
+                {userRole === 'vendedor' 
+                  ? 'Modo Vendedor (Leitura & Geração de Catálogos em PDF para Clientes).' 
+                  : 'Gerencie equipamentos, fotos no Cloudinary, marcas parceiras e usuários da equipe.'}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* PDF Catalog Button */}
+              <button
+                onClick={() => setIsPdfModalOpen(true)}
+                className="btn-secondary text-xs sm:text-sm font-bold py-3 px-4 shadow-md shrink-0 bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-amber-400" />
+                <span>Gerar Catálogo PDF</span>
+              </button>
+
+              {canEditContent && (
+                <button
+                  type="button"
+                  onClick={() => setIsLibraryModalOpen(true)}
+                  className="btn-secondary text-xs sm:text-sm font-bold py-3 px-4 shadow-md shrink-0 bg-slate-800 text-amber-400 border-slate-700 hover:bg-slate-700 cursor-pointer"
+                  title="Abrir Biblioteca de Fotos do Cloudflare R2"
+                >
+                  <Images className="w-4 h-4 text-amber-400" />
+                  <span>Biblioteca R2</span>
+                </button>
+              )}
+
+              {canEditContent && (
+                <button
+                  onClick={openNewProductModal}
+                  className="btn-gold text-xs sm:text-sm font-bold py-3 px-5 shadow-md shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Novo Equipamento</span>
+                </button>
+              )}
+
+              {onLogout && (
+                <button
+                  onClick={() => onLogout('Você saiu da sua conta.')}
+                  className="btn-danger text-xs font-bold py-3 px-3 shrink-0"
+                  title="Sair da Conta"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main 2-Column Responsive Dashboard Layout (Lateral Sidebar + Main View) */}
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          
+          {/* Mobile Status Indicator & Quick Tab Switcher Trigger (Hidden on Desktop) */}
+          <div className="lg:hidden w-full bg-white px-4 py-2.5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold">
+                {activeAdminTab === 'products' && <Package className="w-4 h-4" />}
+                {activeAdminTab === 'orders' && <Receipt className="w-4 h-4" />}
+                {activeAdminTab === 'fulfillment' && <Truck className="w-4 h-4" />}
+                {activeAdminTab === 'activations' && <Zap className="w-4 h-4" />}
+                {activeAdminTab === 'departments' && <FolderTree className="w-4 h-4" />}
+                {activeAdminTab === 'categories' && <Layers className="w-4 h-4" />}
+                {activeAdminTab === 'brands' && <Tag className="w-4 h-4" />}
+                {activeAdminTab === 'banners' && <Images className="w-4 h-4" />}
+                {activeAdminTab === 'coupons' && <Gift className="w-4 h-4" />}
+                {activeAdminTab === 'clients' && <Users className="w-4 h-4" />}
+                {activeAdminTab === 'users' && <ShieldCheck className="w-4 h-4" />}
+                {activeAdminTab === 'omie' && <RefreshCw className="w-4 h-4" />}
+                {activeAdminTab === 'settings' && <Lock className="w-4 h-4" />}
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-black text-slate-900 leading-tight">
+                  {activeAdminTab === 'products' && `Produtos (${products.length})`}
+                  {activeAdminTab === 'orders' && 'Vendas & Pedidos'}
+                  {activeAdminTab === 'fulfillment' && 'Mesa de Expedição (Logística)'}
+                  {activeAdminTab === 'activations' && 'Ativações Digitais (Softwares)'}
+                  {activeAdminTab === 'departments' && `Macro-Categorias (${departments.length})`}
+                  {activeAdminTab === 'categories' && `Categorias (${categories.length})`}
+                  {activeAdminTab === 'brands' && `Marcas (${brands.length})`}
+                  {activeAdminTab === 'banners' && `Banners da Home (${(banners || []).length})`}
+                  {activeAdminTab === 'coupons' && 'Cupons & Vouchers'}
+                  {activeAdminTab === 'clients' && `Clientes do Site (${clientsList.length})`}
+                  {activeAdminTab === 'users' && `Equipe & Acessos (${employeesList.length})`}
+                  {activeAdminTab === 'omie' && 'Omie ERP & Fidelidade'}
+                  {activeAdminTab === 'settings' && 'Configurações & Senha'}
+                </div>
+                <div className="text-[10px] text-slate-400">Painel do Administrador</div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-mobile-menu'))}
+              className="text-[11px] font-extrabold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300/80 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+            >
+              <Menu className="w-3.5 h-3.5 text-amber-700" />
+              <span>Mudar Aba</span>
+            </button>
+          </div>
+
+          {/* Lateral Sidebar Navigation (Desktop only: hidden on mobile) */}
+          <aside className="hidden lg:block w-64 xl:w-72 shrink-0 lg:sticky lg:top-24 lg:self-start">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-4 space-y-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto custom-scrollbar">
+              
+              {/* User Profile Mini Card */}
+              <div className="p-3 rounded-2xl bg-slate-900 text-white flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 font-black text-sm flex items-center justify-center shrink-0 shadow-xs">
+                  {(currentUser?.name || 'A')[0].toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-black truncate">{currentUser?.name || 'Administrador'}</div>
+                  <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider truncate">
+                    {userRole === 'admin' ? 'Administrador Geral' : userRole === 'vendedor' ? 'Vendedor' : 'Gestor de Conteúdo'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Group 0: Vendas & Operações (Athena OS) */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-amber-500 px-3 py-1 flex items-center justify-between">
+                  <span>Vendas & Operações</span>
+                  <span className="text-[9px] bg-amber-500/10 text-amber-600 px-1.5 py-0.2 rounded font-mono">Athena OS</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('orders'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'orders'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Receipt className="w-4 h-4 shrink-0" />
+                    <span>Vendas & Pedidos</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('fulfillment'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'fulfillment'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Truck className="w-4 h-4 shrink-0" />
+                    <span>Mesa de Expedição</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('activations'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'activations'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Zap className="w-4 h-4 shrink-0" />
+                    <span>Ativações Digitais</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Group 1: Catálogo & Loja */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 py-1">
+                  Catálogo & Loja
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('products'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'products'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Package className="w-4 h-4 shrink-0" />
+                    <span>Produtos</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'products' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {products.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('departments'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'departments'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <FolderTree className="w-4 h-4 shrink-0" />
+                    <span>Macro-Categorias</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'departments' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {departments.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('categories'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'categories'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Layers className="w-4 h-4 shrink-0" />
+                    <span>Categorias</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'categories' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {categories.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('brands'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'brands'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Tag className="w-4 h-4 shrink-0" />
+                    <span>Marcas</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'brands' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {brands.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('banners'); if (typeof setMobileAdminMenuOpen === 'function') setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'banners'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Images className="w-4 h-4 shrink-0" />
+                    <span>Banners da Home</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'banners' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {(banners || []).length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('coupons'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'coupons'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Gift className="w-4 h-4 shrink-0" />
+                    <span>Cupons & Vouchers</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Group 2: Clientes & Fidelidade */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 py-1">
+                  Clientes & Fidelidade
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('clients'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'clients'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className="w-4 h-4 shrink-0" />
+                    <span>Clientes do Site</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                    activeAdminTab === 'clients' ? 'bg-slate-950/20 text-slate-950' : 'bg-purple-100 text-purple-800'
+                  }`}>
+                    {clientsList.length}
+                  </span>
+                </button>
+
+                {isAdminRole && (
+                  <button
+                    type="button"
+                    onClick={() => { setActiveAdminTab('omie'); setMobileAdminMenuOpen(false); }}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                      activeAdminTab === 'omie'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <RefreshCw className="w-4 h-4 shrink-0" />
+                      <span>Omie ERP & Pontos</span>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              {/* Group 3: Administração & Sistema */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 py-1">
+                  Administração & Equipe
+                </div>
+
+                {isAdminRole && (
+                  <button
+                    type="button"
+                    onClick={() => { setActiveAdminTab('users'); setMobileAdminMenuOpen(false); }}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                      activeAdminTab === 'users'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="w-4 h-4 shrink-0" />
+                      <span>Equipe & Acessos</span>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                      activeAdminTab === 'users' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {employeesList.length}
+                    </span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('settings'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'settings'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Lock className="w-4 h-4 shrink-0" />
+                    <span>Configurações & Senha</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Sidebar Quick Action Shortcuts */}
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPdfModalOpen(true)}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 transition-colors border border-slate-200 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Gerar Catálogo PDF</span>
+                </button>
+
+                {canEditContent && (
+                  <button
+                    type="button"
+                    onClick={() => setIsLibraryModalOpen(true)}
+                    className="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center gap-2 transition-colors border border-amber-200 cursor-pointer"
+                    title="Abrir Biblioteca de Fotos do Cloudflare R2"
+                  >
+                    <Images className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Biblioteca R2</span>
+                  </button>
+                )}
+
+                {canEditContent && (
+                  <button
+                    type="button"
+                    onClick={openNewProductModal}
+                    className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Novo Equipamento</span>
+                  </button>
+                )}
+              </div>
+
+            </div>
+          </aside>
+
+          {/* Main Content Area */}
+          <main className="flex-1 min-w-0 w-full space-y-6">
+
+        {/* ATHENA OS: ORDERS, FULFILLMENT & ACTIVATIONS TABS */}
+        {activeAdminTab === 'orders' && (
+          <OrdersManagementTab 
+            API_BASE_URL={API_BASE_URL} 
+            currentUser={currentUser} 
+            showNotification={showNotification}
+            onOpenOrderInFulfillment={(order) => {
+              setFocusedFulfillmentOrder(order);
+              setActiveAdminTab('fulfillment');
+            }}
+          />
+        )}
+
+        {activeAdminTab === 'fulfillment' && (
+          <FulfillmentKanbanTab 
+            API_BASE_URL={API_BASE_URL} 
+            currentUser={currentUser} 
+            showNotification={showNotification}
+            focusedOrder={focusedFulfillmentOrder}
+            onClearFocusedOrder={() => setFocusedFulfillmentOrder(null)}
+          />
+        )}
+
+        {activeAdminTab === 'activations' && (
+          <DigitalActivationsTab 
+            API_BASE_URL={API_BASE_URL} 
+            currentUser={currentUser} 
+            showNotification={showNotification} 
+          />
+        )}
+
+        {/* PRODUCTS MANAGEMENT TAB WITH PAGINATION */}
+        {activeAdminTab === 'products' && (() => {
+          const filteredAdminProducts = products.filter((prod) => {
+            const rawAdminSearch = (adminProductSearch || '').trim();
+            const matchBrand = !adminBrandFilter || prod.brandId === adminBrandFilter;
+            const matchCategory = !adminCategoryFilter || prod.categoryId === adminCategoryFilter;
+            const matchStatus = !adminStatusFilter || 
+              (adminStatusFilter === 'featured' ? prod.isFeatured : prod.status === adminStatusFilter);
+
+            if (!rawAdminSearch) {
+              return matchBrand && matchCategory && matchStatus;
+            }
+
+            const cleanSearch = cleanAlphanumeric(rawAdminSearch);
+            const normSearch = normalizeSearchText(rawAdminSearch);
+
+            const customTabsText = Array.isArray(prod.customTabs) 
+              ? prod.customTabs.map(t => `${t.title || ''} ${t.content || ''}`).join(' ') 
+              : '';
+            const specsText = Array.isArray(prod.specs) ? prod.specs.join(' ') : '';
+            const tagsText = Array.isArray(prod.tags) ? prod.tags.join(' ') : (typeof prod.tags === 'string' ? prod.tags : '');
+            const brandText = brands.find(b => b.id === prod.brandId)?.name || '';
+            const catText = categories.find(c => c.id === prod.categoryId)?.name || '';
+
+            const matchSearch =
+              normalizeSearchText(prod.name).includes(normSearch) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.name).includes(cleanSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.sku || '').includes(cleanSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.omieCode || '').includes(cleanSearch)) ||
+              (prod.slug && normalizeSearchText(prod.slug).includes(normSearch)) ||
+              (tagsText && normalizeSearchText(tagsText).includes(normSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(tagsText).includes(cleanSearch)) ||
+              (specsText && normalizeSearchText(specsText).includes(normSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(specsText).includes(cleanSearch)) ||
+              (customTabsText && normalizeSearchText(customTabsText).includes(normSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(customTabsText).includes(cleanSearch)) ||
+              (prod.description && normalizeSearchText(prod.description).includes(normSearch)) ||
+              (cleanSearch.length >= 3 && cleanAlphanumeric(prod.description).includes(cleanSearch)) ||
+              (brandText && normalizeSearchText(brandText).includes(normSearch)) ||
+              (catText && normalizeSearchText(catText).includes(normSearch));
+
+            return matchSearch && matchBrand && matchCategory && matchStatus;
+          });
+
+          // Sort products according to adminSortField and adminSortDirection
+          const sortedAdminProducts = [...filteredAdminProducts].sort((a, b) => {
+            if (!adminSortField) return 0;
+            let comparison = 0;
+
+            if (adminSortField === 'name') {
+              comparison = (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' });
+            } else if (adminSortField === 'brand_category') {
+              const brandA = brands.find(br => br.id === a.brandId)?.name || '';
+              const brandB = brands.find(br => br.id === b.brandId)?.name || '';
+              const catA = categories.find(ca => ca.id === a.categoryId)?.name || '';
+              const catB = categories.find(ca => ca.id === b.categoryId)?.name || '';
+              const compA = `${brandA} ${catA}`.trim();
+              const compB = `${brandB} ${catB}`.trim();
+              comparison = compA.localeCompare(compB, 'pt-BR', { sensitivity: 'base' });
+            } else if (adminSortField === 'featured') {
+              const featA = a.isFeatured ? 1 : 0;
+              const featB = b.isFeatured ? 1 : 0;
+              comparison = featB - featA; // Default asc: featured first
+            } else if (adminSortField === 'status') {
+              const statusA = a.status === 'published' ? 1 : 0;
+              const statusB = b.status === 'published' ? 1 : 0;
+              comparison = statusB - statusA; // Default asc: published first
+            }
+
+            return adminSortDirection === 'asc' ? comparison : -comparison;
+          });
+
+          const totalItems = sortedAdminProducts.length;
+          const isAll = adminItemsPerPage === 'all';
+          const perPageNum = isAll ? (totalItems || 1) : Number(adminItemsPerPage);
+          const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalItems / perPageNum));
+          const currentPageSafe = Math.min(Math.max(1, adminPage), totalPages);
+          const startIndex = isAll ? 0 : (currentPageSafe - 1) * perPageNum;
+          const paginatedAdminProducts = isAll 
+            ? sortedAdminProducts 
+            : sortedAdminProducts.slice(startIndex, startIndex + perPageNum);
+
+          const renderSortIcon = (field) => {
+            if (adminSortField !== field) {
+              return <ArrowUpDown className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 shrink-0 ml-1 transition" />;
+            }
+            if (adminSortDirection === 'asc') {
+              return <ArrowUp className="w-3.5 h-3.5 text-amber-700 shrink-0 ml-1 font-black" />;
+            }
+            return <ArrowDown className="w-3.5 h-3.5 text-amber-700 shrink-0 ml-1 font-black" />;
+          };
+
+          return (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Package className="w-5 h-5 text-amber-600" /> Lista Geral de Equipamentos
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Exibindo <span className="font-bold text-amber-700">{totalItems > 0 ? startIndex + 1 : 0}–{Math.min(startIndex + perPageNum, totalItems)}</span> de {totalItems} equipamentos cadastrados.
+                  </p>
+                </div>
+
+                {canEditContent && (
+                  <button onClick={openNewProductModal} className="btn-gold text-xs py-2.5 px-4 flex items-center gap-2 shrink-0">
+                    <Plus className="w-4 h-4" /> Adicionar Equipamento
+                  </button>
+                )}
+              </div>
+
+              {/* Quick Search & Filters Bar */}
+              <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-center gap-3">
+                <div className="relative flex-1 w-full">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por nome ou código do equipamento..."
+                    value={adminProductSearch}
+                    onChange={(e) => setAdminProductSearch(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white text-xs rounded-xl pl-9 pr-8 py-2.5 outline-none"
+                  />
+                  {adminProductSearch && (
+                    <button onClick={() => setAdminProductSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                  <select
+                    value={adminBrandFilter}
+                    onChange={(e) => setAdminBrandFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 sm:w-36 font-semibold text-slate-700"
+                  >
+                    <option value="">Todas as Marcas</option>
+                    {brands.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={adminCategoryFilter}
+                    onChange={(e) => setAdminCategoryFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 sm:w-40 font-semibold text-slate-700"
+                  >
+                    <option value="">Todas as Categorias</option>
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={adminStatusFilter}
+                    onChange={(e) => setAdminStatusFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 focus:border-amber-500 text-xs rounded-xl px-3 py-2.5 outline-none flex-1 sm:w-36 font-semibold text-slate-700"
+                  >
+                    <option value="">Todos os Status</option>
+                    <option value="published">Publicados</option>
+                    <option value="draft">Rascunhos</option>
+                    <option value="featured">Destaques</option>
+                  </select>
+
+                  {(adminProductSearch || adminBrandFilter || adminCategoryFilter || adminStatusFilter) && (
+                    <button
+                      onClick={() => {
+                        setAdminProductSearch('');
+                        setAdminBrandFilter('');
+                        setAdminCategoryFilter('');
+                        setAdminStatusFilter('');
+                      }}
+                      className="text-xs text-amber-700 font-bold hover:underline px-2 shrink-0"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Products Table */}
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-700">
+                    <thead className="bg-slate-100 uppercase text-[11px] text-slate-600 border-b border-slate-200 font-bold select-none">
+                      <tr>
+                        <th 
+                          onClick={() => handleAdminSort('name')}
+                          className="py-3 px-4 cursor-pointer hover:bg-slate-200/80 transition-colors group"
+                          title="Clique para ordenar por Equipamento (A-Z ou Z-A)"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Equipamento</span>
+                            {renderSortIcon('name')}
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => handleAdminSort('brand_category')}
+                          className="py-3 px-4 cursor-pointer hover:bg-slate-200/80 transition-colors group"
+                          title="Clique para ordenar por Marca e Categoria"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Marca & Categoria</span>
+                            {renderSortIcon('brand_category')}
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => handleAdminSort('featured')}
+                          className="py-3 px-4 text-center cursor-pointer hover:bg-slate-200/80 transition-colors group"
+                          title="Clique para ordenar por Destaques"
+                        >
+                          <div className="flex items-center justify-center gap-1">
+                            <span>Destaque</span>
+                            {renderSortIcon('featured')}
+                          </div>
+                        </th>
+                        <th 
+                          onClick={() => handleAdminSort('status')}
+                          className="py-3 px-4 cursor-pointer hover:bg-slate-200/80 transition-colors group"
+                          title="Clique para ordenar por Status (Publicado / Rascunho)"
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>Status</span>
+                            {renderSortIcon('status')}
+                          </div>
+                        </th>
+                        <th className="py-3 px-4 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedAdminProducts.length > 0 ? (
+                        paginatedAdminProducts.map((prod) => {
+                          const isPublished = prod.status === 'published';
+                          const brandObj = brands.find(b => b.id === prod.brandId);
+                          const catObj = categories.find(c => c.id === prod.categoryId);
+                          const isFeatured = !!prod.isFeatured;
+
+                          return (
+                            <tr 
+                              key={prod.id} 
+                              draggable={canEditContent}
+                              onDragStart={(e) => {
+                                if (!canEditContent) return;
+                                e.dataTransfer.effectAllowed = 'move';
+                                e.dataTransfer.setData('text/plain', prod.id);
+                                setDraggedProductId(prod.id);
+                              }}
+                              onDragOver={(e) => {
+                                if (!canEditContent) return;
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                if (dragOverProductId !== prod.id) {
+                                  setDragOverProductId(prod.id);
+                                }
+                              }}
+                              onDragLeave={() => {
+                                if (dragOverProductId === prod.id) {
+                                  setDragOverProductId(null);
+                                }
+                              }}
+                              onDrop={(e) => {
+                                if (!canEditContent) return;
+                                e.preventDefault();
+                                const sourceId = draggedProductId || e.dataTransfer.getData('text/plain');
+                                handleProductDrop(sourceId, prod.id);
+                              }}
+                              onDragEnd={() => {
+                                setDraggedProductId(null);
+                                setDragOverProductId(null);
+                              }}
+                              className={`transition-colors ${
+                                draggedProductId === prod.id 
+                                  ? 'opacity-25 bg-amber-50' 
+                                  : dragOverProductId === prod.id 
+                                  ? 'bg-amber-100/70 ring-2 ring-amber-400 ring-inset shadow-xs' 
+                                  : isFeatured 
+                                  ? 'bg-amber-50/30 hover:bg-slate-50' 
+                                  : 'hover:bg-slate-50'
+                              }`}
+                            >
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2.5">
+                                  {canEditContent && (
+                                    <div 
+                                      className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-amber-600 transition-colors p-1 rounded -ml-1 shrink-0"
+                                      title="Segure e arraste para reordenar este equipamento"
+                                    >
+                                      <GripVertical className="w-4 h-4" />
+                                    </div>
+                                  )}
+                                  {(() => {
+                                    const firstVariantWithImg = Array.isArray(prod.variants)
+                                      ? prod.variants.find(v => v && typeof v.image === 'string' && v.image.trim() !== '')
+                                      : null;
+                                    const tableImg = prod.image || (Array.isArray(prod.images) && prod.images[0]) || firstVariantWithImg?.image || '';
+                                    const isInheritedFromVariant = !prod.image && !(Array.isArray(prod.images) && prod.images[0]) && !!firstVariantWithImg?.image;
+
+                                    if (tableImg) {
+                                      return (
+                                        <div className="relative group shrink-0">
+                                          <img 
+                                            src={tableImg} 
+                                            alt={prod.altText || prod.name}
+                                            loading="lazy"
+                                            onClick={() => setPreviewingImage(tableImg)}
+                                            className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-200 shrink-0 p-1 cursor-pointer hover:border-amber-400 hover:scale-105 transition-transform" 
+                                            title={isInheritedFromVariant ? `Demonstrativo da 1ª variação (${firstVariantWithImg.name}) • Clique para expandir` : "Clique para expandir a foto"}
+                                          />
+                                          {isInheritedFromVariant && (
+                                            <span 
+                                              className="absolute -top-1 -right-1 px-1 py-0.2 rounded bg-amber-500 text-slate-950 font-black text-[7px] uppercase tracking-wider shadow-xs pointer-events-none"
+                                              title="Demonstrativo usando foto da 1ª variação"
+                                            >
+                                              1ª Var
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div 
+                                        className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0 text-slate-300"
+                                        title="Sem foto cadastrada"
+                                      >
+                                        <Package className="w-5 h-5" />
+                                      </div>
+                                    );
+                                  })()}
+                                  <div>
+                                    <span 
+                                      onClick={() => canEditContent && openEditProductModal(prod)}
+                                      className={`font-bold text-slate-900 text-xs block leading-snug transition-colors ${
+                                        canEditContent ? 'cursor-pointer hover:text-amber-600 hover:underline' : ''
+                                      }`}
+                                      title={canEditContent ? "Clique para abrir e editar este equipamento" : undefined}
+                                    >
+                                      {prod.name}
+                                    </span>
+                                    <span className="text-[11px] font-mono text-slate-400 block truncate max-w-xs">
+                                      /produto/{prod.slug || prod.id}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                      <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200" title="Código / SKU de integração Omie ERP">
+                                        SKU: {prod.sku || prod.omieCode || extractSkuFromTitle(prod.name) || 'S/ SKU'}
+                                      </span>
+                                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                        (prod.stock != null ? prod.stock : (prod.estoqueQuantidade != null ? prod.estoqueQuantidade : (prod.inStock ? 1 : 0))) > 0
+                                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                          : 'bg-red-50 text-red-700 border-red-200'
+                                      }`}>
+                                        Estoque: {prod.stock != null ? prod.stock : (prod.estoqueQuantidade != null ? prod.estoqueQuantidade : (prod.inStock ? 'Disponível' : 0))} un.
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <div className="space-y-0.5">
+                                  <span className="inline-block px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 border border-sky-200 font-bold text-[10px]">
+                                    {brandObj?.name || 'Sem Marca'}
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 block">
+                                    {catObj?.name || 'Sem Categoria'}
+                                  </span>
+                                </div>
+                              </td>
+
+                              {/* 1-Click Toggle Featured Star */}
+                              <td className="py-3 px-4 text-center">
+                                {canEditContent ? (
+                                  <button
+                                    onClick={() => {
+                                      const updated = { ...prod, isFeatured: !isFeatured };
+                                      onUpdateProduct(updated);
+                                      showNotification(`Produto "${prod.name}" ${!isFeatured ? 'marcado como Destaque ⭐' : 'removido dos destaques'}.`, 'success');
+                                    }}
+                                    className={`p-2 rounded-xl border transition-all ${
+                                      isFeatured 
+                                        ? 'bg-amber-400 text-amber-950 border-amber-500 shadow-xs' 
+                                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:text-amber-500 hover:bg-amber-50'
+                                    }`}
+                                    title={isFeatured ? 'Remover dos Destaques Athena' : 'Marcar como Destaque Athena (Exibir no topo)'}
+                                  >
+                                    <Star className={`w-4 h-4 ${isFeatured ? 'fill-amber-950 text-amber-950' : ''}`} />
+                                  </button>
+                                ) : (
+                                  <Star className={`w-4 h-4 mx-auto ${isFeatured ? 'fill-amber-500 text-amber-500' : 'text-slate-300'}`} />
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <button
+                                  disabled={!canEditContent}
+                                  onClick={() => toggleProductStatus(prod)}
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors ${
+                                    canEditContent ? 'cursor-pointer' : 'cursor-default'
+                                  } ${
+                                    isPublished 
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                                      : 'bg-amber-50 text-amber-800 border-amber-300'
+                                  }`}
+                                >
+                                  {isPublished ? <ToggleRight className="w-3.5 h-3.5 text-emerald-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-amber-600" />}
+                                  <span>{isPublished ? 'Publicado' : 'Rascunho'}</span>
+                                </button>
+                              </td>
+
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <a
+                                    href={`/produto/${prod.slug || prod.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center justify-center cursor-pointer"
+                                    title="Visualizar Produto no Site (Abrir em Nova Aba)"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </a>
+
+                                  {canEditContent && (
+                                    <>
+                                      <button
+                                        onClick={() => moveProductOrder(prod.id, 'up')}
+                                        disabled={products.findIndex(p => p.id === prod.id) === 0}
+                                        className="p-2 rounded-lg bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 disabled:opacity-30"
+                                        title="Subir posição no catálogo"
+                                      >
+                                        <ArrowUp className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      <button
+                                        onClick={() => moveProductOrder(prod.id, 'down')}
+                                        disabled={products.findIndex(p => p.id === prod.id) === products.length - 1}
+                                        className="p-2 rounded-lg bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 disabled:opacity-30"
+                                        title="Descer posição no catálogo"
+                                      >
+                                        <ArrowDown className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      {isAdminRole && (
+                                        <button
+                                          onClick={() => {
+                                            askConfirmation({
+                                              title: 'Excluir Equipamento?',
+                                              message: `Tem certeza que deseja apagar permanentemente "${prod.name}"? Esta ação removerá o produto do catálogo e do banco de dados.`,
+                                              confirmText: 'Sim, Excluir Produto',
+                                              type: 'danger',
+                                              onConfirm: () => {
+                                                onDeleteProduct(prod.id);
+                                                showNotification('Produto excluído com sucesso.', 'info');
+                                              }
+                                            });
+                                          }}
+                                          className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                                          title="Apagar Produto"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="py-8 text-center text-slate-500">
+                            Nenhum equipamento encontrado com os filtros selecionados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* PAGINATION FOOTER */}
+                {totalItems > 0 && (
+                  <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                    {/* Items Per Page Selector */}
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <span>Exibir:</span>
+                      <select
+                        value={adminItemsPerPage}
+                        onChange={(e) => setAdminItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                        className="bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700 outline-none focus:border-amber-500"
+                      >
+                        <option value={10}>10 por página</option>
+                        <option value={20}>20 por página</option>
+                        <option value={50}>50 por página</option>
+                        <option value="all">Exibir Todos ({totalItems})</option>
+                      </select>
+                    </div>
+
+                    {/* Page Navigation Controls */}
+                    {!isAll && totalPages > 1 && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setAdminPage(1)}
+                          disabled={currentPageSafe === 1}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Primeira Página"
+                        >
+                          <ChevronsLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setAdminPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPageSafe === 1}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Página Anterior"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+
+                        <div className="flex items-center gap-1 px-2 font-bold text-slate-700 text-xs">
+                          <span>Página</span>
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black">
+                            {currentPageSafe}
+                          </span>
+                          <span>de {totalPages}</span>
+                        </div>
+
+                        <button
+                          onClick={() => setAdminPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPageSafe === totalPages}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Próxima Página"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setAdminPage(totalPages)}
+                          disabled={currentPageSafe === totalPages}
+                          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Última Página"
+                        >
+                          <ChevronsRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* MACRO-CATEGORIES (DEPARTMENTS) MANAGEMENT TAB */}
+        {activeAdminTab === 'departments' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FolderTree className="w-5 h-5 text-amber-600" />
+                  <span>Gerenciar Macro-Categorias</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Grandes departamentos que organizam o catálogo da loja. Clique em qualquer macro para ver, reatribuir ou editar suas categorias.
+                </p>
+              </div>
+
+              {canEditContent && (
+                <button
+                  type="button"
+                  onClick={openNewDeptModal}
+                  className="btn-gold text-xs font-bold py-2 px-3.5 flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nova Macro-Categoria</span>
+                </button>
+              )}
+            </div>
+
+            {/* Macro-Categories Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+              {(departments || MACRO_DEPARTMENTS).map((dept) => {
+                const deptCategories = categories.filter(c => {
+                  if (c.departmentId) return c.departmentId === dept.id;
+                  return (dept.categoryIds || []).includes(c.id);
+                });
+                const deptProductsCount = products.filter(p => deptCategories.some(c => c.id === p.categoryId)).length;
+
+                return (
+                  <div
+                    key={dept.id}
+                    onClick={() => setSelectedMacroForDetails(dept)}
+                    className="bg-slate-50/70 hover:bg-white rounded-2xl border border-slate-200 hover:border-amber-400 hover:shadow-md transition-all p-5 flex flex-col justify-between group cursor-pointer relative"
+                  >
+                    <div>
+                      {/* Top Header: Icon & Action buttons */}
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold shadow-2xs group-hover:scale-105 transition-transform">
+                          <MacroIcon name={dept.icon} className="w-5 h-5" />
+                        </div>
+
+                        {canEditContent && (
+                          <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={(e) => openEditDeptModal(dept, e)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+                              title="Editar Nome, Nome Curto e Ícone desta Macro"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteDept(dept, e)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title="Excluir Macro-Categoria"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Title & Short Name */}
+                      <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-amber-700 transition-colors line-clamp-1 mb-0.5">
+                        {dept.name}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 font-medium mb-3">
+                        Abreviado: <span className="font-semibold text-slate-700">{dept.shortName || dept.name}</span>
+                      </p>
+
+                      {/* Stat Badges */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100/70 text-amber-900 font-bold text-[11px]">
+                          <Layers className="w-3 h-3 text-amber-700" />
+                          {deptCategories.length} categorias
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-200/80 text-slate-800 font-bold text-[11px]">
+                          <Package className="w-3 h-3 text-slate-600" />
+                          {deptProductsCount} produtos
+                        </span>
+                      </div>
+
+                      {/* Category preview pills */}
+                      {deptCategories.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {deptCategories.slice(0, 3).map((cat) => (
+                            <span
+                              key={cat.id}
+                              className="px-2 py-0.5 bg-white border border-slate-200/80 rounded-md text-[10px] text-slate-600 font-medium truncate max-w-[130px]"
+                            >
+                              {cat.name}
+                            </span>
+                          ))}
+                          {deptCategories.length > 3 && (
+                            <span className="px-1.5 py-0.5 text-[10px] text-amber-700 font-bold">
+                              +{deptCategories.length - 3} mais...
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic mb-4">
+                          Nenhuma categoria vinculada ainda.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Footer Button: Ver Categorias */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMacroForDetails(dept)}
+                      className="w-full mt-2 py-2 px-3 rounded-xl bg-white hover:bg-amber-500 hover:text-slate-950 text-slate-700 text-xs font-bold border border-slate-200 hover:border-amber-500 shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer group-hover:border-amber-400"
+                    >
+                      <span>Gerenciar Categorias ({deptCategories.length})</span>
+                      <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* CATEGORIES MANAGEMENT TAB */}
+        {activeAdminTab === 'categories' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Gerenciar & Reordenar Categorias</h3>
+                <p className="text-xs text-slate-500">Defina a ordem de exibição comercial no filtro e o Macro-Departamento pai.</p>
+              </div>
+
+              {canEditContent && (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={autoSortCategoriesByCount} 
+                    className="btn-secondary text-xs font-bold py-2 px-3 flex items-center gap-1.5"
+                    title="Ordenar automaticamente da categoria com maior quantidade de produtos para a menor"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Ordenar Automaticamente</span>
+                  </button>
+
+                  <button onClick={openNewCategoryModal} className="btn-gold text-xs font-bold py-2 px-3">
+                    <Plus className="w-3.5 h-3.5" /> Nova Categoria
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Filter by Macro-Department Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="text-xs font-bold text-slate-700">Filtrar por Macro-Departamento:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={categoryDeptFilter}
+                  onChange={(e) => setCategoryDeptFilter(e.target.value)}
+                  className="form-input text-xs py-1.5 px-3 min-w-[240px] bg-white font-medium"
+                >
+                  <option value="all">Todos os Macro-Departamentos ({categories.length})</option>
+                  {(departments || MACRO_DEPARTMENTS).map(dept => {
+                    const count = categories.filter(c => {
+                      if (c.departmentId) return c.departmentId === dept.id;
+                      return (dept.categoryIds || []).includes(c.id);
+                    }).length;
+                    return (
+                      <option key={dept.id} value={dept.id}>
+                        {dept.name} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
+                {categoryDeptFilter !== 'all' && (
+                  <button
+                    onClick={() => setCategoryDeptFilter('all')}
+                    className="text-xs text-amber-700 hover:text-amber-800 font-bold hover:underline shrink-0"
+                  >
+                    Ver Todas
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {categories
+                .filter(cat => {
+                  if (categoryDeptFilter === 'all') return true;
+                  if (cat.departmentId) return cat.departmentId === categoryDeptFilter;
+                  const dept = (departments || MACRO_DEPARTMENTS).find(d => d.id === categoryDeptFilter);
+                  return dept ? (dept.categoryIds || []).includes(cat.id) : false;
+                })
+                .map((cat, idx) => {
+                  const dept = getDepartmentByCategoryId(cat.id, categories, departments);
+                  return (
+                <div 
+                  key={cat.id} 
+                  draggable={canEditContent}
+                  onDragStart={(e) => {
+                    if (!canEditContent) return;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', cat.id);
+                    setDraggedCategoryId(cat.id);
+                  }}
+                  onDragOver={(e) => {
+                    if (!canEditContent) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverCategoryId !== cat.id) {
+                      setDragOverCategoryId(cat.id);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverCategoryId === cat.id) {
+                      setDragOverCategoryId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    if (!canEditContent) return;
+                    e.preventDefault();
+                    const sourceId = draggedCategoryId || e.dataTransfer.getData('text/plain');
+                    handleCategoryDrop(sourceId, cat.id);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedCategoryId(null);
+                    setDragOverCategoryId(null);
+                  }}
+                  className={`p-3.5 rounded-xl border flex items-center justify-between transition-all select-none ${
+                    draggedCategoryId === cat.id
+                      ? 'opacity-30 bg-amber-50 border-amber-300'
+                      : dragOverCategoryId === cat.id
+                      ? 'bg-amber-100/70 border-amber-500 ring-2 ring-amber-400 scale-[1.01] shadow-md'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {canEditContent && (
+                      <div 
+                        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-amber-600 p-1 rounded shrink-0"
+                        title="Segure e arraste para reordenar a categoria"
+                      >
+                        <GripVertical className="w-4 h-4" />
+                      </div>
+                    )}
+                    <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 font-extrabold text-xs flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span 
+                          onClick={() => canEditContent && openEditCategoryModal(cat)}
+                          className={`font-bold text-xs text-slate-900 ${canEditContent ? 'cursor-pointer hover:text-amber-600 hover:underline' : ''}`}
+                          title={canEditContent ? "Clique para editar esta categoria" : undefined}
+                        >
+                          {cat.name}
+                        </span>
+                        {dept && (
+                          <span 
+                            className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 text-[10px] font-semibold border border-amber-200/60"
+                            title={`Macro-Departamento: ${dept.name}`}
+                          >
+                            {dept.shortName}
+                          </span>
+                        )}
+                        {cat.status === 'draft' && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold">
+                            Rascunho
+                          </span>
+                        )}
+                      </div>
+                      <a
+                        href={`/categoria/${cat.slug || cat.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-mono text-slate-400 hover:text-amber-700 hover:underline inline-flex items-center gap-0.5"
+                        title="Ver Categoria no Site (Nova Aba)"
+                      >
+                        <span>/categoria/{cat.slug || cat.id}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {canEditContent && (
+                      <>
+                        <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                          <button
+                            onClick={() => toggleCategoryStatus(cat)}
+                            className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 ${
+                              cat.status === 'draft'
+                                ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                            }`}
+                            title={cat.status === 'draft' ? 'Publicar Categoria' : 'Colocar Categoria em Rascunho'}
+                          >
+                            {cat.status === 'draft' ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{cat.status === 'draft' ? 'Rascunho' : 'Publicada'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => moveCategoryOrder(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                            title="Subir posição no filtro"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => moveCategoryOrder(idx, 'down')}
+                            disabled={idx === categories.length - 1}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                            title="Descer posição no filtro"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => openEditCategoryModal(cat)}
+                          className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200"
+                          title="Editar Categoria"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+
+                    {isAdminRole && (
+                      <button 
+                        onClick={() => {
+                          askConfirmation({
+                            title: 'Excluir Categoria?',
+                            message: `Tem certeza que deseja apagar a categoria "${cat.name}"?`,
+                            confirmText: 'Sim, Excluir Categoria',
+                            type: 'danger',
+                            onConfirm: () => {
+                              onDeleteCategory(cat.id);
+                              showNotification('Categoria excluída com sucesso.', 'info');
+                            }
+                          });
+                        }} 
+                        className="btn-danger text-xs p-2" 
+                        title="Apagar Categoria"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
+        {/* BRANDS MANAGEMENT TAB */}
+        {activeAdminTab === 'brands' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Gerenciar, Fotos & Links de Marcas</h3>
+                <p className="text-xs text-slate-500">Cadastre fotos por Upload/URL e insira o site oficial do parceiro.</p>
+              </div>
+
+              {canEditContent && (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={autoSortBrandsByCount} 
+                    className="btn-secondary text-xs font-bold py-2 px-3 flex items-center gap-1.5"
+                    title="Ordenar automaticamente da marca com maior quantidade de produtos para a menor"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Ordenar Automaticamente</span>
+                  </button>
+
+                  <button onClick={openNewBrandModal} className="btn-gold text-xs font-bold py-2 px-3">
+                    <Plus className="w-3.5 h-3.5" /> Nova Marca / Parceiro
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {brands.map((b, idx) => (
+                <div 
+                  key={b.id} 
+                  draggable={canEditContent}
+                  onDragStart={(e) => {
+                    if (!canEditContent) return;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', b.id);
+                    setDraggedBrandId(b.id);
+                  }}
+                  onDragOver={(e) => {
+                    if (!canEditContent) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverBrandId !== b.id) {
+                      setDragOverBrandId(b.id);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverBrandId === b.id) {
+                      setDragOverBrandId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    if (!canEditContent) return;
+                    e.preventDefault();
+                    const sourceId = draggedBrandId || e.dataTransfer.getData('text/plain');
+                    handleBrandDrop(sourceId, b.id);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedBrandId(null);
+                    setDragOverBrandId(null);
+                  }}
+                  className={`p-3.5 rounded-xl border flex items-center justify-between transition-all select-none ${
+                    draggedBrandId === b.id
+                      ? 'opacity-30 bg-sky-50 border-sky-300'
+                      : dragOverBrandId === b.id
+                      ? 'bg-sky-100/70 border-sky-500 ring-2 ring-sky-400 scale-[1.01] shadow-md'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {canEditContent && (
+                      <div 
+                        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-sky-600 p-1 rounded shrink-0"
+                        title="Segure e arraste para reordenar a marca"
+                      >
+                        <GripVertical className="w-4 h-4" />
+                      </div>
+                    )}
+                    <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 font-extrabold text-xs flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+
+                    <div 
+                      onClick={() => b.logo && setPreviewingImage(b.logo)}
+                      className={`w-12 h-10 rounded-lg bg-white border border-slate-200 overflow-hidden flex items-center justify-center p-1 shrink-0 ${
+                        b.logo ? 'cursor-zoom-in hover:border-sky-400 hover:shadow-sm group transition-all' : ''
+                      }`}
+                      title={b.logo ? "Clique para expandir a logo da marca" : undefined}
+                    >
+                      {b.logo ? (
+                        <img src={b.logo} alt={b.name} className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform" />
+                      ) : (
+                        <Tag className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span 
+                          onClick={() => canEditContent && openEditBrandModal(b)}
+                          className={`font-bold text-xs text-slate-900 ${canEditContent ? 'cursor-pointer hover:text-sky-700 hover:underline' : ''}`}
+                          title={canEditContent ? "Clique para editar esta marca" : undefined}
+                        >
+                          {b.name}
+                        </span>
+                        {b.status === 'draft' && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold">
+                            Rascunho
+                          </span>
+                        )}
+                        {b.websiteUrl && (
+                          <a href={b.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-sky-700 hover:underline flex items-center gap-0.5 font-bold">
+                            <Globe className="w-3 h-3 text-sky-600" /> Site Oficial ↗
+                          </a>
+                        )}
+                      </div>
+                      <a
+                        href={`/marca/${b.slug || b.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-mono text-slate-400 hover:text-sky-700 hover:underline inline-flex items-center gap-0.5"
+                        title="Ver Marca no Site (Nova Aba)"
+                      >
+                        <span>/marca/{b.slug || b.id}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {canEditContent && (
+                      <>
+                        <div className="flex items-center gap-1 border-r border-slate-200 pr-2">
+                          <button
+                            onClick={() => toggleBrandStatus(b)}
+                            className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 ${
+                              b.status === 'draft'
+                                ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                            }`}
+                            title={b.status === 'draft' ? 'Publicar Marca' : 'Colocar Marca em Rascunho'}
+                          >
+                            {b.status === 'draft' ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{b.status === 'draft' ? 'Rascunho' : 'Publicada'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => moveBrandOrder(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                            title="Subir posição"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => moveBrandOrder(idx, 'down')}
+                            disabled={idx === brands.length - 1}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 disabled:opacity-30 hover:bg-slate-100"
+                            title="Descer posição"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <button onClick={() => openEditBrandModal(b)} className="p-2 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200" title="Editar Marca">
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+
+                    {isAdminRole && (
+                      <button 
+                        onClick={() => {
+                          askConfirmation({
+                            title: 'Excluir Marca?',
+                            message: `Tem certeza que deseja apagar a marca parceira "${b.name}"?`,
+                            confirmText: 'Sim, Excluir Marca',
+                            type: 'danger',
+                            onConfirm: () => {
+                              onDeleteBrand(b.id);
+                              showNotification('Marca excluída com sucesso.', 'info');
+                            }
+                          });
+                        }} 
+                        className="btn-danger text-xs p-2" 
+                        title="Apagar Marca"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* BANNERS DA HOME TAB */}
+        {activeAdminTab === 'banners' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Images className="w-5 h-5 text-amber-600" />
+                  Banners da Home (Carrossel Rotativo)
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Gerencie os banners exibidos no topo da página inicial com imagens dedicadas para Desktop e Celular (Mobile).
+                </p>
+              </div>
+
+              {canEditContent && (
+                <button
+                  type="button"
+                  onClick={openNewBannerModal}
+                  className="btn-gold text-xs font-bold py-2.5 px-4 flex items-center gap-1.5 cursor-pointer shadow-xs self-start sm:self-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Novo Banner</span>
+                </button>
+              )}
+            </div>
+
+            {/* Banner List */}
+            {(!banners || banners.length === 0) ? (
+              <div className="text-center py-12 px-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 space-y-3">
+                <Images className="w-10 h-10 text-slate-300 mx-auto" />
+                <p className="text-sm font-bold text-slate-700">Nenhum banner cadastrado</p>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Adicione banners para destacar lançamentos, promoções ou categorias no topo do site.
+                </p>
+                {canEditContent && (
+                  <button
+                    type="button"
+                    onClick={openNewBannerModal}
+                    className="btn-gold text-xs font-bold py-2 px-4 cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Cadastrar Primeiro Banner</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3.5">
+                {banners.map((b, idx) => {
+                  const desktopImg = b.desktopImage || b.desktop_image;
+                  const mobileImg = b.mobileImage || b.mobile_image;
+                  const isActive = b.isActive !== false;
+
+                  return (
+                    <div
+                      key={b.id || idx}
+                      className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                        isActive
+                          ? 'bg-slate-50/60 border-slate-200 hover:border-amber-300 hover:shadow-xs'
+                          : 'bg-slate-100/70 border-slate-200/80 opacity-70'
+                      }`}
+                    >
+                      {/* Left: Position Number & Image Previews */}
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <span className="w-7 h-7 rounded-full bg-amber-500/15 text-amber-800 font-black text-xs flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+
+                        {/* Dual Previews: Desktop & Mobile */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Desktop Thumbnail */}
+                          <div
+                            className="w-24 h-14 rounded-xl bg-slate-900 border border-slate-200 overflow-hidden relative group cursor-pointer"
+                            onClick={() => openEditBannerModal(b)}
+                            title="Preview Desktop (Clique para editar)"
+                          >
+                            <img
+                              src={desktopImg}
+                              alt={b.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=80';
+                              }}
+                            />
+                            <span className="absolute bottom-0.5 left-0.5 px-1 py-0.2 rounded bg-slate-950/80 text-white font-mono text-[8px] flex items-center gap-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" /> PC
+                            </span>
+                          </div>
+
+                          {/* Mobile Thumbnail */}
+                          <div
+                            className="w-12 h-14 rounded-xl bg-slate-900 border border-slate-200 overflow-hidden relative group cursor-pointer"
+                            onClick={() => openEditBannerModal(b)}
+                            title={mobileImg ? "Preview Celular (Mobile Dedicado)" : "Usa imagem desktop adaptada no celular"}
+                          >
+                            <img
+                              src={mobileImg || desktopImg}
+                              alt={`${b.title} Mobile`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=200&auto=format&fit=crop&q=80';
+                              }}
+                            />
+                            <span className="absolute bottom-0.5 left-0.5 px-1 py-0.2 rounded bg-slate-950/80 text-white font-mono text-[8px] flex items-center gap-0.5">
+                              <span className={`w-1.5 h-1.5 rounded-full inline-block ${mobileImg ? 'bg-emerald-400' : 'bg-slate-400'}`} /> Cel
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Title & Details */}
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-xs text-slate-900 truncate max-w-xs" title={b.title}>
+                              {b.title || 'Banner sem título'}
+                            </span>
+
+                            {(() => {
+                              const sched = getBannerScheduleInfo(b);
+                              return (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${sched.badgeClass}`}>
+                                  {sched.status === 'scheduled' && <Clock className="w-3 h-3 text-amber-700 animate-pulse" />}
+                                  {sched.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                                  {sched.status === 'expired' && <span className="w-1.5 h-1.5 rounded-full bg-red-400" />}
+                                  {sched.status === 'paused' && <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />}
+                                  {sched.label}
+                                </span>
+                              );
+                            })()}
+
+                            {mobileImg ? (
+                              <span className="px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-bold">
+                                Mobile Dedicado
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[9px]">
+                                Mobile Adaptado
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Link info */}
+                          <div className="text-[11px] text-slate-500 truncate flex items-center gap-1">
+                            {b.linkUrl || b.link_url ? (
+                              <span className="inline-flex items-center gap-1 text-sky-700 font-mono font-medium">
+                                <LinkIcon className="w-3 h-3 text-sky-600 shrink-0" />
+                                <span className="truncate max-w-sm">{b.linkUrl || b.link_url}</span>
+                                {(b.targetBlank || b.target_blank) && (
+                                  <ExternalLink className="w-2.5 h-2.5 text-slate-400 shrink-0" title="Abre em nova aba" />
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">Sem link de clique</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Actions */}
+                      {canEditContent && (
+                        <div className="flex items-center gap-1.5 self-end md:self-center shrink-0">
+                          {/* Reorder Up */}
+                          <button
+                            type="button"
+                            onClick={() => handleMoveBanner(idx, 'up')}
+                            disabled={idx === 0}
+                            className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                            title="Mover para cima"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Reorder Down */}
+                          <button
+                            type="button"
+                            onClick={() => handleMoveBanner(idx, 'down')}
+                            disabled={idx === banners.length - 1}
+                            className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+                            title="Mover para baixo"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Quick Toggle Active */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleBannerActive(b)}
+                            className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                              isActive
+                                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-500 border-slate-200'
+                            }`}
+                            title={isActive ? 'Pausar exibição deste banner' : 'Ativar exibição deste banner'}
+                          >
+                            {isActive ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          </button>
+
+                          {/* Edit Button */}
+                          <button
+                            type="button"
+                            onClick={() => openEditBannerModal(b)}
+                            className="btn-secondary text-xs py-1.5 px-2.5 font-bold flex items-center gap-1 cursor-pointer"
+                            title="Editar banner"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Editar</span>
+                          </button>
+
+                          {/* Delete Button */}
+                          {isAdminRole && (
+                            <button
+                              type="button"
+                              onClick={() => setBannerToDelete(b)}
+                              className="btn-danger text-xs p-2 cursor-pointer"
+                              title="Excluir banner"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CLIENTS / PORTAL USERS MANAGEMENT & SUPPORT TAB */}
+        {activeAdminTab === 'clients' && (
+          <ClientsManagementTab
+            clientsList={clientsList}
+            setSelectedCustomerForModal={setSelectedCustomerForModal}
+          />
+        )}
+
+        {/* EMPLOYEES & ACCESS CONTROL TAB (ADMIN ONLY - INTERNAL STAFF ONLY) */}
+        {activeAdminTab === 'users' && isAdminRole && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-amber-600" />
+                  Gerenciamento da Equipe & Níveis de Acesso
+                </h3>
+                <p className="text-xs text-slate-500">Cadastre contas de colaboradores internos (Administradores, Editores, Vendedores) e controle permissões.</p>
+              </div>
+
+              <button onClick={() => setIsUserModalOpen(true)} className="btn-gold text-xs font-bold py-2.5 px-4 cursor-pointer">
+                <Plus className="w-3.5 h-3.5" /> Cadastrar Funcionário
+              </button>
+            </div>
+
+            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+              <table className="w-full text-left text-xs text-slate-700">
+                <thead className="bg-slate-100 uppercase text-[10px] text-slate-600 border-b border-slate-200 font-black tracking-wider">
+                  <tr>
+                    <th className="py-3.5 px-4">Colaborador</th>
+                    <th className="py-3.5 px-4">E-mail Corporativo</th>
+                    <th className="py-3.5 px-4">Nível de Permissão</th>
+                    <th className="py-3.5 px-4 text-center">Saldo A-Points</th>
+                    <th className="py-3.5 px-4 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {employeesList.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-slate-400 text-xs">
+                        Nenhum funcionário cadastrado.
+                      </td>
+                    </tr>
+                  ) : (
+                    employeesList.map((user) => {
+                      const roleLabels = {
+                        admin: { label: 'Administrador Geral', color: 'bg-amber-100 text-amber-900 border-amber-300' },
+                        editor: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
+                        edicao: { label: 'Edição / Gestor de Conteúdo', color: 'bg-sky-100 text-sky-900 border-sky-300' },
+                        vendedor: { label: 'Vendedor (Somente Leitura & PDF)', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' }
+                      };
+                      const roleObj = roleLabels[user.role] || roleLabels.vendedor;
+
+                      return (
+                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3.5 px-4 font-bold text-slate-900">
+                            {user.name}
+                          </td>
+                          <td className="py-3.5 px-4 font-mono text-slate-600">
+                            {user.email}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${roleObj.color}`}>
+                              {roleObj.label}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                              <Coins className="w-3 h-3 text-amber-600 shrink-0" />
+                              {Number(user.aPoints || 0)} pts
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPointsModalUser(user);
+                                  setPointsAdjustment('');
+                                  setPointsReason('');
+                                }}
+                                className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 font-bold text-amber-800 hover:text-amber-950 hover:bg-amber-50 border border-amber-300 cursor-pointer"
+                                title="Ajustar ou bonificar pontos do usuário"
+                              >
+                                <Coins className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Pontos</span>
+                              </button>
+                              {user.id !== currentUser?.id ? (
+                                <button
+                                  onClick={() => handleDeleteUser(user.id, user.name)}
+                                  className="btn-danger text-xs py-1.5 px-2.5 cursor-pointer"
+                                  title="Revogar Acesso / Apagar"
+                                >
+                                  <UserX className="w-3.5 h-3.5" /> Revogar
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-semibold italic px-2">Você</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* OMIE ERP & LOYALTY SYNC TAB (ADMIN ONLY) */}
+        {activeAdminTab === 'omie' && isAdminRole && (
+          <div className="space-y-6">
+            {/* Top Overview & Action Header */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                      <RefreshCw className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        Sincronização Omie ERP & Programa de Fidelidade
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Vínculo automático de catálogo, webhooks de faturamento e gestão contábil do programa A-Points.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={fetchOmieSyncStatus}
+                    disabled={loadingOmieSync}
+                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingOmieSync ? 'animate-spin' : ''}`} />
+                    <span>Atualizar Status</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRunReconciliation}
+                    disabled={reconcilingOmie}
+                    className="btn-gold text-xs py-2 px-4 flex items-center gap-2 shadow-xs cursor-pointer font-bold"
+                  >
+                    {reconcilingOmie ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Cruzando Catálogo Omie...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Vincular Automaticamente via API Omie</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Produtos no Site</p>
+                  <p className="text-2xl font-black text-slate-900 font-mono">
+                    {omieSyncStatus?.totalProducts ?? products.length}
+                  </p>
+                  <p className="text-[11px] text-slate-400">Total cadastrado no catálogo</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 space-y-1">
+                  <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Vinculados ao Omie</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-2xl font-black text-emerald-900 font-mono">
+                      {omieSyncStatus?.linkedProducts ?? 429}
+                    </p>
+                    <span className="text-xs font-bold text-emerald-700">
+                      ({omieSyncStatus?.matchPercentage ?? '71.0'}%)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700">Reconhecidos por modelo/código</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 space-y-1">
+                  <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Pendentes de Vínculo</p>
+                  <p className="text-2xl font-black text-amber-900 font-mono">
+                    {omieSyncStatus?.unlinkedCount ?? 175}
+                  </p>
+                  <p className="text-[11px] text-amber-700">Exceções para revisão</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-900 text-white border border-slate-800 space-y-1">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Regra de Pontuação</p>
+                  <p className="text-xl font-black text-amber-400 font-mono">
+                    R$ 50 = 1 ponto
+                  </p>
+                  <p className="text-[11px] text-slate-400">Validade de 12 meses • Sem teto</p>
+                </div>
+              </div>
+
+              {/* Webhook Status Info */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="space-y-0.5">
+                  <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Webhook Omie Ativo
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Endpoint de recebimento: <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-[10px]">POST /api/webhooks/omie</code>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Auto-Crédito EARN & Auto-Estorno REVERSE
+                  </span>
+                </div>
+              </div>
+
+              {/* Notification & Receipt Email Summary in Omie Tab */}
+              <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                      Comprovantes de Compras & Resgates por E-mail
+                      {notificationSettings.emailNotificationsEnabled ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          <Check className="w-3 h-3" /> Ativo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
+                          Pausado
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-slate-600">
+                      Destinatário configurado: <strong className="text-amber-900 font-mono">{notificationSettings.receiptNotificationEmail || 'administracao@athenaconsultoria.com.br'}</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setActiveAdminTab('settings')}
+                    className="px-3 py-1.5 rounded-xl bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <span>Configurar E-mails</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-amber-700" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* MESA DE VENDAS & FIDELIDADE: GESTÃO COMERCIAL DE A-POINTS */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+                    loyaltyOpMode === 'credit'
+                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-700'
+                      : 'bg-amber-500/10 border border-amber-500/30 text-amber-700'
+                  }`}>
+                    {loyaltyOpMode === 'credit' ? <Plus className="w-5 h-5" /> : <Coins className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">
+                      Mesa de Vendas & Fidelidade: Gestão de A-Points
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {loyaltyOpMode === 'credit'
+                        ? 'Credite bonificações por ajustes de faturamento fiscal ou lance pontos complementares com auditoria.'
+                        : 'Aplique descontos negociados via WhatsApp/telefone debitando os pontos do cliente e registrando no pedido.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {loyaltyOpMode === 'credit' ? (
+                    <span className="px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-200">
+                      Regra Oficial: R$ 50,00 = 1 A-Point
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-200">
+                      Equivalência Sugerida: 2 pts = R$ 1,00
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Seletor de Operação: Creditar vs Debitar */}
+              <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100/90 rounded-2xl w-fit">
+                <button
+                  type="button"
+                  onClick={() => setLoyaltyOpMode('credit')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                    loyaltyOpMode === 'credit'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Creditar Pontos (Bonificação / Ajuste Fiscal)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoyaltyOpMode('debit')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                    loyaltyOpMode === 'debit'
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                  }`}
+                >
+                  <Coins className="w-3.5 h-3.5" />
+                  <span>Debitar Pontos (Resgate / Desconto Balcão)</span>
+                </button>
+              </div>
+
+              {/* MODO CREDITAR PONTOS */}
+              {loyaltyOpMode === 'credit' && (
+                <div className="space-y-5">
+                  {/* Banner de Sucesso Crédito */}
+                  {creditSuccessBanner && (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start justify-between gap-3 text-xs">
+                      <div className="flex items-start gap-2.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-bold text-sm text-emerald-950">
+                            {creditSuccessBanner.message}
+                          </p>
+                          <p className="text-emerald-800 text-[11px] mt-0.5">
+                            Protocolo de Auditoria: <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-emerald-900 border border-emerald-200">{creditSuccessBanner.protocol}</code>
+                            {creditSuccessBanner.orderId && ` • Referência: ${creditSuccessBanner.orderId}`}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCreditSuccessBanner(null)}
+                        className="text-emerald-600 hover:text-emerald-800 p-1 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Calculadora de Ajuste Fiscal */}
+                  <div className="p-4 bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-slate-50 border border-emerald-200/90 rounded-2xl text-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-emerald-950 font-bold">
+                        <Calculator className="w-4 h-4 text-emerald-700" />
+                        <span>Calculadora Rápida de Ajuste Fiscal (Ex: Venda de 70k faturada como 5k)</span>
+                      </div>
+                      <span className="text-[11px] text-emerald-800 font-semibold bg-emerald-100/80 px-2.5 py-0.5 rounded-full w-fit">
+                        R$ 50,00 = 1 ponto
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-900 leading-relaxed">
+                      Se uma venda comercial real teve faturamento fiscal parcial no ERP, informe o valor real e quanto foi faturado para preencher a pontuação exata com 1 clique:
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-emerald-900 block mb-1">
+                          Valor Real da Venda (R$)
+                        </label>
+                        <input
+                          type="text"
+                          value={creditSaleRealValue}
+                          onChange={(e) => setCreditSaleRealValue(e.target.value)}
+                          placeholder="Ex: 70.000,00"
+                          className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300 bg-white focus:outline-none focus:border-emerald-600 font-mono font-bold text-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-emerald-900 block mb-1">
+                          Valor já Faturado no Omie (R$, opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={creditBilledValue}
+                          onChange={(e) => setCreditBilledValue(e.target.value)}
+                          placeholder="Ex: 5.000,00"
+                          className="w-full text-xs px-3 py-2 rounded-xl border border-emerald-300 bg-white focus:outline-none focus:border-emerald-600 font-mono text-slate-900"
+                        />
+                      </div>
+                      <div className="flex flex-col justify-end">
+                        {calcRealVal > 0 ? (
+                          <button
+                            type="button"
+                            onClick={handleApplyCalculatorPoints}
+                            className="w-full text-xs font-bold py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Preencher +{calcSuggestedPoints} Pontos</span>
+                          </button>
+                        ) : (
+                          <div className="text-[11px] text-emerald-700/80 italic py-2 text-center sm:text-left">
+                            Digite o valor real da venda para calcular
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {calcRealVal > 0 && (
+                      <div className="p-3 rounded-xl bg-white/90 border border-emerald-200 text-[11px] text-emerald-950 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                        <div>
+                          <span>Total devido na venda real (R$ {calcRealVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}): <strong>{calcTotalDuePoints} pts</strong></span>
+                          {calcBilledVal > 0 && (
+                            <span className="text-slate-600"> • Já gerado pelo faturamento: <strong>{calcAlreadyEarnedPoints} pts</strong></span>
+                          )}
+                        </div>
+                        <div className="text-emerald-900 font-bold">
+                          Diferença líquida a creditar: <span className="text-sm font-black text-emerald-700 font-mono">+{calcSuggestedPoints} pts</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Formulário de Crédito */}
+                  <form onSubmit={handleExecuteCommercialCredit} className="space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                      {/* Seleção do Cliente (col-span-5) */}
+                      <div className="lg:col-span-5 space-y-2">
+                        <label className="text-xs font-bold text-slate-700 block">
+                          Localizar Cliente (Nome, E-mail ou CNPJ) *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={debitCustomerSearch}
+                            onChange={(e) => {
+                              setDebitCustomerSearch(e.target.value);
+                              if (selectedDebitCustomer) setSelectedDebitCustomer(null);
+                            }}
+                            placeholder="Digite para buscar cliente..."
+                            className="w-full text-xs px-3 py-2 pl-8 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500"
+                          />
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        </div>
+
+                        {/* Dropdown de Clientes */}
+                        {debitCustomerSearch && !selectedDebitCustomer && (
+                          <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl bg-white divide-y divide-slate-100 shadow-sm text-xs">
+                            {usersList
+                              .filter(u => 
+                                (u.name && u.name.toLowerCase().includes(debitCustomerSearch.toLowerCase())) ||
+                                (u.email && u.email.toLowerCase().includes(debitCustomerSearch.toLowerCase())) ||
+                                (u.document && u.document.includes(debitCustomerSearch.replace(/\D/g, ''))) ||
+                                (u.companyName && u.companyName.toLowerCase().includes(debitCustomerSearch.toLowerCase()))
+                              )
+                              .slice(0, 8)
+                              .map(u => (
+                                <button
+                                  key={u.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDebitCustomer(u);
+                                    setDebitCustomerSearch(`${u.name} (${u.email})`);
+                                  }}
+                                  className="w-full text-left p-2.5 hover:bg-emerald-50 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-slate-900 truncate">{u.name}</p>
+                                    <p className="text-[11px] text-slate-500 truncate">{u.companyName ? `${u.companyName} • ` : ''}{u.email}</p>
+                                  </div>
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-900 shrink-0">
+                                    {Number(u.aPoints || u.a_points || 0)} pts
+                                  </span>
+                                </button>
+                              ))}
+                          </div>
+                        )}
+
+                        {/* Card de Cliente Selecionado */}
+                        {selectedDebitCustomer && (
+                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                            <div>
+                              <p className="font-bold text-slate-900">{selectedDebitCustomer.name}</p>
+                              <p className="text-[11px] text-slate-500">{selectedDebitCustomer.email} {selectedDebitCustomer.document ? `• ${selectedDebitCustomer.document}` : ''}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 block">Saldo Atual</span>
+                              <span className="text-base font-black text-emerald-700 font-mono">
+                                {Number(selectedDebitCustomer.aPoints || selectedDebitCustomer.a_points || 0)} pts
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Pontos a Creditar (col-span-3) */}
+                      <div className="lg:col-span-3 space-y-2">
+                        <label className="text-xs font-bold text-slate-700 block">
+                          Pontos a Creditar *
+                        </label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="1"
+                          value={creditPointsAmount}
+                          onChange={(e) => setCreditPointsAmount(e.target.value)}
+                          placeholder="Ex: 1300"
+                          className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500 font-mono font-bold"
+                        />
+                        {Number(creditPointsAmount) > 0 && (
+                          <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] space-y-0.5">
+                            <p className="font-bold text-emerald-900">
+                              Adicionando: +{Number(creditPointsAmount)} A-Points
+                            </p>
+                            {selectedDebitCustomer && (
+                              <p className="text-slate-600 text-[10px]">
+                                Novo saldo previsto: <strong className="text-emerald-700">{Number(selectedDebitCustomer.aPoints || selectedDebitCustomer.a_points || 0) + Number(creditPointsAmount)} pts</strong>
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Pedido Omie & Motivo (col-span-4) */}
+                      <div className="lg:col-span-4 space-y-2">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Nº Pedido / Proposta Omie (Opcional)
+                          </label>
+                          <input
+                            type="text"
+                            value={creditOmieOrder}
+                            onChange={(e) => setCreditOmieOrder(e.target.value)}
+                            placeholder="Ex: #1420 ou PED-70K"
+                            className="w-full text-xs px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Motivo Comercial *
+                          </label>
+                          <input
+                            type="text"
+                            value={creditReason}
+                            onChange={(e) => setCreditReason(e.target.value)}
+                            placeholder="Ex: Ajuste fiscal ref. venda 70k faturada 5k"
+                            className="w-full text-xs px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-500"
+                          />
+                          {/* Sugestões Rápidas de Motivo */}
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {[
+                              'Ajuste fiscal de venda',
+                              'Bonificação comercial',
+                              'Bonificação de relacionamento',
+                              'Compensação'
+                            ].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => setCreditReason(preset)}
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-900 border border-slate-200 transition-colors cursor-pointer"
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-end">
+                      <button
+                        type="submit"
+                        disabled={isProcessingCredit || !selectedDebitCustomer || !creditPointsAmount}
+                        className="text-xs font-bold py-2.5 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 shadow-xs disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        {isProcessingCredit ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Creditando Pontos...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4" />
+                            <span>Creditar Pontos na Carteira e Notificar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* MODO DEBITAR PONTOS */}
+              {loyaltyOpMode === 'debit' && (
+                <div className="space-y-4">
+                  {/* Banner de Sucesso Débito */}
+                  {debitSuccessBanner && (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start justify-between gap-3 text-xs">
+                      <div className="flex items-start gap-2.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-bold text-sm text-emerald-950">
+                            {debitSuccessBanner.message}
+                          </p>
+                          <p className="text-emerald-800 text-[11px] mt-0.5">
+                            Protocolo de Auditoria: <code className="bg-white px-1.5 py-0.5 rounded font-mono font-bold text-emerald-900 border border-emerald-200">{debitSuccessBanner.protocol}</code>
+                            {debitSuccessBanner.orderId && ` • Referência: ${debitSuccessBanner.orderId}`}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDebitSuccessBanner(null)}
+                        className="text-emerald-600 hover:text-emerald-800 p-1 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleExecuteCommercialDebit} className="space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                      {/* Seleção do Cliente (col-span-5) */}
+                      <div className="lg:col-span-5 space-y-2">
+                        <label className="text-xs font-bold text-slate-700 block">
+                          Localizar Cliente (Nome, E-mail ou CNPJ) *
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={debitCustomerSearch}
+                            onChange={(e) => {
+                              setDebitCustomerSearch(e.target.value);
+                              if (selectedDebitCustomer) setSelectedDebitCustomer(null);
+                            }}
+                            placeholder="Digite para buscar cliente..."
+                            className="w-full text-xs px-3 py-2 pl-8 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500"
+                          />
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        </div>
+
+                        {/* Lista rápida de clientes encontrados */}
+                        {debitCustomerSearch && !selectedDebitCustomer && (
+                          <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl bg-white divide-y divide-slate-100 shadow-sm text-xs">
+                            {usersList
+                              .filter(u => 
+                                (u.name && u.name.toLowerCase().includes(debitCustomerSearch.toLowerCase())) ||
+                                (u.email && u.email.toLowerCase().includes(debitCustomerSearch.toLowerCase())) ||
+                                (u.document && u.document.includes(debitCustomerSearch.replace(/\D/g, ''))) ||
+                                (u.companyName && u.companyName.toLowerCase().includes(debitCustomerSearch.toLowerCase()))
+                              )
+                              .slice(0, 8)
+                              .map(u => (
+                                <button
+                                  key={u.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDebitCustomer(u);
+                                    setDebitCustomerSearch(`${u.name} (${u.email})`);
+                                  }}
+                                  className="w-full text-left p-2.5 hover:bg-amber-50 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-slate-900 truncate">{u.name}</p>
+                                    <p className="text-[11px] text-slate-500 truncate">{u.companyName ? `${u.companyName} • ` : ''}{u.email}</p>
+                                  </div>
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-900 shrink-0">
+                                    {Number(u.aPoints || u.a_points || 0)} pts
+                                  </span>
+                                </button>
+                              ))}
+                          </div>
+                        )}
+
+                        {/* Card de Cliente Selecionado */}
+                        {selectedDebitCustomer && (
+                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                            <div>
+                              <p className="font-bold text-slate-900">{selectedDebitCustomer.name}</p>
+                              <p className="text-[11px] text-slate-500">{selectedDebitCustomer.email} {selectedDebitCustomer.document ? `• ${selectedDebitCustomer.document}` : ''}</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 block">Saldo Atual</span>
+                              <span className="text-base font-black text-emerald-700 font-mono">
+                                {Number(selectedDebitCustomer.aPoints || selectedDebitCustomer.a_points || 0)} pts
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Pontos & Desconto (col-span-3) */}
+                      <div className="lg:col-span-3 space-y-2">
+                        <label className="text-xs font-bold text-slate-700 block">
+                          Pontos a Debitar *
+                        </label>
+                        <input
+                          type="number"
+                          step="1"
+                          min="1"
+                          value={debitPointsAmount}
+                          onChange={(e) => setDebitPointsAmount(e.target.value)}
+                          placeholder="Ex: 600"
+                          className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500 font-mono font-bold"
+                        />
+                        {Number(debitPointsAmount) > 0 && (
+                          <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] space-y-0.5">
+                            <p className="font-bold text-amber-900">
+                              Desconto: R$ {(Number(debitPointsAmount) / 2).toFixed(2)}
+                            </p>
+                            {selectedDebitCustomer && (
+                              <p className="text-slate-600 text-[10px]">
+                                Saldo pós-débito: <strong className="text-emerald-700">{Math.max(0, Number(selectedDebitCustomer.aPoints || selectedDebitCustomer.a_points || 0) - Number(debitPointsAmount))} pts</strong>
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Pedido Omie & Motivo (col-span-4) */}
+                      <div className="lg:col-span-4 space-y-2">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Nº Pedido / Proposta Omie
+                          </label>
+                          <input
+                            type="text"
+                            value={debitOmieOrder}
+                            onChange={(e) => setDebitOmieOrder(e.target.value)}
+                            placeholder="Ex: #1420 ou PED-89"
+                            className="w-full text-xs px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Motivo Comercial
+                          </label>
+                          <input
+                            type="text"
+                            value={debitReason}
+                            onChange={(e) => setDebitReason(e.target.value)}
+                            placeholder="Ex: Desconto na compra de elevador"
+                            className="w-full text-xs px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-end">
+                      <button
+                        type="submit"
+                        disabled={isProcessingDebit || !selectedDebitCustomer || !debitPointsAmount}
+                        className="btn-gold text-xs font-bold py-2.5 px-6 flex items-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
+                      >
+                        {isProcessingDebit ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Processando Débito...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Coins className="w-4 h-4" />
+                            <span>Debitar Pontos e Enviar Comprovante</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
+
+            {/* Unlinked Products Management Table */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900">
+                    Produtos Pendentes de Vínculo ({omieSyncStatus?.unlinkedCount ?? 175})
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Estes itens ainda não possuem o código de produto do Omie. Você pode associá-los diretamente:
+                  </p>
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <input
+                    type="text"
+                    value={omieSearchFilter}
+                    onChange={(e) => setOmieSearchFilter(e.target.value)}
+                    placeholder="Filtrar pendentes..."
+                    className="w-full text-xs px-3 py-2 pl-8 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-amber-500"
+                  />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                </div>
+              </div>
+
+              {loadingOmieSync ? (
+                <div className="p-8 text-center text-xs text-slate-400">
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto text-amber-600 mb-2" />
+                  Carregando lista de produtos...
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-700">
+                    <thead className="bg-slate-100 uppercase text-[10px] text-slate-500 border-b border-slate-200 font-bold">
+                      <tr>
+                        <th className="py-2.5 px-3">Produto Athena</th>
+                        <th className="py-2.5 px-3">Marca</th>
+                        <th className="py-2.5 px-3">ID Athena</th>
+                        <th className="py-2.5 px-3">Código / ID Omie</th>
+                        <th className="py-2.5 px-3 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(omieSyncStatus?.unlinkedProducts || [])
+                        .filter(p => !omieSearchFilter || p.name.toLowerCase().includes(omieSearchFilter.toLowerCase()) || p.id.toLowerCase().includes(omieSearchFilter.toLowerCase()))
+                        .slice(0, 15)
+                        .map((prod) => {
+                          const hasVars = Array.isArray(prod.variants) && prod.variants.length > 0;
+                          return (
+                            <React.Fragment key={prod.id}>
+                              <tr className="hover:bg-slate-50 transition-colors">
+                                <td 
+                                  onClick={() => canEditContent && openEditProductModal(prod)}
+                                  className={`py-2.5 px-3 font-bold text-slate-900 max-w-xs transition-colors ${
+                                    canEditContent ? 'cursor-pointer hover:text-amber-600' : ''
+                                  }`}
+                                  title={canEditContent ? "Clique para editar este equipamento" : undefined}
+                                >
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="truncate">{prod.name}</span>
+                                    {hasVars && (
+                                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                                        {prod.variants.length} opções
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3 font-medium text-slate-500">
+                                  {brands.find(b => b.id === prod.brandId)?.name || prod.brandId || '-'}
+                                </td>
+                                <td className="py-2.5 px-3 font-mono text-[11px] text-slate-400 truncate max-w-[140px]">
+                                  {prod.sku || prod.id}
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <input
+                                    type="text"
+                                    placeholder={hasVars ? "Vínculo pai (opcional)" : "ID/Código Omie"}
+                                    value={omieManualLinks[prod.id] || ''}
+                                    onChange={(e) => setOmieManualLinks({ ...omieManualLinks, [prod.id]: e.target.value })}
+                                    className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white w-40 font-mono"
+                                  />
+                                </td>
+                                <td className="py-2.5 px-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleManualLinkOmie(prod.id)}
+                                    className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-colors cursor-pointer"
+                                  >
+                                    Vincular
+                                  </button>
+                                </td>
+                              </tr>
+                              {hasVars && prod.variants.map((v, vIdx) => {
+                                const varKey = `${prod.id}_${v.id}`;
+                                const isVarLinked = Boolean(v.omieProductId || v.omieCode);
+                                return (
+                                  <tr key={v.id || vIdx} className="bg-slate-50/70 border-b border-slate-100/80">
+                                    <td className="py-1.5 px-3 pl-8 text-slate-600 font-medium">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-slate-400">↳</span>
+                                        <span>{v.name}</span>
+                                        {isVarLinked && (
+                                          <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold text-[9px]">
+                                            Vinculado ({v.omieCode})
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="py-1.5 px-3 text-slate-400 text-[11px]">Variação</td>
+                                    <td className="py-1.5 px-3 font-mono text-[11px] text-slate-500">
+                                      {v.sku || '-'}
+                                    </td>
+                                    <td className="py-1.5 px-3">
+                                      <input
+                                        type="text"
+                                        placeholder="Cód Omie da variação"
+                                        value={omieManualLinks[varKey] !== undefined ? omieManualLinks[varKey] : (v.omieCode || '')}
+                                        onChange={(e) => setOmieManualLinks({ ...omieManualLinks, [varKey]: e.target.value })}
+                                        className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-white focus:bg-white w-40 font-mono"
+                                      />
+                                    </td>
+                                    <td className="py-1.5 px-3 text-right">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleManualLinkOmie(prod.id, v.id)}
+                                        className="px-2 py-1 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-900 font-bold text-[11px] transition-colors cursor-pointer"
+                                      >
+                                        Vincular Opção
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </React.Fragment>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                  {(!omieSyncStatus?.unlinkedProducts || omieSyncStatus.unlinkedProducts.length === 0) && (
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      Nenhum produto pendente. Todos os itens estão associados ao Omie!
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SETTINGS & PASSWORD MANAGEMENT TAB */}
+        {activeAdminTab === 'settings' && (
+          <div className="space-y-6">
+            
+            {/* E-MAILS DE COMPROVANTES & NOTIFICAÇÕES (CARD PRINCIPAL) */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
+                    <Mail className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
+                      E-mails para Comprovantes & Alertas
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Receba o comprovante de cada faturamento no Omie ERP e de cada resgate de pontos no site.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {notificationSettings.activeProvider === 'resend' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Resend API Ativo (Porta 443)
+                    </span>
+                  ) : notificationSettings.activeProvider === 'brevo' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Brevo API Ativo (Porta 443)
+                    </span>
+                  ) : notificationSettings.smtpConfigured ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      Google SMTP (Porta 587)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      Modo Registro / Log
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveNotificationSettings} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Primary Receipt Email */}
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                      <span>E-mail Principal para Recebimento de Comprovantes *</span>
+                      <span className="text-[11px] font-normal text-slate-400">
+                        Vendas Omie & Resgates A-Points
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="ex: administracao@athenaconsultoria.com.br, financeiro@athenaconsultoria.com.br"
+                        value={notificationSettings.receiptNotificationEmail}
+                        onChange={(e) => setNotificationSettings({ ...notificationSettings, receiptNotificationEmail: e.target.value })}
+                        required
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs sm:text-sm rounded-xl pl-10 pr-4 py-3 outline-none transition-colors"
+                      />
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Para múltiplos e-mails, separe os endereços com vírgula. Todos receberão uma cópia de cada comprovante.
+                    </p>
+                  </div>
+
+                  {/* Toggle: Envio automático */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">
+                        Disparo Automático de Alertas
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Enviar e-mails em tempo real a cada compra ou resgate
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationSettings({ ...notificationSettings, emailNotificationsEnabled: !notificationSettings.emailNotificationsEnabled })}
+                      className="cursor-pointer text-amber-600 focus:outline-none"
+                    >
+                      {notificationSettings.emailNotificationsEnabled ? (
+                        <ToggleRight className="w-8 h-8 text-amber-600" />
+                      ) : (
+                        <ToggleLeft className="w-8 h-8 text-slate-400" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Toggle: Cópia para o cliente */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">
+                        Comprovante para o Cliente
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Enviar cópia do comprovante ao e-mail cadastrado do cliente
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationSettings({ ...notificationSettings, sendCustomerCopy: !notificationSettings.sendCustomerCopy })}
+                      className="cursor-pointer text-amber-600 focus:outline-none"
+                    >
+                      {notificationSettings.sendCustomerCopy ? (
+                        <ToggleRight className="w-8 h-8 text-amber-600" />
+                      ) : (
+                        <ToggleLeft className="w-8 h-8 text-slate-400" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* HTTP Cloud Providers Section (Solução para Render.com / Nuvem) */}
+                <div className="border-t border-slate-100 pt-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-amber-500" />
+                        Provedores de E-mail via API HTTP (Resend / Brevo)
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Envio direto via HTTPS (Porta 443) com alta velocidade de entrega.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowApiSettings(!showApiSettings)}
+                      className="text-xs font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 cursor-pointer bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl border border-amber-200 transition-colors shrink-0"
+                    >
+                      <span>{showApiSettings ? 'Ocultar Chaves' : 'Configurar Resend / Brevo'}</span>
+                      {showApiSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {showApiSettings && (
+                    <div className="mt-4 p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-5 animate-in fade-in duration-200">
+                      {/* Resend API Block */}
+                      <div className="space-y-3 pb-4 border-b border-slate-200">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span>Opção 1: Resend API (Recomendado)</span>
+                          </label>
+                          <a 
+                            href="https://resend.com/signup" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-[11px] font-bold text-amber-600 hover:text-amber-800 flex items-center gap-1"
+                          >
+                            <span>Obter chave gratuita no Resend (100 e-mails/dia)</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-600 block">
+                              Chave de API (RESEND_API_KEY)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={notificationSettings.hasResendApiKey ? 'Chave salva (digite para alterar)' : 're_123456789...'}
+                              value={notificationSettings.resendApiKey || ''}
+                              onChange={(e) => setNotificationSettings({ ...notificationSettings, resendApiKey: e.target.value })}
+                              className="w-full bg-white border border-slate-300 focus:border-amber-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none font-mono"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-600 block">
+                              Remetente Resend (Opcional)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Athena <onboarding@resend.dev> ou seu domínio"
+                              value={notificationSettings.resendFromEmail || ''}
+                              onChange={(e) => setNotificationSettings({ ...notificationSettings, resendFromEmail: e.target.value })}
+                              className="w-full bg-white border border-slate-300 focus:border-amber-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          Para testes imediatos para seu próprio e-mail, pode deixar vazio (usará <code>onboarding@resend.dev</code>). Para enviar para clientes, adicione seu domínio próprio no painel do Resend.
+                        </p>
+                      </div>
+
+                      {/* Brevo API Block */}
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+                            <span>Opção 2: Brevo / Sendinblue API</span>
+                          </label>
+                          <a 
+                            href="https://www.brevo.com/" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-[11px] font-bold text-sky-600 hover:text-sky-800 flex items-center gap-1"
+                          >
+                            <span>Criar conta gratuita no Brevo (300 e-mails/dia)</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-600 block">
+                              Chave de API (BREVO_API_KEY)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={notificationSettings.hasBrevoApiKey ? 'Chave salva (digite para alterar)' : 'xkeysib-...'}
+                              value={notificationSettings.brevoApiKey || ''}
+                              onChange={(e) => setNotificationSettings({ ...notificationSettings, brevoApiKey: e.target.value })}
+                              className="w-full bg-white border border-slate-300 focus:border-sky-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none font-mono"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-semibold text-slate-600 block">
+                              E-mail Remetente no Brevo
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="athena.consultoria.automotiva@gmail.com"
+                              value={notificationSettings.brevoSenderEmail || ''}
+                              onChange={(e) => setNotificationSettings({ ...notificationSettings, brevoSenderEmail: e.target.value })}
+                              className="w-full bg-white border border-slate-300 focus:border-sky-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          300 e-mails/dia grátis. Permite enviar utilizando seu Gmail verificado como remetente pela API REST do Brevo sem restrições de porta.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Advanced Options Accordion */}
+                <div className="border-t border-slate-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedEmailSettings(!showAdvancedEmailSettings)}
+                    className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>{showAdvancedEmailSettings ? 'Ocultar' : 'Exibir'} direcionamento específico por setor (Opcional)</span>
+                    {showAdvancedEmailSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+
+                  {showAdvancedEmailSettings && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-700 block">
+                          E-mail exclusivo para Resgates de Pontos
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Deixe em branco para usar o e-mail principal"
+                          value={notificationSettings.loyaltyNotificationEmail}
+                          onChange={(e) => setNotificationSettings({ ...notificationSettings, loyaltyNotificationEmail: e.target.value })}
+                          className="w-full bg-white border border-slate-300 focus:border-amber-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none"
+                        />
+                        <p className="text-[10px] text-slate-400">Direciona solicitações de brindes/recompensas</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-700 block">
+                          E-mail exclusivo para Compras / Faturamento
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Deixe em branco para usar o e-mail principal"
+                          value={notificationSettings.purchaseNotificationEmail}
+                          onChange={(e) => setNotificationSettings({ ...notificationSettings, purchaseNotificationEmail: e.target.value })}
+                          className="w-full bg-white border border-slate-300 focus:border-amber-500 text-slate-900 text-xs rounded-xl px-3.5 py-2.5 outline-none"
+                        />
+                        <p className="text-[10px] text-slate-400">Direciona avisos de vendas faturadas no ERP</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Save Button */}
+                <div className="flex items-center justify-between gap-4 pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingNotifications}
+                    className="btn-gold text-xs font-bold py-3 px-6 shadow-md flex items-center gap-2 cursor-pointer"
+                  >
+                    {savingNotifications ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Salvando Configurações...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Salvar Configurações de E-mail</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Test Email Section */}
+              <div className="border-t border-slate-100 pt-6 mt-6 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Send className="w-4 h-4 text-amber-600" />
+                  <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Testar Envio de Comprovante em Tempo Real
+                  </h4>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Envie uma simulação de comprovante para a sua caixa de entrada e confirme a formatação visual e a entrega:
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-1">
+                  <div className="relative flex-1">
+                    <input
+                      type="email"
+                      placeholder="E-mail de destino para o teste"
+                      value={testEmailAddress}
+                      onChange={(e) => setTestEmailAddress(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-3 py-2.5 outline-none"
+                    />
+                    <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handleSendTestEmail('general')}
+                      disabled={testingEmail}
+                      className="btn-secondary text-xs py-2.5 px-3 font-bold flex items-center gap-1.5 cursor-pointer"
+                      title="Testa envio básico de SMTP"
+                    >
+                      {testingEmail ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                      <span>Teste de Conexão</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSendTestEmail('purchase')}
+                      disabled={testingEmail}
+                      className="btn-secondary text-xs py-2.5 px-3 font-bold flex items-center gap-1.5 cursor-pointer hover:border-emerald-300 hover:text-emerald-700"
+                      title="Simula comprovante de faturamento de compra"
+                    >
+                      <Coins className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Testar Compra</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSendTestEmail('redemption')}
+                      disabled={testingEmail}
+                      className="btn-secondary text-xs py-2.5 px-3 font-bold flex items-center gap-1.5 cursor-pointer hover:border-amber-300 hover:text-amber-700"
+                      title="Simula comprovante de resgate de benefício"
+                    >
+                      <Gift className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Testar Resgate</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hermes Agent Integration Info */}
+              <div className="border-t border-slate-100 pt-6 mt-6 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                      Integração com o Hermes Agent (WhatsApp & CRM)
+                    </h4>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800">
+                    API Bridge 2.0 Pronta
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  O Hermes pode consultar clientes, saldo de pontos, recompensas e produtos diretamente pela API da Athena:
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500 block">URL Base da API do Hermes:</span>
+                    <code className="block bg-white p-2 rounded-xl border border-slate-200 font-mono text-[11px] text-slate-800 select-all">
+                      https://athena-backend-hu1m.onrender.com/api/hermes
+                    </code>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">ou via domínio: https://athenaconsultoria.com.br/api/hermes</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500 block">Chave de Autenticação (x-hermes-key):</span>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-white p-2 rounded-xl border border-slate-200 font-mono text-[11px] text-purple-800 font-bold select-all">
+                        {notificationSettings.hermesSecretKey || '••••••••••••••••'}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (notificationSettings.hermesSecretKey) {
+                            navigator.clipboard.writeText(notificationSettings.hermesSecretKey);
+                            showNotification('Chave do Hermes copiada!', 'success');
+                          } else {
+                            showNotification('Chave ainda não carregada ou não configurada.', 'warning');
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 font-bold text-[11px] text-slate-700 cursor-pointer shrink-0"
+                      >
+                        Copiar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-[11px] text-slate-500 flex-wrap">
+                  <span>Endpoints disponíveis para o Hermes:</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-100 font-mono text-[10px] text-slate-700">/customers/:id</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-100 font-mono text-[10px] text-slate-700">/rewards</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-100 font-mono text-[10px] text-slate-700">/products</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-100 font-mono text-[10px] text-slate-700">/loyalty/insights</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* CENTRAL DE MONITORAMENTO & ALERTAS NO TELEGRAM */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shrink-0">
+                    <Send className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
+                        Canal de Alertas & Segurança no Telegram
+                      </h3>
+                      {telegramStatus.configured ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Bot Conectado ao Render (Monitoramento Ativo)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                          Configuração em Andamento no Render
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Classificação em 3 níveis: sirene ativa para falhas críticas (P0), silencioso para avisos (P1) e descarte automático de ruído (P2).
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTestTelegram}
+                  disabled={testingTelegram}
+                  className="btn-gold text-xs font-extrabold py-2.5 px-4 shadow-xs flex items-center gap-2 cursor-pointer shrink-0"
+                  title="Disparar mensagem de teste ao bot do Telegram agora"
+                >
+                  {testingTelegram ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Verificando Bot...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Disparar Teste no Telegram</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Informações dos Níveis */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-rose-50/60 border border-rose-200/80 space-y-1">
+                  <span className="text-[11px] font-black uppercase text-rose-800 flex items-center gap-1.5">
+                    <span>🚨</span> Nível 1: Falha Crítica
+                  </span>
+                  <p className="text-slate-600 text-[11px]">
+                    Banco PostgreSQL inacessível, crash da API ou tentativa de forja de Webhook. <strong>Som alto imediato</strong>.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-1">
+                  <span className="text-[11px] font-black uppercase text-amber-800 flex items-center gap-1.5">
+                    <span>⚠️</span> Nível 2: Degradação & Alto Valor
+                  </span>
+                  <p className="text-slate-600 text-[11px]">
+                    APIs de frete oscilando, força bruta de login ou pedidos acima de R$ 10.000. <strong>Silencioso c/ Cooldown 15m</strong>.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                  <span className="text-[11px] font-black uppercase text-slate-700 flex items-center gap-1.5">
+                    <span>🛡️</span> Nível 3: Anti-Spam / Ruído
+                  </span>
+                  <p className="text-slate-600 text-[11px]">
+                    Bots em 404, erro de digitação de CEP de cliente e cupons expirados. <strong>Zero Telegram</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Lower Grid: Password and Profile Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Password Change Card */}
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+                <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                    <Key className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">
+                      Alterar Senha de Acesso
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Defina uma nova senha segura para o seu login.
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Senha Atual *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showAdminCurrentPass ? 'text' : 'password'}
+                        placeholder="Digite sua senha atual"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                        required
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-10 py-3 outline-none"
+                      />
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminCurrentPass(!showAdminCurrentPass)}
+                        tabIndex={-1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer z-10"
+                        title={showAdminCurrentPass ? 'Ocultar senha' : 'Ver senha'}
+                      >
+                        {showAdminCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Nova Senha *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showAdminNewPass ? 'text' : 'password'}
+                        placeholder="Digite a nova senha (mínimo 4 caracteres)"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        required
+                        minLength={4}
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-10 py-3 outline-none"
+                      />
+                      <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminNewPass(!showAdminNewPass)}
+                        tabIndex={-1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer z-10"
+                        title={showAdminNewPass ? 'Ocultar senha' : 'Ver senha'}
+                      >
+                        {showAdminNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Confirmar Nova Senha *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showAdminConfirmPass ? 'text' : 'password'}
+                        placeholder="Repita a nova senha"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                        required
+                        minLength={4}
+                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs rounded-xl pl-9 pr-10 py-3 outline-none"
+                      />
+                      <Key className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminConfirmPass(!showAdminConfirmPass)}
+                        tabIndex={-1}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer z-10"
+                        title={showAdminConfirmPass ? 'Ocultar senha' : 'Ver senha'}
+                      >
+                        {showAdminConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className="w-full btn-gold text-xs font-bold py-3.5 shadow-md flex items-center justify-center gap-2 mt-2"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{isChangingPassword ? 'Salvando...' : 'Atualizar Minha Senha'}</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Profile Info Card */}
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+                <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                  <div className="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-700">
+                    <Settings className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">
+                      Dados do Administrador
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Informações da conta de gerenciamento.
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Nome de Exibição
+                    </label>
+                    <input
+                      type="text"
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                      required
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:bg-white text-slate-900 text-xs rounded-xl px-4 py-3 outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      E-mail de Login
+                    </label>
+                    <input
+                      type="email"
+                      value={profileForm.email}
+                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                      required
+                      className="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:bg-white text-slate-900 text-xs rounded-xl px-4 py-3 outline-none"
+                    />
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1 text-xs text-slate-600">
+                    <span className="font-bold text-slate-900 block">Nível de Permissão:</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px]">
+                      <Shield className="w-3.5 h-3.5" /> Administrador Geral (Acesso Total)
+                    </span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full btn-secondary text-xs font-bold py-3.5 border-slate-300 hover:bg-slate-50 flex items-center justify-center gap-2"
+                  >
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span>Salvar Dados de Perfil</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* COUPONS & VOUCHERS MANAGEMENT TAB */}
+        {activeAdminTab === 'coupons' && (
+          <CouponManager
+            products={products}
+            categories={categories}
+            brands={brands}
+            API_BASE_URL={API_BASE_URL}
+            getAuthHeaders={getAuthHeaders}
+            showNotification={showNotification}
+          />
+        )}
+
+          </main>
+        </div>
+
+        {/* NEW EMPLOYEE MODAL (ADMIN ONLY) */}
+        {isUserModalOpen && (
+          <div className="modal-backdrop" onClick={() => setIsUserModalOpen(false)}>
+            <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
+              <button 
+                onClick={() => setIsUserModalOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5 text-amber-600" /> Cadastrar Novo Funcionário
+              </h4>
+
+              <form onSubmit={handleCreateUser} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nome Completo *</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Carlos Silva"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">E-mail Corporativo *</label>
+                  <input
+                    type="email"
+                    placeholder="carlos@athena.com.br"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    className="form-input text-xs font-mono"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Senha Inicial *</label>
+                  <div className="relative flex items-center">
+                    <input
+                      type={showUserModalPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                      className="form-input text-xs font-mono w-full !pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowUserModalPassword(!showUserModalPassword)}
+                      tabIndex={-1}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer z-10"
+                      title={showUserModalPassword ? 'Ocultar senha' : 'Ver senha digitada'}
+                    >
+                      {showUserModalPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nível de Permissão (Acesso) *</label>
+                  <select
+                    value={userForm.role}
+                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    className="form-select text-xs font-bold"
+                  >
+                    <option value="vendedor">Vendedor (Somente Leitura + Gerador de PDF)</option>
+                    <option value="editor">Edição / Gestor (Criar e Editar Conteúdo)</option>
+                    <option value="admin">Administrador Geral (Acesso Total + Gestão de Usuários)</option>
+                  </select>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                  <button type="button" onClick={() => setIsUserModalOpen(false)} className="btn-secondary text-xs">Cancelar</button>
+                  <button type="submit" className="btn-gold text-xs font-bold py-2.5 px-4">
+                    <Check className="w-4 h-4" /> Criar Conta
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* POINTS ADJUSTMENT MODAL */}
+        {pointsModalUser && (() => {
+          const currentPts = Number(pointsModalUser.aPoints || 0);
+          const adjNum = Number(pointsAdjustment);
+          const hasValidAdj = pointsAdjustment !== '' && !isNaN(adjNum);
+          const projectedPts = hasValidAdj ? Math.max(0, currentPts + adjNum) : currentPts;
+          const isCrediting = hasValidAdj && adjNum > 0;
+          const isDebiting = hasValidAdj && adjNum < 0;
+
+          return (
+            <div className="modal-backdrop p-4 sm:p-6" onClick={() => setPointsModalUser(null)}>
+              <div 
+                className="modal-content max-w-lg p-6 sm:p-7 bg-white border border-slate-200 rounded-3xl shadow-2xl relative space-y-5 animate-dropdown" 
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white shadow-md shadow-amber-500/25">
+                      <Coins className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-slate-900 text-base">Ajustar Saldo de A-Points</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-semibold text-slate-800">{pointsModalUser.name}</span>
+                        <span className="text-xs text-slate-300">•</span>
+                        <span className="text-xs text-slate-500 font-mono">{pointsModalUser.email}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setPointsModalUser(null)} 
+                    className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSavePointsAdjustment} className="space-y-4">
+                  {/* Balance Status & Simulation Card */}
+                  <div className="p-4 bg-gradient-to-br from-slate-50 to-amber-50/40 rounded-2xl border border-amber-200/60 shadow-sm">
+                    <div className="grid grid-cols-2 gap-3 items-center">
+                      <div>
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Saldo Atual
+                        </span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-black text-slate-900">{currentPts.toLocaleString('pt-BR')}</span>
+                          <span className="text-xs font-bold text-amber-700">pts</span>
+                        </div>
+                      </div>
+
+                      <div className="border-l border-amber-200/60 pl-3">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Saldo Projetado
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-baseline gap-1">
+                            <span className={`text-2xl font-black ${
+                              isCrediting ? 'text-emerald-600' : isDebiting ? 'text-rose-600' : 'text-slate-900'
+                            }`}>
+                              {projectedPts.toLocaleString('pt-BR')}
+                            </span>
+                            <span className="text-xs font-bold text-amber-700">pts</span>
+                          </div>
+                          {hasValidAdj && adjNum !== 0 && (
+                            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded-md ${
+                              isCrediting ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                            }`}>
+                              {adjNum > 0 ? `+${adjNum}` : `${adjNum}`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Points Input & Quick Presets */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 block mb-1.5">
+                      Quantidade de Pontos *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="1"
+                        required
+                        placeholder="Ex: 100 (para creditar) ou -50 (para estornar)"
+                        value={pointsAdjustment}
+                        onChange={(e) => setPointsAdjustment(e.target.value)}
+                        className="form-input text-sm font-bold font-mono pl-3 pr-10 py-2.5 rounded-xl border-slate-300 focus:border-amber-500 focus:ring-amber-500/20"
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-amber-600 uppercase pointer-events-none">
+                        pts
+                      </div>
+                    </div>
+
+                    {/* Quick Preset Buttons */}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      <span className="text-[11px] font-semibold text-slate-400 mr-1">Atalhos:</span>
+                      {[50, 100, 250, 500].map((val) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setPointsAdjustment(String(val))}
+                          className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          +{val}
+                        </button>
+                      ))}
+                      {[-50, -100].map((val) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setPointsAdjustment(String(val))}
+                          className="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"
+                        >
+                          {val}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[11px] text-slate-500 block mt-1.5 leading-relaxed">
+                      💡 Use valor positivo para creditar pontos ou negativo com sinal de menos (<code className="bg-slate-100 px-1 py-0.5 rounded text-rose-600 font-bold">-</code>) para estornar/debitar.
+                    </span>
+                  </div>
+
+                  {/* Reason Input */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 block mb-1.5">
+                      Motivo do Ajuste *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Bonificação de boas-vindas, compensação de pedido, suporte"
+                      value={pointsReason}
+                      onChange={(e) => setPointsReason(e.target.value)}
+                      className="form-input text-xs py-2.5 rounded-xl border-slate-300 focus:border-amber-500 focus:ring-amber-500/20"
+                    />
+                  </div>
+
+                  {/* Modal Footer Buttons */}
+                  <div className="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setPointsModalUser(null)}
+                      className="btn-secondary text-xs px-4 py-2.5 rounded-xl font-semibold cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingPoints || !pointsAdjustment}
+                      className="btn-gold text-xs font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-md"
+                    >
+                      {isSavingPoints ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      <span>Confirmar Ajuste</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* TEMPORARY PASSWORD DISPLAY MODAL FOR SUPPORT AGENTS */}
+        {tempPasswordModal && (
+          <div className="modal-backdrop" onClick={() => setTempPasswordModal(null)}>
+            <div className="modal-content max-w-md p-6 bg-white border-slate-200 rounded-3xl shadow-2xl relative space-y-5" onClick={(e) => e.stopPropagation()}>
+              <button 
+                type="button"
+                onClick={() => setTempPasswordModal(null)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center space-y-2 pt-2">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-800 flex items-center justify-center mx-auto border border-amber-500/30">
+                  <KeyRound className="w-6 h-6 text-amber-600" />
+                </div>
+                <h3 className="text-base font-black text-slate-900">
+                  Senha Provisória Gerada com Sucesso!
+                </h3>
+                <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
+                  Repasse esta chave ao cliente. Ao realizar o login no site, ele será <strong className="text-amber-700 font-bold">obrigado a cadastrar uma nova senha definitiva</strong>.
+                </p>
+              </div>
+
+              {/* Customer summary */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium">Cliente:</span>
+                  <span className="font-bold text-slate-900">{tempPasswordModal.user.name}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-medium">E-mail:</span>
+                  <span className="font-mono text-slate-700">{tempPasswordModal.user.email}</span>
+                </div>
+                {tempPasswordModal.user.phone && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-medium">WhatsApp / Tel:</span>
+                    <span className="font-medium text-slate-700">{tempPasswordModal.user.phone}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Monospace Password Highlight */}
+              <div className="p-4 rounded-2xl bg-slate-950 text-white text-center space-y-1.5 border border-slate-800 shadow-inner">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                  Senha Temporária de Acesso
+                </span>
+                <div className="text-3xl font-black font-mono tracking-widest text-amber-400 select-all py-1">
+                  {tempPasswordModal.tempPassword}
+                </div>
+                <span className="text-[10px] text-slate-400 block">
+                  Substitui a senha anterior e força tela de troca no login
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(tempPasswordModal.tempPassword);
+                    setCopiedTempPass(true);
+                    setTimeout(() => setCopiedTempPass(false), 2500);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  {copiedTempPass ? (
+                    <>
+                      <Check className="w-4 h-4 text-slate-950" />
+                      <span>Senha Copiada com Sucesso! ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      <span>Copiar Somente a Senha</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const msg = `Olá ${tempPasswordModal.user.name}, segue sua senha temporária de acesso ao Portal Athena:\n\n🔑 Senha: ${tempPasswordModal.tempPassword}\n\nAo entrar com ela no site, o sistema solicitará que você cadastre sua nova senha definitiva pessoal.\n\nAcesse: https://athenaconsultoria.com.br`;
+                    navigator.clipboard.writeText(msg);
+                    showNotification && showNotification('Mensagem completa para WhatsApp copiada!', 'success');
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer border border-slate-300"
+                >
+                  <MessageCircle className="w-4 h-4 text-emerald-600" />
+                  <span>Copiar Mensagem Pronta para WhatsApp</span>
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setTempPasswordModal(null)}
+                  className="w-full py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Concluir e Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FULL PRODUCT FORM MODAL - BALANCED WIDE 2-COLUMN LAYOUT */}
+        {isProductModalOpen && canEditContent && (
+          <div className="modal-backdrop !p-2 sm:!p-4 md:!p-6" onClick={handleRequestCloseProductModal}>
+            <div 
+              className="modal-content !max-w-[1440px] !w-[96vw] !max-h-[94vh] !p-0 bg-slate-100/95 border border-slate-300 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Sticky Top Header */}
+              <div className="bg-white px-5 sm:px-8 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+                    <Package className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+                        {editingProduct ? 'Editar Equipamento' : 'Cadastrar Novo Equipamento'}
+                      </h3>
+                      {hasUnsavedProductChanges() && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 rounded-full animate-in fade-in">
+                          Modificações não salvas
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      {productForm.name || 'Preencha as informações comerciais, fotos, vídeos, documentos e especificações'}
+                    </p>
+                  </div>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={handleRequestCloseProductModal}
+                  className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors cursor-pointer"
+                  title="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Back History Navigation Banner when navigating across related products */}
+              {productModalHistory.length > 0 && (
+                <div className="bg-amber-500/15 border-b border-amber-400/40 px-5 sm:px-8 py-2.5 flex items-center justify-between gap-3 text-xs shrink-0">
+                  <div className="flex items-center gap-2 text-amber-950 font-bold min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping shrink-0" />
+                    <span className="truncate">Navegando entre equipamentos vinculados:</span>
+                    <span className="font-extrabold text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded truncate">
+                      {productForm.name || 'Produto Atual'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={navigateBackInProductModal}
+                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer shrink-0"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Voltar para {productModalHistory[productModalHistory.length - 1]?.form?.name || 'Equipamento Anterior'}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Scrollable Form Content */}
+              <form id="productMainForm" onSubmit={handleProductSubmit} onKeyDown={handleProductFormKeyDown} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+                
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* LEFT COLUMN (6 cols): Title, Description, Media, Video, PDFs */}
+                  <div className="lg:col-span-6 space-y-6">
+                    
+                    {/* CARD 1: Informações Gerais (Nome, Slug, Descrição Rica) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Informações Principais</h4>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Nome do Equipamento *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Elevador Automotivo 2 Colunas 4.000kg"
+                          value={productForm.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setProductForm({ 
+                              ...productForm, 
+                              name: val,
+                              slug: productForm.slug ? productForm.slug : generateSlug(val)
+                            });
+                          }}
+                          className="form-input text-sm font-bold !py-2.5"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1">
+                          Slug da URL (SEO)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="elevador-automotivo-2-colunas"
+                          value={productForm.slug}
+                          onChange={(e) => setProductForm({ ...productForm, slug: generateSlug(e.target.value) })}
+                          className="form-input text-xs font-mono text-slate-600 bg-slate-50"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                          Descrição Comercial do Equipamento
+                        </label>
+                        <RichTextEditor
+                          value={productForm.description}
+                          onChange={(val) => {
+                            const tagRes = extractTagsFromDescriptionText(val, productForm.tags);
+                            if (tagRes.hasExtracted) {
+                              setProductForm(prev => ({
+                                ...prev,
+                                description: tagRes.cleanedDescription,
+                                tags: tagRes.extractedTags
+                              }));
+                              showNotification(`${tagRes.newTagsCount > 0 ? `${tagRes.newTagsCount} tag(s)` : 'Tags'} identificadas e adicionadas automaticamente!`, 'success');
+                            } else {
+                              setProductForm(prev => ({ ...prev, description: val }));
+                            }
+                          }}
+                          onOptimize={handleOptimizeDescriptionAndSpecs}
+                          products={products}
+                          onAddCompatibleProduct={(compatId) => {
+                            setProductForm(prev => ({
+                              ...prev,
+                              compatibleProductIds: Array.from(new Set([...(prev.compatibleProductIds || []), compatId]))
+                            }));
+                          }}
+                          placeholder="Descreva o produto, recursos, diferenciais e materiais... (Você também pode incluir 'Tags: termo1, termo2' para extrair automaticamente)"
+                        />
+                      </div>
+
+                      {/* Smart Detected Custom Tabs & Specs in Description */}
+                      {(() => {
+                        const detected = detectAllSectionsInDescription(productForm.description, productForm.customTabs, productForm.specs);
+                        const unadded = detected.filter(d => !d.isAlreadyAdded);
+                        if (unadded.length === 0) return null;
+
+                        return (
+                          <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-300/80 space-y-2.5 shadow-2xs">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
+                                <Sparkles className="w-4 h-4 text-amber-700" />
+                                <span>Detectamos seções estruturadas no texto que podem ser extraídas:</span>
+                              </div>
+                              {unadded.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={handleExtractAllDetectedTabs}
+                                  className="text-[11px] font-black text-amber-900 bg-amber-200 hover:bg-amber-300 px-2.5 py-1 rounded-lg transition-all shadow-2xs border border-amber-400 flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" /> Extrair Todas as {unadded.length} Seções de Uma Vez
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5">
+                              {unadded.map((item, idx) => {
+                                if (item.isSpecsSection) {
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={() => handleExtractToSpecs(item)}
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                                      title={`Preencher a tabela de Especificações Técnicas com ${item.lineCount} itens e limpar da descrição`}
+                                    >
+                                      <Layers className="w-3.5 h-3.5 text-emerald-200" />
+                                      <span>Preencher <strong>Especificações Técnicas</strong> ({item.lineCount} {item.lineCount === 1 ? 'item' : 'itens'})</span>
+                                    </button>
+                                  );
+                                }
+
+                                return (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => handleAddCustomTab(item.title, true)}
+                                    className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 hover:border-amber-500 text-amber-950 hover:bg-amber-100 text-[11px] font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                                    title={`Criar aba "${item.title}" com ${item.lineCount} itens e limpar da descrição`}
+                                  >
+                                    <Plus className="w-3 h-3 text-amber-600" />
+                                    <span>Criar Aba <strong>"{item.title}"</strong> ({item.lineCount} {item.lineCount === 1 ? 'item' : 'itens'})</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* CARD 2: Mídia / Fotos do Produto */}
+                    <div ref={gallerySectionRef} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Fotos do Produto (Galeria & Capa)</h4>
+                            {isUploadingImages && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 text-[10px] font-extrabold border border-amber-400/40 animate-pulse">
+                                <Loader2 className="w-3 h-3 animate-spin text-amber-600" />
+                                Enviando {uploadingImages.length} foto(s)...
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500">Adicione imagens em alta qualidade para carrossel e zoom de detalhes.</p>
+                        </div>
+
+                        {/* Botão Biblioteca de Imagens do R2 */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsLibraryModalOpen(true)}
+                            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 shadow-2xs cursor-pointer transition-colors"
+                            title="Abrir a Biblioteca de Imagens salvas no Cloudflare R2"
+                          >
+                            <Images className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Biblioteca</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {imageSourceMode === 'upload' ? (
+                        <div 
+                          onDragOver={(e) => { e.preventDefault(); setIsDraggingImage(true); }}
+                          onDragLeave={() => setIsDraggingImage(false)}
+                          onDrop={handleDropImage}
+                          className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors cursor-pointer ${
+                            isDraggingImage ? 'border-amber-500 bg-amber-50' : 'border-slate-300 hover:border-amber-400 bg-slate-50/70'
+                          }`}
+                        >
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            multiple
+                            onChange={(e) => e.target.files && handleMultipleImageUpload(e.target.files)}
+                            className="hidden" 
+                            id="fileDropInputModal"
+                          />
+
+                          <label htmlFor="fileDropInputModal" className="cursor-pointer space-y-1.5 block">
+                            <Upload className="w-8 h-8 mx-auto text-amber-600" />
+                            <span className="text-xs font-bold text-slate-800 block">
+                              Arraste e solte fotos aqui ou clique para selecionar (aceita várias)
+                            </span>
+                            <span className="text-[11px] text-slate-400">Arquivos JPG, PNG ou WEBP em alta definição</span>
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="url"
+                              placeholder="https://suaimagem.com/foto.jpg"
+                              value={productImageUrlInput}
+                              onChange={(e) => setProductImageUrlInput(e.target.value)}
+                              className="form-input text-xs !pl-10"
+                            />
+                            <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!productImageUrlInput.trim()) return;
+                              const url = productImageUrlInput.trim();
+                              setProductForm((prev) => {
+                                const current = Array.isArray(prev.images) ? [...prev.images] : [];
+                                const updated = current.includes(url) ? current : [...current, url];
+                                return {
+                                  ...prev,
+                                  image: prev.image || url,
+                                  images: updated
+                                };
+                              });
+                              setProductImageUrlInput('');
+                              showNotification('Foto adicionada à galeria.', 'success');
+                            }}
+                            className="btn-secondary text-xs font-bold py-2 px-3.5 shrink-0"
+                          >
+                            + Adicionar Foto
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Visual Gallery Grid Preview (Shopify Style with Real-time Radial Progress) */}
+                      {(() => {
+                        const allImages = Array.from(
+                          new Set([productForm.image, ...(productForm.images || [])].filter(Boolean))
+                        );
+
+                        const firstVariantWithPhoto = (productForm.variants || []).find(
+                          (v) => v && typeof v.image === 'string' && v.image.trim() !== ''
+                        );
+
+                        if (allImages.length === 0 && uploadingImages.length === 0) {
+                          if (firstVariantWithPhoto) {
+                            return (
+                              <div className="space-y-2 pt-2 border-t border-slate-100">
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
+                                  <span className="flex items-center gap-1.5 text-amber-800">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                    Demonstrativo da Vitrine (Foto da 1ª Variação):
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    Produto principal sem foto própria • Demonstrativo ativo
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-3.5 p-3.5 bg-amber-50/70 border border-amber-200/90 rounded-2xl">
+                                  <div 
+                                    onClick={() => setPreviewingImage(firstVariantWithPhoto.image)}
+                                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-white border border-amber-300 relative cursor-pointer group shrink-0 shadow-xs"
+                                    title="Clique para expandir a foto"
+                                  >
+                                    <img
+                                      src={firstVariantWithPhoto.image}
+                                      alt={firstVariantWithPhoto.name}
+                                      className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform"
+                                    />
+                                    <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black text-[8px] uppercase tracking-wider shadow-xs">
+                                      1ª Variação
+                                    </span>
+                                  </div>
+
+                                  <div className="text-xs space-y-1">
+                                    <div className="font-bold text-slate-800 flex items-center gap-2">
+                                      <span>{firstVariantWithPhoto.name}</span>
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                                        Foto Ativa no Demonstrativo
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                                      Como o produto pai não possui foto própria cadastrada, a vitrine pública e a listagem exibem a foto desta primeira variação como capa demonstrativa. Para definir uma capa geral exclusiva para o produto pai, envie uma foto acima.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }
+
+                        const totalCount = allImages.length + uploadingImages.length;
+
+                        return (
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold px-1">
+                              <span>
+                                Galeria do Produto ({totalCount} {totalCount === 1 ? 'foto' : 'fotos'}):
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {isUploadingImages ? 'Aguarde o envio das fotos para salvar' : 'Arraste para reordenar • 1ª foto é a capa'}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                              {/* 1. Completed / Saved Images */}
+                              {allImages.map((imgUrl, index) => {
+                                const isCover = (productForm.image || allImages[0]) === imgUrl;
+                                const isDragging = draggedImgIndex === index;
+                                const isDragOver = dragOverImgIndex === index && draggedImgIndex !== index;
+
+                                return (
+                                  <div
+                                    key={`saved_${imgUrl}_${index}`}
+                                    draggable={!isUploadingImages}
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.effectAllowed = 'move';
+                                      e.dataTransfer.setData('text/plain', String(index));
+                                      setDraggedImgIndex(index);
+                                    }}
+                                    onDragOver={(e) => {
+                                      e.preventDefault();
+                                      e.dataTransfer.dropEffect = 'move';
+                                      if (dragOverImgIndex !== index) {
+                                        setDragOverImgIndex(index);
+                                      }
+                                    }}
+                                    onDragLeave={() => {
+                                      if (dragOverImgIndex === index) {
+                                        setDragOverImgIndex(null);
+                                      }
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      handleReorderProductImage(draggedImgIndex, index, allImages);
+                                    }}
+                                    onDragEnd={() => {
+                                      setDraggedImgIndex(null);
+                                      setDragOverImgIndex(null);
+                                    }}
+                                    className={`group relative rounded-xl border p-1 bg-white transition-all cursor-grab active:cursor-grabbing select-none ${
+                                      isDragging
+                                        ? 'opacity-30 scale-95 border-dashed border-amber-500 ring-2 ring-amber-400'
+                                        : isDragOver
+                                        ? 'border-amber-500 ring-2 ring-amber-400 scale-[1.03] shadow-lg z-10 bg-amber-50/50'
+                                        : isCover
+                                        ? 'border-amber-500 ring-2 ring-amber-400/40 shadow-xs'
+                                        : 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
+                                    }`}
+                                    title="Segure e arraste para reordenar a foto"
+                                  >
+                                    {/* Drag Grip Indicator */}
+                                    <div className="absolute top-2 right-2 z-10 p-1 rounded-md bg-slate-900/60 text-white opacity-60 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xs">
+                                      <GripVertical className="w-3.5 h-3.5" />
+                                    </div>
+
+                                    <div
+                                      onClick={() => {
+                                        if (draggedImgIndex === null) {
+                                          setPreviewingImage(imgUrl);
+                                        }
+                                      }}
+                                      className="aspect-square rounded-lg overflow-hidden bg-slate-50 relative cursor-pointer group/img"
+                                      title="Clique para expandir a foto"
+                                    >
+                                      <img
+                                        src={imgUrl}
+                                        alt={`Foto ${index + 1}`}
+                                        draggable="false"
+                                        className="w-full h-full object-contain p-1 group-hover/img:scale-105 transition-transform pointer-events-none select-none"
+                                      />
+
+                                      {isCover && (
+                                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-wider shadow-xs">
+                                          Capa
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="pt-1.5 flex items-center justify-between text-[10px]">
+                                      {!isCover ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleReorderProductImage(index, 0, allImages)}
+                                          className="text-amber-700 hover:text-amber-900 font-bold hover:underline"
+                                        >
+                                          Tornar Capa
+                                        </button>
+                                      ) : (
+                                        <span className="text-slate-400 font-bold">Principal</span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          askConfirmation({
+                                            title: 'Remover Imagem?',
+                                            message: 'Deseja remover esta foto da galeria do equipamento e apagá-la do armazenamento?',
+                                            confirmText: 'Sim, Remover Foto',
+                                            type: 'danger',
+                                            onConfirm: async () => {
+                                              // Functional update prevents overwriting concurrently uploaded photos
+                                              setProductForm((prev) => {
+                                                const currentImgs = Array.isArray(prev.images) ? prev.images : [];
+                                                const remaining = currentImgs.filter(img => img !== imgUrl);
+                                                const newCover = (prev.image === imgUrl) ? (remaining[0] || '') : prev.image;
+                                                return {
+                                                  ...prev,
+                                                  image: newCover,
+                                                  images: remaining
+                                                };
+                                              });
+
+                                              if (imgUrl && (
+                                                imgUrl.includes('.r2.dev') || 
+                                                imgUrl.includes('.r2.cloudflarestorage.com') || 
+                                                imgUrl.includes('cloudinary.com') ||
+                                                imgUrl.includes('images.athenaconsultoria.com.br')
+                                              )) {
+                                                try {
+                                                  const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'https://athena-backend-hu1m.onrender.com/api';
+                                                  fetch(`${apiUrl}/upload/delete`, {
+                                                    method: 'POST',
+                                                    headers: getAuthHeaders(),
+                                                    body: JSON.stringify({ url: imgUrl })
+                                                  }).catch(() => {});
+                                                } catch (err) {}
+                                              }
+                                              showNotification('Foto removida da galeria.', 'info');
+                                            }
+                                          });
+                                        }}
+                                        className="text-red-600 hover:text-red-800 font-bold ml-auto"
+                                        title="Remover esta foto e apagar do storage"
+                                      >
+                                        Excluir
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+
+                              {/* 2. Uploading Live Cards with Shopify-style Radial Progress Ring */}
+                              {uploadingImages.map((task) => (
+                                <div
+                                  key={task.id}
+                                  className="relative rounded-xl border-2 border-amber-400 p-1 bg-slate-900 shadow-md overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                                >
+                                  <div className="aspect-square rounded-lg overflow-hidden relative bg-slate-950 flex items-center justify-center">
+                                    {/* Local preview thumbnail */}
+                                    <img
+                                      src={task.tempUrl}
+                                      alt={task.fileName}
+                                      className="w-full h-full object-cover opacity-40 blur-[1px]"
+                                    />
+
+                                    {/* Centered Dark Overlay with Radial Progress */}
+                                    <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[1px] flex flex-col items-center justify-center p-2 text-center">
+                                      {task.status === 'uploading' && (
+                                        <>
+                                          <RadialProgressCircle progress={task.progress} />
+                                          <span className="text-[10px] font-extrabold text-amber-300 mt-1 tracking-tight drop-shadow-xs">
+                                            Enviando...
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => cancelUploadTask(task.id)}
+                                            className="text-[9px] text-slate-400 hover:text-red-300 mt-1 font-semibold underline cursor-pointer"
+                                            title="Cancelar upload desta foto"
+                                          >
+                                            Cancelar
+                                          </button>
+                                        </>
+                                      )}
+                                      {task.status === 'done' && (
+                                        <div className="flex flex-col items-center animate-in zoom-in-75 duration-150">
+                                          <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg">
+                                            <Check className="w-5 h-5 stroke-[3]" />
+                                          </div>
+                                          <span className="text-[9px] font-black text-emerald-300 mt-1">
+                                            Pronto!
+                                          </span>
+                                        </div>
+                                      )}
+                                      {task.status === 'error' && (
+                                        <div className="flex flex-col items-center text-red-400 p-1">
+                                          <AlertTriangle className="w-6 h-6 text-red-400" />
+                                          <span className="text-[9px] font-bold mt-1 text-center leading-tight">
+                                            Falha
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => cancelUploadTask(task.id)}
+                                            className="text-[9px] text-white underline mt-1 font-bold hover:text-red-200 cursor-pointer"
+                                          >
+                                            Fechar
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="pt-1 px-1 flex items-center justify-between text-[10px] text-slate-300">
+                                    <span className="truncate max-w-[70px] text-[9px] font-medium" title={task.fileName}>
+                                      {task.fileName}
+                                    </span>
+                                    <span className="text-[9px] font-black text-amber-400">
+                                      {task.status === 'done' ? '100%' : `${Math.round(task.progress)}%`}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-slate-700">Texto Alternativo (Alt Text SEO)</label>
+                          <button
+                            type="button"
+                            onClick={generateAutoAltText}
+                            className="text-[11px] text-amber-700 font-bold hover:underline flex items-center gap-1"
+                          >
+                            <Sparkles className="w-3 h-3" /> Gerar Alt Automático
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Descrição da imagem para SEO e acessibilidade"
+                          value={productForm.altText}
+                          onChange={(e) => setProductForm({ ...productForm, altText: e.target.value })}
+                          className="form-input text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* CARD 3: Vídeo do Equipamento (YouTube / iframe) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <Film className="w-4 h-4 text-amber-500" />
+                            Vídeo do Equipamento (YouTube, Instagram Reels ou TikTok)
+                          </h4>
+                          <p className="text-[11px] text-slate-500">
+                            Cole o link do <strong>YouTube</strong> (vídeo ou Shorts), <strong>Instagram</strong> (Reel ou Post) ou <strong>TikTok</strong>, ou código iframe embed.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Cole o link do YouTube, Instagram (Reel/Post) ou TikTok..."
+                          value={productForm.videoUrl || ''}
+                          onChange={(e) => setProductForm({ ...productForm, videoUrl: e.target.value })}
+                          className="form-input text-xs !pl-10 font-mono text-slate-700"
+                        />
+                        <Film className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      </div>
+
+                      {(() => {
+                        const videoInfo = getVideoEmbedInfo(productForm.videoUrl);
+                        if (!videoInfo) return null;
+
+                        return (
+                          <div className="space-y-2 pt-1">
+                            <div className="flex items-center justify-between text-[11px] text-slate-600 font-bold">
+                              <span className="flex items-center gap-1 text-slate-800">
+                                <Play className="w-3 h-3 text-slate-700 fill-current" />
+                                Pré-visualização ({videoInfo.platform}):
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setProductForm({ ...productForm, videoUrl: '' })}
+                                className="text-red-600 hover:underline text-[10px] font-bold"
+                              >
+                                Remover Vídeo
+                              </button>
+                            </div>
+                            <div className={
+                              videoInfo.type === 'instagram'
+                                ? "w-full max-w-[380px] mx-auto min-h-[520px] rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-white"
+                                : videoInfo.type === 'tiktok'
+                                ? "w-full max-w-[340px] mx-auto min-h-[520px] h-[560px] rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-black"
+                                : videoInfo.isVertical
+                                ? "w-full max-w-[320px] mx-auto aspect-[9/16] rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-black"
+                                : "aspect-video w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950"
+                            }>
+                              <iframe
+                                src={videoInfo.embedUrl}
+                                title="Prévia do Vídeo Demonstrativo"
+                                className={`w-full h-full ${videoInfo.type === 'instagram' ? 'min-h-[500px]' : videoInfo.type === 'tiktok' ? 'min-h-[520px]' : ''}`}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                                frameBorder="0"
+                                scrolling="no"
+                                allowTransparency="true"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* CARD 4: Anexos, Fichas Técnicas & Manuais em PDF (Upload ou Link Direto) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <FileText className="w-4 h-4 text-amber-600" />
+                            Fichas Técnicas & Manuais em PDF
+                          </h4>
+                          <p className="text-[11px] text-slate-500">Adicione ou edite manuais e links para os clientes baixarem.</p>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-slate-700">Adicionar Novo Documento:</span>
+                          <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={() => setNewAttachmentForm(f => ({ ...f, mode: 'url' }))}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                newAttachmentForm.mode === 'url' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              <LinkIcon className="w-3 h-3 inline mr-1" /> Link
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setNewAttachmentForm(f => ({ ...f, mode: 'upload' }))}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                newAttachmentForm.mode === 'upload' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              <Upload className="w-3 h-3 inline mr-1" /> PDF
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                          <div className="sm:col-span-5">
+                            <input
+                              type="text"
+                              data-role="pdf-input"
+                              placeholder="Nome do Documento (Ex: Manual Técnico)"
+                              value={newAttachmentForm.title}
+                              onChange={(e) => setNewAttachmentForm({ ...newAttachmentForm, title: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleAddAttachmentSubmit(e);
+                                }
+                              }}
+                              className="form-input text-xs bg-white"
+                            />
+                          </div>
+
+                          {newAttachmentForm.mode === 'url' ? (
+                            <div className="sm:col-span-7 flex gap-2">
+                              <div className="relative flex-1">
+                                <input
+                                  type="url"
+                                  data-role="pdf-input"
+                                  placeholder="https://exemplo.com/manual.pdf"
+                                  value={newAttachmentForm.url}
+                                  onChange={(e) => setNewAttachmentForm({ ...newAttachmentForm, url: e.target.value })}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleAddAttachmentSubmit(e);
+                                    }
+                                  }}
+                                  className="form-input text-xs !pl-8 bg-white"
+                                />
+                                <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleAddAttachmentSubmit}
+                                className="btn-gold text-xs font-bold py-1.5 px-3 shrink-0 flex items-center gap-1"
+                              >
+                                <Plus className="w-3.5 h-3.5" /> Adicionar
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="sm:col-span-7">
+                              <input
+                                type="file"
+                                id="pdfUploadInput"
+                                accept="application/pdf,.pdf"
+                                className="hidden"
+                                onChange={(e) => e.target.files && handleAttachmentFileUpload(e.target.files[0])}
+                              />
+                              <label
+                                htmlFor="pdfUploadInput"
+                                className="btn-secondary text-xs py-2 px-3 gap-1.5 cursor-pointer w-full flex items-center justify-center font-bold border-dashed border-amber-400 bg-amber-50/50 hover:bg-amber-100/60 text-amber-900"
+                              >
+                                <Upload className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Selecionar PDF</span>
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {productForm.attachments && productForm.attachments.length > 0 && (
+                        <div className="max-h-72 overflow-y-auto space-y-2.5 pt-1">
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block px-1">
+                            Documentos Cadastrados ({productForm.attachments.length}):
+                          </span>
+
+                          {productForm.attachments.map((att) => {
+                            const isEditingThis = editingAttachmentId === att.id;
+                            if (isEditingThis) {
+                              return (
+                                <div key={att.id} className="p-3.5 rounded-xl bg-amber-50/90 border-2 border-amber-400 space-y-3 shadow-xs animate-in fade-in duration-150">
+                                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                                      <Edit3 className="w-3.5 h-3.5 text-amber-700" />
+                                      Editando Documento:
+                                    </span>
+                                    <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-amber-200">
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingAttachmentForm(f => ({ ...f, mode: 'url' }))}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                                          editingAttachmentForm.mode === 'url' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                      >
+                                        <LinkIcon className="w-3 h-3 inline mr-1" /> Link
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingAttachmentForm(f => ({ ...f, mode: 'upload' }))}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                                          editingAttachmentForm.mode === 'upload' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                                        }`}
+                                      >
+                                        <Upload className="w-3 h-3 inline mr-1" /> PDF
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                                    <div className="sm:col-span-5">
+                                      <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Nome do PDF</label>
+                                      <input
+                                        type="text"
+                                        data-role="pdf-edit-input"
+                                        placeholder="Nome do Documento"
+                                        value={editingAttachmentForm.title}
+                                        onChange={(e) => setEditingAttachmentForm({ ...editingAttachmentForm, title: e.target.value })}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleSaveEditAttachment(att.id);
+                                          } else if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setEditingAttachmentId(null);
+                                          }
+                                        }}
+                                        className="form-input text-xs bg-white"
+                                      />
+                                    </div>
+
+                                    {editingAttachmentForm.mode === 'url' ? (
+                                      <div className="sm:col-span-7">
+                                        <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Link / URL do PDF</label>
+                                        <div className="relative">
+                                          <input
+                                            type="url"
+                                            data-role="pdf-edit-input"
+                                            placeholder="https://exemplo.com/manual.pdf"
+                                            value={editingAttachmentForm.url}
+                                            onChange={(e) => setEditingAttachmentForm({ ...editingAttachmentForm, url: e.target.value })}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleSaveEditAttachment(att.id);
+                                              } else if (e.key === 'Escape') {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setEditingAttachmentId(null);
+                                              }
+                                            }}
+                                            className="form-input text-xs !pl-8 bg-white"
+                                          />
+                                          <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="sm:col-span-7">
+                                        <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Arquivo PDF</label>
+                                        <input
+                                          type="file"
+                                          id={`editPdfFileInput_${att.id}`}
+                                          accept="application/pdf,.pdf"
+                                          className="hidden"
+                                          onChange={(e) => e.target.files && handleEditAttachmentFileUpload(e.target.files[0])}
+                                        />
+                                        <label
+                                          htmlFor={`editPdfFileInput_${att.id}`}
+                                          className="btn-secondary text-xs py-2 px-3 gap-1.5 cursor-pointer w-full flex items-center justify-center font-bold border-dashed border-amber-400 bg-white hover:bg-amber-50 text-amber-900"
+                                        >
+                                          <Upload className="w-3.5 h-3.5 text-amber-600" />
+                                          <span>{editingAttachmentForm.fileName ? `Trocar: ${editingAttachmentForm.fileName}` : 'Selecionar Novo PDF'}</span>
+                                        </label>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-200">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingAttachmentId(null)}
+                                      className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 text-xs font-bold transition"
+                                    >
+                                      Cancelar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEditAttachment(att.id)}
+                                      className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition flex items-center gap-1 shadow-xs"
+                                    >
+                                      <Check className="w-3.5 h-3.5" /> Salvar Alterações
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div key={att.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors flex items-center justify-between gap-3 text-xs">
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                                    <FileText className="w-4 h-4" />
+                                  </div>
+                                  <div className="truncate min-w-0 flex-1">
+                                    <span className="font-bold text-slate-900 block truncate">{att.title || att.fileName}</span>
+                                    <span className="text-[10px] text-slate-400 font-mono block truncate">{att.url?.startsWith('data:') ? `Arquivo Carregado (${att.fileSize || 'PDF'})` : att.url}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditAttachment(att)}
+                                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-amber-700 text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                                    title="Editar nome ou link deste PDF"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+                                    <span>Editar</span>
+                                  </button>
+
+                                  {att.url && (
+                                    <a
+                                      href={att.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 rounded-lg bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 transition shadow-2xs"
+                                      title="Abrir PDF em nova aba"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveAttachment(att.id)}
+                                    className="p-1.5 rounded-lg bg-white border border-slate-200 hover:border-red-300 text-slate-400 hover:text-red-600 transition shadow-2xs"
+                                    title="Excluir PDF"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* CARD: Modelo 3D & Realidade Aumentada (WebAR 1:1) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <Box className="w-4 h-4 text-amber-600" />
+                              Modelo 3D & Projeção no Chão (1:1)
+                            </h4>
+                            <span className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              NOVO • 3D
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Permite girar em 360° no site e projetar em tamanho real (1:1) no chão da oficina pelo celular (Google Scene Viewer / iOS Quick Look).
+                          </p>
+                        </div>
+
+                        {productForm.model3d?.glb && (
+                          <button
+                            type="button"
+                            onClick={handleRemove3dModel}
+                            className="text-red-600 hover:text-red-700 hover:underline text-[11px] font-bold flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Remover 3D
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-slate-700">Origem do Arquivo 3D (.glb):</span>
+                          <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={() => setModel3dMode('url')}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                model3dMode === 'url' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              <LinkIcon className="w-3 h-3 inline mr-1" /> Link / Caminho
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setModel3dMode('upload')}
+                              className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                                model3dMode === 'upload' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              <Upload className="w-3 h-3 inline mr-1" /> Upload .GLB
+                            </button>
+                          </div>
+                        </div>
+
+                        {model3dMode === 'url' ? (
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <input
+                                type="text"
+                                placeholder="ex: /models/tool_cart.glb ou https://seu-cdn.com/modelo.glb"
+                                value={productForm.model3d?.glb || ''}
+                                onChange={(e) => setProductForm(p => ({
+                                  ...p,
+                                  model3d: { ...(p.model3d || {}), glb: e.target.value }
+                                }))}
+                                className="form-input text-xs !pl-10 font-mono text-slate-700 bg-white"
+                              />
+                              <Box className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 flex-wrap pt-0.5">
+                              <p className="text-[10px] text-slate-400">
+                                Dica: Arquivos salvos na pasta <code>public/models/</code> podem ser chamados com <code>/models/nome.glb</code>.
+                              </p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={handleUseSample3dModel}
+                                  className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg transition shadow-2xs"
+                                >
+                                  <Sparkles className="w-3 h-3 text-amber-600" />
+                                  Usar Modelo de Teste (Carrinho Wolfcar)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleUseAnimatedSampleModel}
+                                  className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 px-2.5 py-1 rounded-lg transition shadow-2xs"
+                                >
+                                  <Sparkles className="w-3 h-3 text-indigo-600" />
+                                  Usar Modelo Animado (Abertura de Porta)
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <label className="border-2 border-dashed border-slate-300 hover:border-amber-500 bg-white rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer transition group">
+                              <input
+                                type="file"
+                                accept=".glb,.gltf"
+                                onChange={(e) => e.target.files && handle3dFileUpload(e.target.files[0])}
+                                className="hidden"
+                                disabled={model3dUploading}
+                              />
+                              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                {model3dUploading ? (
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                  <Upload className="w-5 h-5" />
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-amber-600 transition">
+                                {model3dUploading ? 'Processando arquivo 3D...' : 'Clique para selecionar arquivo .GLB ou .GLTF'}
+                              </span>
+                              <span className="text-[10px] text-slate-400 mt-0.5">
+                                Formato único recomendado: .GLB (contém geometria, texturas e materiais em 1 arquivo)
+                              </span>
+                            </label>
+
+                            {productForm.model3d?.fileName && (
+                              <div className="flex items-center justify-between text-xs bg-white p-2.5 rounded-lg border border-slate-200">
+                                <span className="font-mono text-slate-700 font-bold truncate max-w-[260px]">
+                                  📦 {productForm.model3d.fileName}
+                                </span>
+                                {productForm.model3d.fileSize && (
+                                  <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                                    {productForm.model3d.fileSize}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Dimensões em Escala Real 1:1 para Realidade Aumentada */}
+                        <div className="pt-2 border-t border-slate-200/80 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                              <Ruler className="w-3.5 h-3.5 text-amber-600" />
+                              Dimensões Reais do Equipamento (Calibração 1:1)
+                            </span>
+                            <span className="text-[10px] text-slate-400">Em metros (m)</span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Largura (m)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="ex: 1.27"
+                                value={productForm.model3d?.dimensions?.width ?? ''}
+                                onChange={(e) => setProductForm(p => ({
+                                  ...p,
+                                  model3d: {
+                                    ...(p.model3d || {}),
+                                    dimensions: {
+                                      ...(p.model3d?.dimensions || {}),
+                                      width: e.target.value
+                                    }
+                                  }
+                                }))}
+                                className="form-input text-xs bg-white font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Altura (m)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="ex: 0.96"
+                                value={productForm.model3d?.dimensions?.height ?? ''}
+                                onChange={(e) => setProductForm(p => ({
+                                  ...p,
+                                  model3d: {
+                                    ...(p.model3d || {}),
+                                    dimensions: {
+                                      ...(p.model3d?.dimensions || {}),
+                                      height: e.target.value
+                                    }
+                                  }
+                                }))}
+                                className="form-input text-xs bg-white font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1">Profundidade (m)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="ex: 0.75"
+                                value={productForm.model3d?.dimensions?.depth ?? ''}
+                                onChange={(e) => setProductForm(p => ({
+                                  ...p,
+                                  model3d: {
+                                    ...(p.model3d || {}),
+                                    dimensions: {
+                                      ...(p.model3d?.dimensions || {}),
+                                      depth: e.target.value
+                                    }
+                                  }
+                                }))}
+                                className="form-input text-xs bg-white font-mono"
+                              />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-500">
+                            Essas medidas aparecem no box técnico e orientam o cliente sobre o espaço físico ocupado pelo maquinário.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Live 3D Preview right in Admin */}
+                      {productForm.model3d?.glb && (
+                        <div className="space-y-2 pt-1">
+                          <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-600 font-bold">
+                            <span className="flex items-center gap-1.5 text-slate-800">
+                              <Box className="w-3.5 h-3.5 text-amber-600" />
+                              Editor Visual de Hotspots 3D:
+                            </span>
+                            <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-bold">
+                              Botão Direito: Adicionar • Scroll: Configurar Ações
+                            </span>
+                          </div>
+
+                          <div className="rounded-2xl overflow-hidden border border-slate-300 shadow-md bg-slate-950">
+                            <Product3DViewer
+                              product={{
+                                ...productForm,
+                                id: productForm.id || editingProduct?.id || 'prod_carrinho_oficina_modular_3d_ar',
+                                slug: productForm.slug || editingProduct?.slug || 'carrinho-oficina-modular-3d-ar',
+                                name: productForm.name || 'Equipamento',
+                                model3d: productForm.model3d
+                              }}
+                              height="360px"
+                              editable={true}
+                              onHotspotsChange={(newHotspots) => {
+                                setProductForm(prev => ({
+                                  ...prev,
+                                  model3d: {
+                                    ...(prev.model3d || {}),
+                                    hotspots: newHotspots
+                                  }
+                                }));
+                              }}
+                            />
+                          </div>
+
+                          <div className="p-2.5 bg-slate-100/90 border border-slate-200 rounded-xl text-[11px] text-slate-700 space-y-1">
+                            <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                              <MousePointer className="w-3.5 h-3.5 text-amber-600" />
+                              Controles do Editor 3D:
+                            </div>
+                            <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-slate-600">
+                              <li><strong>Botão Esquerdo (Arrastar):</strong> Gira e orbita o modelo 3D livremente.</li>
+                              <li><strong>Botão Direito na peça 3D:</strong> Adiciona um Hotspot exatamente no local clicado.</li>
+                              <li><strong>Botão Direito no Hotspot:</strong> Abre o menu circular (Lápis à esquerda para editar, Lixeira à direita para excluir).</li>
+                              <li><strong>Botão do Scroll (Clique do Meio no Hotspot):</strong> Abre diretamente a janela para registrar título, animação 1, ação reversa 2 e texto descritivo.</li>
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Help / Converter Guide */}
+                      <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-start gap-2.5">
+                        <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-slate-700 leading-relaxed space-y-1">
+                          <p className="font-bold text-slate-900">
+                            Baixou um arquivo .zip com .gltf, .bin e pasta de texturas?
+                          </p>
+                          <p className="text-slate-600">
+                            Para a web, é recomendado empacotar em um único arquivo <strong>.glb</strong>. Basta acessar o site gratuito{' '}
+                            <a
+                              href="https://gltf.report"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-bold text-amber-800 underline hover:text-amber-900 inline-flex items-center gap-0.5"
+                            >
+                              gltf.report <ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                            , arrastar os arquivos descompactados e clicar em <strong>Export → GLB</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT COLUMN (6 cols): Destaque, Organization, Pricing, Specs, Custom Tabs */}
+                  <div className="lg:col-span-6 space-y-6">
+                    
+                    {/* CARD 5: Destaque Athena */}
+                    <div 
+                      onClick={() => setProductForm(p => ({ ...p, isFeatured: !p.isFeatured }))}
+                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
+                        productForm.isFeatured 
+                          ? 'bg-amber-100/90 border-amber-500 shadow-xs' 
+                          : 'bg-white border-slate-200 hover:border-amber-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 ${
+                            productForm.isFeatured ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            <Star className={`w-4 h-4 ${productForm.isFeatured ? 'fill-slate-950 text-slate-950' : 'text-slate-400'}`} />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-slate-900 block">
+                              PRODUTO EM DESTAQUE
+                            </span>
+                            {productForm.isFeatured && (
+                              <span className="bg-amber-500 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded uppercase">
+                                ATIVO NO TOPO
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="relative inline-flex items-center shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={!!productForm.isFeatured}
+                            onChange={(e) => setProductForm(p => ({ ...p, isFeatured: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-600 leading-tight">
+                        {productForm.isFeatured 
+                          ? 'Selo dourado ativo. O equipamento aparecerá no topo do catálogo.' 
+                          : 'Ative para fixar este produto no topo do catálogo com selo dourado.'}
+                      </p>
+                    </div>
+
+                    {/* CARD 6: Organização & Classificação */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Organização & Condições Comerciais</h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <SearchableSelect
+                          label="Categoria *"
+                          value={productForm.categoryId}
+                          onChange={(newId) => setProductForm({ ...productForm, categoryId: newId })}
+                          options={categories}
+                          placeholder="Selecione ou busque uma categoria..."
+                          onAddNew={openNewCategoryModal}
+                          addNewLabel="Nova"
+                          colorTheme="amber"
+                          required={true}
+                        />
+
+                        <SearchableSelect
+                          label="Marca / Fabricante *"
+                          value={productForm.brandId}
+                          onChange={(newId) => setProductForm({ ...productForm, brandId: newId })}
+                          options={brands}
+                          placeholder="Selecione ou busque uma marca..."
+                          onAddNew={openNewBrandModal}
+                          addNewLabel="Nova"
+                          colorTheme="sky"
+                          required={true}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Status de Publicação</label>
+                          <select
+                            value={productForm.status}
+                            onChange={(e) => setProductForm({ ...productForm, status: e.target.value })}
+                            className="form-select text-xs font-bold"
+                          >
+                            <option value="published">Publicado (Visível no Catálogo)</option>
+                            <option value="draft">Rascunho (Oculto)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Selo Promocional / Badge (Opcional)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Lançamento, Linha Pesada"
+                            value={productForm.badge}
+                            onChange={(e) => setProductForm({ ...productForm, badge: e.target.value })}
+                            className="form-input text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      {/* INTEGRAÇÃO OMIE ERP & ESTOQUE */}
+                      <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/90 space-y-3.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-amber-500 text-slate-950 font-black text-[10px] flex items-center gap-1">
+                              <Package className="w-3.5 h-3.5" />
+                              <span>OMIE ERP</span>
+                            </div>
+                            <div>
+                              <span className="text-xs font-black text-amber-950 block">
+                                Conexão Omie ERP & Saldo de Estoque
+                              </span>
+                              <span className="text-[10px] text-amber-800">
+                                Sincronização bidirecional em tempo real (Site ↔ Omie)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          <div>
+                            <label className="text-xs font-bold text-slate-800 block mb-1">
+                              Código / SKU (Omie ERP)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Ex: MAH-4008 ou deixe vazio"
+                              value={productForm.sku || ''}
+                              onChange={(e) => setProductForm({ ...productForm, sku: e.target.value })}
+                              className="form-input text-xs font-mono font-bold bg-white"
+                            />
+                            <span className="text-[10.5px] text-slate-500 block mt-1 leading-tight">
+                              {productForm.sku ? (
+                                <span className="text-emerald-700 font-semibold">SKU fixado: <strong>{productForm.sku}</strong></span>
+                              ) : (
+                                <span>Se vazio, autodetecta do título (índice -1): <strong>{extractSkuFromTitle(productForm.name) || 'Nenhum identificado'}</strong></span>
+                              )}
+                            </span>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-xs font-bold text-slate-800 block">
+                                Estoque Disponível (Unidades)
+                              </label>
+                              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                                Number(productForm.stock || 0) > 0
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  : 'bg-red-50 text-red-700 border-red-200'
+                              }`}>
+                                {Number(productForm.stock || 0) > 0 ? `${productForm.stock} un. em estoque` : 'Esgotado (0)'}
+                              </span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="Ex: 5"
+                              value={productForm.stock !== undefined && productForm.stock !== null ? productForm.stock : ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const num = parseInt(val, 10);
+                                setProductForm({ 
+                                  ...productForm, 
+                                  stock: val === '' ? '' : Math.max(0, isNaN(num) ? 0 : num),
+                                  inStock: val === '' ? false : num > 0,
+                                  stockSource: 'manual'
+                                });
+                              }}
+                              title={productForm.stockSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
+                              className={`form-input text-xs font-mono font-bold transition-colors ${
+                                productForm.stockSource === 'omie'
+                                  ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
+                                  : 'bg-white text-slate-800'
+                              }`}
+                            />
+                            <span className="text-[10.5px] text-slate-500 block mt-1 leading-tight">
+                              Quando você alterar aqui, atualiza no Omie. Quando alterar no Omie, atualiza aqui automaticamente.
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* TAGS / PALAVRAS-CHAVE DE BUSCA (#HASHTAGS) */}
+                      <div className="space-y-2 p-3.5 bg-slate-50/80 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <Hash className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Tags / Palavras-chave de Busca (#hashtags)</span>
+                          </label>
+                          <span className="text-[10.5px] font-semibold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                            {productForm.tags?.length || 0} tag(s)
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs select-none">#</span>
+                            <input
+                              type="text"
+                              data-role="tag-input"
+                              placeholder="Ex: detail, polimento, estetica (pressione Enter ou vírgula)"
+                              value={tagInput}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val.endsWith(',')) {
+                                  handleAddTag(val.slice(0, -1));
+                                } else {
+                                  setTagInput(val);
+                                }
+                              }}
+                              onKeyDown={handleTagKeyDown}
+                              className="form-input text-xs pl-6"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleAddTag(tagInput)}
+                            disabled={!tagInput.trim()}
+                            className="px-3 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Adicionar</span>
+                          </button>
+                        </div>
+
+                        {/* Tag Chips */}
+                        {Array.isArray(productForm.tags) && productForm.tags.length > 0 ? (
+                          <div className="space-y-1.5 pt-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {(productForm.tags.length > 3 && !showAllTags
+                                ? productForm.tags.slice(-3)
+                                : productForm.tags
+                              ).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100/80 text-amber-900 border border-amber-300/80 shadow-2xs group"
+                                >
+                                  <span>#{tag}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="text-amber-700 hover:text-red-600 transition-colors cursor-pointer rounded-full p-0.5"
+                                    title={`Remover tag #${tag}`}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              ))}
+
+                              {productForm.tags.length > 3 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowAllTags(!showAllTags)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 hover:text-amber-950 bg-amber-100/90 hover:bg-amber-200/90 px-2.5 py-1 rounded-full border border-amber-300 transition-colors cursor-pointer"
+                                >
+                                  <span>
+                                    {showAllTags
+                                      ? 'Ver menos'
+                                      : `Ver mais (+${productForm.tags.length - 3})`}
+                                  </span>
+                                  {showAllTags ? (
+                                    <ChevronUp className="w-3 h-3 text-amber-700" />
+                                  ) : (
+                                    <ChevronDown className="w-3 h-3 text-amber-700" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+
+                            {productForm.tags.length > 3 && !showAllTags && (
+                              <p className="text-[10px] text-slate-400 italic">
+                                Exibindo as 3 últimas tags registradas ({productForm.tags.length} no total).
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-slate-400 italic">
+                            Nenhuma tag cadastrada. Cadastre termos separados por vírgula (ex: <strong>caneta de teste, soquetes, cr-mo</strong>) para enriquecer a busca.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 space-y-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Preço Base à Vista / PIX (R$)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="600.00"
+                            value={productForm.price}
+                            onChange={(e) => setProductForm({ ...productForm, price: e.target.value, priceSource: 'manual' })}
+                            title={productForm.priceSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
+                            className={`form-input text-xs font-mono font-bold transition-colors ${
+                              productForm.priceSource === 'omie'
+                                ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
+                                : 'bg-white text-slate-800'
+                            }`}
+                          />
+                          <span className="text-[11px] text-slate-500 block mt-0.5">
+                            {productForm.priceNegotiable
+                              ? 'Preço cadastrado internamente. Como "Consultar Orçamento" está ativo, o valor NÃO é exibido no site (permanece "Sob Consulta") e o cliente deve cotar.'
+                              : 'Preço ativo para Compra Direta no site (o valor é exibido e habilita botões Comprar Agora e Carrinho).'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                          <input
+                            type="checkbox"
+                            id="priceNegotiable"
+                            checked={productForm.priceNegotiable}
+                            onChange={(e) => setProductForm({ ...productForm, priceNegotiable: e.target.checked })}
+                            className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                          />
+                          <label htmlFor="priceNegotiable" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                            Consultar Orçamento (Oculta o preço no site, exibe "Sob Consulta" e impede compra direta)
+                          </label>
+                        </div>
+
+                        <div>
+                          {(() => {
+                            const isManualPoints = productForm.aPoints !== '' && productForm.aPoints != null && Number(productForm.aPoints) > 0;
+                            const autoPoints = Math.max(0, Math.floor((parseFloat(productForm.price) || 0) / 50));
+
+                            return (
+                              <>
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                      <span>Pontos A-Points (Opcional)</span>
+                                    </label>
+                                    <div className="relative group inline-flex items-center">
+                                      <span className="w-4.5 h-4.5 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-800 border border-slate-300 hover:border-amber-400 text-[10px] font-black flex items-center justify-center cursor-help transition-colors select-none shadow-2xs">
+                                        !
+                                      </span>
+                                      <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 p-3.5 bg-slate-900 text-white text-[11px] rounded-2xl shadow-2xl border border-slate-700/90 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 pointer-events-none">
+                                        <p className="font-extrabold text-amber-400 mb-1.5 flex items-center gap-1.5 text-xs">
+                                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                          <span>Regra de Pontuação A-Points:</span>
+                                        </p>
+                                        <p className="text-slate-200 leading-relaxed">
+                                          Por padrão, a Athena calcula a pontuação automaticamente com base no valor do produto (<strong>1 ponto a cada R$ 50,00</strong>). Preencha este campo apenas se desejar fixar manualmente uma bonificação especial para este equipamento.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {isManualPoints ? (
+                                    <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                                      Pontuação Fixada: {productForm.aPoints} pts
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                      Automático: +{autoPoints} pts (R$ 50 = 1 pt)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    placeholder={`Cálculo automático ativo (+${autoPoints} pts)`}
+                                    value={isManualPoints ? productForm.aPoints : ''}
+                                    onChange={(e) => setProductForm({ ...productForm, aPoints: e.target.value })}
+                                    className="form-input text-xs font-mono flex-1"
+                                  />
+                                  {isManualPoints && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setProductForm({ ...productForm, aPoints: '' })}
+                                      className="px-2.5 py-2 text-xs font-bold text-slate-600 hover:text-amber-700 hover:bg-amber-50 border border-slate-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                                    >
+                                      Usar Automático
+                                    </button>
+                                  )}
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+
+                        {/* MODALIDADE DE ENTREGA / TIPO DE PRODUTO (FÍSICO OU DIGITAL) - SEMPRE VISÍVEL */}
+                        <div className="space-y-1.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
+                          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <Truck className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Modalidade de Entrega do Equipamento / Produto</span>
+                          </label>
+                          <p className="text-[11px] text-slate-500 mb-2">
+                            Define se o item requer entrega técnica/transporte físico ou se é uma licença/software digital sem frete.
+                          </p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() => setProductForm({ ...productForm, productType: 'physical' })}
+                              className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                                (productForm.productType || 'physical') === 'physical'
+                                  ? 'bg-white border-amber-500 shadow-xs ring-1 ring-amber-500/50'
+                                  : 'bg-slate-100/70 border-slate-200 hover:bg-white text-slate-600'
+                              }`}
+                            >
+                              <div className={`p-1.5 rounded-lg shrink-0 ${
+                                (productForm.productType || 'physical') === 'physical'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}>
+                                <Truck className="w-4 h-4" />
+                              </div>
+                              <div className="space-y-0.5 min-w-0">
+                                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>Equipamento Físico (Padrão)</span>
+                                  {(productForm.productType || 'physical') === 'physical' && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-tight">
+                                  Equipamento ou ferramenta. Requer logística, entrega técnica e frete.
+                                </p>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setProductForm({ 
+                                ...productForm, 
+                                productType: 'digital',
+                                requiresEquipmentSerial: productForm.requiresEquipmentSerial !== false
+                              })}
+                              className={`p-3 rounded-xl border text-left flex items-start gap-2.5 transition-all cursor-pointer ${
+                                productForm.productType === 'digital'
+                                  ? 'bg-white border-amber-500 shadow-xs ring-1 ring-amber-500/50'
+                                  : 'bg-slate-100/70 border-slate-200 hover:bg-white text-slate-600'
+                              }`}
+                            >
+                              <div className={`p-1.5 rounded-lg shrink-0 ${
+                                productForm.productType === 'digital'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}>
+                                <Zap className="w-4 h-4" />
+                              </div>
+                              <div className="space-y-0.5 min-w-0">
+                                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                  <span>Licença / Produto Digital</span>
+                                  {productForm.productType === 'digital' && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-tight">
+                                  Licença, software ou token. Não precisa de entrega presencial nem frete.
+                                </p>
+                              </div>
+                            </button>
+                          </div>
+
+                          {/* TOGGLE EXIGIR MODELO E NÚMERO DE SÉRIE NO CHECKOUT */}
+                          {productForm.productType === 'digital' && (
+                            <div className="mt-3 p-3.5 bg-emerald-50/70 border border-emerald-200/90 rounded-2xl flex items-center justify-between gap-3 animate-in fade-in">
+                              <div className="space-y-0.5 min-w-0">
+                                <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                  <Key className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                  <span>Exigir Modelo e Número de Série do Equipamento no Checkout</span>
+                                </div>
+                                <p className="text-[11px] text-slate-600 leading-snug">
+                                  Ative para licenças e atualizações automotivas (SGW, banco de dados, alinhadores). Desative para cursos, treinamentos e e-books.
+                                </p>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={productForm.requiresEquipmentSerial !== false}
+                                  onChange={(e) => setProductForm({ ...productForm, requiresEquipmentSerial: e.target.checked })}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                              </label>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* TOGGLEABLE GATEWAY SIMULATION PREVIEW */}
+                        {!productForm.priceNegotiable && Number(productForm.price) > 0 && (() => {
+                          const simData = calculatePaymentGateways(productForm.price);
+                          if (!simData) return null;
+
+                          return (
+                            <div className="space-y-2 pt-1">
+                              <div>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPriceSimulations(!showPriceSimulations)}
+                                  className="inline-flex items-center gap-2 text-xs font-bold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-200/90 transition-all cursor-pointer shadow-2xs"
+                                >
+                                  <Calculator className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                  <span>{showPriceSimulations ? 'Ocultar simulações de taxas e parcelas' : 'Ver simulações de taxas e recebimento líquido'}</span>
+                                  {showPriceSimulations ? (
+                                    <ChevronUp className="w-3.5 h-3.5 text-amber-700" />
+                                  ) : (
+                                    <ChevronDown className="w-3.5 h-3.5 text-amber-700" />
+                                  )}
+                                </button>
+                              </div>
+
+                              {showPriceSimulations && (
+                                <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300/90 space-y-3 text-xs animate-in fade-in duration-200 shadow-2xs">
+                                  {/* Header & Sub-Tabs */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/80 pb-2.5">
+                                    <span className="font-extrabold text-amber-950 flex items-center gap-1.5">
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                      Simulação de Recebimento & Taxas Gateway
+                                    </span>
+                                    <span className="text-[10px] font-black text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-md self-start sm:self-auto">
+                                      Base: {simData.formattedBasePrice}
+                                    </span>
+                                  </div>
+
+                                  {/* Gateway Tabs */}
+                                  <div className="grid grid-cols-4 gap-1 p-1 bg-amber-100/70 rounded-xl text-[11px] font-bold">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPriceSimulationTab('credit')}
+                                      className={`py-1.5 px-1 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                        priceSimulationTab === 'credit'
+                                          ? 'bg-white text-slate-900 shadow-2xs font-black'
+                                          : 'text-amber-900/80 hover:text-amber-950'
+                                      }`}
+                                    >
+                                      <CreditCard className="w-3 h-3 text-amber-600 shrink-0" />
+                                      <span>Crédito</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setPriceSimulationTab('pix')}
+                                      className={`py-1.5 px-1 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                        priceSimulationTab === 'pix'
+                                          ? 'bg-white text-emerald-950 shadow-2xs font-black'
+                                          : 'text-amber-900/80 hover:text-amber-950'
+                                      }`}
+                                    >
+                                      <QrCode className="w-3 h-3 text-emerald-600 shrink-0" />
+                                      <span>PIX</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setPriceSimulationTab('debit')}
+                                      className={`py-1.5 px-1 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                        priceSimulationTab === 'debit'
+                                          ? 'bg-white text-sky-950 shadow-2xs font-black'
+                                          : 'text-amber-900/80 hover:text-amber-950'
+                                      }`}
+                                    >
+                                      <Landmark className="w-3 h-3 text-sky-600 shrink-0" />
+                                      <span>Débito</span>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => setPriceSimulationTab('boleto')}
+                                      className={`py-1.5 px-1 rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                        priceSimulationTab === 'boleto'
+                                          ? 'bg-white text-slate-900 shadow-2xs font-black'
+                                          : 'text-amber-900/80 hover:text-amber-950'
+                                      }`}
+                                    >
+                                      <FileText className="w-3 h-3 text-amber-700 shrink-0" />
+                                      <span>Boleto</span>
+                                    </button>
+                                  </div>
+
+                                  {/* TAB CONTENT: CREDIT CARD */}
+                                  {priceSimulationTab === 'credit' && (
+                                    <div className="space-y-2.5">
+                                      <div className="flex items-center justify-between text-[11px]">
+                                        <span className="font-bold text-amber-950">Parcelamento Automático (1x a 12x):</span>
+                                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                                          Líquido à vista: {simData.formattedBasePrice}
+                                        </span>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
+                                        {[1, 3, 6, 12].map((n) => {
+                                          const inst = simData.credit.installments.find(p => p.installments === n);
+                                          if (!inst) return null;
+                                          return (
+                                            <div key={n} className="bg-white p-2 rounded-xl border border-amber-200 text-center shadow-2xs">
+                                              <span className="font-bold text-slate-500 block text-[10px]">{n}x de</span>
+                                              <span className="font-black text-slate-900 block">{inst.formattedInstallment}</span>
+                                              <span className="text-[9px] text-slate-400 font-mono">Total: {inst.formattedTotal}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+
+                                      <div className="p-2.5 rounded-xl bg-white/80 border border-amber-200 text-[11px] text-slate-600 space-y-1">
+                                        <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                          <span>Você recebe o valor líquido integral à vista (D+1 ou D+2).</span>
+                                        </p>
+                                        <p className="text-[10px] text-slate-500 leading-tight">
+                                          ℹ️ A taxa de intermediação e os juros mensais de antecipação são embutidos automaticamente no valor da parcela para o cliente.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* TAB CONTENT: PIX */}
+                                  {priceSimulationTab === 'pix' && (
+                                    <div className="space-y-2 bg-white p-3 rounded-xl border border-amber-200 text-xs">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Cobrado do Cliente</span>
+                                          <span className="text-sm font-black text-slate-900">{simData.pix.formattedCustomerAmount}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Taxa API Gateway</span>
+                                          <span className="text-sm font-black text-red-600">~{simData.pix.formattedFee}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                                          <span className="text-[10px] text-emerald-800 block font-bold">Você Recebe Líquido</span>
+                                          <span className="text-sm font-black text-emerald-950">{simData.pix.formattedNetReceived}</span>
+                                        </div>
+                                      </div>
+                                      <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
+                                        <span>Prazo de recebimento: <strong>Imediato (D+0)</strong></span>
+                                        <span>Taxa fixa por transação via API</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* TAB CONTENT: DÉBITO */}
+                                  {priceSimulationTab === 'debit' && (
+                                    <div className="space-y-2 bg-white p-3 rounded-xl border border-amber-200 text-xs">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Cobrado do Cliente</span>
+                                          <span className="text-sm font-black text-slate-900">{simData.debit.formattedCustomerAmount}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Taxa Gateway (1,89% + R$ 0,35)</span>
+                                          <span className="text-sm font-black text-red-600">~{simData.debit.formattedFee}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-sky-50 border border-sky-200">
+                                          <span className="text-[10px] text-sky-800 block font-bold">Você Recebe Líquido</span>
+                                          <span className="text-sm font-black text-sky-950">{simData.debit.formattedNetReceived}</span>
+                                        </div>
+                                      </div>
+                                      <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
+                                        <span>Prazo de recebimento: <strong>3 dias após pagamento (D+3)</strong></span>
+                                        <span>Taxa de débito online</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* TAB CONTENT: BOLETO */}
+                                  {priceSimulationTab === 'boleto' && (
+                                    <div className="space-y-2 bg-white p-3 rounded-xl border border-amber-200 text-xs">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Cobrado do Cliente</span>
+                                          <span className="text-sm font-black text-slate-900">{simData.boleto.formattedCustomerAmount}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                          <span className="text-[10px] text-slate-500 block font-medium">Taxa por Boleto Pago</span>
+                                          <span className="text-sm font-black text-red-600">~{simData.boleto.formattedFee}</span>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-amber-50 border border-amber-200">
+                                          <span className="text-[10px] text-amber-900 block font-bold">Você Recebe Líquido</span>
+                                          <span className="text-sm font-black text-amber-950">{simData.boleto.formattedNetReceived}</span>
+                                        </div>
+                                      </div>
+                                      <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
+                                        <span>Prazo: <strong>1 dia útil após compensação (D+1)</strong></span>
+                                        <span>Taxa cobrada apenas quando o boleto é pago</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* CARD: Variações do Produto (Cores, Tamanhos & Integração Omie) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <ProductVariantsManager
+                        productForm={productForm}
+                        setProductForm={setProductForm}
+                        showNotification={showNotification}
+                        isProductQuoteOnly={isProductQuoteOnly}
+                        getVariantAvailability={getVariantAvailability}
+                        formatBRL={formatBRL}
+                        apiBaseUrl={API_BASE_URL}
+                        getAuthHeaders={getAuthHeaders}
+                        onOpenMediaLibrary={(callback) => {
+                          setPendingVariantImageCallback(() => callback);
+                          setIsSelectingVariantMedia(true);
+                          setIsLibraryModalOpen(true);
+                        }}
+                      />
+                    </div>
+
+                    {/* CARD 7: Especificações Técnicas (Smart Manager) */}
+                    <div ref={specsSectionRef} className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <Layers className="w-4 h-4 text-amber-600" />
+                            Especificações Técnicas
+                          </h4>
+                          <p className="text-[11px] text-slate-500">Itens tabulados no formato "Rótulo: Valor".</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddSpec('')}
+                          className="btn-secondary text-xs font-bold py-1.5 px-3 gap-1.5 inline-flex items-center"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Nova Linha</span>
+                        </button>
+                      </div>
+
+                      {/* Smart Callout when a Custom Tab has Specs data */}
+                      {(() => {
+                        const specsTabs = (productForm.customTabs || []).filter(isSpecsCustomTab);
+                        if (specsTabs.length === 0) return null;
+
+                        return (
+                          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300/80 space-y-2 shadow-2xs">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950">
+                                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                                <span>Detectamos dados de especificações na aba personalizada <strong>"{specsTabs[0].title}"</strong>:</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleConvertTabToSpecs(specsTabs[0].id)}
+                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Layers className="w-3.5 h-3.5 text-emerald-200" />
+                                <span>Cadastrar Especificações</span>
+                              </button>
+                            </div>
+                            <p className="text-[11px] text-emerald-800 leading-snug">
+                              Clique no botão para migrar todo o texto dessa aba para a lista tabulada oficial e excluir a aba duplicada automaticamente.
+                            </p>
+                          </div>
+                        );
+                      })()}
+
+                      {productForm.specs && productForm.specs.length > 0 && (
+                        <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                          {productForm.specs.map((specItem, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                              <input
+                                type="text"
+                                placeholder="Ex: Capacidade: 4.000 kg"
+                                value={specItem}
+                                onChange={(e) => handleUpdateSpec(idx, e.target.value)}
+                                className="form-input text-xs flex-1 border-none focus:ring-1 focus:ring-amber-500 bg-white rounded-lg font-medium"
+                              />
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSpec(idx, 'up')}
+                                  disabled={idx === 0}
+                                  title="Mover Linha para Cima"
+                                  className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  <ArrowUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSpec(idx, 'down')}
+                                  disabled={idx === productForm.specs.length - 1}
+                                  title="Mover Linha para Baixo"
+                                  className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  <ArrowDown className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSpec(idx)}
+                                  className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer ml-0.5"
+                                  title="Excluir Linha"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* CARD 8: Abas & Seções Extras Personalizadas (Aplicações, Funções, etc.) */}
+                    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <Layers className="w-4 h-4 text-amber-600" />
+                            Abas Personalizadas
+                          </h4>
+                          <p className="text-[11px] text-slate-500">Defina abas exclusivas (Diferenciais, Aplicações, etc.) e controle a ordem de exibição.</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddCustomTab('Nova Seção')}
+                          className="btn-secondary text-xs py-1.5 px-3 gap-1.5 inline-flex items-center font-bold text-amber-900 border-amber-300 bg-amber-50 hover:bg-amber-100 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-amber-700" />
+                          <span>+ Nova Aba</span>
+                        </button>
+                      </div>
+
+                      {productForm.customTabs && productForm.customTabs.length > 0 ? (
+                        <div className="space-y-3">
+                          {productForm.customTabs.map((tab, idx) => {
+                            const isSpecs = isSpecsCustomTab(tab);
+                            return (
+                              <div key={tab.id || idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 shadow-2xs">
+                                {/* Tab Header Bar with Order & Reordering Controls */}
+                                <div className="flex items-center justify-between flex-wrap gap-2 pb-1 border-b border-slate-200/60">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-900 font-extrabold text-[10px] uppercase tracking-wider border border-amber-400/40">
+                                      Aba #{idx + 1}
+                                    </span>
+                                    <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5 shadow-2xs">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveCustomTab(idx, 'up')}
+                                        disabled={idx === 0}
+                                        title="Mover Aba para Cima (Exibir antes)"
+                                        className="p-1 rounded hover:bg-slate-100 disabled:opacity-20 text-slate-700 cursor-pointer disabled:cursor-not-allowed"
+                                      >
+                                        <ArrowUp className="w-3 h-3" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveCustomTab(idx, 'down')}
+                                        disabled={idx === productForm.customTabs.length - 1}
+                                        title="Mover Aba para Baixo (Exibir depois)"
+                                        className="p-1 rounded hover:bg-slate-100 disabled:opacity-20 text-slate-700 cursor-pointer disabled:cursor-not-allowed"
+                                      >
+                                        <ArrowDown className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2">
+                                    {isSpecs && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleConvertTabToSpecs(tab.id)}
+                                        className="text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 px-3 py-1 rounded-lg transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                        title="Migrar o texto desta aba para a tabela de Especificações Técnicas e excluir a aba"
+                                      >
+                                        <Layers className="w-3.5 h-3.5 text-emerald-200" />
+                                        <span>Cadastrar Especificações</span>
+                                      </button>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveCustomTab(tab.id)}
+                                      className="text-red-500 hover:text-red-700 text-[10px] font-bold hover:underline flex items-center gap-0.5 cursor-pointer ml-auto"
+                                    >
+                                      <Trash2 className="w-3 h-3" /> Remover Aba
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                    Título da Aba
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ex: Diferenciais, Aplicações, Requisitos..."
+                                    value={tab.title}
+                                    onChange={(e) => handleUpdateCustomTab(tab.id, 'title', e.target.value)}
+                                    className="form-input text-xs font-bold w-full bg-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                    Conteúdo da Aba (Texto ou Tópicos)
+                                  </label>
+                                  <textarea
+                                    placeholder="Descreva os tópicos ou detalhes desta aba..."
+                                    value={tab.content || ''}
+                                    onChange={(e) => handleUpdateCustomTab(tab.id, 'content', e.target.value)}
+                                    className="form-textarea text-xs h-20 w-full bg-white leading-relaxed font-mono"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-center">
+                          Nenhuma aba personalizada criada. As abas ajudam a organizar tópicos como "Diferenciais" e "Aplicações" na página do produto.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* CARD 9: ACESSÓRIOS & ITENS COMPATÍVEIS */}
+                    {(() => {
+                      const allLinkedIds = Array.from(new Set([
+                        ...(productForm.compatibleProductIds || []),
+                        ...(productForm.recommendedProductIds || [])
+                      ]));
+                      const compatCount = (productForm.compatibleProductIds || []).length;
+                      const recCount = (productForm.recommendedProductIds || []).length;
+
+                      return (
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-2xs">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs flex items-center justify-center">
+                                9
+                              </span>
+                              <div>
+                                <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-800">
+                                  Acessórios Compatíveis & Vitrine Recomendada
+                                </h4>
+                                <p className="text-[11px] text-slate-500">
+                                  Vincule equipamentos compatíveis e defina se aparecem na aba técnica ou fixados nos 5 recomendados da vitrine.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                {compatCount} na Aba
+                              </span>
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200">
+                                {recCount} nos 5 Recomendados
+                              </span>
+
+                              {/* Tooltip com símbolo de exclamação */}
+                              <div className="relative group inline-flex items-center">
+                                <span className="w-4.5 h-4.5 rounded-full bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-800 border border-slate-300 hover:border-amber-400 text-[10px] font-black flex items-center justify-center cursor-help transition-colors select-none shadow-2xs">
+                                  !
+                                </span>
+                                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 p-3.5 bg-slate-900 text-white text-[11px] rounded-2xl shadow-2xl border border-slate-700/90 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 pointer-events-none">
+                                  <p className="font-extrabold text-amber-400 mb-1.5 flex items-center gap-1.5 text-xs">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                    <span>Como funciona o Toggle de Vínculo:</span>
+                                  </p>
+                                  <div className="space-y-1.5 text-slate-200 leading-relaxed">
+                                    <p>
+                                      • <strong className="text-emerald-400">Ativo (Verde - Compatível):</strong> O equipamento aparece na aba <em>"Acessórios & Itens Compatíveis"</em> na página do produto.
+                                    </p>
+                                    <p>
+                                      • <strong className="text-amber-300">Desligado (Âmbar - Recomendado Obrigatório):</strong> O equipamento é forçado a aparecer no carrossel de <strong>5 recomendados</strong> da página (<em>"Você também pode se interessar"</em>). Se você fixar 1 item, a vitrine exibirá esse item + 4 automáticos; se fixar 5 itens, serão exatamente os 5 escolhidos por você!
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Search & Add Products Combobox */}
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                              Adicionar Equipamento ao Ecossistema
+                            </label>
+                            
+                            <SearchableSelect
+                              options={products
+                                .filter(p => p.status !== 'draft' && p.id !== (productForm.id || editingProduct?.id) && !allLinkedIds.includes(p.id))
+                                .map(p => {
+                                  const bName = brands.find(b => b.id === p.brandId)?.name || 'Athena';
+                                  const cName = categories.find(c => c.id === p.categoryId)?.name || '';
+                                  return {
+                                    id: p.id,
+                                    name: p.name,
+                                    brand: bName,
+                                    category: cName,
+                                    sku: p.sku || '',
+                                    slug: p.slug || '',
+                                    image: p.image || (p.images && p.images[0]) || (Array.isArray(p.variants) && p.variants.find(v => v.image)?.image) || ''
+                                  };
+                                })}
+                              value=""
+                              onChange={(val) => {
+                                if (val) {
+                                  setProductForm(prev => ({
+                                    ...prev,
+                                    compatibleProductIds: Array.from(new Set([...(prev.compatibleProductIds || []), val]))
+                                  }));
+                                  const addedProd = products.find(p => p.id === val);
+                                  showNotification(`Equipamento "${addedProd?.name || 'Item'}" vinculado como compatível!`, 'success');
+                                }
+                              }}
+                              placeholder="Digite para buscar e selecionar um equipamento..."
+                            />
+                          </div>
+
+                          {/* List of currently selected products with Toggle */}
+                          {allLinkedIds.length > 0 ? (
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                                Equipamentos Vinculados ({allLinkedIds.length})
+                              </label>
+                              <div className="grid grid-cols-1 gap-2">
+                                {allLinkedIds.map(linkedId => {
+                                  const linkedProd = products.find(p => p.id === linkedId);
+                                  if (!linkedProd) return null;
+                                  const linkedBrand = brands.find(b => b.id === linkedProd.brandId);
+                                  const isCompat = (productForm.compatibleProductIds || []).includes(linkedId);
+
+                                  return (
+                                    <div
+                                      key={linkedId}
+                                      className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs flex-wrap sm:flex-nowrap"
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                        <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 p-0.5 overflow-hidden shrink-0 flex items-center justify-center">
+                                          {(linkedProd.image || (linkedProd.images && linkedProd.images[0]) || (Array.isArray(linkedProd.variants) && linkedProd.variants.find(v => v.image)?.image)) ? (
+                                            <img
+                                              src={linkedProd.image || (linkedProd.images && linkedProd.images[0]) || (Array.isArray(linkedProd.variants) && linkedProd.variants.find(v => v.image)?.image)}
+                                              alt={linkedProd.name}
+                                              className="w-full h-full object-contain"
+                                            />
+                                          ) : (
+                                            <Package className="w-4 h-4 text-slate-300" />
+                                          )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <span className="font-bold text-slate-900 block truncate">
+                                            {linkedProd.name}
+                                          </span>
+                                          <span className="text-[10px] text-slate-500 font-medium block">
+                                            {linkedBrand?.name || 'Athena'} • /produto/{linkedProd.slug || linkedProd.id}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        {/* Toggle switch between Compatible (tab) and Recommended (showcase 5) */}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (isCompat) {
+                                              setProductForm(prev => ({
+                                                ...prev,
+                                                compatibleProductIds: (prev.compatibleProductIds || []).filter(id => id !== linkedId),
+                                                recommendedProductIds: Array.from(new Set([...(prev.recommendedProductIds || []), linkedId]))
+                                              }));
+                                              showNotification(`"${linkedProd.name}" agora é Recomendado Obrigatório (aparecerá entre os 5 da vitrine)!`, 'info');
+                                            } else {
+                                              setProductForm(prev => ({
+                                                ...prev,
+                                                recommendedProductIds: (prev.recommendedProductIds || []).filter(id => id !== linkedId),
+                                                compatibleProductIds: Array.from(new Set([...(prev.compatibleProductIds || []), linkedId]))
+                                              }));
+                                              showNotification(`"${linkedProd.name}" agora é Compatível (aba técnica)!`, 'info');
+                                            }
+                                          }}
+                                          className={`px-2.5 py-1 rounded-full text-[10.5px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                                            isCompat
+                                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 shadow-2xs'
+                                              : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-2xs'
+                                          }`}
+                                          title={isCompat ? 'Clique para fixar nos 5 Recomendados da vitrine' : 'Clique para exibir na Aba de Compatíveis'}
+                                        >
+                                          {isCompat ? (
+                                            <>
+                                              <ToggleRight className="w-4 h-4 text-emerald-600 shrink-0" />
+                                              <span>Compatível (Aba)</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <ToggleLeft className="w-4 h-4 text-amber-600 shrink-0" />
+                                              <span>Recomendado (Vitrine 5)</span>
+                                            </>
+                                          )}
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => navigateToProductInModal(linkedProd)}
+                                          className="px-2 py-1 rounded-lg bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-amber-900 font-bold text-[11px] flex items-center gap-1 shadow-2xs cursor-pointer transition-colors"
+                                          title="Editar este produto agora no modal"
+                                        >
+                                          <Edit3 className="w-3 h-3 text-amber-600" />
+                                          <span className="hidden sm:inline">Editar</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setProductForm(prev => ({
+                                              ...prev,
+                                              compatibleProductIds: (prev.compatibleProductIds || []).filter(id => id !== linkedId),
+                                              recommendedProductIds: (prev.recommendedProductIds || []).filter(id => id !== linkedId)
+                                            }));
+                                            showNotification('Vínculo removido com sucesso.', 'info');
+                                          }}
+                                          className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                          title="Remover vínculo"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-center">
+                              Nenhum equipamento vinculado manualmente. Você pode vincular máquinas ou adicionar links pelo editor de texto.
+                            </p>
+                          )}
+
+                      {/* Inbound Cross-References: Products that mark THIS product as compatible */}
+                      {(() => {
+                        const currentId = productForm.id || editingProduct?.id;
+                        const currentSlug = productForm.slug;
+                        if (!currentId && !currentSlug) return null;
+
+                        const referencingProducts = products.filter(p => {
+                          if (p.id === currentId) return false;
+                          const hasDirectId = Array.isArray(p.compatibleProductIds) && p.compatibleProductIds.includes(currentId);
+                          const hasSlugLink = currentSlug && Array.isArray(p.customTabs) && p.customTabs.some(t => t.content && t.content.includes(currentSlug));
+                          return hasDirectId || hasSlugLink;
+                        });
+
+                        if (referencingProducts.length === 0) return null;
+
+                        return (
+                          <div className="pt-3 border-t border-slate-200/80 space-y-2">
+                            <div className="flex items-center gap-1.5 text-slate-700">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-800">
+                                Marcado como Compatível nestes Equipamentos ({referencingProducts.length}):
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-1.5">
+                              {referencingProducts.map(refProd => {
+                                const refBrand = brands.find(b => b.id === refProd.brandId);
+                                return (
+                                  <div
+                                    key={refProd.id}
+                                    className="p-2 rounded-xl bg-amber-50/60 border border-amber-200/70 flex items-center justify-between gap-3 text-xs"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0" />
+                                      <span className="font-bold text-slate-900 truncate">{refProd.name}</span>
+                                      <span className="text-[10px] text-slate-500 font-medium shrink-0">({refBrand?.name || 'Athena'})</span>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => navigateToProductInModal(refProd)}
+                                      className="px-2 py-0.5 rounded-md bg-white border border-amber-300 hover:border-amber-500 text-amber-900 font-bold text-[10px] flex items-center gap-1 shadow-2xs cursor-pointer shrink-0"
+                                      title="Abrir este equipamento no modal para editar"
+                                    >
+                                      <span>Abrir</span>
+                                      <ArrowRight className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                })()}
+
+                  </div>
+
+                </div>
+
+              </form>
+
+              {/* Sticky Action Footer */}
+              <div className="bg-white px-5 sm:px-8 py-4 border-t border-slate-200 flex items-center justify-between shrink-0 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const firstVariantWithPhoto = (productForm.variants || []).find(
+                      (v) => v && typeof v.image === 'string' && v.image.trim() !== ''
+                    );
+                    const draftPayload = {
+                      ...productForm,
+                      image: productForm.image || firstVariantWithPhoto?.image || '',
+                      id: productForm.id || editingProduct?.id || 'preview',
+                      isDraftPreview: true
+                    };
+                    sessionStorage.setItem('athena_preview_draft_product', JSON.stringify(draftPayload));
+                    try {
+                      localStorage.setItem('athena_preview_draft_product', JSON.stringify(draftPayload));
+                    } catch (e) {}
+                    const token = encodeDraftToShareableUrl ? encodeDraftToShareableUrl(draftPayload) : '';
+                    const previewUrl = `/produto/preview${token ? `?d=${token}` : ''}`;
+                    window.open(previewUrl, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="btn-secondary text-xs py-2.5 px-4 font-bold flex items-center gap-1.5 cursor-pointer hover:border-emerald-500 hover:text-emerald-800"
+                  title="Abrir prévia do produto em uma nova aba sem fechar o formulário"
+                >
+                  <Eye className="w-4 h-4 text-emerald-600" />
+                  <span>Pré-visualizar Página (Nova Aba)</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    type="button" 
+                    onClick={handleRequestCloseProductModal} 
+                    className="btn-secondary text-xs py-2.5 px-4 font-bold cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    form="productMainForm"
+                    disabled={isUploadingImages}
+                    onClick={(e) => {
+                      if (isUploadingImages) {
+                        e.preventDefault();
+                        showNotification('Aguarde o término do envio das fotos para salvar o equipamento.', 'error');
+                        scrollToGallery();
+                      }
+                    }}
+                    className={`btn-gold text-xs font-extrabold py-2.5 px-6 shadow-md transition-all flex items-center gap-2 ${
+                      isUploadingImages ? 'opacity-60 cursor-not-allowed grayscale-[25%]' : ''
+                    }`}
+                  >
+                    {isUploadingImages ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-950" />
+                        <span>Enviando Fotos ({uploadingImages.length})...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Salvar Equipamento</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* BRAND MODAL */}
+        {isBrandModalOpen && canEditContent && (
+          <div className="modal-backdrop !z-[110]" onClick={() => setIsBrandModalOpen(false)}>
+            <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
+              <button 
+                onClick={() => setIsBrandModalOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-sky-600" />
+                {editingBrand ? 'Editar Marca / Parceiro' : 'Cadastrar Nova Marca / Parceiro'}
+              </h4>
+
+              <form onSubmit={handleBrandSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Nome da Marca *</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Mahovi, Engecass, Launch"
+                    value={brandForm.name}
+                    onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700">Logo / Foto da Marca</label>
+                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setBrandForm({ ...brandForm, imageSourceMode: 'upload' })}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition ${
+                          brandForm.imageSourceMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        Upload Arquivo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBrandForm({ ...brandForm, imageSourceMode: 'url' })}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition ${
+                          brandForm.imageSourceMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        URL da Imagem
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSelectingBrandMedia(true);
+                          setIsLibraryModalOpen(true);
+                        }}
+                        className="btn-secondary text-[10px] py-0.5 px-2 font-bold flex items-center gap-1 cursor-pointer bg-white text-sky-700 border-sky-200 hover:bg-sky-50 shadow-2xs"
+                        title="Abrir Biblioteca R2 para escolher o logo da marca"
+                      >
+                        <Images className="w-3 h-3 text-sky-600" />
+                        <span>Biblioteca R2</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {brandForm.imageSourceMode === 'upload' ? (
+                    <div 
+                      onDragOver={(e) => { e.preventDefault(); setIsDraggingBrandLogo(true); }}
+                      onDragLeave={() => setIsDraggingBrandLogo(false)}
+                      onDrop={handleDropBrandLogo}
+                      className={`border-2 border-dashed rounded-2xl p-4 text-center transition-colors cursor-pointer ${
+                        isDraggingBrandLogo ? 'border-sky-500 bg-sky-50' : 'border-slate-300 hover:border-sky-400 bg-slate-50'
+                      }`}
+                    >
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => e.target.files && handleBrandLogoFileUpload(e.target.files[0])}
+                        className="hidden" 
+                        id="brandLogoFileInput"
+                      />
+
+                      <label htmlFor="brandLogoFileInput" className="cursor-pointer space-y-1 block">
+                        <Upload className="w-5 h-5 mx-auto text-sky-600" />
+                        <span className="text-xs font-bold text-slate-800 block">
+                          Arraste e solte o logo ou clique para escolher
+                        </span>
+                        <span className="text-[10px] text-slate-400 block">JPG, PNG ou SVG</span>
+                      </label>
+
+                      <div className="pt-2 border-t border-slate-200/80 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSelectingBrandMedia(true);
+                            setIsLibraryModalOpen(true);
+                          }}
+                          className="text-[11px] font-bold text-sky-700 hover:text-sky-800 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <Images className="w-3.5 h-3.5 text-sky-600" />
+                          <span>Ou escolha da Biblioteca Cloudflare R2</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="url"
+                          placeholder="https://marca.com/logo.png"
+                          value={brandForm.logo}
+                          onChange={(e) => setBrandForm({ ...brandForm, logo: e.target.value })}
+                          className="form-input text-xs !pl-10"
+                        />
+                        <LinkIcon className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSelectingBrandMedia(true);
+                          setIsLibraryModalOpen(true);
+                        }}
+                        className="btn-secondary text-xs py-2 px-3 font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                        title="Abrir Biblioteca de Fotos do Cloudflare R2"
+                      >
+                        <Images className="w-3.5 h-3.5 text-sky-600" />
+                        <span>Biblioteca R2</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {brandForm.logo && (
+                    <div className="flex items-center gap-3 p-2.5 bg-slate-100 rounded-xl border border-slate-200">
+                      <div 
+                        onClick={() => setPreviewingImage(brandForm.logo)}
+                        className="w-12 h-10 object-contain rounded-lg bg-white p-1 border border-slate-200 shrink-0 flex items-center justify-center cursor-zoom-in hover:border-sky-400 hover:shadow-xs group transition-all"
+                        title="Clique para expandir a logo da marca"
+                      >
+                        <img src={brandForm.logo} alt="Preview Logo" className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-bold text-slate-800 block truncate">Logo definida</span>
+                        <span className="text-[10px] font-mono text-slate-400 block truncate">{brandForm.logo}</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setIsSelectingBrandMedia(true);
+                          setIsLibraryModalOpen(true);
+                        }} 
+                        className="text-xs text-sky-700 font-bold hover:underline px-1.5 cursor-pointer"
+                        title="Trocar logo pela biblioteca R2"
+                      >
+                        Trocar
+                      </button>
+                      <button type="button" onClick={() => setBrandForm({ ...brandForm, logo: '' })} className="text-xs text-red-600 font-bold hover:underline px-1.5 cursor-pointer">Remover</button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Site Oficial do Parceiro (Opcional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="url"
+                      placeholder="https://www.fabricante.com.br"
+                      value={brandForm.websiteUrl}
+                      onChange={(e) => setBrandForm({ ...brandForm, websiteUrl: e.target.value })}
+                      className="form-input text-xs !pl-10"
+                    />
+                    <Globe className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Descrição Breve</label>
+                  <textarea
+                    placeholder="Descrição da marca, história ou especialidade..."
+                    value={brandForm.description}
+                    onChange={(e) => setBrandForm({ ...brandForm, description: e.target.value })}
+                    className="form-textarea text-xs h-20"
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                  <button type="button" onClick={() => setIsBrandModalOpen(false)} className="btn-secondary text-xs">Cancelar</button>
+                  <button type="submit" className="btn-gold text-xs font-bold py-2.5 px-4">
+                    <Check className="w-4 h-4" /> Salvar Marca
+                  </button>
+                </div>
+
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* BANNER MODAL (Criação / Edição com suporte a Desktop e Mobile) */}
+        {isBannerModalOpen && canEditContent && (
+          <div className="modal-backdrop !z-[110]" onClick={() => setIsBannerModalOpen(false)}>
+            <div className="modal-content max-w-xl p-6 bg-white border-slate-200 relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <button 
+                type="button"
+                onClick={() => setIsBannerModalOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Images className="w-5 h-5 text-amber-600" />
+                {editingBanner ? 'Editar Banner da Home' : 'Cadastrar Novo Banner da Home'}
+              </h4>
+
+              <form onSubmit={handleBannerSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Título / Identificador do Banner</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Scanners Launch X431 — Tecnologia com IA"
+                    value={bannerForm.title}
+                    onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })}
+                    className="form-input text-xs"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Usado para identificação interna e como texto alternativo (SEO e acessibilidade).</p>
+                </div>
+
+                {/* Desktop Image Section */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-sky-500" />
+                      Imagem para Computador / Desktop *
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">1920x600 px (3:1 ou 16:9)</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://... ou escolha da biblioteca"
+                      value={bannerForm.desktopImage}
+                      onChange={(e) => setBannerForm({ ...bannerForm, desktopImage: e.target.value })}
+                      className="form-input text-xs flex-1"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSelectingBannerMedia('desktop');
+                        setIsLibraryModalOpen(true);
+                      }}
+                      className="btn-secondary text-xs py-2 px-3 font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <Images className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Biblioteca R2</span>
+                    </button>
+                  </div>
+
+                  {bannerForm.desktopImage && (
+                    <div className="w-full h-28 rounded-xl border border-slate-200 overflow-hidden bg-slate-900 relative">
+                      <img
+                        src={bannerForm.desktopImage}
+                        alt="Preview Desktop"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                      <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-slate-950/80 text-white font-mono text-[9px]">
+                        Preview Desktop
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mobile Image Section */}
+                <div className="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-500" />
+                      Imagem para Celular / Mobile (Opcional)
+                    </label>
+                    <span className="text-[10px] text-purple-700 font-mono">800x800 ou 750x600 px</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      placeholder="Deixe vazio para usar a foto desktop adaptada"
+                      value={bannerForm.mobileImage}
+                      onChange={(e) => setBannerForm({ ...bannerForm, mobileImage: e.target.value })}
+                      className="form-input text-xs flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSelectingBannerMedia('mobile');
+                        setIsLibraryModalOpen(true);
+                      }}
+                      className="btn-secondary text-xs py-2 px-3 font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <Images className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Biblioteca R2</span>
+                    </button>
+                  </div>
+
+                  {bannerForm.mobileImage ? (
+                    <div className="w-32 h-32 rounded-xl border border-purple-200 overflow-hidden bg-slate-900 relative">
+                      <img
+                        src={bannerForm.mobileImage}
+                        alt="Preview Mobile"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=400&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                      <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-slate-950/80 text-white font-mono text-[9px]">
+                        Preview Celular
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-purple-800 leading-relaxed">
+                      💡 <strong>Dica:</strong> Em smartphones, banners horizontais widescreen podem ficar pequenos. Cadastrar uma imagem em formato quadrado ou vertical (800x800) deixa o banner espetacular na tela do celular!
+                    </p>
+                  )}
+                </div>
+
+                {/* Link Configuration Section (Smart Tree & Autocomplete Picker) */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      Link de Redirecionamento ao Clicar (Opcional)
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">Árvore / Autocomplete</span>
+                  </div>
+
+                  <SmartLinkPicker
+                    value={bannerForm.linkUrl}
+                    onChange={(newUrl) => setBannerForm(prev => ({ ...prev, linkUrl: newUrl }))}
+                    targetBlank={bannerForm.targetBlank}
+                    onTargetBlankChange={(newBlank) => setBannerForm(prev => ({ ...prev, targetBlank: newBlank }))}
+                    products={products}
+                    categories={categories}
+                    brands={brands}
+                  />
+                </div>
+
+                {/* Agendamento de Publicação (Programar Início e Término Automático) */}
+                <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-amber-600" />
+                      Agendamento de Publicação (Opcional)
+                    </label>
+                    <span className="text-[10px] text-amber-800 font-mono">Programação Automática</span>
+                  </div>
+
+                  <p className="text-[11px] text-amber-900/80 leading-relaxed">
+                    Programe a data e o horário exato para este banner entrar no ar. Deixe a data de início em branco para publicar imediatamente.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-sky-600" />
+                        Publicar em (Início)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={bannerForm.publishAt}
+                        onChange={(e) => setBannerForm({ ...bannerForm, publishAt: e.target.value })}
+                        className="form-input text-xs w-full"
+                      />
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => setBannerForm({ ...bannerForm, publishAt: '' })}
+                          className="text-[10px] text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                        >
+                          Publicar Imediato
+                        </button>
+                        <span className="text-[10px] text-slate-300">•</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const now = new Date();
+                            const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+                            setBannerForm({ ...bannerForm, publishAt: formatDateTimeLocal(nextMonth) });
+                          }}
+                          className="text-[10px] text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer"
+                        >
+                          1º dia do mês que vem
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-red-500" />
+                        Despublicar em (Término Opcional)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={bannerForm.unpublishAt}
+                        onChange={(e) => setBannerForm({ ...bannerForm, unpublishAt: e.target.value })}
+                        className="form-input text-xs w-full"
+                      />
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setBannerForm({ ...bannerForm, unpublishAt: '' })}
+                          className="text-[10px] text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                        >
+                          Sem expiração (contínuo)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {bannerForm.publishAt && (
+                    <div className={`p-2.5 rounded-xl text-xs flex items-center gap-2 ${
+                      new Date(bannerForm.publishAt).getTime() > Date.now()
+                        ? 'bg-amber-100/90 text-amber-900 border border-amber-300'
+                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    }`}>
+                      <Calendar className="w-4 h-4 shrink-0" />
+                      <span>
+                        {new Date(bannerForm.publishAt).getTime() > Date.now()
+                          ? `🕒 Agendado: Este banner NÃO aparecerá na Home antes de ${formatScheduleLabel(bannerForm.publishAt)}.`
+                          : `⚡ Data no passado/presente: Este banner ficará visível imediatamente ao salvar.`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Toggle */}
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="bannerIsActive"
+                    checked={bannerForm.isActive}
+                    onChange={(e) => setBannerForm({ ...bannerForm, isActive: e.target.checked })}
+                    className="rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                  />
+                  <label htmlFor="bannerIsActive" className="text-xs font-bold text-slate-800 cursor-pointer">
+                    Banner Ativo (exibido no carrossel da Home)
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsBannerModalOpen(false)} 
+                    className="btn-secondary text-xs font-bold py-2 px-4 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn-gold text-xs font-bold py-2 px-5 cursor-pointer"
+                  >
+                    {editingBanner ? 'Salvar Alterações' : 'Criar Banner'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* BANNER DELETE CONFIRMATION MODAL */}
+        {bannerToDelete && (
+          <div className="modal-backdrop !z-[120]" onClick={() => setBannerToDelete(null)}>
+            <div className="modal-content max-w-sm p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
+              <div className="text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <h4 className="text-base font-bold text-slate-900">Excluir Banner da Home?</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Tem certeza que deseja remover o banner <strong>"{bannerToDelete.title}"</strong> do carrossel da página inicial?
+                </p>
+                <div className="flex items-center justify-center gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setBannerToDelete(null)}
+                    className="btn-secondary text-xs font-bold py-2 px-4 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeleteBanner(bannerToDelete.id);
+                      setBannerToDelete(null);
+                    }}
+                    className="btn-danger text-xs font-bold py-2 px-4 cursor-pointer"
+                  >
+                    Sim, Excluir Banner
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SUBCATEGORIES MANAGEMENT MODAL (FOR SELECTED MACRO-DEPARTMENT) */}
+        {selectedMacroForDetails && (
+          <div className="modal-backdrop !z-[110]" onClick={() => setSelectedMacroForDetails(null)}>
+            <div
+              className="modal-content max-w-2xl w-full p-6 bg-white border-slate-200 relative max-h-[90vh] flex flex-col shadow-2xl rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-700 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                    <MacroIcon name={selectedMacroForDetails.icon} className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-900 leading-snug">
+                      Categorias de "{selectedMacroForDetails.name}"
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      {(() => {
+                        const macroCats = categories.filter(c => {
+                          if (c.departmentId) return c.departmentId === selectedMacroForDetails.id;
+                          return (selectedMacroForDetails.categoryIds || []).includes(c.id);
+                        });
+                        return `${macroCats.length} categoria(s) registrada(s) nesta Macro.`;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedMacroForDetails(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Informative Tip Banner */}
+              <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200/80 text-xs text-amber-950 flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Ações Rápidas:</span> Clique no nome de qualquer categoria para abrir a edição completa de nome, slug, descrição e ícone. Ou use o seletor ao lado para mudar o Macro-Departamento dela instantaneamente.
+                </div>
+              </div>
+
+              {/* Categories List */}
+              <div className="flex-1 overflow-y-auto my-3 space-y-2 pr-1 max-h-[52vh]">
+                {(() => {
+                  const macroCats = categories.filter(c => {
+                    if (c.departmentId) return c.departmentId === selectedMacroForDetails.id;
+                    return (selectedMacroForDetails.categoryIds || []).includes(c.id);
+                  });
+
+                  if (macroCats.length === 0) {
+                    return (
+                      <div className="py-12 text-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                          <FolderTree className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">Nenhuma categoria vinculada a esta macro ainda.</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">Cadastre uma nova categoria ou reatribua categorias existentes de outra macro.</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return macroCats.map((cat, idx) => {
+                    const catProdsCount = products.filter(p => p.categoryId === cat.id).length;
+
+                    return (
+                      <div
+                        key={cat.id}
+                        className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-amber-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
+                      >
+                        {/* Left: Number + Clickable Name + Prods Count */}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedMacroForDetails(null);
+                                openEditCategoryModal(cat);
+                              }}
+                              className="text-left font-bold text-xs sm:text-sm text-slate-900 hover:text-amber-600 hover:underline flex items-center gap-1.5 group cursor-pointer truncate"
+                              title="Clique para abrir a edição completa desta categoria"
+                            >
+                              <span className="truncate">{cat.name}</span>
+                              <Edit3 className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 shrink-0 transition-colors" />
+                            </button>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {catProdsCount} produto(s) cadastrado(s)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Right: Change Macro Selector */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <span className="text-[11px] font-bold text-slate-600 shrink-0">Macro:</span>
+                          <select
+                            value={cat.departmentId || selectedMacroForDetails.id}
+                            onChange={(e) => {
+                              const newDeptId = e.target.value;
+                              const targetDept = (departments || MACRO_DEPARTMENTS).find(d => d.id === newDeptId);
+                              if (onUpdateCategory) {
+                                onUpdateCategory({ ...cat, departmentId: newDeptId });
+                              }
+                              showNotification(`Categoria "${cat.name}" movida para "${targetDept?.name || newDeptId}"!`, 'success');
+                            }}
+                            className="form-input text-xs py-1 px-2.5 bg-white font-medium min-w-[200px]"
+                          >
+                            {(departments || MACRO_DEPARTMENTS).map((dept) => (
+                              <option key={dept.id} value={dept.id}>
+                                {dept.shortName || dept.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Footer */}
+              <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                {canEditContent && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const deptId = selectedMacroForDetails.id;
+                      setSelectedMacroForDetails(null);
+                      setEditingCategory(null);
+                      setCategoryForm({
+                        name: '',
+                        description: '',
+                        slug: '',
+                        icon: 'Layers',
+                        departmentId: deptId
+                      });
+                      setIsCategoryModalOpen(true);
+                    }}
+                    className="w-full sm:w-auto text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-300 py-2 px-3.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Nova Categoria nesta Macro</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedMacroForDetails(null)}
+                  className="w-full sm:w-auto btn-secondary text-xs font-bold py-2 px-5"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MACRO-CATEGORY MODAL (CREATE / EDIT) */}
+        {isDeptModalOpen && canEditContent && (
+          <div className="modal-backdrop !z-[110]" onClick={() => setIsDeptModalOpen(false)}>
+            <div className="modal-content max-w-lg p-6 bg-white border-slate-200 relative shadow-2xl rounded-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FolderTree className="w-5 h-5 text-amber-600" />
+                  <span>{editingDept ? `Editar Macro-Categoria "${editingDept.name}"` : 'Nova Macro-Categoria'}</span>
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsDeptModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleDeptSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Nome Completo da Macro-Categoria *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Funilaria, Pintura & Estética"
+                    value={deptForm.name}
+                    onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                    autoFocus
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Nome descritivo exibido nos menus e cabeçalhos de departamentos.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Nome Curto / Abreviado *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Funilaria & Estética"
+                    value={deptForm.shortName}
+                    onChange={(e) => setDeptForm({ ...deptForm, shortName: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Nome compacto utilizado em filtros laterais, tags e telas menores de smartphone.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-2">
+                    Ícone da Macro-Categoria
+                  </label>
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 max-h-48 overflow-y-auto p-1 border border-slate-200 rounded-xl bg-slate-50">
+                    {DEPT_AVAILABLE_ICONS.map((ic) => {
+                      const isSelected = deptForm.icon === ic.name;
+                      return (
+                        <button
+                          key={ic.name}
+                          type="button"
+                          onClick={() => setDeptForm({ ...deptForm, icon: ic.name })}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all cursor-pointer text-center ${
+                            isSelected
+                              ? 'bg-amber-500 text-slate-950 font-black shadow-xs ring-2 ring-amber-400'
+                              : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80'
+                          }`}
+                          title={ic.label}
+                        >
+                          <MacroIcon name={ic.name} className="w-4 h-4 mb-1 shrink-0" />
+                          <span className="text-[9px] truncate max-w-full leading-tight font-medium">
+                            {ic.label.split('/')[0].trim()}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsDeptModalOpen(false)}
+                    className="btn-secondary text-xs font-bold py-2 px-4"
+                  >
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn-gold text-xs font-bold py-2 px-5 flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{editingDept ? 'Salvar Alterações' : 'Criar Macro-Categoria'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* CATEGORY MODAL (CREATE / EDIT) */}
+        {isCategoryModalOpen && canEditContent && (
+          <div
+            className="modal-backdrop !z-[110]"
+            onClick={() => {
+              setIsCategoryModalOpen(false);
+              setIsInlineDeptOpen(false);
+            }}
+          >
+            <div className="modal-content max-w-md p-6 bg-white border-slate-200 relative" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-amber-600" />
+                  {editingCategory ? `Editar Categoria "${editingCategory.name}"` : 'Criar Nova Categoria'}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoryModalOpen(false);
+                    setIsInlineDeptOpen(false);
+                  }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCategorySubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Nome da Categoria *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Elevadores Automotivos"
+                    value={categoryForm.name}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Slug / URL Amigável
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-slate-400">/categoria/</span>
+                    <input
+                      type="text"
+                      placeholder="elevadores-automotivos"
+                      value={categoryForm.slug}
+                      onChange={(e) => setCategoryForm({ ...categoryForm, slug: e.target.value })}
+                      className="form-input text-xs !pl-24 font-mono"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-1 block">Deixe vazio para gerar automaticamente a partir do nome.</span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-700">
+                      Macro-Departamento *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsInlineDeptOpen(prev => !prev)}
+                      className="text-xs text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                      title={isInlineDeptOpen ? 'Fechar cadastro de macro' : 'Cadastrar uma nova macro agora'}
+                    >
+                      <Plus className="w-3.5 h-3.5 text-amber-600" />
+                      <span>{isInlineDeptOpen ? 'Fechar Cadastro' : 'Nova Macro'}</span>
+                    </button>
+                  </div>
+
+                  {/* Mini-Card Inline para Cadastro Rápido de Macro */}
+                  {isInlineDeptOpen && (
+                    <div className="mb-3 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 shadow-sm animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-amber-200/60">
+                        <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                          <FolderTree className="w-3.5 h-3.5 text-amber-600" />
+                          Cadastrar Nova Macro-Categoria
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsInlineDeptOpen(false)}
+                          className="text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                          title="Fechar"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                            Nome da Macro *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Equipamentos Pesados"
+                            value={inlineDeptForm.name}
+                            onChange={(e) => setInlineDeptForm(prev => ({ ...prev, name: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleSaveInlineDept(e);
+                              }
+                            }}
+                            className="form-input text-xs !bg-white"
+                            autoFocus
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                            Nome Curto (Menu Lateral / Catálogo)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ex: Pesados (opcional)"
+                            value={inlineDeptForm.shortName}
+                            onChange={(e) => setInlineDeptForm(prev => ({ ...prev, shortName: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleSaveInlineDept(e);
+                              }
+                            }}
+                            className="form-input text-xs !bg-white"
+                          />
+                          <span className="text-[10px] text-slate-400 mt-0.5 block">
+                            Usado em menus compactos. Deixe vazio para usar o nome completo.
+                          </span>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setIsInlineDeptOpen(false)}
+                            className="px-2.5 py-1.5 text-xs text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveInlineDept}
+                            className="px-3 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Salvar e Vincular</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <select
+                    value={categoryForm.departmentId}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, departmentId: e.target.value })}
+                    className="form-input text-xs"
+                    required
+                  >
+                    {(departments || MACRO_DEPARTMENTS).map((dept) => (
+                      <option key={dept.id} value={dept.id}>
+                        {dept.name} ({dept.shortName})
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Agrupa esta categoria/subcategoria sob o departamento correspondente no menu lateral e catálogo.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    Descrição da Categoria
+                  </label>
+                  <textarea
+                    placeholder="Breve descrição da linha de produtos desta categoria..."
+                    value={categoryForm.description}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                    className="form-textarea text-xs h-20"
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCategoryModalOpen(false);
+                      setIsInlineDeptOpen(false);
+                    }}
+                    className="btn-secondary text-xs"
+                  >
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn-gold text-xs font-bold py-2.5 px-4 flex items-center gap-1.5">
+                    <Check className="w-4 h-4" />
+                    <span>{editingCategory ? 'Salvar Alterações' : 'Criar Categoria'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* COMMERCIAL PDF CATALOG GENERATOR MODAL */}
+        <PdfCatalogGenerator
+          products={products.filter(isProductPublished)}
+          categories={categories}
+          brands={brands}
+          isOpen={isPdfModalOpen}
+          onClose={() => setIsPdfModalOpen(false)}
+        />
+
+        {/* CUSTOM CONFIRMATION POPUP MODAL */}
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div 
+              className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 relative overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Top soft accent line */}
+              <div className={`absolute top-0 left-0 right-0 h-1.5 ${
+                confirmModal.type === 'danger' ? 'bg-red-500' : confirmModal.type === 'warning' ? 'bg-amber-500' : 'bg-sky-500'
+              }`} />
+
+              <div className="flex items-start gap-4 mb-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                  confirmModal.type === 'danger' 
+                    ? 'bg-red-100 text-red-600 border border-red-200' 
+                    : confirmModal.type === 'warning'
+                    ? 'bg-amber-100 text-amber-600 border border-amber-200'
+                    : 'bg-sky-100 text-sky-600 border border-sky-200'
+                }`}>
+                  {confirmModal.type === 'danger' ? (
+                    <Trash2 className="w-6 h-6" />
+                  ) : confirmModal.type === 'warning' ? (
+                    <AlertTriangle className="w-6 h-6" />
+                  ) : (
+                    <HelpCircle className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                    {confirmModal.title || 'Confirmação'}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+                    {confirmModal.message}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 mt-2 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={closeConfirmation}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs transition"
+                >
+                  {confirmModal.cancelText || 'Cancelar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof confirmModal.onConfirm === 'function') {
+                      confirmModal.onConfirm();
+                    }
+                    closeConfirmation();
+                  }}
+                  className={`px-5 py-2.5 rounded-xl font-black text-xs text-white shadow-md transition flex items-center gap-1.5 ${
+                    confirmModal.type === 'danger'
+                      ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20'
+                      : confirmModal.type === 'warning'
+                      ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-500/20'
+                      : 'bg-sky-600 hover:bg-sky-700 shadow-sky-500/20'
+                  }`}
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{confirmModal.confirmText || 'Confirmar'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PHOTO LIGHTBOX PREVIEW POPUP MODAL */}
+        {previewingImage && (
+          <div 
+            className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm !z-[140] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+            onClick={() => setPreviewingImage(null)}
+          >
+            <div 
+              className="bg-white rounded-3xl p-5 sm:p-6 max-w-3xl w-full shadow-2xl border border-slate-200 relative flex flex-col items-center animate-in zoom-in-95 duration-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-full flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 text-xs font-black">
+                    Visualizador de Imagem
+                  </span>
+                  {isProductModalOpen && productForm.image === previewingImage && (
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-xs font-black">
+                      Foto de Capa Principal
+                    </span>
+                  )}
+                  {isBrandModalOpen && brandForm.logo === previewingImage && (
+                    <span className="px-2.5 py-1 rounded-lg bg-sky-500 text-white text-xs font-black">
+                      Logo Oficial da Marca
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewingImage(null)}
+                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                  title="Fechar visualizador"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="w-full max-h-[65vh] rounded-2xl bg-slate-900/5 p-2 flex items-center justify-center overflow-hidden border border-slate-200/60">
+                <img 
+                  src={previewingImage} 
+                  alt="Visualização" 
+                  className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-xs"
+                />
+              </div>
+
+              <div className="w-full flex flex-wrap items-center justify-between gap-3 pt-4 mt-3 border-t border-slate-100 text-xs">
+                <div className="text-slate-500 truncate max-w-xs sm:max-w-md font-mono text-[11px]">
+                  {previewingImage}
+                </div>
+                <div className="flex items-center gap-2">
+                  {isProductModalOpen && productForm.image !== previewingImage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductForm({ ...productForm, image: previewingImage });
+                        showNotification('Definida como imagem de capa com sucesso!', 'success');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black shadow-sm transition"
+                    >
+                      Definir como Capa
+                    </button>
+                  )}
+                  {isBrandModalOpen && brandForm.logo !== previewingImage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBrandForm({ ...brandForm, logo: previewingImage });
+                        showNotification('Definida como logo da marca com sucesso!', 'success');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold shadow-sm transition"
+                    >
+                      Definir como Logo
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPreviewingImage(null)}
+                    className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-100 transition"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DEDICATED PRODUCT VARIANT MODAL DEPRECATED - MANAGED BY ProductVariantsManager */}
+        {false && (
+          <div 
+            className="modal-backdrop !z-[120] p-3 sm:p-6" 
+            onClick={() => {
+              setIsVariantModalOpen(false);
+              setEditingVariantIndex(null);
+            }}
+            onPaste={handlePasteVariantModal}
+          >
+            <div 
+              className="modal-content !max-w-2xl !p-0 bg-white border border-slate-200 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+                    <Tag className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                      {editingVariantIndex !== null ? 'Editar Variação' : 'Nova Variação do Produto'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Configure nome, SKU Omie, estoque, cor e foto exclusiva desta opção.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsVariantModalOpen(false);
+                    setEditingVariantIndex(null);
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  title="Fechar modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Form Body */}
+              <form onSubmit={handleSaveVariantModal} className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+                {/* 1. Nome da Opção */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>Nome da Opção</span>
+                    <span className="text-amber-600">*</span>
+                    <span className="text-[11px] font-normal text-slate-400">(ex: Vermelho, 7 Gavetas, 220V)</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={variantModalForm.name}
+                    onChange={(e) => setVariantModalForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ex: Vermelho, 220V, 5 Gavetas..."
+                    className="form-input text-sm font-semibold"
+                    autoFocus
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    Texto exibido no seletor da página do produto, no carrinho e nos pedidos.
+                  </p>
+                </div>
+
+                {/* 2. SKU Omie & Estoque */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      Código SKU no Omie
+                    </label>
+                    <input
+                      type="text"
+                      value={variantModalForm.sku}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, sku: e.target.value }))}
+                      placeholder="Ex: WLF-CAR-VM"
+                      className="form-input text-xs font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Código exato do item no ERP Omie para baixa automática de estoque.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      Estoque Próprio (unidades)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={variantModalForm.stockQty}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, stockQty: e.target.value, stockSource: 'manual' }))}
+                      placeholder="Saldo Omie ou 0"
+                      title={variantModalForm.stockSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
+                      className={`form-input text-xs font-mono font-bold transition-colors ${
+                        variantModalForm.stockSource === 'omie'
+                          ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
+                          : 'bg-white text-slate-800'
+                      }`}
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Deixe vazio para herdar a sincronização pelo SKU do Omie.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Cor Visual & Preço Específico */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Cor */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      Cor (Bolinha)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <label 
+                        className="relative cursor-pointer w-10 h-10 rounded-xl border-2 border-slate-300 shadow-2xs overflow-hidden shrink-0 flex items-center justify-center hover:scale-105 transition-transform" 
+                        style={{ backgroundColor: variantModalForm.colorHex || '#f8fafc' }} 
+                        title="Clique para escolher na paleta de cores"
+                      >
+                        <input
+                          type="color"
+                          value={variantModalForm.colorHex || '#DC2626'}
+                          onChange={(e) => setVariantModalForm(prev => ({ ...prev, colorHex: e.target.value }))}
+                          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                        />
+                      </label>
+                      <input
+                        type="text"
+                        value={variantModalForm.colorHex}
+                        onChange={(e) => setVariantModalForm(prev => ({ ...prev, colorHex: e.target.value }))}
+                        placeholder="#HEX"
+                        className="form-input text-xs font-mono uppercase flex-1"
+                      />
+                      {variantModalForm.colorHex && (
+                        <button
+                          type="button"
+                          onClick={() => setVariantModalForm(prev => ({ ...prev, colorHex: '' }))}
+                          className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 text-xs shrink-0 cursor-pointer"
+                          title="Remover cor (vira botão de texto puro)"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      Preencha apenas se for opção de cor para exibir bolinhas no catálogo.
+                    </p>
+                  </div>
+
+                  {/* Preço Específico */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      Preço Específico (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={variantModalForm.price}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, price: e.target.value, priceSource: 'manual' }))}
+                      placeholder="Opcional (herda padrão)"
+                      title={variantModalForm.priceSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
+                      className={`form-input text-xs font-mono font-bold transition-colors ${
+                        variantModalForm.priceSource === 'omie'
+                          ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
+                          : 'bg-white text-slate-800'
+                      }`}
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Se vazio, herda o preço base do produto ({productForm.price ? formatBRL(productForm.price) : 'R$ 0,00'}).
+                    </p>
+                  </div>
+                </div>
+
+                {/* 4. Status & Visibilidade (Controle Automático ou Prioridade Manual) */}
+                <div className="space-y-3 pt-1">
+                  {/* Aviso de Herança de Preço Sob Consulta */}
+                  {isProductQuoteOnly(productForm) && (
+                    <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="font-extrabold text-amber-950">Aviso: Equipamento em modo "Sob Consulta"</p>
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          O equipamento principal está marcado como <strong>Sob Consulta</strong> (preço a combinar / R$ 0,00). 
+                          Por isso, no site, esta opção será exibida exclusivamente para <strong>cotação/orçamento</strong>, independente das opções abaixo.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 block">
+                        Disponibilidade & Regra de Venda no Site
+                      </label>
+                      <span className="text-[11px] text-slate-500">
+                        Sua escolha manual tem <strong className="text-slate-800">prioridade máxima</strong>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      {/* 1. Automático pelo estoque */}
+                      <label 
+                        className={`flex flex-col p-3 rounded-2xl border transition-all cursor-pointer select-none text-left ${
+                          (!variantModalForm.statusControl || variantModalForm.statusControl === 'auto')
+                            ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-300 shadow-2xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input
+                            type="radio"
+                            name="variantStatusControl"
+                            value="auto"
+                            checked={!variantModalForm.statusControl || variantModalForm.statusControl === 'auto'}
+                            onChange={() => setVariantModalForm(prev => ({ ...prev, statusControl: 'auto', isActive: true }))}
+                            className="w-4 h-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                          />
+                          <span className="text-xs font-black text-slate-900 flex items-center gap-1">
+                            <span>⚡ Automático</span>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          Controlado pelo estoque. Ativa se houver saldo (&gt; 0) e <strong>desativa automaticamente</strong> se zerar (0 un).
+                        </p>
+                      </label>
+
+                      {/* 2. Forçar Ativa */}
+                      <label 
+                        className={`flex flex-col p-3 rounded-2xl border transition-all cursor-pointer select-none text-left ${
+                          variantModalForm.statusControl === 'manual_active'
+                            ? 'bg-emerald-50/80 border-emerald-400 ring-2 ring-emerald-300 shadow-2xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input
+                            type="radio"
+                            name="variantStatusControl"
+                            value="manual_active"
+                            checked={variantModalForm.statusControl === 'manual_active'}
+                            onChange={() => setVariantModalForm(prev => ({ ...prev, statusControl: 'manual_active', isActive: true }))}
+                            className="w-4 h-4 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                          <span className="text-xs font-black text-emerald-900 flex items-center gap-1">
+                            <span>🟢 Forçar Ativa</span>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          <strong>Prioridade manual:</strong> Sempre ativa para compra, mesmo se o estoque zerar (ideal para sob encomenda ou produção).
+                        </p>
+                      </label>
+
+                      {/* 3. Forçar Desativada */}
+                      <label 
+                        className={`flex flex-col p-3 rounded-2xl border transition-all cursor-pointer select-none text-left ${
+                          variantModalForm.statusControl === 'manual_inactive'
+                            ? 'bg-red-50/80 border-red-400 ring-2 ring-red-300 shadow-2xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <input
+                            type="radio"
+                            name="variantStatusControl"
+                            value="manual_inactive"
+                            checked={variantModalForm.statusControl === 'manual_inactive'}
+                            onChange={() => setVariantModalForm(prev => ({ ...prev, statusControl: 'manual_inactive', isActive: false }))}
+                            className="w-4 h-4 text-red-600 focus:ring-red-500 cursor-pointer"
+                          />
+                          <span className="text-xs font-black text-red-900 flex items-center gap-1">
+                            <span>🔴 Forçar Desativada</span>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          <strong>Prioridade manual:</strong> Indisponível para venda no site, mesmo que ainda haja unidades no estoque.
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Exibir no Catálogo */}
+                  <label 
+                    className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+                      variantModalForm.showInCatalog !== false 
+                        ? 'bg-sky-50/70 border-sky-300 ring-1 ring-sky-200' 
+                        : 'bg-slate-50 border-slate-200 opacity-70'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={variantModalForm.showInCatalog !== false}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, showInCatalog: e.target.checked }))}
+                      className="mt-0.5 w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                    />
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                        <Eye className="w-3.5 h-3.5 text-sky-600" />
+                        <span>Exibir no catálogo (Vitrine / Cards)</span>
+                      </span>
+                      <p className="text-[11px] text-slate-500 leading-tight">
+                        Mostra a bolinha ou miniatura desta opção nos cards da vitrine e na listagem geral.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* 5. Foto Específica desta Opção */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 block">
+                      URL da Foto desta Opção (opcional — herda foto principal se vazio)
+                    </label>
+                    {variantModalForm.image && (
+                      <button
+                        type="button"
+                        onClick={() => setVariantModalForm(prev => ({ ...prev, image: '' }))}
+                        className="text-[11px] text-red-600 hover:text-red-700 font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Remover foto</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropzone & Preview Area */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDraggingVariantImage(true); }}
+                    onDragLeave={() => setIsDraggingVariantImage(false)}
+                    onDrop={handleDropVariantImage}
+                    className={`relative rounded-2xl border-2 border-dashed p-4 transition-all text-center ${
+                      isDraggingVariantImage 
+                        ? 'border-amber-500 bg-amber-50/80 scale-[1.01]' 
+                        : variantModalForm.image 
+                        ? 'border-slate-200 bg-slate-50/40' 
+                        : 'border-slate-300 bg-slate-50/80 hover:bg-slate-50 hover:border-amber-400'
+                    }`}
+                  >
+                    {variantModalForm.image ? (
+                      <div className="flex items-center justify-center gap-4 flex-wrap">
+                        <div className="w-24 h-24 rounded-xl border border-slate-300 bg-white p-1 shadow-sm overflow-hidden flex items-center justify-center shrink-0">
+                          <img 
+                            src={variantModalForm.image} 
+                            alt={variantModalForm.name || 'Variação'} 
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <div className="text-left space-y-2">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                            <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                            Foto personalizada ativa
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsSelectingVariantMedia(true);
+                                setIsLibraryModalOpen(true);
+                              }}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Images className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Trocar pela Biblioteca R2</span>
+                            </button>
+                            <label className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                              <Upload className="w-3.5 h-3.5 text-slate-600" />
+                              <span>Subir Arquivo</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    handleVariantImageFileUpload(e.target.files[0]);
+                                  }
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-3 space-y-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+                          {isUploadingVariantImage ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+                          ) : (
+                            <Upload className="w-5 h-5" />
+                          )}
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-slate-800">
+                            {isUploadingVariantImage ? 'Enviando imagem...' : 'Arraste uma foto aqui, cole com Ctrl+V ou escolha:'}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            Formatos suportados: WebP, PNG, JPG, GIF
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+                          <label className="btn-secondary text-xs font-bold py-1.5 px-3 rounded-xl gap-1.5 inline-flex items-center cursor-pointer shadow-2xs">
+                            <Upload className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Enviar do Computador</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={isUploadingVariantImage}
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  handleVariantImageFileUpload(e.target.files[0]);
+                                }
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <button
+                            type="button"
+                            disabled={isUploadingVariantImage}
+                            onClick={() => {
+                              setIsSelectingVariantMedia(true);
+                              setIsLibraryModalOpen(true);
+                            }}
+                            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Images className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Biblioteca R2</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Manual URL input fallback */}
+                  <div className="space-y-1">
+                    <input
+                      type="url"
+                      value={variantModalForm.image}
+                      onChange={(e) => setVariantModalForm(prev => ({ ...prev, image: e.target.value }))}
+                      placeholder="https://.../foto-especifica.webp"
+                      className="form-input text-xs font-mono"
+                    />
+                    <p className="text-[10px] text-slate-400">
+                      Cole a URL direta da imagem caso prefira link externo ou CDN já existente.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Modal Actions Footer */}
+                <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsVariantModalOpen(false);
+                      setEditingVariantIndex(null);
+                    }}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100 border border-slate-300 transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="btn-gold text-xs font-black py-2.5 px-6 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4 stroke-[2.5]" />
+                    <span>{editingVariantIndex !== null ? 'Salvar Alterações' : 'Adicionar Variação'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* CLOUDFLARE R2 IMAGE LIBRARY MODAL (Mounted at root level for flawless stacking over product modal or banner modal) */}
+        <ImageLibraryModal
+          isOpen={isLibraryModalOpen}
+          onClose={() => {
+            setIsLibraryModalOpen(false);
+            setIsSelectingBannerMedia(null);
+            setIsSelectingBrandMedia(false);
+            setIsSelectingVariantMedia(false);
+          }}
+          isStandalone={!isProductModalOpen && !isSelectingBannerMedia && !isSelectingBrandMedia && !isSelectingVariantMedia}
+          products={(() => {
+            if (!isProductModalOpen || !productForm) return products;
+            const currentProdId = productForm.id || editingProduct?.id;
+            const list = Array.isArray(products) ? [...products] : [];
+            if (currentProdId) {
+              const existingIdx = list.findIndex(p => p.id === currentProdId);
+              if (existingIdx >= 0) {
+                list[existingIdx] = { ...list[existingIdx], ...productForm };
+                return list;
+              }
+            }
+            return [...list, productForm];
+          })()}
+          brands={brands}
+          categories={categories}
+          banners={banners}
+          initialUsageFilter={
+            isSelectingBannerMedia ? 'banners' : isSelectingBrandMedia ? 'brands' : 'all'
+          }
+          currentImages={
+            isSelectingVariantMedia
+              ? (variantModalForm.image ? [variantModalForm.image] : [])
+              : isSelectingBrandMedia
+              ? (brandForm.logo ? [brandForm.logo] : [])
+              : (isSelectingBannerMedia
+                  ? (isSelectingBannerMedia === 'desktop'
+                      ? (bannerForm.desktopImage ? [bannerForm.desktopImage] : [])
+                      : (bannerForm.mobileImage ? [bannerForm.mobileImage] : []))
+                  : (isProductModalOpen ? [
+                      ...(Array.isArray(productForm.images) ? productForm.images : (productForm.image ? [productForm.image] : [])),
+                      ...(Array.isArray(productForm.variants) ? productForm.variants.map(v => v?.image).filter(Boolean) : []),
+                      ...(variantModalForm?.image ? [variantModalForm.image] : [])
+                    ] : []))
+          }
+          currentCover={
+            isSelectingVariantMedia
+              ? (variantModalForm.image || '')
+              : isSelectingBrandMedia
+              ? (brandForm.logo || '')
+              : (isSelectingBannerMedia
+                  ? (isSelectingBannerMedia === 'desktop' ? bannerForm.desktopImage : bannerForm.mobileImage)
+                  : (isProductModalOpen ? (productForm.image || '') : ''))
+          }
+          onSelectImage={
+            isSelectingVariantMedia ? (url) => {
+              if (pendingVariantImageCallback) {
+                pendingVariantImageCallback(url);
+                setPendingVariantImageCallback(null);
+              } else {
+                setVariantModalForm(prev => ({ ...prev, image: url }));
+              }
+              setIsSelectingVariantMedia(false);
+              setIsLibraryModalOpen(false);
+              showNotification('Foto da variação selecionada da Biblioteca R2!', 'success');
+            } : isSelectingBrandMedia ? (url) => {
+              setBrandForm(prev => ({ ...prev, logo: url }));
+              setIsSelectingBrandMedia(false);
+              setIsLibraryModalOpen(false);
+              showNotification('Logo da marca selecionado da Biblioteca R2!', 'success');
+            } : (isSelectingBannerMedia ? (url) => {
+              if (isSelectingBannerMedia === 'desktop') {
+                setBannerForm(prev => ({ ...prev, desktopImage: url }));
+                showNotification('Banner Desktop atualizado a partir da biblioteca R2!', 'success');
+              } else if (isSelectingBannerMedia === 'mobile') {
+                setBannerForm(prev => ({ ...prev, mobileImage: url }));
+                showNotification('Banner Mobile atualizado a partir da biblioteca R2!', 'success');
+              }
+              setIsSelectingBannerMedia(null);
+              setIsLibraryModalOpen(false);
+            } : (isProductModalOpen ? (url) => {
+              setProductForm((prev) => {
+                const current = Array.isArray(prev.images) ? [...prev.images] : [];
+                const updated = current.includes(url) ? current : [...current, url];
+                return {
+                  ...prev,
+                  image: prev.image || url,
+                  images: updated
+                };
+              });
+              showNotification('Foto adicionada à galeria do equipamento!', 'success');
+            } : undefined))
+          }
+          onRemoveImageFromProduct={
+            isSelectingVariantMedia ? () => {
+              setVariantModalForm(prev => ({ ...prev, image: '' }));
+              setIsSelectingVariantMedia(false);
+              setIsLibraryModalOpen(false);
+              showNotification('Foto da variação removida.', 'info');
+            } : isSelectingBrandMedia ? () => {
+              setBrandForm(prev => ({ ...prev, logo: '' }));
+              setIsSelectingBrandMedia(false);
+              setIsLibraryModalOpen(false);
+              showNotification('Logo da marca removido.', 'info');
+            } : (isSelectingBannerMedia ? () => {
+              if (isSelectingBannerMedia === 'desktop') {
+                setBannerForm(prev => ({ ...prev, desktopImage: '' }));
+                showNotification('Imagem Desktop do banner removida.', 'info');
+              } else if (isSelectingBannerMedia === 'mobile') {
+                setBannerForm(prev => ({ ...prev, mobileImage: '' }));
+                showNotification('Imagem Mobile do banner removida.', 'info');
+              }
+              setIsSelectingBannerMedia(null);
+              setIsLibraryModalOpen(false);
+            } : (isProductModalOpen ? (url) => {
+              setProductForm((prev) => {
+                const current = Array.isArray(prev.images) ? prev.images : [];
+                const updated = current.filter(u => u !== url);
+                const updatedVariants = Array.isArray(prev.variants)
+                  ? prev.variants.map(v => (v && v.image === url) ? { ...v, image: '' } : v)
+                  : prev.variants;
+                return {
+                  ...prev,
+                  image: prev.image === url ? (updated[0] || '') : prev.image,
+                  images: updated,
+                  variants: updatedVariants
+                };
+              });
+              showNotification('Foto removida do equipamento e de suas variações.', 'info');
+            } : undefined))
+          }
+          onSetAsCover={
+            isProductModalOpen ? (url) => {
+              setProductForm((prev) => {
+                const current = Array.isArray(prev.images) ? prev.images : [];
+                const updated = current.includes(url) ? current : [url, ...current];
+                return {
+                  ...prev,
+                  image: url,
+                  images: updated
+                };
+              });
+              showNotification('Foto definida como capa principal!', 'success');
+            } : undefined
+          }
+          API_BASE_URL={API_BASE_URL}
+          getAuthHeaders={getAuthHeaders}
+          showNotification={showNotification}
+        />
+
+        {/* CUSTOMER DETAIL & CRM HISTORY MODAL */}
+        <CustomerDetailModal
+          isOpen={Boolean(selectedCustomerForModal)}
+          customer={selectedCustomerForModal}
+          onClose={() => setSelectedCustomerForModal(null)}
+          API_BASE_URL={API_BASE_URL}
+          getAuthHeaders={getAuthHeaders}
+          showNotification={showNotification}
+          onPointsAdjusted={(userId, newBalance) => {
+            setUsersList(prev => prev.map(u => u.id === userId ? { ...u, aPoints: newBalance } : u));
+          }}
+          onCustomerUpdated={(updated) => {
+            setUsersList(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+          }}
+          onDeleteCustomer={handleDeleteUser}
+        />
+
+      </div>
+    </div>
+  );
+}

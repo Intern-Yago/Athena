@@ -1,0 +1,440 @@
+import React, { useEffect } from 'react';
+import { 
+  ShoppingCart, 
+  X, 
+  Trash2, 
+  Plus, 
+  Minus, 
+  ArrowRight, 
+  ShieldCheck, 
+  Sparkles,
+  Layers,
+  CreditCard,
+  Zap,
+  MessageCircle
+} from 'lucide-react';
+import { useCart } from '../context/CartContext';
+import ShippingCalculator from './ShippingCalculator';
+import { trackMetaEvent } from '../utils/metaPixel';
+
+export function CartDrawer() {
+  const {
+    cartItems,
+    totalItemCount,
+    quoteItems,
+    buyableItems,
+    quoteItemCount,
+    buyableItemCount,
+    subtotal,
+    isCartOpen,
+    setIsCartOpen,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    cartShipping,
+    setCartShipping,
+    openCartCheckout,
+    getWhatsAppQuoteUrl,
+    requireVerification
+  } = useCart();
+
+  // Lock background scroll when cart drawer is open to eliminate background lag
+  useEffect(() => {
+    if (isCartOpen) {
+      const originalOverflow = document.body.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+      document.body.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+      };
+    }
+  }, [isCartOpen]);
+
+  if (!isCartOpen) return null;
+
+  const formatBRL = (val) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+
+  return (
+    <div className="fixed inset-0 z-[120] overflow-hidden overscroll-none">
+      {/* Backdrop */}
+      <div 
+        onClick={() => setIsCartOpen(false)}
+        className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs animate-backdrop-fade cursor-pointer"
+      />
+
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
+        <div className="w-screen max-w-md h-[100dvh] max-h-[100dvh] bg-white shadow-2xl flex flex-col justify-between border-l border-slate-200 animate-drawer-slide-right">
+          
+          {/* Header */}
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <ShoppingCart className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base leading-none">
+                  Carrinho de Compras
+                </h3>
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {totalItemCount} {totalItemCount === 1 ? 'item selecionado' : 'itens selecionados'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {cartItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearCart}
+                  className="text-[11px] text-slate-400 hover:text-red-400 font-semibold px-2 py-1 rounded hover:bg-slate-800 transition-colors"
+                  title="Esvaziar carrinho"
+                >
+                  Limpar
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsCartOpen(false)}
+                className="w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Scrollable Body: Cart Items + Shipping Calculator */}
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
+            {cartItems.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center py-12 px-4 space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-sm">
+                  <ShoppingCart className="w-8 h-8" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-bold text-slate-900 text-sm">Seu carrinho está vazio</h4>
+                  <p className="text-xs text-slate-500 max-w-xs">
+                    Navegue pelo catálogo e adicione equipamentos ou licenças com compra direta.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCartOpen(false)}
+                  className="btn-gold text-xs font-bold py-2.5 px-5 rounded-xl shadow-sm inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <span>Explorar Catálogo</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3 divide-y divide-slate-100">
+                  {cartItems.map((item) => {
+                    const itemTotal = Number(item.price) * (Number(item.quantity) || 1);
+                    const itemKey = item.id || item.productId;
+                    return (
+                      <div key={itemKey} className="pt-3 first:pt-0 flex items-start gap-3 text-xs">
+                        {/* Thumbnail */}
+                        <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 p-1 shrink-0 overflow-hidden flex items-center justify-center">
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block truncate">
+                            {item.brandName || 'Athena'}
+                          </span>
+                          <h5 className="font-bold text-slate-900 leading-snug line-clamp-2">
+                            {item.name}
+                          </h5>
+
+                          {/* Variant Badge / Info */}
+                          {item.variantName && (
+                            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                              {item.variantColorHex && (
+                                <span 
+                                  className="w-3 h-3 rounded-full border border-slate-300 shadow-2xs shrink-0" 
+                                  style={{ backgroundColor: item.variantColorHex }} 
+                                  title={item.variantName}
+                                />
+                              )}
+                              <span className="text-[10px] font-extrabold text-slate-800 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                                {item.variantName}
+                              </span>
+                              {item.sku && (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  SKU: {item.sku}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-2 pt-1">
+                            {item.isQuote || !(Number(item.price) > 0) ? (
+                              <span className="font-extrabold text-amber-800 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded text-[11px] shadow-2xs">
+                                Sob Consulta
+                              </span>
+                            ) : (
+                              <span className="font-extrabold text-amber-900 text-xs sm:text-sm">
+                                {formatBRL(itemTotal)}
+                              </span>
+                            )}
+                            {!item.isQuote && Number(item.price) > 0 && item.quantity > 1 && (
+                              <span className="text-[10px] text-slate-400">
+                                ({formatBRL(item.price)} cada)
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Quantity Controls */}
+                          <div className="flex items-center justify-between pt-1">
+                            <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(itemKey, item.quantity - 1)}
+                                className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 active:scale-90 text-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                                title="Diminuir quantidade"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                              <span className="font-extrabold text-xs px-2 text-slate-900 min-w-[22px] text-center">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateQuantity(itemKey, item.quantity + 1)}
+                                className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 active:scale-90 text-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                                title="Aumentar quantidade"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => removeFromCart(itemKey)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 active:scale-90 transition-all cursor-pointer"
+                              title="Remover este item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Cotação de Frete do Carrinho (Melhor Envio) — Dentro da área rolável e em modo compacto */}
+                <div className="pt-3 border-t border-slate-200/80">
+                  <ShippingCalculator 
+                    items={cartItems}
+                    compact={true}
+                    onSelectShipping={(opt) => setCartShipping(opt)}
+                    className="!bg-slate-50/90 !p-3 !rounded-xl !shadow-none !border-slate-200/90"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer Fixo & Compacto: Totais & Botões de Ação */}
+          {cartItems.length > 0 && (
+            <div className="shrink-0 p-4 sm:p-5 pb-16 sm:pb-4 border-t border-slate-200 bg-slate-50 space-y-3">
+              {/* Totals Breakdown */}
+              <div className="space-y-1.5 text-xs">
+                {quoteItemCount > 0 && (
+                  <div className="flex items-center justify-between text-slate-700 bg-amber-50/90 border border-amber-200/80 px-2.5 py-1.5 rounded-lg">
+                    <span className="font-semibold text-amber-950">Itens sob consulta:</span>
+                    <span className="font-extrabold text-amber-900 bg-amber-100 px-2 py-0.5 rounded text-[11px]">
+                      {quoteItemCount} {quoteItemCount === 1 ? 'item' : 'itens'}
+                    </span>
+                  </div>
+                )}
+
+                {cartShipping && !cartShipping.onlyCep && cartShipping.price != null && (
+                  <div className="flex items-center justify-between text-slate-700 bg-emerald-50/80 border border-emerald-200/80 px-2.5 py-1.5 rounded-lg gap-2">
+                    <span className="font-semibold text-emerald-950 truncate">
+                      Frete ({cartShipping.company?.name || 'Transp.'} — {cartShipping.name}):
+                    </span>
+                    <span className="font-extrabold text-emerald-900 shrink-0">
+                      {formatBRL(cartShipping.price)}
+                    </span>
+                  </div>
+                )}
+
+                {buyableItemCount > 0 && (
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Subtotal c/ Preço ({buyableItemCount} {buyableItemCount === 1 ? 'item' : 'itens'}):</span>
+                    <span className="font-bold text-slate-900">{formatBRL(subtotal)}</span>
+                  </div>
+                )}
+
+                {buyableItemCount > 0 && (
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Pagamento Online:</span>
+                    <span className="text-emerald-700 font-bold flex items-center gap-1">
+                      <Zap className="w-3 h-3" /> PIX ou Cartão até 12x
+                    </span>
+                  </div>
+                )}
+
+                {buyableItemCount > 0 && (
+                  <div className="border-t border-slate-200/80 pt-1.5 flex items-center justify-between">
+                    <span className="font-extrabold text-slate-900 text-sm">Total Compra Direta:</span>
+                    <span className="font-black text-base sm:text-lg text-amber-900">
+                      {formatBRL(subtotal)}
+                    </span>
+                  </div>
+                )}
+
+                {subtotal > 0 && (
+                  <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-amber-950 font-semibold bg-amber-50/80 px-2.5 py-1.5 rounded-lg border border-amber-200/70">
+                    <span className="flex items-center gap-1.5 text-xs text-amber-900">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      A-Points a acumular:
+                    </span>
+                    <span className="font-extrabold text-xs text-amber-950">
+                      +{cartItems.reduce((acc, item) => {
+                        if (item.aPoints && Number(item.aPoints) > 0) {
+                          return acc + (Number(item.aPoints) * (Number(item.quantity) || 1));
+                        }
+                        return acc + Math.floor(((Number(item.price) || 0) * (Number(item.quantity) || 1)) / 50);
+                      }, 0)} pts
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                {/* Botão de Orçamento no WhatsApp: sempre presente quando houver itens sob consulta */}
+                {quoteItemCount > 0 && (
+                  <a
+                    href={getWhatsAppQuoteUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      const itemSkus = cartItems.map(it => String((it.sku && String(it.sku).trim()) || it.id));
+                      const itemsSummary = cartItems.map(it => `${it.quantity || 1}x ${it.name}${it.variantName ? ` (${it.variantName})` : ''}`).join(' | ');
+                      const shipCep = cartShipping?.cep || '';
+                      const shipLoc = cartShipping?.addressInfo || '';
+                      const shipCarrier = cartShipping?.company?.name
+                        ? `${cartShipping.company.name} (${cartShipping.name || ''})`
+                        : '';
+                      const shipPrice = cartShipping?.price ?? null;
+                      const cepSummary = shipCep ? ` | CEP: ${shipCep}${shipLoc ? ` (${shipLoc})` : ''}` : '';
+                      const carrierSummary = shipCarrier ? ` | Frete: ${shipCarrier}${shipPrice != null ? ` R$ ${Number(shipPrice).toFixed(2)}` : ''}` : '';
+                      const descCart = `Solicitou Orçamento do Carrinho no WhatsApp (${totalItemCount} un): ${itemsSummary}${cepSummary}${carrierSummary}`;
+
+                      trackMetaEvent('InitiateCheckout', {
+                        descricao: descCart,
+                        content_ids: itemSkus,
+                        content_name: `Carrinho (${totalItemCount} un): ${itemsSummary.slice(0, 120)}`,
+                        itens_orcamento: itemsSummary,
+                        num_items: totalItemCount,
+                        value: Number(subtotal || 1.00),
+                        currency: 'BRL',
+                        shipping_cep: shipCep,
+                        shipping_location: shipLoc,
+                        shipping_carrier: shipCarrier,
+                        contents: cartItems.map(it => ({
+                          id: String((it.sku && String(it.sku).trim()) || it.id),
+                          name: it.name,
+                          quantity: Number(it.quantity) || 1,
+                          item_price: Number(it.price || 1.00)
+                        }))
+                      });
+
+                      trackMetaEvent('Lead', {
+                        descricao: descCart,
+                        content_ids: itemSkus,
+                        content_name: `Orçamento Carrinho (${totalItemCount} itens): ${itemsSummary.slice(0, 120)}`,
+                        itens_orcamento: itemsSummary,
+                        value: Number(subtotal || 1.00),
+                        currency: 'BRL',
+                        lead_source: 'cart_whatsapp_quote',
+                        origem_clique: 'Gaveta do Carrinho de Orçamento',
+                        shipping_cep: shipCep,
+                        shipping_location: shipLoc,
+                        shipping_carrier: shipCarrier,
+                        shipping_price: shipPrice
+                      });
+
+                      trackMetaEvent('Contact', {
+                        descricao: descCart,
+                        content_ids: itemSkus,
+                        content_name: `Orçamento Carrinho (${totalItemCount} itens): ${itemsSummary.slice(0, 120)}`,
+                        itens_orcamento: itemsSummary,
+                        origem_clique: 'Gaveta do Carrinho de Orçamento',
+                        value: Number(subtotal || 1.00),
+                        currency: 'BRL',
+                        shipping_cep: shipCep,
+                        shipping_location: shipLoc,
+                        shipping_carrier: shipCarrier
+                      });
+
+                      if (requireVerification && requireVerification(() => {
+                        window.open(getWhatsAppQuoteUrl(), '_blank');
+                      })) {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-emerald-500 group"
+                  >
+                    <MessageCircle className="w-5 h-5 fill-current group-hover:scale-110 transition-transform shrink-0" />
+                    <span className="tracking-wide">
+                      {buyableItemCount > 0 ? 'Solicitar Cotação Completa no WhatsApp' : 'Solicitar Orçamento no WhatsApp'}
+                    </span>
+                    <ArrowRight className="w-5 h-5 shrink-0" />
+                  </a>
+                )}
+
+                {/* Botão de Compra Direta Online: quando houver itens com preço */}
+                {buyableItemCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={openCartCheckout}
+                    className="w-full bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 group"
+                  >
+                    <CreditCard className="w-5 h-5 text-slate-950 group-hover:scale-110 transition-transform shrink-0" />
+                    <span className="text-slate-950 font-black tracking-wide">
+                      {quoteItemCount > 0 ? `Comprar ${buyableItemCount} Itens c/ Preço no Site` : 'Finalizar Compra Segura'}
+                    </span>
+                    <ArrowRight className="w-5 h-5 text-slate-950 shrink-0" />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsCartOpen(false)}
+                  className="w-full py-2 text-center text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                  Continuar Comprando
+                </button>
+              </div>
+
+              {/* Security Seal */}
+              <div className="pt-1 flex items-center justify-center gap-2 text-[10px] text-slate-400 border-t border-slate-200/60">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Ambiente Criptografado & Processado via Asaas Gateway</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default CartDrawer;

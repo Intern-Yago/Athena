@@ -1,0 +1,527 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import ProductCard from './ProductCard';
+import FilterSidebar from './FilterSidebar';
+import Pagination from './Pagination';
+import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, LayoutGrid, List } from 'lucide-react';
+import { sortProducts } from '../utils/productSorting';
+import { getUserInterest, recordSearchInterest } from '../utils/userInterestTracker';
+import { 
+  buildProductRelationsMap, 
+  matchProductWithRelations,
+  normalizeSearchText,
+  cleanAlphanumeric,
+  getProductSuggestionProfile
+} from '../utils/productSearch';
+import { isProductPublished } from '../utils/imageUrl';
+import { MACRO_DEPARTMENTS } from '../data/departmentsData';
+
+const ITEMS_PER_PAGE = 20;
+
+export default function Catalog({ 
+  products, 
+  categories, 
+  brands, 
+  departments = MACRO_DEPARTMENTS,
+  selectedCategories, 
+  setSelectedCategories,
+  selectedBrands,
+  setSelectedBrands,
+  maxPriceFilter,
+  setMaxPriceFilter,
+  searchTerm,
+  setSearchTerm,
+  onSelectProduct,
+  isAdmin,
+  onEditProduct,
+  onDeleteProduct,
+  onOpenAddProduct,
+  comparisonList,
+  onToggleComparison
+}) {
+  const [sortBy, setSortBy] = useState('featured');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState('grid');
+  const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1000000));
+
+  // Reset to page 1 whenever any filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategories, selectedBrands, maxPriceFilter, searchTerm, sortBy, shuffleSeed]);
+
+  // Build bidirectional relation map across all catalog items
+  const relationsMap = useMemo(() => {
+    return buildProductRelationsMap(products);
+  }, [products]);
+
+  // Filter products according to all active multi-selections + Bidirectional Relations
+  const filteredProducts = useMemo(() => {
+    const rawTerm = searchTerm.trim();
+    const categoriesMap = new Map((categories || []).map((c) => [c.id, c]));
+    const brandsMap = new Map((brands || []).map((b) => [b.id, b]));
+
+    const matched = [];
+
+    for (let i = 0; i < (products || []).length; i++) {
+      const prod = products[i];
+      // In the catalog, ONLY published products are visible; drafts remain strictly in the Admin Panel
+      if (!isProductPublished(prod)) continue;
+
+      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prod.categoryId);
+      if (!matchesCategory) continue;
+
+      const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(prod.brandId);
+      if (!matchesBrand) continue;
+
+      const matchesPrice = maxPriceFilter === null || (prod.price > 0 ? prod.price <= maxPriceFilter : true);
+      if (!matchesPrice) continue;
+
+      const searchRes = matchProductWithRelations(
+        prod,
+        rawTerm,
+        relationsMap,
+        categoriesMap,
+        brandsMap
+      );
+
+      if (!searchRes.matches) continue;
+
+      // If matched via relation to another product, annotate _matchedVia for visual badge & ranking
+      if (!searchRes.isDirectMatch && searchRes.matchedViaProduct) {
+        matched.push({
+          ...prod,
+          _matchedVia: searchRes.matchedViaProduct,
+          _searchScore: searchRes.score || 0
+        });
+      } else {
+        matched.push({
+          ...prod,
+          _searchScore: searchRes.score || 0
+        });
+      }
+    }
+
+    // Priorização refinada de busca: Título > SKU/Modelo > Marca/Categoria > Descrição/Specs > Relacionados
+    if (rawTerm) {
+      const normQuery = normalizeSearchText(rawTerm);
+      const cleanQuery = cleanAlphanumeric(rawTerm);
+      const queryTokens = normQuery
+        .split(/\s+/)
+        .filter(t => t.length >= 2 && !['de', 'da', 'do', 'das', 'dos', 'com', 'para', 'em', 'um', 'uma', 'e'].includes(t));
+
+      const matchesToken = (text, tok) => {
+        if (!text || !tok) return false;
+        if (text.includes(tok)) return true;
+        // Tolerância singular/plural em português
+        if (tok.endsWith('es') && tok.length > 4 && text.includes(tok.slice(0, -2))) return true;
+        if (tok.endsWith('s') && tok.length > 3 && text.includes(tok.slice(0, -1))) return true;
+        if (!tok.endsWith('s') && text.includes(tok + 's')) return true;
+        return false;
+      };
+
+      const getTier = (p) => {
+        const prof = getProductSuggestionProfile(p, brandsMap, categoriesMap);
+        if (!prof) return 999;
+
+        // Tier 0: correspondência exata no título
+        if (prof.pNorm === normQuery || (cleanQuery.length >= 3 && prof.pClean === cleanQuery)) return 0;
+        // Tier 1: título começa com a pesquisa
+        if (prof.pNorm.startsWith(normQuery)) return 1;
+        // Tier 1.5: Título contém todos os termos significativos da busca (ex: "carregador" e "baterias")
+        if (queryTokens.length > 1 && queryTokens.every(tok => matchesToken(prof.pNorm, tok))) return 1.5;
+        // Tier 2: título contém a pesquisa exata contígua
+        if (prof.pNorm.includes(normQuery)) return 2;
+        // Tier 2.4: Tags contêm todos os termos da busca
+        if (prof.normTags.length > 0 && queryTokens.length > 1) {
+          const allTokensInTags = queryTokens.every(tok => prof.normTags.some(t => matchesToken(t.norm, tok)));
+          if (allTokensInTags) return 2.4;
+        }
+        // Tier 2.5: Tag / Palavra-chave de busca (#hashtags)
+        if (prof.normTags.length > 0) {
+          const hasTagMatch = prof.normTags.some(t => 
+            t.norm === normQuery || t.norm.includes(normQuery) || (cleanQuery.length >= 3 && t.clean.includes(cleanQuery))
+          );
+          if (hasTagMatch) return 2.5;
+        }
+        // Tier 2.8: Título contém ao menos um dos termos principais da busca (relevância parcial de título)
+        if (queryTokens.length > 1 && queryTokens.some(tok => matchesToken(prof.pNorm, tok))) return 2.8;
+        // Tier 3: SKU ou código Omie
+        if (prof.skuNorm && (prof.skuNorm.includes(normQuery) || (cleanQuery.length >= 3 && prof.skuClean.includes(cleanQuery)))) return 3;
+        // Tier 3.3: Especificações Técnicas (specs)
+        if (prof.specsNorm && (prof.specsNorm.includes(normQuery) || (cleanQuery.length >= 3 && prof.specsClean.includes(cleanQuery)))) return 3.3;
+        // Tier 3.6: Abas personalizadas (customTabs)
+        if (prof.tabsNorm && (prof.tabsNorm.includes(normQuery) || (cleanQuery.length >= 3 && prof.tabsClean.includes(cleanQuery)))) return 3.6;
+        // Tier 4: Marca ou categoria
+        if (prof.brandNorm.includes(normQuery) || prof.catNorm.includes(normQuery)) return 4;
+        // Tier 5: Encontrado diretamente na descrição
+        if (!p._matchedVia) return 5;
+        // Tier 6: Encontrado via produto relacionado
+        return 6;
+      };
+
+      for (let i = 0; i < matched.length; i++) {
+        matched[i]._tier = getTier(matched[i]);
+      }
+
+      matched.sort((a, b) => {
+        if (a._tier !== b._tier) return a._tier - b._tier;
+        const aTokensInTitle = queryTokens.filter(tok => matchesToken((a.name || '').toLowerCase(), tok)).length;
+        const bTokensInTitle = queryTokens.filter(tok => matchesToken((b.name || '').toLowerCase(), tok)).length;
+        if (aTokensInTitle !== bTokensInTitle) return bTokensInTitle - aTokensInTitle;
+        return (b._searchScore || 0) - (a._searchScore || 0);
+      });
+    }
+
+    return matched;
+  }, [products, searchTerm, selectedCategories, selectedBrands, maxPriceFilter, categories, brands, relationsMap]);
+
+  // Track user search interest
+  useEffect(() => {
+    if (searchTerm && searchTerm.trim().length >= 2) {
+      recordSearchInterest(searchTerm.trim());
+    }
+  }, [searchTerm]);
+
+  // Sort products (Smart Multi-Brand & Multi-Category Interleaving when sortBy === 'featured', with on-site personalization)
+  const sortedProducts = useMemo(() => {
+    if (searchTerm.trim() && sortBy === 'featured') {
+      return filteredProducts;
+    }
+    const userInterest = sortBy === 'featured' ? getUserInterest() : null;
+    return sortProducts(filteredProducts, sortBy, shuffleSeed, userInterest);
+  }, [filteredProducts, sortBy, shuffleSeed, searchTerm]);
+
+  // Pagination calculation
+  const totalPages = Math.ceil(sortedProducts.length / ITEMS_PER_PAGE);
+  const paginatedProducts = sortedProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const hasActiveFilters = 
+    selectedCategories.length > 0 || 
+    selectedBrands.length > 0 || 
+    maxPriceFilter !== null || 
+    searchTerm !== '';
+
+  // Detect if any macro department is currently in focus based on selectedCategories
+  const activeDepartment = useMemo(() => {
+    if (!selectedCategories || selectedCategories.length === 0) return null;
+    let maxMatch = 0;
+    let bestDept = null;
+    const deptsList = Array.isArray(departments) && departments.length > 0 ? departments : MACRO_DEPARTMENTS;
+    for (const dept of deptsList) {
+      const deptCats = (categories || []).filter(cat => {
+        if (cat.departmentId) return cat.departmentId === dept.id;
+        return (dept.categoryIds || []).includes(cat.id);
+      });
+      const matchCount = deptCats.filter(c => selectedCategories.includes(c.id)).length;
+      if (matchCount > maxMatch) {
+        maxMatch = matchCount;
+        bestDept = {
+          ...dept,
+          categoryIds: deptCats.map(c => c.id)
+        };
+      }
+    }
+    return bestDept;
+  }, [selectedCategories, categories, departments]);
+
+  const resetAllFilters = () => {
+    setSelectedCategories([]);
+    setSelectedBrands([]);
+    setMaxPriceFilter(null);
+    setSearchTerm('');
+    setSortBy('featured');
+    setShuffleSeed(Math.floor(Math.random() * 1000000));
+    setCurrentPage(1);
+  };
+
+  const removeCategoryFilter = (catId) => {
+    setSelectedCategories(selectedCategories.filter(id => id !== catId));
+  };
+
+  const removeBrandFilter = (brandId) => {
+    setSelectedBrands(selectedBrands.filter(id => id !== brandId));
+  };
+
+  const goToPage = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 400, behavior: 'smooth' });
+  };
+
+  return (
+    <section className="py-6 sm:py-8 w-full min-h-[800px]">
+      <div className="w-full px-3 sm:px-6 lg:px-8 space-y-6">
+        
+        {/* Full-Width E-commerce Layout: Sidebar Glued to Far Left + Cards Fill Entire Monitor */}
+        <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-start relative w-full">
+          
+          {/* Sidebar Glued to Left Edge */}
+          <div className="w-full lg:w-72 shrink-0 lg:sticky lg:top-24 z-30">
+            <FilterSidebar
+              products={products}
+              categories={categories}
+              brands={brands}
+              departments={departments}
+              selectedCategories={selectedCategories}
+              setSelectedCategories={setSelectedCategories}
+              selectedBrands={selectedBrands}
+              setSelectedBrands={setSelectedBrands}
+              maxPriceFilter={maxPriceFilter}
+              setMaxPriceFilter={setMaxPriceFilter}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              onResetFilters={resetAllFilters}
+            />
+          </div>
+
+          {/* Product Grid Area (Takes 100% of remaining viewport width) */}
+          <div className="flex-1 min-w-0 space-y-6 w-full">
+            
+            {/* Top Toolbar */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                    <Package className="w-6 h-6 text-amber-600 shrink-0" />
+                    Catálogo de Equipamentos
+                  </h1>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Exibindo <span className="text-amber-700 font-bold">{paginatedProducts.length}</span> de {sortedProducts.length} equipamentos
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {isAdmin && (
+                    <button
+                      onClick={onOpenAddProduct}
+                      className="btn-gold text-xs font-bold py-2 px-3.5 shadow-xs"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Cadastrar Produto</span>
+                    </button>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal className="w-4 h-4 text-slate-500 hidden sm:inline" />
+                    <select
+                      id="sort-products"
+                      aria-label="Ordenar produtos por"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="form-select text-xs py-2 px-3 bg-slate-50 border-slate-300 w-auto font-semibold"
+                    >
+                      <option value="featured">Mais Relevantes</option>
+                      <option value="price-low">Menor Preço</option>
+                      <option value="price-high">Maior Preço</option>
+                      <option value="name-az">Nome (A - Z)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Horizontal Subcategory Quick Chips (Modelo KaBuM!) */}
+              {activeDepartment && (
+                <div className="pt-3 border-t border-slate-100 flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none]">
+                  <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{activeDepartment.shortName}:</span>
+                  </span>
+
+                  {/* Button Ver Todos do Departamento */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategories(activeDepartment.categoryIds)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+                      activeDepartment.categoryIds.every((id) => selectedCategories.includes(id))
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    Ver Todos ({activeDepartment.categoryIds.reduce((acc, cid) => acc + (products.filter(p => p.categoryId === cid).length), 0)})
+                  </button>
+
+                  {/* Subcategory Chips */}
+                  {activeDepartment.categoryIds.map((catId) => {
+                    const catObj = categories.find((c) => c.id === catId);
+                    if (!catObj) return null;
+                    const count = products.filter((p) => p.categoryId === catId).length;
+                    if (count === 0) return null;
+                    const isSelected = selectedCategories.includes(catId) && !activeDepartment.categoryIds.every((id) => selectedCategories.includes(id));
+
+                    return (
+                      <button
+                        key={catId}
+                        type="button"
+                        onClick={() => setSelectedCategories([catId])}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-amber-600 text-white font-bold shadow-xs'
+                            : 'bg-white text-slate-700 hover:bg-amber-50 hover:text-amber-900 border border-slate-200'
+                        }`}
+                      >
+                        <span>{catObj.name}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                          isSelected ? 'bg-amber-700 text-white' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Accumulative Active Badges Bar */}
+              {hasActiveFilters && (
+                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      Filtros Selecionados:
+                    </span>
+
+                    {selectedCategories.map((catId) => {
+                      const catObj = categories.find(c => c.id === catId);
+                      if (!catObj) return null;
+                      return (
+                        <span key={catId} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                          <Layers className="w-3 h-3 text-amber-700" />
+                          <span>{catObj.name}</span>
+                          <button 
+                            onClick={() => removeCategoryFilter(catId)}
+                            className="p-0.5 hover:bg-amber-200 rounded-full text-amber-800 transition-colors"
+                            title="Remover filtro"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      );
+                    })}
+
+                    {selectedBrands.map((brandId) => {
+                      const brandObj = brands.find(b => b.id === brandId);
+                      if (!brandObj) return null;
+                      return (
+                        <span key={brandId} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-900 border border-sky-300">
+                          <Tag className="w-3 h-3 text-sky-700" />
+                          <span>{brandObj.name}</span>
+                          <button 
+                            onClick={() => removeBrandFilter(brandId)}
+                            className="p-0.5 hover:bg-sky-200 rounded-full text-sky-800 transition-colors"
+                            title="Remover filtro"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      );
+                    })}
+
+                    {maxPriceFilter !== null && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        <DollarSign className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Até {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(maxPriceFilter)}</span>
+                        <button 
+                          onClick={() => setMaxPriceFilter(null)}
+                          className="p-0.5 hover:bg-emerald-200 rounded-full text-emerald-800 transition-colors"
+                          title="Remover limite de preço"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    )}
+
+                    {searchTerm && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-800 border border-slate-300">
+                        <Search className="w-3 h-3 text-slate-600" />
+                        <span>Busca: "{searchTerm}"</span>
+                        <button 
+                          onClick={() => setSearchTerm('')}
+                          className="p-0.5 hover:bg-slate-300 rounded-full text-slate-800 transition-colors"
+                          title="Limpar busca"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={resetAllFilters}
+                    className="text-xs font-bold text-amber-700 hover:text-amber-800 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Limpar Todos</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Dynamic Product Grid / List */}
+            {paginatedProducts.length > 0 ? (
+              <>
+                <div className={
+                  viewMode === 'grid'
+                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6"
+                    : "flex flex-col space-y-4"
+                }>
+                  {paginatedProducts.map((product) => {
+                    const category = categories.find((c) => c.id === product.categoryId);
+                    const brand = brands.find((b) => b.id === product.brandId);
+                    return (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        category={category}
+                        brand={brand}
+                        onSelectProduct={onSelectProduct}
+                        isAdmin={isAdmin}
+                        onEditProduct={onEditProduct}
+                        onDeleteProduct={onDeleteProduct}
+                        isInComparison={comparisonList?.some((p) => p.id === product.id)}
+                        onToggleComparison={onToggleComparison}
+                        viewMode={viewMode}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* PAGINATION CONTROLS */}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={sortedProducts.length}
+                  itemsPerPage={ITEMS_PER_PAGE}
+                  onPageChange={goToPage}
+                  itemName="equipamentos"
+                />
+              </>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-4 max-w-lg mx-auto shadow-xs">
+                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-amber-600">
+                  <Search className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Nenhum equipamento encontrado</h3>
+                <p className="text-xs text-slate-500">
+                  Não encontramos nenhum produto correspondente à combinação de filtros selecionados.
+                </p>
+                <div className="pt-2 flex justify-center gap-3">
+                  <button onClick={resetAllFilters} className="btn-secondary text-xs">
+                    Limpar Todos os Filtros
+                  </button>
+                  {isAdmin && (
+                    <button onClick={onOpenAddProduct} className="btn-gold text-xs font-bold">
+                      <Plus className="w-4 h-4" /> Cadastrar Produto
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+  );
+}

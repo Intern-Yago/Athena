@@ -1,0 +1,73 @@
+name: CI - Automated Testing & Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'public/**.txt'
+      - 'public/sitemap.xml'
+      - 'crm/public/robots.txt'
+      - 'docs/**'
+      - '.gitignore'
+      - 'public/images/**'
+      - 'public/brands/**'
+      - 'public/products/**'
+      - 'public/black-friday-*.png'
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'public/**.txt'
+      - 'public/sitemap.xml'
+      - 'docs/**'
+      - '.gitignore'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-gate:
+    name: Fast Quality Gate & Deploy Trigger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm ci --prefer-offline --no-audit
+          cd backend && npm ci --prefer-offline --no-audit && cd ..
+
+      - name: Verify Backend Syntax Integrity
+        run: node -c backend/server.js
+
+      - name: Run Core Test Suite
+        run: node --test tests/unit/cors-and-network.test.js tests/unit/cloudflare-security-audit.test.js tests/unit/auth-roles.test.js tests/unit/password-validator.test.js
+
+      - name: Trigger Render Deploy Hook
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "Triggering Render deployment..."
+            response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "$RENDER_DEPLOY_HOOK")
+            http_code=$(echo "$response" | grep "HTTP_STATUS" | cut -d':' -f2)
+            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+              echo "✅ Render deployment successfully triggered! HTTP $http_code"
+            else
+              echo "Render deploy hook status: $http_code"
+            fi
+          fi
+          echo "✅ Pipeline completed successfully in record time!"
