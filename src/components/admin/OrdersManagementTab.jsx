@@ -24,7 +24,10 @@ import {
   Trash2,
   AlertTriangle,
   Phone,
-  MessageCircle
+  MessageCircle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { decodeHtmlEntities, resolveOrderOrigin } from '../../utils/orderUtils';
 import {
@@ -206,15 +209,92 @@ export default function OrdersManagementTab({
     });
   }, [enrichedOrders, originFilter, statusFilter, typeFilter, searchTerm]);
 
+  // Ordenação das colunas da tabela
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+
+  const handleSort = (columnKey) => {
+    setSortConfig(prev => {
+      if (prev.key === columnKey) {
+        return { key: columnKey, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+      }
+      const defaultDirection = (columnKey === 'date' || columnKey === 'total' || columnKey === 'items') ? 'desc' : 'asc';
+      return { key: columnKey, direction: defaultDirection };
+    });
+  };
+
+  const renderSortIcon = (columnKey) => {
+    if (sortConfig.key !== columnKey) {
+      return <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60 group-hover:opacity-100 shrink-0" />;
+    }
+    return sortConfig.direction === 'asc' ? (
+      <ArrowUp className="w-3 h-3 text-amber-600 font-bold shrink-0" />
+    ) : (
+      <ArrowDown className="w-3 h-3 text-amber-600 font-bold shrink-0" />
+    );
+  };
+
+  const sortedOrders = useMemo(() => {
+    if (!sortConfig.key) return filteredOrders;
+
+    const list = [...filteredOrders];
+    const { key, direction } = sortConfig;
+    const modifier = direction === 'asc' ? 1 : -1;
+
+    list.sort((a, b) => {
+      switch (key) {
+        case 'order': {
+          const numA = Number(String(a.order_number || a.id || '').replace(/\D/g, '')) || 0;
+          const numB = Number(String(b.order_number || b.id || '').replace(/\D/g, '')) || 0;
+          if (numA !== numB) return (numA - numB) * modifier;
+          return String(a.order_number || a.id).localeCompare(String(b.order_number || b.id)) * modifier;
+        }
+        case 'date': {
+          const timeA = new Date(a.created_at || a.created_date || 0).getTime();
+          const timeB = new Date(b.created_at || b.created_date || 0).getTime();
+          return (timeA - timeB) * modifier;
+        }
+        case 'customer': {
+          const nameA = String(a.customer_snapshot?.name || a.user_name || '').toLowerCase();
+          const nameB = String(b.customer_snapshot?.name || b.user_name || '').toLowerCase();
+          return nameA.localeCompare(nameB) * modifier;
+        }
+        case 'items': {
+          const countA = Array.isArray(a.items) ? a.items.reduce((s, it) => s + (Number(it.quantity) || 1), 0) : 0;
+          const countB = Array.isArray(b.items) ? b.items.reduce((s, it) => s + (Number(it.quantity) || 1), 0) : 0;
+          return (countA - countB) * modifier;
+        }
+        case 'total': {
+          const valA = Number(a.total_amount || a.total || 0);
+          const valB = Number(b.total_amount || b.total || 0);
+          return (valA - valB) * modifier;
+        }
+        case 'payment': {
+          const payA = String(a.payment_status || '').toLowerCase();
+          const payB = String(b.payment_status || '').toLowerCase();
+          return payA.localeCompare(payB) * modifier;
+        }
+        case 'fulfillment': {
+          const shipA = String(a.shipments?.[0]?.status || a.fulfillment_status || 'unfulfilled').toLowerCase();
+          const shipB = String(b.shipments?.[0]?.status || b.fulfillment_status || 'unfulfilled').toLowerCase();
+          return shipA.localeCompare(shipB) * modifier;
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return list;
+  }, [filteredOrders, sortConfig]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, originFilter, statusFilter, typeFilter, pageSize]);
+  }, [searchTerm, originFilter, statusFilter, typeFilter, pageSize, sortConfig]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sortedOrders.length / pageSize));
   const paginatedOrders = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredOrders.slice(start, start + pageSize);
-  }, [filteredOrders, currentPage, pageSize]);
+    return sortedOrders.slice(start, start + pageSize);
+  }, [sortedOrders, currentPage, pageSize]);
 
   const hasActiveFilters =
     searchTerm.trim() !== '' ||
@@ -567,13 +647,76 @@ export default function OrdersManagementTab({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[10px] font-black">
-                    <th className="py-3.5 px-4">Pedido / Origem</th>
-                    <th className="py-3.5 px-4">Data</th>
-                    <th className="py-3.5 px-4">Cliente</th>
-                    <th className="py-3.5 px-4">Itens</th>
-                    <th className="py-3.5 px-4">Total</th>
-                    <th className="py-3.5 px-4">Pagamento</th>
-                    <th className="py-3.5 px-4">Expedição</th>
+                    <th 
+                      onClick={() => handleSort('order')}
+                      className="py-3.5 px-4 cursor-pointer hover:bg-slate-100/80 hover:text-slate-800 transition-colors select-none group"
+                      title="Clique para ordenar por Pedido / Origem"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Pedido / Origem</span>
+                        {renderSortIcon('order')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('date')}
+                      className="py-3.5 px-4 cursor-pointer hover:bg-slate-100/80 hover:text-slate-800 transition-colors select-none group"
+                      title="Clique para ordenar por Data"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Data</span>
+                        {renderSortIcon('date')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('customer')}
+                      className="py-3.5 px-4 cursor-pointer hover:bg-slate-100/80 hover:text-slate-800 transition-colors select-none group"
+                      title="Clique para ordenar por Cliente"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Cliente</span>
+                        {renderSortIcon('customer')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('items')}
+                      className="py-3.5 px-4 cursor-pointer hover:bg-slate-100/80 hover:text-slate-800 transition-colors select-none group"
+                      title="Clique para ordenar por Quantidade de Itens"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Itens</span>
+                        {renderSortIcon('items')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('total')}
+                      className="py-3.5 px-4 cursor-pointer hover:bg-slate-100/80 hover:text-slate-800 transition-colors select-none group"
+                      title="Clique para ordenar por Valor Total"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Total</span>
+                        {renderSortIcon('total')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('payment')}
+                      className="py-3.5 px-4 cursor-pointer hover:bg-slate-100/80 hover:text-slate-800 transition-colors select-none group"
+                      title="Clique para ordenar por Status do Pagamento"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Pagamento</span>
+                        {renderSortIcon('payment')}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('fulfillment')}
+                      className="py-3.5 px-4 cursor-pointer hover:bg-slate-100/80 hover:text-slate-800 transition-colors select-none group"
+                      title="Clique para ordenar por Expedição"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span>Expedição</span>
+                        {renderSortIcon('fulfillment')}
+                      </div>
+                    </th>
                     <th className="py-3.5 px-4 text-right">Ações</th>
                   </tr>
                 </thead>
