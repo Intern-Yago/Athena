@@ -3915,17 +3915,28 @@ export default function AdminPanel({
       videoUrl: (productForm.videoUrl || '').trim(),
       customTabs: (productForm.customTabs || []).filter(t => t.title && t.title.trim() !== ''),
       variants: cleanedVariants,
-      model3d: (productForm.model3d && (productForm.model3d.glb || productForm.model3d.usdz)) ? {
-        glb: (productForm.model3d.glb || '').trim(),
-        usdz: (productForm.model3d.usdz || '').trim(),
-        fileName: productForm.model3d.fileName || '',
-        fileSize: productForm.model3d.fileSize || '',
-        dimensions: {
-          width: productForm.model3d.dimensions?.width !== '' && !isNaN(productForm.model3d.dimensions?.width) ? parseFloat(productForm.model3d.dimensions.width) : 1.0,
-          height: productForm.model3d.dimensions?.height !== '' && !isNaN(productForm.model3d.dimensions?.height) ? parseFloat(productForm.model3d.dimensions.height) : 1.0,
-          depth: productForm.model3d.dimensions?.depth !== '' && !isNaN(productForm.model3d.dimensions?.depth) ? parseFloat(productForm.model3d.dimensions.depth) : 1.0
-        }
-      } : null,
+      model3d: (() => {
+        const m = productForm.model3d || {};
+        const hasGlbOrUsdz = Boolean(m.glb || m.usdz);
+        const w = m.dimensions?.width !== '' && m.dimensions?.width != null && !isNaN(m.dimensions?.width) ? parseFloat(m.dimensions.width) : null;
+        const h = m.dimensions?.height !== '' && m.dimensions?.height != null && !isNaN(m.dimensions?.height) ? parseFloat(m.dimensions.height) : null;
+        const d = m.dimensions?.depth !== '' && m.dimensions?.depth != null && !isNaN(m.dimensions?.depth) ? parseFloat(m.dimensions.depth) : null;
+        const hasDimensions = w !== null || h !== null || d !== null;
+
+        if (!hasGlbOrUsdz && !hasDimensions) return null;
+
+        return {
+          glb: (m.glb || '').trim(),
+          usdz: (m.usdz || '').trim(),
+          fileName: m.fileName || '',
+          fileSize: m.fileSize || '',
+          dimensions: {
+            width: w !== null ? w : 1.0,
+            height: h !== null ? h : 1.0,
+            depth: d !== null ? d : 1.0
+          }
+        };
+      })(),
       image: cleanedMainImage,
       images: cleanedImages,
       altText: productForm.altText || productForm.name

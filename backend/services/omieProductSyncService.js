@@ -309,6 +309,29 @@ async function syncProductToOmie(pool, product) {
 
     product.specs = currentSpecs;
 
+    // Hidratação das Dimensões Reais do Equipamento (Calibração 1:1 em metros para Box Técnico e 3D)
+    let updatedModel3d = null;
+    if (omieWidth > 0 || omieHeight > 0 || omieDepth > 0) {
+      const widthMeters = Number((omieWidth / 100).toFixed(2));
+      const heightMeters = Number((omieHeight / 100).toFixed(2));
+      const depthMeters = Number((omieDepth / 100).toFixed(2));
+
+      const existingModel = (typeof product.model_3d === 'object' && product.model_3d !== null)
+        ? product.model_3d
+        : ((typeof product.model3d === 'object' && product.model3d !== null) ? product.model3d : {});
+
+      updatedModel3d = {
+        ...existingModel,
+        dimensions: {
+          width: widthMeters > 0 ? widthMeters : (existingModel.dimensions?.width || 1.0),
+          height: heightMeters > 0 ? heightMeters : (existingModel.dimensions?.height || 1.0),
+          depth: depthMeters > 0 ? depthMeters : (existingModel.dimensions?.depth || 1.0)
+        }
+      };
+      product.model_3d = updatedModel3d;
+      product.model3d = updatedModel3d;
+    }
+
     // 3.1 Sincronização individual das variações (se houverem)
     if (Array.isArray(product.variants) && product.variants.length > 0) {
       for (let i = 0; i < product.variants.length; i++) {
@@ -397,6 +420,11 @@ async function syncProductToOmie(pool, product) {
           in_stock = $5::boolean,
           specs = $6::jsonb,
           variants = $7::jsonb,
+          height = CASE WHEN $9::numeric > 0 THEN $9::numeric ELSE height END,
+          width = CASE WHEN $10::numeric > 0 THEN $10::numeric ELSE width END,
+          length = CASE WHEN $11::numeric > 0 THEN $11::numeric ELSE length END,
+          weight = CASE WHEN $12::numeric > 0 THEN $12::numeric ELSE weight END,
+          model_3d = CASE WHEN $13::jsonb IS NOT NULL THEN $13::jsonb ELSE model_3d END,
           omie_last_sync = CURRENT_TIMESTAMP
         WHERE id = $8::text
       `, [
@@ -407,7 +435,12 @@ async function syncProductToOmie(pool, product) {
         Boolean(product.inStock),
         JSON.stringify(Array.isArray(product.specs) ? product.specs : []),
         JSON.stringify(Array.isArray(product.variants) ? product.variants : []),
-        product.id
+        product.id,
+        omieHeight > 0 ? omieHeight : null,
+        omieWidth > 0 ? omieWidth : null,
+        omieDepth > 0 ? omieDepth : null,
+        omieWeight > 0 ? omieWeight : null,
+        updatedModel3d ? JSON.stringify(updatedModel3d) : null
       ]);
     }
 

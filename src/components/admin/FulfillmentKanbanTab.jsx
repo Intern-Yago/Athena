@@ -208,7 +208,7 @@ export default function FulfillmentKanbanTab({
   const enrichedByColumn = useMemo(() => {
     const map = {};
     columns.forEach(col => {
-      map[col.key] = (kanban[col.key] || []).map(s => {
+      const list = (kanban[col.key] || []).map(s => {
         const stateUf = (s.shipping_address?.state || '').trim().toUpperCase();
         return {
           ...s,
@@ -223,6 +223,15 @@ export default function FulfillmentKanbanTab({
           _origin: resolveOrderOrigin(s)
         };
       });
+
+      // Ordenação: o mais recente no topo (primeiro), o mais antigo por último
+      list.sort((a, b) => {
+        const timeA = new Date(a.created_at || a.order_date || a.order_created_at || 0).getTime();
+        const timeB = new Date(b.created_at || b.order_date || b.order_created_at || 0).getTime();
+        return timeB - timeA;
+      });
+
+      map[col.key] = list;
     });
     return map;
   }, [kanban, columns]);
@@ -663,7 +672,13 @@ export default function FulfillmentKanbanTab({
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5 items-start">
           {columns.map(col => {
             const rawColShipments = enrichedByColumn[col.key] || [];
-            const colShipments = rawColShipments.filter(s => matchesShipmentFilters(s, activeFiltersObj));
+            const colShipments = rawColShipments
+              .filter(s => matchesShipmentFilters(s, activeFiltersObj))
+              .sort((a, b) => {
+                const timeA = new Date(a.created_at || a.order_date || a.order_created_at || 0).getTime();
+                const timeB = new Date(b.created_at || b.order_date || b.order_created_at || 0).getTime();
+                return timeB - timeA;
+              });
             const isDropTarget = dragOverCol === col.key && draggedFromCol !== col.key;
 
             return (
@@ -702,8 +717,8 @@ export default function FulfillmentKanbanTab({
                   </div>
                 )}
 
-                {/* SHIPMENT CARDS */}
-                <div className="space-y-2.5 flex-1">
+                {/* SHIPMENT CARDS (Scroll vertical ativo a partir de 4 cards) */}
+                <div className="space-y-2.5 flex-1 max-h-[760px] overflow-y-auto pr-1">
                   {colShipments.length === 0 ? (
                     <div className="p-6 text-center text-slate-400 text-[11px] font-medium border border-dashed border-slate-200 rounded-xl">
                       {hasActiveFilters && rawColShipments.length > 0

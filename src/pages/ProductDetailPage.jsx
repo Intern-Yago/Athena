@@ -42,7 +42,8 @@ import {
   Box,
   Loader2,
   Minus,
-  Plus
+  Plus,
+  Ruler
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { isProductQuoteOnly, getVariantAvailability, isVariantActiveForSale, getVariantGalleryImages } from '../utils/productVariants';
@@ -524,6 +525,34 @@ export default function ProductDetailPage({
       // Ignore
     }
   }, [product, whatsappMessage]);
+
+  // Dimensões Físicas do Equipamento (Calibração 1:1 em metros)
+  const productDimensions = useMemo(() => {
+    const rawModel = product?.model3d || product?.model_3d;
+    const modelData = (typeof rawModel === 'string') 
+      ? (() => { try { return JSON.parse(rawModel); } catch (e) { return {}; } })()
+      : (rawModel || {});
+
+    if (modelData?.dimensions?.width || modelData?.dimensions?.height || modelData?.dimensions?.depth) {
+      const w = Number(modelData.dimensions.width) || 0;
+      const h = Number(modelData.dimensions.height) || 0;
+      const d = Number(modelData.dimensions.depth) || 0;
+      if (w > 0 || h > 0 || d > 0) {
+        return { width: w, height: h, depth: d };
+      }
+    }
+
+    if (product?.width || product?.height || product?.length) {
+      const w = Number((Number(product.width || 0) / 100).toFixed(2));
+      const h = Number((Number(product.height || 0) / 100).toFixed(2));
+      const d = Number((Number(product.length || 0) / 100).toFixed(2));
+      if (w > 0 || h > 0 || d > 0) {
+        return { width: w, height: h, depth: d };
+      }
+    }
+
+    return null;
+  }, [product]);
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -1538,12 +1567,12 @@ export default function ProductDetailPage({
             })()}
 
             {/* TABS SECTION: "Especificações", "Acessórios & Itens Compatíveis", Abas Extras Personalizadas, "Ficha Técnica" */}
-            {(hasSpecs || showCompatTab || validCustomTabs.length > 0 || hasAttachments) && (
+            {(hasSpecs || productDimensions || showCompatTab || validCustomTabs.length > 0 || hasAttachments) && (
               <div id="tabs-section" className="pt-5 border-t border-slate-200/80 space-y-4">
                 
                 {/* Tab Navigation Buttons */}
                 <div className="flex items-center gap-2 border-b border-slate-200 pb-2.5 overflow-x-auto">
-                  {hasSpecs && (
+                  {(hasSpecs || productDimensions) && (
                     <button
                       type="button"
                       onClick={() => setActiveTab('specs')}
@@ -1555,9 +1584,11 @@ export default function ProductDetailPage({
                     >
                       <Layers className={`w-3.5 h-3.5 ${activeTab === 'specs' ? 'text-amber-400' : 'text-slate-500'}`} />
                       <span>Especificações</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${activeTab === 'specs' ? 'bg-slate-800 text-amber-300' : 'bg-slate-200 text-slate-600'}`}>
-                        {product.specs.length}
-                      </span>
+                      {product.specs && product.specs.length > 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${activeTab === 'specs' ? 'bg-slate-800 text-amber-300' : 'bg-slate-200 text-slate-600'}`}>
+                          {product.specs.length}
+                        </span>
+                      )}
                     </button>
                   )}
 
@@ -1617,32 +1648,85 @@ export default function ProductDetailPage({
                 </div>
 
                 {/* TAB CONTENT: Especificações */}
-                {activeTab === 'specs' && hasSpecs && (
-                  <div className="space-y-3 animate-in fade-in duration-150">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {product.specs.map((spec, idx) => {
-                        const colonIndex = spec.indexOf(':');
-                        const hasColon = colonIndex !== -1;
-                        const label = hasColon ? spec.slice(0, colonIndex).trim() : null;
-                        const value = hasColon ? spec.slice(colonIndex + 1).trim() : spec;
-
-                        return (
-                          <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 text-xs text-slate-800 transition-colors shadow-2xs">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                            <div className="space-y-0.5 min-w-0 flex-1">
-                              {label && (
-                                <span className="font-extrabold text-[10px] uppercase tracking-wider text-slate-500 block">
-                                  {label}
-                                </span>
-                              )}
-                              <span className={label ? "font-bold text-slate-900 block leading-snug break-words" : "font-semibold text-slate-800"}>
-                                {value}
-                              </span>
+                {activeTab === 'specs' && (hasSpecs || productDimensions) && (
+                  <div className="space-y-3.5 animate-in fade-in duration-150">
+                    {/* Box Técnico de Dimensões Reais do Equipamento (Calibração 1:1) */}
+                    {productDimensions && (
+                      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 text-white border border-slate-800 shadow-sm space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/90 pb-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-1.5 rounded-lg bg-amber-500 text-slate-950 shadow-xs">
+                              <Ruler className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
+                                Dimensões Reais do Equipamento (Calibração 1:1)
+                              </h4>
+                              <p className="text-[10px] sm:text-[11px] text-slate-400">
+                                Medidas físicas para planejamento do espaço e layout da oficina
+                              </p>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                          <span className="text-[10px] font-mono font-bold bg-slate-800 text-amber-400 px-2.5 py-1 rounded-lg border border-slate-700/80">
+                            Escala 1:1 • Em metros (m)
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                          <div className="bg-slate-800/60 p-2.5 sm:p-3 rounded-xl border border-slate-700/60 text-center">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                              Largura
+                            </span>
+                            <span className="text-sm sm:text-base font-black font-mono text-amber-400">
+                              {productDimensions.width} m
+                            </span>
+                          </div>
+                          <div className="bg-slate-800/60 p-2.5 sm:p-3 rounded-xl border border-slate-700/60 text-center">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                              Altura
+                            </span>
+                            <span className="text-sm sm:text-base font-black font-mono text-amber-400">
+                              {productDimensions.height} m
+                            </span>
+                          </div>
+                          <div className="bg-slate-800/60 p-2.5 sm:p-3 rounded-xl border border-slate-700/60 text-center">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                              Profundidade
+                            </span>
+                            <span className="text-sm sm:text-base font-black font-mono text-amber-400">
+                              {productDimensions.depth} m
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {hasSpecs && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {product.specs.map((spec, idx) => {
+                          const colonIndex = spec.indexOf(':');
+                          const hasColon = colonIndex !== -1;
+                          const label = hasColon ? spec.slice(0, colonIndex).trim() : null;
+                          const value = hasColon ? spec.slice(colonIndex + 1).trim() : spec;
+
+                          return (
+                            <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 text-xs text-slate-800 transition-colors shadow-2xs">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                              <div className="space-y-0.5 min-w-0 flex-1">
+                                {label && (
+                                  <span className="font-extrabold text-[10px] uppercase tracking-wider text-slate-500 block">
+                                    {label}
+                                  </span>
+                                )}
+                                <span className={label ? "font-bold text-slate-900 block leading-snug break-words" : "font-semibold text-slate-800"}>
+                                  {value}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
