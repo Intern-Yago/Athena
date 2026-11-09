@@ -11,7 +11,8 @@ import {
   Layers,
   CreditCard,
   Zap,
-  MessageCircle
+  MessageCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import ShippingCalculator from './ShippingCalculator';
@@ -273,14 +274,14 @@ export function CartDrawer() {
                   </div>
                 )}
 
-                {buyableItemCount > 0 && (
+                {buyableItemCount > 0 && quoteItemCount === 0 && (
                   <div className="flex items-center justify-between text-slate-600">
                     <span>Subtotal c/ Preço ({buyableItemCount} {buyableItemCount === 1 ? 'item' : 'itens'}):</span>
                     <span className="font-bold text-slate-900">{formatBRL(subtotal)}</span>
                   </div>
                 )}
 
-                {buyableItemCount > 0 && (
+                {buyableItemCount > 0 && quoteItemCount === 0 && (
                   <div className="flex items-center justify-between text-slate-600">
                     <span>Pagamento Online:</span>
                     <span className="text-emerald-700 font-bold flex items-center gap-1">
@@ -289,10 +290,19 @@ export function CartDrawer() {
                   </div>
                 )}
 
-                {buyableItemCount > 0 && (
+                {buyableItemCount > 0 && quoteItemCount === 0 && (
                   <div className="border-t border-slate-200/80 pt-1.5 flex items-center justify-between">
                     <span className="font-extrabold text-slate-900 text-sm">Total Compra Direta:</span>
                     <span className="font-black text-base sm:text-lg text-amber-900">
+                      {formatBRL(subtotal)}
+                    </span>
+                  </div>
+                )}
+
+                {buyableItemCount > 0 && quoteItemCount > 0 && (
+                  <div className="border-t border-slate-200/80 pt-1.5 flex items-center justify-between">
+                    <span className="font-semibold text-slate-700 text-xs">Itens com Preço de Referência:</span>
+                    <span className="font-bold text-sm text-slate-900">
                       {formatBRL(subtotal)}
                     </span>
                   </div>
@@ -318,6 +328,19 @@ export function CartDrawer() {
 
               {/* Action Buttons */}
               <div className="space-y-2">
+                {/* Nota Informativa para Carrinho Misto (Fase 1 - Governança Comercial) */}
+                {quoteItemCount > 0 && buyableItemCount > 0 && (
+                  <div className="p-3 bg-amber-50/90 border border-amber-300 rounded-xl text-amber-950 text-xs space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Carrinho Misto com Equipamento Consultivo</span>
+                    </div>
+                    <p className="text-[11px] text-amber-900/90 leading-snug">
+                      Seu pedido inclui equipamentos sob cotação técnica (alíquota ICMS ou maquinário pesado). Para garantir a melhor condição comercial e cálculo de frete unificado, o pedido completo é finalizado via WhatsApp com um especialista técnico.
+                    </p>
+                  </div>
+                )}
+
                 {/* Botão de Orçamento no WhatsApp: sempre presente quando houver itens sob consulta */}
                 {quoteItemCount > 0 && (
                   <a
@@ -400,8 +423,8 @@ export function CartDrawer() {
                   </a>
                 )}
 
-                {/* Botão de Compra Direta Online: quando houver itens com preço */}
-                {buyableItemCount > 0 && (
+                {/* Botão de Compra Direta Online: apenas quando todos os itens do carrinho forem de compra direta */}
+                {buyableItemCount > 0 && quoteItemCount === 0 && (
                   <button
                     type="button"
                     onClick={openCartCheckout}
@@ -409,7 +432,7 @@ export function CartDrawer() {
                   >
                     <CreditCard className="w-5 h-5 text-slate-950 group-hover:scale-110 transition-transform shrink-0" />
                     <span className="text-slate-950 font-black tracking-wide">
-                      {quoteItemCount > 0 ? `Comprar ${buyableItemCount} Itens c/ Preço no Site` : 'Finalizar Compra Segura'}
+                      Finalizar Compra Segura
                     </span>
                     <ArrowRight className="w-5 h-5 text-slate-950 shrink-0" />
                   </button>

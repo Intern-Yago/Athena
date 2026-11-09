@@ -1065,6 +1065,7 @@ export default function AdminPanel({
       commercialMode: 'variable_tax',
       isPriceVisible: false,
       priceNegotiable: true,
+      warrantyMonths: '',
       aPoints: '',
       productType: 'physical',
       requiresEquipmentSerial: false,
@@ -1125,6 +1126,7 @@ export default function AdminPanel({
     setEditingProduct(targetProduct);
     const targetForm = {
       ...targetProduct,
+      warrantyMonths: targetProduct.warrantyMonths != null ? targetProduct.warrantyMonths : (targetProduct.warranty_months != null ? targetProduct.warranty_months : ''),
       aPoints: (targetProduct.aPoints != null && Number(targetProduct.aPoints) > 0) ? targetProduct.aPoints : '',
       isFeatured: !!targetProduct.isFeatured,
       productType: targetProduct.productType || 'physical',
@@ -1242,6 +1244,8 @@ export default function AdminPanel({
     description: '',
     logo: '',
     websiteUrl: '',
+    isAuthorized: false,
+    authorizationLabel: '',
     imageSourceMode: 'upload'
   });
 
@@ -1475,6 +1479,7 @@ export default function AdminPanel({
       commercialMode: 'variable_tax',
       isPriceVisible: false,
       priceNegotiable: true,
+      warrantyMonths: '',
       aPoints: '',
       productType: 'physical',
       requiresEquipmentSerial: false,
@@ -1521,6 +1526,7 @@ export default function AdminPanel({
       ...product,
       commercialMode: product.commercialMode || product.commercial_mode || 'variable_tax',
       isPriceVisible: Boolean(product.isPriceVisible ?? product.is_price_visible ?? false),
+      warrantyMonths: product.warrantyMonths != null ? product.warrantyMonths : (product.warranty_months != null ? product.warranty_months : ''),
       sku: product.sku || product.omieCode || '',
       stock: product.stock != null ? product.stock : (product.estoqueQuantidade != null ? product.estoqueQuantidade : (product.inStock === false ? 0 : 1)),
       omieCode: product.omieCode || product.sku || '',
@@ -3419,6 +3425,8 @@ export default function AdminPanel({
       description: '',
       logo: '',
       websiteUrl: '',
+      isAuthorized: false,
+      authorizationLabel: '',
       imageSourceMode: 'upload'
     });
     setIsBrandModalOpen(true);
@@ -3431,6 +3439,8 @@ export default function AdminPanel({
       description: brandObj.description || '',
       logo: brandObj.logo || '',
       websiteUrl: brandObj.websiteUrl || '',
+      isAuthorized: Boolean(brandObj.isAuthorized ?? brandObj.is_authorized),
+      authorizationLabel: brandObj.authorizationLabel || brandObj.authorization_label || '',
       imageSourceMode: 'upload'
     });
     setIsBrandModalOpen(true);
@@ -3444,6 +3454,7 @@ export default function AdminPanel({
     }
 
     const slug = generateSlug(brandForm.name);
+    const isAuth = Boolean(brandForm.isAuthorized);
     const newBrandObj = {
       id: editingBrand ? editingBrand.id : `brand_${Date.now()}`,
       name: brandForm.name.trim(),
@@ -3451,6 +3462,8 @@ export default function AdminPanel({
       description: brandForm.description || 'Fabricante parceiro de equipamentos automotivos.',
       logo: brandForm.logo || 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80',
       websiteUrl: brandForm.websiteUrl.trim() || '',
+      isAuthorized: isAuth,
+      authorizationLabel: isAuth ? (brandForm.authorizationLabel.trim() || 'Distribuidor Autorizado') : null,
       order: editingBrand ? editingBrand.order : brands.length + 1
     };
 
@@ -3903,6 +3916,7 @@ export default function AdminPanel({
       price: parseFloat(productForm.price) || 0,
       priceSource: productForm.priceSource || 'manual',
       stockSource: productForm.stockSource || 'manual',
+      warrantyMonths: (productForm.warrantyMonths !== '' && productForm.warrantyMonths != null && !isNaN(productForm.warrantyMonths)) ? Math.max(0, parseInt(productForm.warrantyMonths, 10)) : null,
       aPoints: productForm.aPoints !== '' && !isNaN(productForm.aPoints) && Number(productForm.aPoints) > 0 ? parseInt(productForm.aPoints, 10) : null,
       badge: (productForm.badge || '').trim(),
       tags: Array.isArray(mergedTags)
@@ -5864,6 +5878,11 @@ export default function AdminPanel({
                         {b.status === 'draft' && (
                           <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[9px] font-bold">
                             Rascunho
+                          </span>
+                        )}
+                        {b.isAuthorized && (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-bold border border-emerald-300">
+                            {b.authorizationLabel || 'Autorizada'}
                           </span>
                         )}
                         {b.websiteUrl && (
@@ -9824,6 +9843,28 @@ export default function AdminPanel({
                           )}
                         </div>
 
+                        {/* Garantia de Fábrica Estruturada (Pacote B) */}
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">
+                            Garantia de Fábrica (Meses)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="120"
+                            placeholder="Ex: 12 (para 1 ano de garantia formal)"
+                            value={productForm.warrantyMonths !== undefined && productForm.warrantyMonths !== null ? productForm.warrantyMonths : ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value, 10));
+                              setProductForm({ ...productForm, warrantyMonths: val });
+                            }}
+                            className="form-input text-xs font-mono"
+                          />
+                          <span className="text-[11px] text-slate-500 block mt-0.5">
+                            Garantia formal do fabricante em meses. Se preenchido, exibe o selo estruturado de garantia na página do produto. Deixe vazio para omitir.
+                          </span>
+                        </div>
+
                         <div>
                           {(() => {
                             const isManualPoints = productForm.aPoints !== '' && productForm.aPoints != null && Number(productForm.aPoints) > 0;
@@ -10941,6 +10982,37 @@ export default function AdminPanel({
                     />
                     <Globe className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(brandForm.isAuthorized)}
+                      onChange={(e) => setBrandForm({ ...brandForm, isAuthorized: e.target.checked })}
+                      className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500"
+                    />
+                    <span className="text-xs font-bold text-slate-800">
+                      Parceiro Autorizado / Revendedor Oficial
+                    </span>
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Ative apenas se houver chancela comercial documental. Padrão desativado para conformidade com a política de transparência.
+                  </p>
+                  {brandForm.isAuthorized && (
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Chancela / Selo de Autorização
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Distribuidor Autorizado, Revenda Oficial"
+                        value={brandForm.authorizationLabel || ''}
+                        onChange={(e) => setBrandForm({ ...brandForm, authorizationLabel: e.target.value })}
+                        className="form-input text-xs"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>

@@ -6,6 +6,7 @@ import ProductModal from '../components/ProductModal';
 import InstallmentModal from '../components/InstallmentModal';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { canCheckout, shouldShowPrice, getCommercialBadge, buildProductWhatsAppMessage } from '../utils/commercialPolicy';
+import { getRecommendedProducts, getCompatibleProducts } from '../utils/recommendationEngine';
 import NotFoundPage from './NotFoundPage';
 import ShippingCalculator from '../components/ShippingCalculator';
 import { isProductPublished, normalizeProduct } from '../utils/imageUrl';
@@ -772,53 +773,14 @@ export default function ProductDetailPage({
     }
   };
 
-  // Smart Related / Recommended Products Algorithm:
-  // 1. Manually pinned recommendations (recommendedProductIds) are mandatory and appear first
-  // 2. Remaining slots up to 5 are filled automatically (same category, then same brand)
-  // NOTE: Related products MUST ALWAYS be published, even if the viewer is an admin.
-  const pinnedRecommended = (Array.isArray(product?.recommendedProductIds) ? product.recommendedProductIds : [])
-    .map(id => products.find(p => p.id === id && p.id !== product?.id && isProductPublished(p)))
-    .filter(Boolean);
+  // Motor Central de Recomendações e Compatibilidade (Pacote B)
+  const { products: relatedProducts, sectionTitle: recommendedSectionTitle } = useMemo(() => {
+    return getRecommendedProducts(product, products, { limit: 5 });
+  }, [product, products]);
 
-  const pinnedIds = new Set(pinnedRecommended.map(p => p.id));
-
-  const sameCategoryProducts = products.filter(
-    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.categoryId === product.categoryId && isProductPublished(p)
-  );
-
-  const sameBrandProducts = products.filter(
-    (p) => product && p.id !== product.id && !pinnedIds.has(p.id) && p.brandId === product.brandId && p.categoryId !== product.categoryId && isProductPublished(p)
-  );
-
-  const relatedProducts = [
-    ...pinnedRecommended,
-    ...sameCategoryProducts,
-    ...sameBrandProducts
-  ].slice(0, 5);
-
-  // COMPATIBLE & ACCESSORY PRODUCTS COMPUTATION
-  const directCompatIds = Array.isArray(product?.compatibleProductIds) ? product.compatibleProductIds : [];
-  
-  // Extract any /produto/ links mentioned in customTabs or description
-  const textContent = `${product?.description || ''} ${(product?.customTabs || []).map(t => t.content || '').join(' ')}`;
-  const linkMatches = textContent.match(/\/produto\/([a-zA-Z0-9_-]+)/g) || [];
-  const linkedSlugs = linkMatches.map(m => m.replace('/produto/', ''));
-  const linkedProductIds = products
-    .filter(p => isProductPublished(p) && (linkedSlugs.includes(p.slug) || linkedSlugs.includes(p.id)))
-    .map(p => p.id);
-
-  // Inbound references (products in catalog that mark this equipment as compatible)
-  const incomingProductIds = products
-    .filter(p => isProductPublished(p) && p.id !== product?.id && (
-      (Array.isArray(p.compatibleProductIds) && p.compatibleProductIds.includes(product?.id)) ||
-      (product?.slug && Array.isArray(p.customTabs) && p.customTabs.some(t => t.content && t.content.includes(product.slug)))
-    ))
-    .map(p => p.id);
-
-  const allCompatProductIds = Array.from(new Set([...directCompatIds, ...linkedProductIds, ...incomingProductIds]));
-  const compatibleProductsList = allCompatProductIds
-    .map(id => products.find(p => p.id === id && p.id !== product?.id))
-    .filter(p => Boolean(p) && isProductPublished(p));
+  const compatibleProductsList = useMemo(() => {
+    return getCompatibleProducts(product, products);
+  }, [product, products]);
 
   const hasCompatibles = compatibleProductsList.length > 0;
 
@@ -874,6 +836,17 @@ export default function ProductDetailPage({
               <Tag className="w-3 h-3 text-sky-600" />
               {brand.name}
             </button>
+          )}
+
+          {/* Selo de Marca Autorizada (Pacote B - Governança) */}
+          {(brand?.isAuthorized || product?.brandIsAuthorized) && (
+            <span 
+              className="badge bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold flex items-center gap-1 shadow-2xs" 
+              title="Revendedor / Distribuidor Autorizado Documentado"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{brand?.authorizationLabel || product?.brandAuthorizationLabel || 'Parceiro Autorizado'}</span>
+            </span>
           )}
 
           {product.productType === 'digital' && (
@@ -1131,8 +1104,12 @@ export default function ProductDetailPage({
               <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-2.5">
                 <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0" />
                 <div className="text-[11px]">
-                  <span className="font-bold text-slate-900 block">Garantia Athena</span>
-                  <span className="text-slate-500">Produto Homologado</span>
+                  <span className="font-bold text-slate-900 block">
+                    {product?.warrantyMonths ? 'Garantia de Fábrica' : 'Garantia Athena'}
+                  </span>
+                  <span className="text-slate-500">
+                    {product?.warrantyMonths ? `${product.warrantyMonths} meses formal` : 'Produto Homologado'}
+                  </span>
                 </div>
               </div>
 
@@ -1921,12 +1898,12 @@ export default function ProductDetailPage({
             <div>
               <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
                 <Package className="w-5 h-5 text-amber-600 shrink-0" />
-                <span>Equipamentos Relacionados</span>
+                <span>{recommendedSectionTitle || 'Equipamentos Relacionados'}</span>
               </h2>
               <p className="text-xs text-slate-500">
-                {sameCategoryProducts.length > 0 
-                  ? `Opções similares da linha de ${category?.name || 'equipamentos'} para o seu centro automotivo.` 
-                  : `Outros equipamentos recomendados da marca ${brand?.name || 'Athena'} para o seu centro automotivo.`}
+                {category?.name 
+                  ? `Opções selecionadas da linha de ${category.name} e equipamentos recomendados.` 
+                  : `Outros equipamentos recomendados para o seu centro automotivo.`}
               </p>
             </div>
 
