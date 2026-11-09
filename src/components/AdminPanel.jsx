@@ -9248,7 +9248,7 @@ export default function AdminPanel({
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
                               <Ruler className="w-3.5 h-3.5 text-amber-600" />
-                              Dimensões Reais do Equipamento (Calibração 1:1)
+                              Dimensões Reais do Equipamento
                             </span>
                             <span className="text-[10px] text-slate-400">Em metros (m)</span>
                           </div>

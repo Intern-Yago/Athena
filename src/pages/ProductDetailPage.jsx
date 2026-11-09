@@ -526,7 +526,7 @@ export default function ProductDetailPage({
     }
   }, [product, whatsappMessage]);
 
-  // Dimensões Físicas do Equipamento (Calibração 1:1 em metros)
+  // Dimensões Físicas do Equipamento (em metros)
   const productDimensions = useMemo(() => {
     const rawModel = product?.model3d || product?.model_3d;
     const modelData = (typeof rawModel === 'string') 
@@ -1660,7 +1660,7 @@ export default function ProductDetailPage({
                             </div>
                             <div>
                               <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white">
-                                Dimensões Reais do Equipamento (Calibração 1:1)
+                                Dimensões Reais do Equipamento
                               </h4>
                               <p className="text-[10px] sm:text-[11px] text-slate-400">
                                 Medidas físicas para planejamento do espaço e layout da oficina
@@ -1668,7 +1668,7 @@ export default function ProductDetailPage({
                             </div>
                           </div>
                           <span className="text-[10px] font-mono font-bold bg-slate-800 text-amber-400 px-2.5 py-1 rounded-lg border border-slate-700/80">
-                            Escala 1:1 • Em metros (m)
+                            Em metros (m)
                           </span>
                         </div>
 
