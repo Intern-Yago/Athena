@@ -83,7 +83,8 @@ import {
   Wind,
   Grid,
   Receipt,
-  Cpu
+  Cpu,
+  ShoppingCart
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl, getVideoEmbedInfo } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
