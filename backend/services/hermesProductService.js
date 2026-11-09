@@ -134,7 +134,8 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           p.description, p.specs,
           COALESCE(p.variants, '[]'::jsonb) as "variants",
           c.name as "categoryName", b.name as "brandName",
-          p.weight, p.height, p.width, p.length, p.ean
+          p.weight, p.height, p.width, p.length, p.ean,
+          p.model_3d as "model3d"
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
@@ -156,7 +157,8 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
           p.description, p.specs,
           COALESCE(p.variants, '[]'::jsonb) as "variants",
           c.name as "categoryName", b.name as "brandName",
-          p.weight, p.height, p.width, p.length, p.ean
+          p.weight, p.height, p.width, p.length, p.ean,
+          p.model_3d as "model3d"
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
@@ -229,6 +231,7 @@ async function searchLocalProducts(pool, searchTerm, limit = 10) {
         COALESCE(p.variants, '[]'::jsonb) as "variants",
         c.name as "categoryName", b.name as "brandName",
         p.weight, p.height, p.width, p.length, p.ean,
+        p.model_3d as "model3d",
         CASE 
           WHEN LOWER(p.name) = LOWER($1) THEN 1
           WHEN LOWER(p.name) LIKE $` + params.length + ` THEN 2
@@ -305,6 +308,27 @@ function mapDbRowToHermesProduct(row) {
     orientacao += `\n\n📌 ATENÇÃO (EQUIPAMENTO COM VARIAÇÕES): Este produto possui ${mappedVariants.length} opções/variações cadastradas (ex: cores, medidas ou voltagens):\n${varLines}\nAo conversar com o cliente, informe com clareza as opções disponíveis e confirme qual especificação exata ele necessita.`;
   }
 
+  // Dimensões Físicas Reais do Equipamento (em metros e cm)
+  const rawModel = row.model3d || row.model_3d;
+  const modelData = (typeof rawModel === 'string') 
+    ? (() => { try { return JSON.parse(rawModel); } catch (e) { return {}; } })()
+    : (rawModel || {});
+
+  const dimWidthM = Number(modelData.dimensions?.width || (Number(row.width || 0) > 0 ? (Number(row.width) / 100).toFixed(2) : 0));
+  const dimHeightM = Number(modelData.dimensions?.height || (Number(row.height || 0) > 0 ? (Number(row.height) / 100).toFixed(2) : 0));
+  const dimDepthM = Number(modelData.dimensions?.depth || (Number(row.length || 0) > 0 ? (Number(row.length) / 100).toFixed(2) : 0));
+  const hasDimensions = dimWidthM > 0 || dimHeightM > 0 || dimDepthM > 0;
+
+  const dimensoesFormatadasTexto = hasDimensions
+    ? `Largura: ${dimWidthM}m × Altura: ${dimHeightM}m × Profundidade: ${dimDepthM}m`
+    : (Number(row.height || 0) > 0 && Number(row.width || 0) > 0 && Number(row.length || 0) > 0
+        ? `${Number(row.height)} × ${Number(row.width)} × ${Number(row.length)} cm`
+        : null);
+
+  if (hasDimensions) {
+    orientacao += `\n\n📐 MEDIDAS REAIS DO EQUIPAMENTO (ESPAÇO NA OFICINA): Largura: ${dimWidthM} m | Altura: ${dimHeightM} m | Profundidade: ${dimDepthM} m${Number(row.weight || 0) > 0 ? ` | Peso: ${Number(row.weight)} kg` : ''}. Se o cliente perguntar sobre medidas, tamanho físico ou se o maquinário cabe na oficina mecânica, INFORME com clareza essas dimensões reais em metros.`;
+  }
+
   return {
     id: row.id,
     name: row.name,
@@ -330,9 +354,16 @@ function mapDbRowToHermesProduct(row) {
     width: Number(row.width || 0),
     length: Number(row.length || 0),
     ean: row.ean || null,
-    dimensoesFormatadas: (Number(row.height || 0) > 0 && Number(row.width || 0) > 0 && Number(row.length || 0) > 0)
-      ? `${Number(row.height)} × ${Number(row.width)} × ${Number(row.length)} cm (${Number(row.weight || 0)} kg)`
-      : (Number(row.weight || 0) > 0 ? `${Number(row.weight)} kg` : null),
+    dimensoesReais: hasDimensions ? {
+      larguraMetros: `${dimWidthM} m`,
+      alturaMetros: `${dimHeightM} m`,
+      profundidadeMetros: `${dimDepthM} m`,
+      largura: dimWidthM,
+      altura: dimHeightM,
+      profundidade: dimDepthM,
+      resumo: `Largura: ${dimWidthM}m × Altura: ${dimHeightM}m × Profundidade: ${dimDepthM}m`
+    } : null,
+    dimensoesFormatadas: dimensoesFormatadasTexto ? `${dimensoesFormatadasTexto}${Number(row.weight || 0) > 0 ? ` (${Number(row.weight)} kg)` : ''}` : null,
     sku: row.sku || row.omieCode || null,
     omieCodigoProduto: row.omieCodigoProduto ? String(row.omieCodigoProduto) : null,
     omieCode: row.omieCode || null,
@@ -1088,7 +1119,7 @@ async function syncProductFromOmie(pool, { codigo, codigo_produto, search } = {}
 const hermesGeminiTools = [
   {
     name: "search_athena_products",
-    description: "Pesquisa produtos, máquinas e equipamentos automotivos da Athena Soluções Automotivas com preço atualizado e saldo de estoque em tempo real. Consulta o banco local de alta velocidade e auto-sincroniza silenciosamente com o Omie ERP caso o produto esteja sem valor ou não cadastrado no site.",
+    description: "Pesquisa produtos, máquinas e equipamentos automotivos da Athena Soluções Automotivas com preço atualizado, saldo de estoque, medidas reais em metros (largura, altura, profundidade para planejamento de espaço na oficina) e especificações técnicas completas. Consulta o banco local de alta velocidade e auto-sincroniza silenciosamente com o Omie ERP caso o produto esteja sem valor ou não cadastrado no site.",
     parameters: {
       type: "OBJECT",
       properties: {
