@@ -1061,6 +1061,8 @@ export default function AdminPanel({
       categoryId: categories[0]?.id || '',
       brandId: brands[0]?.id || '',
       price: '',
+      commercialMode: 'variable_tax',
+      isPriceVisible: false,
       priceNegotiable: true,
       aPoints: '',
       productType: 'physical',
@@ -1469,6 +1471,8 @@ export default function AdminPanel({
       categoryId: categories[0]?.id || '',
       brandId: brands[0]?.id || '',
       price: '',
+      commercialMode: 'variable_tax',
+      isPriceVisible: false,
       priceNegotiable: true,
       aPoints: '',
       productType: 'physical',
@@ -1514,6 +1518,8 @@ export default function AdminPanel({
     setEditingProduct(product);
     const initialForm = {
       ...product,
+      commercialMode: product.commercialMode || product.commercial_mode || 'variable_tax',
+      isPriceVisible: Boolean(product.isPriceVisible ?? product.is_price_visible ?? false),
       sku: product.sku || product.omieCode || '',
       stock: product.stock != null ? product.stock : (product.estoqueQuantidade != null ? product.estoqueQuantidade : (product.inStock === false ? 0 : 1)),
       omieCode: product.omieCode || product.sku || '',
@@ -9686,23 +9692,124 @@ export default function AdminPanel({
                             }`}
                           />
                           <span className="text-[11px] text-slate-500 block mt-0.5">
-                            {productForm.priceNegotiable
-                              ? 'Preço cadastrado internamente. Como "Consultar Orçamento" está ativo, o valor NÃO é exibido no site (permanece "Sob Consulta") e o cliente deve cotar.'
-                              : 'Preço ativo para Compra Direta no site (o valor é exibido e habilita botões Comprar Agora e Carrinho).'}
+                            {productForm.commercialMode === 'direct_sale'
+                              ? 'Preço ativo para Compra Direta no site (visível no catálogo e habilita checkout online).'
+                              : (productForm.isPriceVisible
+                                  ? 'Preço exibido no site como valor de referência, porém a finalização é conduzida no WhatsApp.'
+                                  : 'Preço cadastrado internamente. Como a exibição está desativada, o valor fica oculto e exibe botão para WhatsApp.')}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                          <input
-                            type="checkbox"
-                            id="priceNegotiable"
-                            checked={productForm.priceNegotiable}
-                            onChange={(e) => setProductForm({ ...productForm, priceNegotiable: e.target.checked })}
-                            className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
-                          />
-                          <label htmlFor="priceNegotiable" className="text-xs font-semibold text-slate-700 cursor-pointer">
-                            Consultar Orçamento (Oculta o preço no site, exibe "Sob Consulta" e impede compra direta)
+                        {/* Governança Comercial Desacoplada (Pacote A) */}
+                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                          <label className="text-xs font-bold text-slate-800 block">
+                            Modalidade Comercial do Equipamento
                           </label>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            {/* 1. Venda Direta */}
+                            <label
+                              className={`flex flex-col p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                                productForm.commercialMode === 'direct_sale'
+                                  ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold ring-1 ring-amber-400 shadow-2xs'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <input
+                                  type="radio"
+                                  name="commercialMode"
+                                  value="direct_sale"
+                                  checked={productForm.commercialMode === 'direct_sale'}
+                                  onChange={(e) => setProductForm({
+                                    ...productForm,
+                                    commercialMode: e.target.value,
+                                    priceNegotiable: false
+                                  })}
+                                  className="accent-amber-600"
+                                />
+                                <ShoppingCart className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span className="font-bold">Venda Direta</span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-normal leading-snug">
+                                Preço visível e botões de compra online via Gateway Asaas.
+                              </span>
+                            </label>
+
+                            {/* 2. Variação Tributária */}
+                            <label
+                              className={`flex flex-col p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                                productForm.commercialMode === 'variable_tax'
+                                  ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold ring-1 ring-amber-400 shadow-2xs'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <input
+                                  type="radio"
+                                  name="commercialMode"
+                                  value="variable_tax"
+                                  checked={productForm.commercialMode === 'variable_tax'}
+                                  onChange={(e) => setProductForm({
+                                    ...productForm,
+                                    commercialMode: e.target.value,
+                                    priceNegotiable: true
+                                  })}
+                                  className="accent-amber-600"
+                                />
+                                <Calculator className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span className="font-bold">Valores WhatsApp</span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-normal leading-snug">
+                                Faturamento direto e ICMS diferenciado (CPF vs MEI vs CNPJ).
+                              </span>
+                            </label>
+
+                            {/* 3. Cotação Técnica */}
+                            <label
+                              className={`flex flex-col p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                                productForm.commercialMode === 'technical_consultative'
+                                  ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold ring-1 ring-amber-400 shadow-2xs'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <input
+                                  type="radio"
+                                  name="commercialMode"
+                                  value="technical_consultative"
+                                  checked={productForm.commercialMode === 'technical_consultative'}
+                                  onChange={(e) => setProductForm({
+                                    ...productForm,
+                                    commercialMode: e.target.value,
+                                    priceNegotiable: true
+                                  })}
+                                  className="accent-amber-600"
+                                />
+                                <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span className="font-bold">Cotação Técnica</span>
+                              </div>
+                              <span className="text-[10px] text-slate-500 font-normal leading-snug">
+                                Maquinário pesado (elevadores, alinhadores) e frete dedicado.
+                              </span>
+                            </label>
+                          </div>
+
+                          {/* Toggle de Exibição Explícita de Preço */}
+                          {productForm.commercialMode !== 'direct_sale' && (
+                            <div className="flex items-center gap-2 pt-2 border-t border-slate-200/80">
+                              <input
+                                type="checkbox"
+                                id="isPriceVisible"
+                                checked={productForm.isPriceVisible}
+                                onChange={(e) => setProductForm({ ...productForm, isPriceVisible: e.target.checked })}
+                                className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                              />
+                              <label htmlFor="isPriceVisible" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                                Exibir Preço de Referência no Site (Preço informativo; checkout permanece no WhatsApp)
+                              </label>
+                            </div>
+                          )}
                         </div>
 
                         <div>

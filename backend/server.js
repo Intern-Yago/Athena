@@ -282,8 +282,13 @@ async function sendVerificationEmail(toEmail, code, userName = 'Cliente') {
 // -------------------------------------------------------------
 // JWT CRYPTOGRAPHIC SIGNING & SESSION SECURITY (OWASP A07:2021)
 // -------------------------------------------------------------
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32)) {
+  console.error('[FATAL CRITICAL] JWT_SECRET obrigatório e com entropia mínima de 32 caracteres em produção.');
+  process.exit(1);
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || (
-  console.warn('[SECURITY WARN] JWT_SECRET não configurado. Utilizando segredo randômico efêmero.'),
+  console.warn('[SECURITY WARN] JWT_SECRET não configurado em ambiente de desenvolvimento. Utilizando segredo randômico efêmero.'),
   crypto.randomBytes(32).toString('hex')
 );
 const TOKEN_EXPIRY_SECONDS = 12 * 3600; // 12 hours max session token
@@ -5470,14 +5475,14 @@ app.post('/api/payments/charge', async (req, res) => {
       return res.status(400).json({ error: 'Valor da transação inválido.' });
     }
 
-    // Validação de integridade de preços dos produtos contra o banco de dados
+    // Validação de integridade de preços dos produtos contra o banco de dados e trava de modalidade comercial
     if (Array.isArray(items) && items.length > 0) {
       const productIds = items.map(i => i.id || i.productId).filter(Boolean);
       if (productIds.length > 0) {
         let dbProducts = [];
         if (pool) {
           try {
-            const pRes = await pool.query('SELECT id, price, variants FROM products WHERE id = ANY($1::varchar[])', [productIds]);
+            const pRes = await pool.query('SELECT id, name, price, variants, commercial_mode FROM products WHERE id = ANY($1::varchar[])', [productIds]);
             dbProducts = pRes.rows || [];
           } catch (e) {}
         }
@@ -5490,16 +5495,55 @@ app.post('/api/payments/charge', async (req, res) => {
         for (const item of items) {
           const pId = item.id || item.productId;
           const dbProd = dbProducts.find(p => p.id === pId);
-          const qty = Math.max(1, parseInt(item.quantity || 1, 10));
-          if (dbProd && Number(dbProd.price) > 0) {
-            hasCatalogPrice = true;
-            let unitPrice = Number(dbProd.price);
-            if (item.variantSku && Array.isArray(dbProd.variants)) {
-              const v = dbProd.variants.find(va => va.sku === item.variantSku);
-              if (v && Number(v.price) > 0) unitPrice = Number(v.price);
-            }
-            expectedSubtotal += unitPrice * qty;
+
+          if (!dbProd) {
+            return res.status(400).json({ error: `Equipamento não localizado no catálogo oficial: ${pId}` });
           }
+
+          // Trava Inviolável 1: Apenas produtos em direct_sale podem passar pelo checkout online
+          const commMode = dbProd.commercial_mode || dbProd.commercialMode || 'variable_tax';
+          if (commMode !== 'direct_sale') {
+            return res.status(400).json({
+              error: `O produto "${dbProd.name || pId}" está em modalidade consultiva (${commMode}) e não permite pagamento direto online. Solicite cotação via WhatsApp.`
+            });
+          }
+
+          // Trava Inviolável 2: O produto deve ter preço estritamente positivo no banco (ou na variante selecionada)
+          let unitPrice = Number(dbProd.price || 0);
+          if (item.variantSku && Array.isArray(dbProd.variants)) {
+            const v = dbProd.variants.find(va => va.sku === item.variantSku);
+            if (v && Number(v.price) > 0) unitPrice = Number(v.price);
+          }
+
+          if (unitPrice <= 0) {
+            return res.status(400).json({
+              error: `O produto "${dbProd.name || pId}" não possui preço válido cadastrado no catálogo.`
+            });
+          }
+
+          // Trava Inviolável 3: Validação estrita de quantidade por item (inteiro positivo seguro entre 1 e 100)
+          const rawQty = item.quantity;
+          let qty = NaN;
+          if (typeof rawQty === 'number') {
+            qty = Number.isSafeInteger(rawQty) ? rawQty : NaN;
+          } else if (typeof rawQty === 'string') {
+            const trimmed = rawQty.trim();
+            if (/^[1-9]\d*$/.test(trimmed)) {
+              const parsedNum = Number(trimmed);
+              qty = Number.isSafeInteger(parsedNum) ? parsedNum : NaN;
+            }
+          }
+          const MAX_QUANTITY_PER_ITEM = 100;
+
+          if (isNaN(qty) || qty < 1 || qty > MAX_QUANTITY_PER_ITEM) {
+            return res.status(400).json({
+              error: `Quantidade inválida para o produto "${dbProd.name || pId}". A quantidade deve ser um número inteiro positivo seguro entre 1 e ${MAX_QUANTITY_PER_ITEM}.`
+            });
+          }
+
+          item.quantity = qty;
+          hasCatalogPrice = true;
+          expectedSubtotal += unitPrice * qty;
         }
 
         // Se produtos oficiais possuem preço fixado no catálogo, o valor enviado não pode ser adulterado
@@ -9469,6 +9513,10 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
           p.price::float, 
           COALESCE(p.preco_venda, p.price, 0)::float as "precoVenda",
           p.price_negotiable as "priceNegotiable", 
+          p.commercial_mode as "commercialMode",
+          p.commercial_mode,
+          p.is_price_visible as "isPriceVisible",
+          p.is_price_visible, 
           p.sku,
           p.omie_code as "omieCode",
           p.omie_codigo_produto as "omieCodigoProduto",
@@ -9591,6 +9639,10 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
           p.price::float, 
           COALESCE(p.preco_venda, p.price, 0)::float as "precoVenda",
           p.price_negotiable as "priceNegotiable", 
+          p.commercial_mode as "commercialMode",
+          p.commercial_mode,
+          p.is_price_visible as "isPriceVisible",
+          p.is_price_visible, 
           p.sku,
           p.omie_code as "omieCode",
           p.omie_codigo_produto as "omieCodigoProduto",
@@ -9682,7 +9734,11 @@ app.get(['/api/share/product/:identifier', '/api/share/produto/:identifier'], as
       const result = await pool.query(`
         SELECT 
           p.id, p.name, p.slug, p.price::float, COALESCE(p.preco_venda, p.price, 0)::float as "precoVenda",
-          p.price_negotiable as "priceNegotiable", p.image, p.images, p.description,
+          p.price_negotiable as "priceNegotiable", 
+          p.commercial_mode as "commercialMode",
+          p.commercial_mode,
+          p.is_price_visible as "isPriceVisible",
+          p.is_price_visible, p.image, p.images, p.description,
           b.name as "brandName", c.name as "categoryName"
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
@@ -9859,9 +9915,32 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
     ? Boolean(req.body.requiresEquipmentSerial) 
     : (req.body.requires_equipment_serial !== undefined ? Boolean(req.body.requires_equipment_serial) : (req.body.productType === 'digital' || req.body.product_type === 'digital'));
 
+  const VALID_COMMERCIAL_MODES = ['direct_sale', 'variable_tax', 'technical_consultative'];
+  let incomingCommercialMode = null;
+  if (req.body.commercialMode !== undefined || req.body.commercial_mode !== undefined) {
+    const rawMode = req.body.commercialMode !== undefined ? req.body.commercialMode : req.body.commercial_mode;
+    if (rawMode != null) {
+      if (!VALID_COMMERCIAL_MODES.includes(rawMode)) {
+        return res.status(400).json({ 
+          error: `commercial_mode inválido: "${rawMode}". Valores permitidos: ${VALID_COMMERCIAL_MODES.join(', ')}` 
+        });
+      }
+      incomingCommercialMode = rawMode;
+    }
+  }
+
+  let incomingIsPriceVisible = null;
+  if (req.body.isPriceVisible !== undefined) {
+    incomingIsPriceVisible = Boolean(req.body.isPriceVisible);
+  } else if (req.body.is_price_visible !== undefined) {
+    incomingIsPriceVisible = Boolean(req.body.is_price_visible);
+  }
+
   const newProduct = { 
     id: assignedId || `prod_${Date.now()}`, 
     ...req.body,
+    ...(incomingCommercialMode ? { commercialMode: incomingCommercialMode, commercial_mode: incomingCommercialMode } : {}),
+    ...(incomingIsPriceVisible !== null ? { isPriceVisible: incomingIsPriceVisible, is_price_visible: incomingIsPriceVisible } : {}),
     status: finalStatus,
     sku: finalSku,
     omieCode: finalSku,
@@ -9880,18 +9959,24 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           price_negotiable, badge, tags, compatible_product_ids, recommended_product_ids, 
           status, is_featured, image, images, alt_text, description, specs, 
           attachments, in_stock, video_url, custom_tabs, product_type, a_points,
-          sku, estoque_quantidade, omie_code, variants, model_3d, requires_equipment_serial, price_source, stock_source
+          sku, estoque_quantidade, omie_code, variants, model_3d, requires_equipment_serial, price_source, stock_source,
+          commercial_mode, is_price_visible
         )
         VALUES (
           $1, $2, $3, $4, $5, $6::numeric, $6::numeric, 
-          $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, 
+          CASE WHEN COALESCE($33, 'variable_tax') = 'direct_sale' THEN false ELSE true END, 
+          $8, $9::jsonb, $10::jsonb, $11::jsonb, 
           $12, $13, $14, $15::jsonb, $16, $17, $18::jsonb, 
           $19::jsonb, $20, $21, $22::jsonb, $23, $24,
-          $25, $26, $27, $28::jsonb, $29::jsonb, $30, $31, $32
+          $25, $26, $27, $28::jsonb, $29::jsonb, $30, $31, $32,
+          COALESCE($33, 'variable_tax'), COALESCE($34, false)
         )
         ON CONFLICT (id) DO UPDATE SET 
           name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6::numeric, preco_venda=$6::numeric, 
-          price_negotiable=$7, badge=$8, tags=$9::jsonb, compatible_product_ids=$10::jsonb, 
+          commercial_mode = COALESCE($33, products.commercial_mode, 'variable_tax'),
+          is_price_visible = COALESCE($34, products.is_price_visible, false),
+          price_negotiable = CASE WHEN COALESCE($33, products.commercial_mode, 'variable_tax') = 'direct_sale' THEN false ELSE true END,
+          badge=$8, tags=$9::jsonb, compatible_product_ids=$10::jsonb, 
           recommended_product_ids=$11::jsonb, status=$12, is_featured=$13, image=$14, 
           images=$15::jsonb, alt_text=$16, description=$17, specs=$18::jsonb, 
           attachments=$19::jsonb, in_stock=$20, video_url=$21, custom_tabs=$22::jsonb, 
@@ -9930,7 +10015,9 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
         newProduct.model3d ? JSON.stringify(newProduct.model3d) : null,
         reqSerial,
         req.body.priceSource || 'manual',
-        req.body.stockSource || 'manual'
+        req.body.stockSource || 'manual',
+        incomingCommercialMode,
+        incomingIsPriceVisible
       ]);
 
       // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,

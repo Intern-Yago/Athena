@@ -5,6 +5,7 @@ import FormattedDescription, { stripFormattingTags } from '../components/Formatt
 import ProductModal from '../components/ProductModal';
 import InstallmentModal from '../components/InstallmentModal';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
+import { canCheckout, shouldShowPrice, getCommercialBadge, buildProductWhatsAppMessage } from '../utils/commercialPolicy';
 import NotFoundPage from './NotFoundPage';
 import ShippingCalculator from '../components/ShippingCalculator';
 import { isProductPublished, normalizeProduct } from '../utils/imageUrl';
@@ -422,21 +423,24 @@ export default function ProductDetailPage({
     category?.name?.toLowerCase().includes('atualizaç')
   );
 
-  const canBuyOnline = !isQuoteOnly && Number(activePrice) > 0;
+  // Política Comercial Desacoplada (Pacote A):
+  const canBuyOnline = canCheckout(product) && (!selectedVariant || Number(activePrice) > 0);
+  const showPrice = shouldShowPrice(product);
+  const commercialBadge = getCommercialBadge(product);
 
-  const paymentGateways = canBuyOnline ? calculatePaymentGateways(activePrice) : null;
-  const pixCustomerPrice = paymentGateways?.pix?.formattedCustomerAmount || (
-    canBuyOnline ? formatBRL(activePrice) : 'Sob Consulta'
-  );
+  const paymentGateways = showPrice ? calculatePaymentGateways(activePrice) : null;
+  const pixCustomerPrice = showPrice 
+    ? (paymentGateways?.pix?.formattedCustomerAmount || formatBRL(activePrice))
+    : (commercialBadge?.label || 'Consulte no WhatsApp');
 
   const potentialPoints = (product?.aPoints && Number(product.aPoints) > 0) 
     ? Number(product.aPoints) 
     : (Number(activePrice) > 0 ? Math.floor(Number(activePrice) / 50) : 0);
   const earnedPoints = canBuyOnline ? potentialPoints : 0;
 
-  const formattedPrice = canBuyOnline 
+  const formattedPrice = showPrice 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(activePrice)
-    : 'Sob Consulta';
+    : (commercialBadge?.label || 'Consulte no WhatsApp');
 
   const handleCopyPreviewLink = () => {
     if (!product) return;
@@ -451,33 +455,15 @@ export default function ProductDetailPage({
 
   const productTitleWithVariant = `${product?.name || ''}${selectedVariant ? ` - ${selectedVariant.name}` : ''}`;
   const variantSkuText = selectedVariant?.sku ? ` | Cód: ${selectedVariant.sku}` : (product?.sku ? ` | Cód: ${product.sku}` : '');
-  const qtyText = `\nQuantidade: ${selectedQuantity} ${selectedQuantity === 1 ? 'unidade' : 'unidades'}`;
 
-  const hasSelectedShippingOption = Boolean(selectedShipping && !selectedShipping.onlyCep && selectedShipping.price != null);
-  const hasOnlyCep = Boolean(selectedShipping && selectedShipping.onlyCep && selectedShipping.cep);
-  const cepLocationLabel = selectedShipping?.cep
-    ? `${selectedShipping.cep}${selectedShipping.addressInfo ? ` (${selectedShipping.addressInfo})` : ''}`
-    : '';
-
-  const shippingText = hasSelectedShippingOption
-    ? `\n\n📦 *Frete & Entrega Selecionados:*${cepLocationLabel ? `\n• CEP: ${cepLocationLabel}` : ''}\n• Opção escolhida: ${selectedShipping.company?.name || 'Transportadora'} — ${selectedShipping.name}\n• Valor do frete: ${formatBRL(selectedShipping.price)} (Previsão: ${selectedShipping.delivery_time} ${selectedShipping.delivery_time === 1 ? 'dia útil' : 'dias úteis'})`
-    : hasOnlyCep
-    ? `\n\n📦 *Dados para Entrega:*\n• CEP informado: ${cepLocationLabel}`
-    : '';
-
-  const quoteClosingText = hasSelectedShippingOption
-    ? 'Por favor, me informe o valor do equipamento e as formas de pagamento para fecharmos o pedido com essa opção de envio.'
-    : hasOnlyCep
-    ? 'Por favor, me informe sobre valores do equipamento, opções de frete para este CEP e formas de pagamento.'
-    : 'Por favor, me informe sobre valores, frete para meu CEP e formas de pagamento.';
-
-  const whatsappMessage = canBuyOnline
-    ? encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}${qtyText}\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).${shippingText}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
-      )
-    : encodeURIComponent(
-        `Olá Athena Soluções Automotivas!\n\nGostaria de um orçamento oficial para o equipamento:\n*${productTitleWithVariant}*\nMarca: ${brand?.name || 'Athena'}${variantSkuText}\nCategoria: ${category?.name || 'Geral'}${qtyText}${shippingText}\n\n${quoteClosingText}`
-      );
+  const whatsappMessage = buildProductWhatsAppMessage({
+    product: { ...product, name: productTitleWithVariant, price: activePrice },
+    brand,
+    category,
+    variant: selectedVariant,
+    quantity: selectedQuantity,
+    shipping: selectedShipping
+  });
 
   // META PIXEL PRODUCT VIEWCONTENT TELEMETRY (Catalog Dynamic Ads Matching)
   useEffect(() => {
@@ -1196,7 +1182,7 @@ export default function ProductDetailPage({
                               ? 'ring-2 ring-amber-500 ring-offset-2 scale-110 shadow-sm'
                               : 'hover:scale-105 opacity-80 hover:opacity-100'
                           } ${!isSelectable ? '!opacity-45 hover:!opacity-70' : ''}`}
-                          title={`${v.name}${isQuoteOnly ? ' (Sob Consulta)' : (!isSelectable ? ` (${vAvail.label})` : (v.price ? ` - ${formatBRL(v.price)}` : ''))}`}
+                          title={`${v.name}${isQuoteOnly ? ' (Cotação Consultiva)' : (!isSelectable ? ` (${vAvail.label})` : (v.price ? ` - ${formatBRL(v.price)}` : ''))}`}
                         >
                           <span
                             className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-300 shadow-2xs block relative overflow-hidden"
@@ -1284,7 +1270,7 @@ export default function ProductDetailPage({
             )}
 
             {/* Commercial Condition / Price Banner (Positioned above CTA Buttons) */}
-            {canBuyOnline ? (
+            {showPrice ? (
               <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/80 space-y-2">
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-200/80 text-amber-900">
@@ -1333,10 +1319,10 @@ export default function ProductDetailPage({
                     Condição Comercial:
                   </span>
                   <span className="text-xl sm:text-2xl font-extrabold text-amber-800 font-display">
-                    Sob Consulta
+                    {commercialBadge?.label || 'Consulte no WhatsApp'}
                   </span>
                   <span className="text-[11px] text-slate-400 font-medium">
-                    (Consulte condições, prazos e faturamento)
+                    (Condições exclusivas de faturamento direto, tributação e frete)
                   </span>
                 </div>
                 {potentialPoints > 0 && (

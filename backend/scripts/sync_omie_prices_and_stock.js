@@ -187,7 +187,6 @@ async function run() {
         SET 
           preco_venda = COALESCE($1, preco_venda),
           price = COALESCE($1, price),
-          price_negotiable = true,
           estoque_quantidade = CASE WHEN $2::boolean THEN $3::integer ELSE estoque_quantidade END,
           in_stock = CASE WHEN $2::boolean THEN $4::boolean ELSE in_stock END,
           omie_last_sync = NOW()
@@ -202,9 +201,6 @@ async function run() {
 
       if (needsPriceUpdate) updatedPriceCount++;
       if (needsStockUpdate) updatedStockCount++;
-    } else {
-      // Mesmo sem match no Omie, garante que price_negotiable = true para manter "Sob Consulta"
-      await pool.query(`UPDATE products SET price_negotiable = true WHERE id = $1`, [prod.id]);
     }
   }
 
@@ -214,7 +210,7 @@ async function run() {
   console.log(`✅ Produtos vinculados ao Omie: ${matchesFound}`);
   console.log(`💰 Preços sincronizados no banco: ${updatedPriceCount}`);
   console.log(`📦 Estoques atualizados no banco: ${updatedStockCount}`);
-  console.log(`🔒 Regra de Ouro mantida: 100% dos produtos continuam como "SOB CONSULTA" (price_negotiable = true).`);
+  console.log(`🔒 Governança comercial preservada: commercial_mode e is_price_visible mantidos intactos.`);
 
   await pool.end();
 }

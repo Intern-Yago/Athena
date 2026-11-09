@@ -3,6 +3,7 @@ import { stripFormattingTags } from './FormattedDescription';
 import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles, Layers } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
+import { canCheckout, shouldShowPrice, getCommercialBadge, buildProductWhatsAppMessage } from '../utils/commercialPolicy';
 import { isProductPublished } from '../utils/imageUrl';
 import { isVariantVisibleInCatalog } from '../utils/productVariants';
 import { trackMetaEvent } from '../utils/metaPixel';
@@ -34,37 +35,31 @@ export default function ProductCard({
   const baseCardImage = (product.image || (Array.isArray(product.images) && product.images[0]) || fallbackVariantImage || '').trim();
   const currentCardImage = activePreviewImage || baseCardImage;
 
-  // Regra de Negocio Athena:
-  // Se o orcamento estiver ATIVO (priceNegotiable !== false ou price_negotiable !== false), NAO mostra o valor do produto (fica Sob Consulta) e direciona para orcamento.
-  // Se o orcamento estiver DESATIVADO e tiver preco (> 0), mostra o valor e joga para comprar no site.
-  const hasPrice = Number(product.price) > 0;
-  const isQuoteOnly = Boolean(
-    product.priceNegotiable === true ||
-    product.price_negotiable === true ||
-    (product.priceNegotiable !== false && product.price_negotiable !== false)
-  );
-  const canBuyOnline = hasPrice && !isQuoteOnly;
+  // Política Comercial Desacoplada (Pacote A):
+  // Exibição de preço e autorização de checkout governadas por commercialPolicy.js
+  const canBuyOnline = canCheckout(product);
+  const showPrice = shouldShowPrice(product);
+  const commercialBadge = getCommercialBadge(product);
 
-  const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
-  const pixCustomerPrice = canBuyOnline 
+  const paymentGateways = showPrice ? calculatePaymentGateways(product.price) : null;
+  const pixCustomerPrice = showPrice 
     ? (paymentGateways?.pix?.formattedCustomerAmount || formatBRL(product.price))
-    : 'Sob Consulta';
+    : (commercialBadge?.label || 'Consulte no WhatsApp');
 
   const earnedPoints = (product.aPoints && Number(product.aPoints) > 0) 
     ? Number(product.aPoints) 
     : (canBuyOnline ? Math.floor(product.price / 50) : 0);
 
-  const formattedPrice = canBuyOnline 
+  const formattedPrice = showPrice 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
-    : 'Sob Consulta';
+    : (commercialBadge?.label || 'Consulte no WhatsApp');
 
-  const whatsappText = canBuyOnline
-    ? encodeURIComponent(
-        `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de comprar o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'} - Valor: ${pixCustomerPrice} no PIX / Cartão). Poderia me orientar para concluir o pedido?`
-      )
-    : encodeURIComponent(
-        `Olá! Vim pelo site da Athena Soluções Automotivas e gostaria de um orçamento para o equipamento: *${product.name}* (Marca: ${brand?.name || 'Athena'}). Poderia me informar valor, prazo de entrega e formas de pagamento?`
-      );
+  const whatsappText = buildProductWhatsAppMessage({
+    product,
+    brand,
+    category,
+    quantity: 1
+  });
 
   const handleCardWhatsAppClick = (e) => {
     const prodSku = String((product.sku && product.sku.trim()) || product.id);
@@ -138,6 +133,11 @@ export default function ProductCard({
 
           {/* Badges Overlay */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 pointer-events-none">
+            {commercialBadge && (
+              <span className={`badge ${commercialBadge.variant === 'amber' ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-white font-bold'} text-[10px] px-2.5 py-0.5 shadow-xs`}>
+                {commercialBadge.label}
+              </span>
+            )}
             {product._matchedVia && (
               <span className="badge bg-indigo-600 text-white font-extrabold text-[10px] px-2 py-0.5 shadow-xs flex items-center gap-1">
                 <Link2 className="w-2.5 h-2.5 shrink-0" />
@@ -306,12 +306,12 @@ export default function ProductCard({
           <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide block">
-                {canBuyOnline ? 'À Vista no PIX' : 'Condição Comercial'}
+                {showPrice ? (canBuyOnline ? 'À Vista no PIX' : 'Preço de Referência') : 'Condição Comercial'}
               </span>
               <span className="text-sm font-extrabold text-amber-800 font-display bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 inline-block mt-0.5">
-                {canBuyOnline ? pixCustomerPrice : 'Sob Consulta'}
+                {showPrice ? pixCustomerPrice : (commercialBadge?.label || 'Consulte no WhatsApp')}
               </span>
-              {canBuyOnline && (
+              {showPrice && canBuyOnline && (
                 <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
                   {getBestInstallmentText(product.price, 12)}
                 </span>
@@ -445,6 +445,15 @@ export default function ProductCard({
         {/* Top Badges (Category & Custom Badges) */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none z-10">
           <div className="flex flex-col gap-1.5">
+            {commercialBadge && (
+              <span className={`font-black text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border w-fit ${
+                commercialBadge.variant === 'amber'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400'
+                  : 'bg-slate-800 text-white border-slate-700'
+              }`}>
+                {commercialBadge.label}
+              </span>
+            )}
             {product._matchedVia && (
               <span className="bg-indigo-600 text-white font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-indigo-500 w-fit flex items-center gap-1 max-w-[200px]" title={`Compatível com: ${product._matchedVia.name}`}>
                 <Link2 className="w-3 h-3 shrink-0" />
@@ -624,13 +633,13 @@ export default function ProductCard({
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-1">
               <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide">
-                {canBuyOnline ? 'À Vista no PIX' : 'Condição Comercial'}
+                {showPrice ? (canBuyOnline ? 'À Vista no PIX' : 'Preço de Referência') : 'Condição Comercial'}
               </span>
               <span className="text-xs font-extrabold text-amber-800 font-display bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-300">
-                {canBuyOnline ? pixCustomerPrice : 'Sob Consulta'}
+                {showPrice ? pixCustomerPrice : (commercialBadge?.label || 'Consulte no WhatsApp')}
               </span>
             </div>
-            {canBuyOnline && (
+            {showPrice && canBuyOnline && (
               <span className="text-[10px] text-slate-500 font-medium block text-right">
                 {getBestInstallmentText(product.price, 12)}
               </span>

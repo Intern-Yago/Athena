@@ -34,9 +34,15 @@ export function normalizeProduct(p) {
   );
 
   const normType = p.productType || p.product_type || 'physical';
+  const commMode = p.commercialMode || p.commercial_mode || 'variable_tax';
+  const priceVis = Boolean(p.isPriceVisible ?? p.is_price_visible ?? false);
 
   return {
     ...p,
+    commercialMode: commMode,
+    commercial_mode: commMode,
+    isPriceVisible: priceVis,
+    is_price_visible: priceVis,
     productType: normType,
     product_type: normType,
     priceNegotiable: isNegotiable,
