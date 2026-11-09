@@ -533,20 +533,30 @@ export default function ProductDetailPage({
       ? (() => { try { return JSON.parse(rawModel); } catch (e) { return {}; } })()
       : (rawModel || {});
 
+    // 1. Prioridade: Dimensões Reais de Maquinário em model_3d
     if (modelData?.dimensions?.width || modelData?.dimensions?.height || modelData?.dimensions?.depth) {
       const w = Number(modelData.dimensions.width) || 0;
       const h = Number(modelData.dimensions.height) || 0;
       const d = Number(modelData.dimensions.depth) || 0;
-      if (w > 0 || h > 0 || d > 0) {
+      const isDummyBox = (Math.abs(w - 0.2) < 0.01 && Math.abs(h - 0.15) < 0.01 && Math.abs(d - 0.25) < 0.01);
+      if ((w > 0 || h > 0 || d > 0) && !isDummyBox) {
         return { width: w, height: h, depth: d };
       }
     }
 
+    // 2. Se não houver model_3d com dimensões, verifica medidas de cadastro (desconsiderando caixa padrão 20x15x25)
     if (product?.width || product?.height || product?.length) {
-      const w = Number((Number(product.width || 0) / 100).toFixed(2));
-      const h = Number((Number(product.height || 0) / 100).toFixed(2));
-      const d = Number((Number(product.length || 0) / 100).toFixed(2));
-      if (w > 0 || h > 0 || d > 0) {
+      const rawW = Number(product.width || 0);
+      const rawH = Number(product.height || 0);
+      const rawL = Number(product.length || 0);
+      // Ignora caixa padrão de frete/embalagem dos Correios
+      if (rawW === 20 && rawH === 15 && rawL === 25) return null;
+
+      const w = Number((rawW / 100).toFixed(2));
+      const h = Number((rawH / 100).toFixed(2));
+      const d = Number((rawL / 100).toFixed(2));
+      const isDummyBox = (Math.abs(w - 0.2) < 0.01 && Math.abs(h - 0.15) < 0.01 && Math.abs(d - 0.25) < 0.01);
+      if ((w > 0 || h > 0 || d > 0) && !isDummyBox) {
         return { width: w, height: h, depth: d };
       }
     }
