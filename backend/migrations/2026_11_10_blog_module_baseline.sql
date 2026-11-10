@@ -69,7 +69,10 @@ $$;
 CREATE TABLE IF NOT EXISTS public.blog_categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL CHECK (char_length(trim(name)) >= 2),
-    slug VARCHAR(120) NOT NULL UNIQUE CHECK (char_length(trim(slug)) >= 2),
+    slug VARCHAR(120) NOT NULL UNIQUE CHECK (
+        char_length(trim(slug)) >= 2 AND 
+        slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+    ),
     description TEXT,
     display_order INTEGER NOT NULL DEFAULT 0 CHECK (display_order >= 0),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -90,7 +93,10 @@ CREATE TRIGGER trg_blog_categories_updated_at
 CREATE TABLE IF NOT EXISTS public.blog_posts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL CHECK (char_length(trim(title)) >= 3),
-    slug VARCHAR(280) NOT NULL UNIQUE CHECK (char_length(trim(slug)) >= 3),
+    slug VARCHAR(280) NOT NULL UNIQUE CHECK (
+        char_length(trim(slug)) >= 3 AND 
+        slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+    ),
     excerpt TEXT,
     content JSONB NOT NULL DEFAULT '[]'::jsonb,
     content_html TEXT, -- Gerado no backend por allowlist sanitizada
@@ -100,8 +106,8 @@ CREATE TABLE IF NOT EXISTS public.blog_posts (
     cover_image_key VARCHAR(255),
     meta_title VARCHAR(150),
     meta_description VARCHAR(250),
-    reading_time_minutes INTEGER NOT NULL DEFAULT 5 CHECK (reading_time_minutes > 0),
-    view_count INTEGER NOT NULL DEFAULT 0 CHECK (view_count >= 0),
+    reading_time_minutes INTEGER NOT NULL DEFAULT 5 CHECK (reading_time_minutes >= 1),
+    view_count BIGINT NOT NULL DEFAULT 0 CHECK (view_count >= 0),
     published_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -177,6 +183,10 @@ CREATE INDEX IF NOT EXISTS idx_blog_post_categories_cat ON public.blog_post_cate
 -- ------------------------------------------------------------------------------
 -- 6. TABELA: blog_comments (Comentários com Threading e Moderação)
 -- ------------------------------------------------------------------------------
+-- Nota LGPD: O campo author_ip é registrado com fundamento no Art. 7, IX da LGPD
+-- (legítimo interesse do controlador) para segurança, controle de abuso e contenção de spam.
+-- Seu acesso é restrito ao backend administrativo (service_role) e excluído da view pública,
+-- com ciclo de expurgo programado após moderação.
 CREATE TABLE IF NOT EXISTS public.blog_comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     post_id UUID NOT NULL REFERENCES public.blog_posts(id) ON DELETE CASCADE,
@@ -186,6 +196,7 @@ CREATE TABLE IF NOT EXISTS public.blog_comments (
         char_length(trim(author_email)) >= 5 AND 
         author_email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'
     ),
+    author_ip VARCHAR(45),
     content TEXT NOT NULL CHECK (char_length(trim(content)) >= 2),
     status VARCHAR(20) NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'approved', 'rejected', 'spam')),
@@ -434,6 +445,8 @@ CREATE POLICY p_blog_slug_aliases_admin_all ON public.blog_slug_aliases
     FOR ALL USING (public.is_blog_admin_or_editor()) WITH CHECK (public.is_blog_admin_or_editor());
 
 -- Relacionamento Post-Categoria
+-- Nota Arquitetural: A policy consulta public.blog_posts_public (view com security_barrier)
+-- para validar a visibilidade do post sem exigir GRANT SELECT na tabela base blog_posts.
 DROP POLICY IF EXISTS p_blog_post_categories_public_read ON public.blog_post_categories;
 CREATE POLICY p_blog_post_categories_public_read ON public.blog_post_categories
     FOR SELECT USING (
@@ -489,8 +502,8 @@ GRANT ALL ON TABLE public.blog_slug_aliases TO service_role;
 GRANT ALL ON TABLE public.blog_post_categories TO service_role;
 GRANT ALL ON TABLE public.blog_comments TO service_role;
 GRANT ALL ON TABLE public.blog_post_revisions TO service_role;
-GRANT ALL ON TABLE public.blog_posts_public TO service_role;
-GRANT ALL ON TABLE public.blog_comments_public TO service_role;
+GRANT SELECT ON TABLE public.blog_posts_public TO service_role;
+GRANT SELECT ON TABLE public.blog_comments_public TO service_role;
 
 GRANT EXECUTE ON FUNCTION public.is_blog_admin_or_editor() TO service_role;
 GRANT EXECUTE ON FUNCTION public.increment_blog_post_view(UUID) TO service_role;

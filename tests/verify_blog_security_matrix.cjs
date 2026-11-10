@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+
 let pg;
 try {
   pg = require('pg');
@@ -15,7 +16,24 @@ const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error("ERRO: DATABASE_URL não definida em .env.test.");
+  console.error("ERRO FATAL: DATABASE_URL não definida em .env.test.");
+  process.exit(1);
+}
+
+// -----------------------------------------------------------------------------
+// TRAVA DE SEGURANÇA 1: Validação de Host da URL
+// -----------------------------------------------------------------------------
+const isAllowedTestHost = connectionString.includes('gbbenlovgpuvahqvuvzf') || 
+                          connectionString.includes('localhost') || 
+                          connectionString.includes('127.0.0.1') || 
+                          connectionString.includes('_test');
+
+if (!isAllowedTestHost) {
+  console.error("================================================================================");
+  console.error("BLOQUEIO DE SEGURANÇA: A DATABASE_URL não corresponde ao projeto de teste aprovado!");
+  console.error("Host recebido:", connectionString.split('@')[1] || 'desconhecido');
+  console.error("Abortando imediatamente para proteger bancos que não sejam de teste.");
+  console.error("================================================================================");
   process.exit(1);
 }
 
@@ -24,78 +42,95 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+const results = [];
+
+function assertCheck(id, description, expected, actual, passed) {
+  results.push({ id, description, expected, actual, passed: Boolean(passed) });
+  const status = passed ? "[PASS]" : "[FAIL]";
+  console.log(`${status} ${id}: ${description}`);
+  console.log(`       Esperado: ${expected}`);
+  console.log(`       Obtido:   ${actual}\n`);
+}
+
 async function runTestMatrix() {
   const client = await pool.connect();
-  console.log("================================================================================");
-  console.log("ATHENA BLOG MODULE — MATRIZ DE TESTES DE SEGURANÇA (SUPABASE DESPOSÍTAVEL)");
-  console.log("================================================================================\n");
-
-  const results = [];
-  function assertCheck(id, description, expected, actual, passed) {
-    results.push({ id, description, expected, actual, passed: Boolean(passed) });
-    console.log(`[${passed ? 'PASS' : 'FAIL'}] ${id}: ${description}`);
-    console.log(`       Esperado: ${expected}`);
-    console.log(`       Obtido:   ${actual}\n`);
-  }
 
   try {
+    console.log("================================================================================");
+    console.log("ATHENA BLOG MODULE — MATRIZ DE TESTES DE SEGURANÇA & INTEGRIDADE");
+    console.log("Banco de Testes Verificado: db.gbbenlovgpuvahqvuvzf.supabase.co");
+    console.log("================================================================================\n");
+
     // -------------------------------------------------------------------------
-    // 0. RESET E SETUP DO BANCO DESPOSÍTAVEL
+    // TRAVA DE SEGURANÇA 2: Bloqueio Fatal se a Tabela products Existir
     // -------------------------------------------------------------------------
-    console.log("--- 0. Limpeza e Aplicação das Migrations no Schema Public ---");
-    await client.query(`
-      DROP VIEW IF EXISTS public.blog_comments_public CASCADE;
-      DROP VIEW IF EXISTS public.blog_posts_public CASCADE;
-      DROP TABLE IF EXISTS public.blog_post_categories CASCADE;
-      DROP TABLE IF EXISTS public.blog_categories CASCADE;
-      DROP TABLE IF EXISTS public.blog_comments CASCADE;
-      DROP TABLE IF EXISTS public.blog_post_revisions CASCADE;
-      DROP TABLE IF EXISTS public.blog_slug_aliases CASCADE;
-      DROP TABLE IF EXISTS public.blog_posts CASCADE;
-      DROP FUNCTION IF EXISTS public.is_blog_admin_or_editor() CASCADE;
-      DROP FUNCTION IF EXISTS public.check_blog_slug_collision() CASCADE;
-      DROP FUNCTION IF EXISTS public.validate_blog_comment_thread() CASCADE;
-      DROP FUNCTION IF EXISTS public.record_blog_post_revision() CASCADE;
-      DROP FUNCTION IF EXISTS public.increment_blog_post_view(UUID) CASCADE;
+    const precheck = await client.query(`
+      SELECT 1 FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'products';
     `);
 
-    // Aplica Stubs (users e set_updated_at_timestamp)
-    const stubsSql = fs.readFileSync(path.join(__dirname, 'sql/00_stubs.sql'), 'utf8');
+    if (precheck.rows.length > 0) {
+      console.error("================================================================================");
+      console.error("TRAVA FATAL DE SEGURANÇA: A tabela 'products' do e-commerce da Athena foi detectada!");
+      console.error("Este script roda APENAS em bases descartáveis de teste sem dados de catálogo.");
+      console.error("Execução abortada sem alterar qualquer dado.");
+      console.error("================================================================================");
+      process.exit(1);
+    }
+
+    // -------------------------------------------------------------------------
+    // 0. RESET E CARGA LIMPA DE MIGRATION NO SCHEMA PUBLIC
+    // -------------------------------------------------------------------------
+    console.log("--- 0. Limpeza e Aplicação das Migrations no Schema Public ---");
+    await client.query("DROP VIEW IF EXISTS public.blog_comments_public CASCADE;");
+    await client.query("DROP VIEW IF EXISTS public.blog_posts_public CASCADE;");
+    await client.query("DROP TABLE IF EXISTS public.blog_post_categories CASCADE;");
+    await client.query("DROP TABLE IF EXISTS public.blog_slug_aliases CASCADE;");
+    await client.query("DROP TABLE IF EXISTS public.blog_post_revisions CASCADE;");
+    await client.query("DROP TABLE IF EXISTS public.blog_comments CASCADE;");
+    await client.query("DROP TABLE IF EXISTS public.blog_posts CASCADE;");
+    await client.query("DROP TABLE IF EXISTS public.blog_categories CASCADE;");
+
+    // Aplica Stubs isolados (users e set_updated_at_timestamp)
+    const stubsSql = fs.readFileSync(path.resolve(__dirname, 'sql/00_stubs.sql'), 'utf-8');
     await client.query(stubsSql);
 
-    // Aplica a Migration V5 Oficial SEM NENHUMA ALTERAÇÃO
-    const migrationSql = fs.readFileSync(path.join(__dirname, '../backend/migrations/2026_11_10_blog_module_baseline.sql'), 'utf8');
+    // Aplica Migration V5 limpa
+    const migrationSql = fs.readFileSync(path.resolve(__dirname, '../backend/migrations/2026_11_10_blog_module_baseline.sql'), 'utf-8');
     await client.query(migrationSql);
     console.log("Stubs e Migration V5 aplicados com sucesso no schema public.\n");
 
     // -------------------------------------------------------------------------
-    // 1. POPULAÇÃO DE DADOS DE PROVA (via service_role / superusuário)
+    // 1. SETUP DE DADOS DE PROVA (Positivos e Negativos)
     // -------------------------------------------------------------------------
     console.log("--- 1. Criação dos Dados de Prova ---");
-    // Usuários
+    // Usuários de auditoria
     await client.query(`
-      DELETE FROM public.users WHERE id IN ('usr_author_orig', 'usr_editor_real', 'usr_customer_common');
-      INSERT INTO public.users (id, name, email, password_hash, role) VALUES
-      ('usr_author_orig', 'Autor Original', 'autor@athena.com', 'hash', 'vendedor'),
-      ('usr_editor_real', 'Editor Real', 'editor@athena.com', 'hash', 'editor'),
-      ('usr_customer_common', 'Cliente Comum', 'cliente@oficina.com', 'hash', 'customer');
+      INSERT INTO public.users (id, email, name, password_hash, role)
+      VALUES 
+        ('usr_author_orig', 'autor@athena.com', 'Autor Original', 'hash_pass', 'editor'),
+        ('usr_editor_real', 'editor@athena.com', 'Editor Real', 'hash_pass', 'editor'),
+        ('usr_cliente', 'cliente@athena.com', 'Cliente Comum', 'hash_pass', 'cliente')
+      ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role;
     `);
 
-    // 3 Artigos com status e datas distintas
+    // 1 Post publicado no passado
     const p1 = await client.query(`
-      INSERT INTO public.blog_posts (title, slug, status, author_id, published_at)
-      VALUES ('Post Publicado Passado', 'post-passado', 'published', 'usr_author_orig', NOW() - INTERVAL '2 days')
+      INSERT INTO public.blog_posts (title, slug, status, published_at, author_id)
+      VALUES ('Post Publicado Passado', 'post-passado', 'published', NOW() - INTERVAL '1 day', 'usr_author_orig')
       RETURNING id;
     `);
     const idPub = p1.rows[0].id;
 
+    // 1 Post publicado no futuro (agendado)
     const p2 = await client.query(`
-      INSERT INTO public.blog_posts (title, slug, status, author_id, published_at)
-      VALUES ('Post Agendado Futuro', 'post-futuro', 'published', 'usr_author_orig', NOW() + INTERVAL '3 days')
+      INSERT INTO public.blog_posts (title, slug, status, published_at, author_id)
+      VALUES ('Post Futuro Agendado', 'post-futuro', 'published', NOW() + INTERVAL '2 days', 'usr_author_orig')
       RETURNING id;
     `);
     const idFut = p2.rows[0].id;
 
+    // 1 Post rascunho
     const p3 = await client.query(`
       INSERT INTO public.blog_posts (title, slug, status, author_id)
       VALUES ('Post Rascunho', 'post-rascunho', 'draft', 'usr_author_orig')
@@ -105,8 +140,8 @@ async function runTestMatrix() {
 
     // 1 Categoria e 2 vínculos
     const c1 = await client.query(`
-      INSERT INTO public.blog_categories (name, slug)
-      VALUES ('Elevadores', 'elevadores') RETURNING id;
+      INSERT INTO public.blog_categories (name, slug, display_order)
+      VALUES ('Elevadores', 'elevadores', 10) RETURNING id;
     `);
     const idCat = c1.rows[0].id;
 
@@ -117,28 +152,133 @@ async function runTestMatrix() {
 
     // Comentários: 2 no post publicado (1 aprovado, 1 pendente), 1 no rascunho (aprovado)
     const com1 = await client.query(`
-      INSERT INTO public.blog_comments (post_id, author_name, author_email, content, status)
-      VALUES ($1, 'Cliente Joao', 'joao@oficina.com', 'Excelente!', 'approved')
+      INSERT INTO public.blog_comments (post_id, author_name, author_email, author_ip, content, status)
+      VALUES ($1, 'Cliente Joao', 'joao@oficina.com', '189.10.20.30', 'Excelente!', 'approved')
       RETURNING id;
     `, [idPub]);
     const idComAppr = com1.rows[0].id;
 
     await client.query(`
-      INSERT INTO public.blog_comments (post_id, author_name, author_email, content, status)
-      VALUES ($1, 'Spam Bot', 'bot@spam.com', 'Compre barato', 'pending');
+      INSERT INTO public.blog_comments (post_id, author_name, author_email, author_ip, content, status)
+      VALUES ($1, 'Spam Bot', 'bot@spam.com', '190.20.30.40', 'Compre barato', 'pending');
     `, [idPub]);
 
     await client.query(`
-      INSERT INTO public.blog_comments (post_id, author_name, author_email, content, status)
-      VALUES ($1, 'Tester', 'test@draft.com', 'Comentario em rascunho', 'approved');
+      INSERT INTO public.blog_comments (post_id, author_name, author_email, author_ip, content, status)
+      VALUES ($1, 'Tester', 'test@draft.com', '191.30.40.50', 'Comentario em rascunho', 'approved');
     `, [idDraft]);
 
     console.log("Setup concluído: 3 posts criados, 2 vínculos de categoria, 3 comentários, 3 usuários.\n");
 
     // -------------------------------------------------------------------------
-    // 2. MATRIZ DE AUDITORIA: ROLE anon
+    // 2. MATRIZ DE CONSTRAINTS DE INTEGRIDADE (CHECK CONSTRAINTS)
     // -------------------------------------------------------------------------
-    console.log("--- 2. Auditoria da Role: anon ---");
+    console.log("--- 2. Auditoria de Constraints de Integridade ---");
+
+    // TEST-C1: Título de post curto (< 3 caracteres)
+    let c1Blocked = false;
+    let c1Code = '';
+    try {
+      await client.query(`
+        INSERT INTO public.blog_posts (title, slug, status, author_id)
+        VALUES ('Oi', 'post-curto', 'draft', 'usr_author_orig');
+      `);
+    } catch (e) {
+      c1Blocked = true;
+      c1Code = e.code;
+    }
+    assertCheck(
+      "TEST-C1",
+      "Constraint de título curto (< 3 chars) rejeita inserção na tabela blog_posts",
+      "Erro 23514 (check_violation)",
+      c1Blocked ? `Erro ${c1Code}` : "Inserção permitida indevidamente",
+      c1Blocked && c1Code === '23514'
+    );
+
+    // TEST-C2: Post publicado sem published_at
+    let c2Blocked = false;
+    let c2Code = '';
+    try {
+      await client.query(`
+        INSERT INTO public.blog_posts (title, slug, status, published_at, author_id)
+        VALUES ('Post Publicado Sem Data', 'post-sem-data', 'published', NULL, 'usr_author_orig');
+      `);
+    } catch (e) {
+      c2Blocked = true;
+      c2Code = e.code;
+    }
+    assertCheck(
+      "TEST-C2",
+      "Constraint chk_blog_posts_published_date rejeita status='published' com published_at NULO",
+      "Erro 23514 (check_violation)",
+      c2Blocked ? `Erro ${c2Code}` : "Inserção permitida indevidamente",
+      c2Blocked && c2Code === '23514'
+    );
+
+    // TEST-C3: Slug com caracteres inválidos (letras maiúsculas ou underline)
+    let c3Blocked = false;
+    let c3Code = '';
+    try {
+      await client.query(`
+        INSERT INTO public.blog_posts (title, slug, status, author_id)
+        VALUES ('Post Slug Invalido', 'Post_Slug_Invalido!', 'draft', 'usr_author_orig');
+      `);
+    } catch (e) {
+      c3Blocked = true;
+      c3Code = e.code;
+    }
+    assertCheck(
+      "TEST-C3",
+      "Constraint de regex de slug rejeita caracteres maiúsculos ou especiais fora do padrão kebab-case",
+      "Erro 23514 (check_violation)",
+      c3Blocked ? `Erro ${c3Code}` : "Inserção permitida indevidamente",
+      c3Blocked && c3Code === '23514'
+    );
+
+    // TEST-C4: Comentário com e-mail inválido
+    let c4Blocked = false;
+    let c4Code = '';
+    try {
+      await client.query(`
+        INSERT INTO public.blog_comments (post_id, author_name, author_email, content, status)
+        VALUES ($1, 'Tester', 'email-invalido-sem-arroba', 'Ola', 'pending');
+      `, [idPub]);
+    } catch (e) {
+      c4Blocked = true;
+      c4Code = e.code;
+    }
+    assertCheck(
+      "TEST-C4",
+      "Constraint de regex de author_email rejeita e-mail mal formatado",
+      "Erro 23514 (check_violation)",
+      c4Blocked ? `Erro ${c4Code}` : "Inserção permitida indevidamente",
+      c4Blocked && c4Code === '23514'
+    );
+
+    // TEST-C5: Comentário com conteúdo vazio ou < 2 chars
+    let c5Blocked = false;
+    let c5Code = '';
+    try {
+      await client.query(`
+        INSERT INTO public.blog_comments (post_id, author_name, author_email, content, status)
+        VALUES ($1, 'Tester', 'teste@oficina.com', ' ', 'pending');
+      `, [idPub]);
+    } catch (e) {
+      c5Blocked = true;
+      c5Code = e.code;
+    }
+    assertCheck(
+      "TEST-C5",
+      "Constraint de conteúdo de comentário rejeita string vazia ou whitespace",
+      "Erro 23514 (check_violation)",
+      c5Blocked ? `Erro ${c5Code}` : "Inserção permitida indevidamente",
+      c5Blocked && c5Code === '23514'
+    );
+
+    // -------------------------------------------------------------------------
+    // 3. MATRIZ DE AUDITORIA: ROLE anon
+    // -------------------------------------------------------------------------
+    console.log("--- 3. Auditoria da Role: anon ---");
     await client.query("SET ROLE anon;");
 
     // TEST-01: Listagem pública de posts via view
@@ -172,24 +312,24 @@ async function runTestMatrix() {
     const anonCats = await client.query("SELECT post_id FROM public.blog_post_categories;");
     assertCheck(
       "TEST-03",
-      "Anon não visualiza categorias associadas a rascunhos",
+      "Anon não visualiza categorias associadas a rascunhos (via policy que consulta blog_posts_public)",
       "1 vínculo (apenas post-passado) de um total de 2 no banco",
       `${anonCats.rows.length} vínculo(s) retornado(s): post_id=${anonCats.rows[0]?.post_id}`,
       anonCats.rows.length === 1 && anonCats.rows[0].post_id === idPub
     );
 
-    // TEST-04: Bloqueio total na tabela base blog_comments (author_email blindado)
+    // TEST-04: Bloqueio total na tabela base blog_comments (author_email e author_ip blindados)
     let anonBaseCommentsBlocked = false;
     let anonBaseCommentsCode = '';
     try {
-      await client.query("SELECT author_email FROM public.blog_comments;");
+      await client.query("SELECT author_email, author_ip FROM public.blog_comments;");
     } catch (e) {
       anonBaseCommentsBlocked = true;
       anonBaseCommentsCode = e.code;
     }
     assertCheck(
       "TEST-04",
-      "Anon impedido de consultar tabela base blog_comments (author_email blindado)",
+      "Anon impedido de consultar tabela base blog_comments (author_email e author_ip blindados)",
       "Erro 42501 (permission_denied)",
       anonBaseCommentsBlocked ? `Erro ${anonBaseCommentsCode}` : "Consulta permitida",
       anonBaseCommentsBlocked && anonBaseCommentsCode === '42501'
@@ -198,12 +338,13 @@ async function runTestMatrix() {
     // TEST-05: View pública blog_comments_public
     const anonViewComments = await client.query("SELECT * FROM public.blog_comments_public;");
     const hasEmailCol = Object.prototype.hasOwnProperty.call(anonViewComments.rows[0] || {}, 'author_email');
+    const hasIpCol = Object.prototype.hasOwnProperty.call(anonViewComments.rows[0] || {}, 'author_ip');
     assertCheck(
       "TEST-05",
-      "View pública retorna apenas aprovados de posts públicos e omite author_email",
-      "1 comentário ('Cliente Joao') de um total de 3 no banco; author_email ausente",
-      `${anonViewComments.rows.length} comentário(s); autor='${anonViewComments.rows[0]?.author_name}'; coluna author_email existe: ${hasEmailCol}`,
-      anonViewComments.rows.length === 1 && anonViewComments.rows[0]?.author_name === 'Cliente Joao' && !hasEmailCol
+      "View pública retorna apenas aprovados de posts públicos e omite author_email e author_ip",
+      "1 comentário ('Cliente Joao') de um total de 3; author_email e author_ip ausentes",
+      `${anonViewComments.rows.length} comentário(s); autor='${anonViewComments.rows[0]?.author_name}'; email_presente: ${hasEmailCol}, ip_presente: ${hasIpCol}`,
+      anonViewComments.rows.length === 1 && anonViewComments.rows[0]?.author_name === 'Cliente Joao' && !hasEmailCol && !hasIpCol
     );
 
     // TEST-06: Escrita proibida para anon em todas as tabelas
@@ -253,12 +394,12 @@ async function runTestMatrix() {
     );
 
     // -------------------------------------------------------------------------
-    // 3. MATRIZ DE AUDITORIA: ROLE authenticated (Cliente Comum)
+    // 4. MATRIZ DE AUDITORIA: ROLE authenticated (Cliente Comum & Tentativa de Escalada)
     // -------------------------------------------------------------------------
-    console.log("--- 3. Auditoria da Role: authenticated (Cliente Comum) ---");
+    console.log("--- 4. Auditoria da Role: authenticated (Cliente Comum & Escalada) ---");
     await client.query("SET ROLE authenticated;");
 
-    // TEST-08: Cliente comum não tem privilégio de escrita nem acesso a rascunhos
+    // TEST-08: Cliente comum tem leitura base negada em posts
     let authBasePostBlocked = false;
     try {
       await client.query("SELECT * FROM public.blog_posts;");
@@ -266,6 +407,15 @@ async function runTestMatrix() {
       authBasePostBlocked = (e.code === '42501');
     }
 
+    // TEST-08B: Cliente comum tem leitura base negada em comments (author_email/ip blindados)
+    let authBaseCommentsBlocked = false;
+    try {
+      await client.query("SELECT author_email, author_ip FROM public.blog_comments;");
+    } catch (e) {
+      authBaseCommentsBlocked = (e.code === '42501');
+    }
+
+    // TEST-08C: Cliente comum tem escrita negada
     let authWriteBlocked = false;
     try {
       await client.query("INSERT INTO public.blog_posts (title, slug) VALUES ('Hacked', 'hacked');");
@@ -273,6 +423,7 @@ async function runTestMatrix() {
       authWriteBlocked = (e.code === '42501');
     }
 
+    // TEST-08D: Cliente comum tem RPC negada
     let authRpcBlocked = false;
     try {
       await client.query("SELECT public.increment_blog_post_view('" + idPub + "');");
@@ -282,58 +433,76 @@ async function runTestMatrix() {
 
     assertCheck(
       "TEST-08",
-      "Authenticated comum tem acesso idêntico a anon: leitura base negada, escrita negada, RPC negada",
-      "Leitura base 42501, Escrita 42501, RPC 42501",
-      `Leitura: ${authBasePostBlocked ? '42501' : 'OK'}, Escrita: ${authWriteBlocked ? '42501' : 'OK'}, RPC: ${authRpcBlocked ? '42501' : 'OK'}`,
-      authBasePostBlocked && authWriteBlocked && authRpcBlocked
+      "Authenticated comum tem acesso base bloqueado em posts e comments, escrita e RPC negadas",
+      "Posts 42501, Comments 42501, Escrita 42501, RPC 42501",
+      `Posts: ${authBasePostBlocked ? '42501' : 'FAIL'}, Comments: ${authBaseCommentsBlocked ? '42501' : 'FAIL'}, Escrita: ${authWriteBlocked ? '42501' : 'FAIL'}, RPC: ${authRpcBlocked ? '42501' : 'FAIL'}`,
+      authBasePostBlocked && authBaseCommentsBlocked && authWriteBlocked && authRpcBlocked
+    );
+
+    // TEST-08E: Tentativa de escalada forjando app.current_user_id
+    let forgeEscalationBlocked = false;
+    let forgeCode = '';
+    try {
+      await client.query("SELECT set_config('app.current_user_id', 'usr_editor_real', false);");
+      await client.query("INSERT INTO public.blog_categories (name, slug) VALUES ('Hack', 'hack');");
+    } catch (e) {
+      forgeEscalationBlocked = true;
+      forgeCode = e.code;
+    }
+    assertCheck(
+      "TEST-08E",
+      "Forjar app.current_user_id como editor sob role authenticated continua bloqueado por falta de GRANT",
+      "Erro 42501 (permission_denied)",
+      forgeEscalationBlocked ? `Erro ${forgeCode}` : "Escalada permitida indevidamente",
+      forgeEscalationBlocked && forgeCode === '42501'
     );
 
     // -------------------------------------------------------------------------
-    // 4. MATRIZ DE AUDITORIA: ROLE service_role / postgres (Backend da Athena)
+    // 5. MATRIZ DE AUDITORIA: ROLE service_role / postgres (Backend da Athena)
     // -------------------------------------------------------------------------
-    console.log("--- 4. Auditoria da Role: service_role / Backend ---");
-    await client.query("RESET ROLE;"); // Retorna a postgres / service_role
+    console.log("--- 5. Auditoria da Role: service_role / Backend ---");
+    await client.query("RESET ROLE;");
 
-    // TEST-09: service_role lê todos os comentários com author_email para moderação
-    const srComments = await client.query("SELECT id, author_name, author_email, status FROM public.blog_comments ORDER BY created_at;");
+    // TEST-09: service_role lê todos os comentários com author_email e author_ip para moderação
+    const srComments = await client.query("SELECT id, author_name, author_email, author_ip, status FROM public.blog_comments ORDER BY created_at;");
     assertCheck(
       "TEST-09",
-      "Backend (service_role) acessa todos os 3 comentários com author_email visível para moderação",
-      "3 comentários com e-mails reais ('joao@oficina.com', 'bot@spam.com', 'test@draft.com')",
+      "Backend (service_role) acessa todos os 3 comentários com author_email e author_ip visíveis para moderação",
+      "3 comentários com e-mails reais ('joao@oficina.com', 'bot@spam.com', 'test@draft.com') e IPs",
       `${srComments.rows.length} comentários lidos; e-mails: [${srComments.rows.map(c => c.author_email).join(', ')}]`,
-      srComments.rows.length === 3 && srComments.rows.some(c => c.author_email === 'joao@oficina.com')
+      srComments.rows.length === 3 && srComments.rows.some(c => c.author_email === 'joao@oficina.com' && c.author_ip === '189.10.20.30')
     );
 
     // TEST-10: RPC increment_blog_post_view por service_role
+    // Estado inicial de view_counts
+    const viewsBefore = await client.query("SELECT id, view_count FROM public.blog_posts ORDER BY slug;");
+
     // 10.1 Post publicado: incrementa
     await client.query("SELECT public.increment_blog_post_view($1);", [idPub]);
     const pPubAfter = await client.query("SELECT view_count FROM public.blog_posts WHERE id = $1;", [idPub]);
 
-    // 10.2 Post rascunho: no-op
+    // 10.2 Post rascunho: no-op (não incrementa)
     await client.query("SELECT public.increment_blog_post_view($1);", [idDraft]);
     const pDraftAfter = await client.query("SELECT view_count FROM public.blog_posts WHERE id = $1;", [idDraft]);
 
-    // 10.3 UUID inexistente: no-op sem exceção
+    // 10.3 UUID inexistente: no-op comprovado (nenhum post é alterado)
     const randomUuid = '00000000-0000-0000-0000-000000000000';
-    let randomUuidSucceeded = true;
-    try {
-      await client.query("SELECT public.increment_blog_post_view($1);", [randomUuid]);
-    } catch (e) {
-      randomUuidSucceeded = false;
-    }
+    await client.query("SELECT public.increment_blog_post_view($1);", [randomUuid]);
+    const viewsAfterRandom = await client.query("SELECT id, view_count FROM public.blog_posts WHERE id != $1 ORDER BY slug;", [idPub]);
+    const noOtherPostChanged = viewsAfterRandom.rows.every(r => Number(r.view_count) === 0);
 
     assertCheck(
       "TEST-10",
-      "increment_blog_post_view via backend incrementa publicado e ignora rascunho/inexistente",
-      "Publicado: 1 view | Rascunho: 0 views | UUID inexistente: sem erro",
-      `Publicado: ${pPubAfter.rows[0].view_count} | Rascunho: ${pDraftAfter.rows[0].view_count} | UUID inexistente executou: ${randomUuidSucceeded}`,
-      pPubAfter.rows[0].view_count === 1 && pDraftAfter.rows[0].view_count === 0 && randomUuidSucceeded
+      "increment_blog_post_view via backend incrementa publicado e não altera rascunho nem UUID inexistente",
+      "Publicado: 1 view | Rascunho: 0 views | Demais posts inalterados (0 views)",
+      `Publicado: ${pPubAfter.rows[0].view_count} | Rascunho: ${pDraftAfter.rows[0].view_count} | Demais inalterados: ${noOtherPostChanged}`,
+      pPubAfter.rows[0].view_count === '1' && pDraftAfter.rows[0].view_count === '0' && noOtherPostChanged
     );
 
     // -------------------------------------------------------------------------
-    // 5. TESTES DE REVISÕES, AUDITORIA REAL DE AUTORIA E SLUGS/ALIASES
+    // 6. TESTES DE REVISÕES, AUDITORIA REAL DE AUTORIA E SLUGS/ALIASES
     // -------------------------------------------------------------------------
-    console.log("--- 5. Auditoria de Revisões, Autoria Real e Aliases ---");
+    console.log("--- 6. Auditoria de Revisões, Autoria Real e Aliases ---");
 
     // TEST-11: view_count NÃO gera snapshot de revisão
     const revCountAfterViews = await client.query("SELECT count(*) FROM public.blog_post_revisions WHERE post_id = $1;", [idPub]);
@@ -365,9 +534,32 @@ async function runTestMatrix() {
       revs.rows.length === 1 && revs.rows[0]?.title === 'Post Publicado Passado' && revs.rows[0]?.edited_by === 'usr_editor_real'
     );
 
-    // TEST-13: Cadeia de Aliases A -> B -> C colapsa A diretamente para C
-    // Mudança 1 já ocorreu: post-passado -> post-passado-v2 (Alias criado: post-passado -> post-passado-v2)
-    // Mudança 2 agora: post-passado-v2 -> post-passado-v3
+    // TEST-12B: Tentativa de update com app.current_user_id inexistente falha por FK
+    let invalidUserFkBlocked = false;
+    let invalidUserFkCode = '';
+    try {
+      await client.query("BEGIN;");
+      await client.query("SELECT set_config('app.current_user_id', 'usr_fantasma_inexistente', true);");
+      await client.query(`
+        UPDATE public.blog_posts
+        SET title = 'Post com Usuario Inexistente'
+        WHERE id = $1;
+      `, [idPub]);
+      await client.query("COMMIT;");
+    } catch (e) {
+      await client.query("ROLLBACK;");
+      invalidUserFkBlocked = true;
+      invalidUserFkCode = e.code;
+    }
+    assertCheck(
+      "TEST-12B",
+      "app.current_user_id com ID inexistente falha por Foreign Key ao gravar blog_post_revisions",
+      "Erro 23503 (foreign_key_violation)",
+      invalidUserFkBlocked ? `Erro ${invalidUserFkCode}` : "Permitiu gravacao indevida",
+      invalidUserFkBlocked && invalidUserFkCode === '23503'
+    );
+
+    // TEST-13: Cadeia de Aliases A -> B -> C colapsa todos os anteriores para C
     await client.query(`
       UPDATE public.blog_posts
       SET slug = 'post-passado-v3'
@@ -423,9 +615,9 @@ async function runTestMatrix() {
     );
 
     // -------------------------------------------------------------------------
-    // 6. INTEGRIDADE DE THREADING DE COMENTÁRIOS
+    // 7. INTEGRIDADE DE THREADING DE COMENTÁRIOS
     // -------------------------------------------------------------------------
-    console.log("--- 6. Auditoria de Threading de Comentários ---");
+    console.log("--- 7. Auditoria de Threading de Comentários ---");
 
     // TEST-16: Thread válido no mesmo post permitido
     const validReply = await client.query(`
@@ -448,7 +640,7 @@ async function runTestMatrix() {
       await client.query(`
         INSERT INTO public.blog_comments (post_id, parent_id, author_name, author_email, content, status)
         VALUES ($1, $2, 'Invasor', 'inv@mal.com', 'Cross reply', 'pending');
-      `, [idDraft, idComAppr]); // idComAppr pertence a idPub, não a idDraft
+      `, [idDraft, idComAppr]);
     } catch (e) {
       crossThreadBlocked = true;
       crossThreadErr = e.message;
