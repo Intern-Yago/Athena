@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "test": "node --test --test-concurrency=1 tests/unit/*.test.js",
     "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage tests/unit/*.test.js",
+    "test:e2e": "node scripts/test_webapp_e2e.js",
     "sync:workshops": "python3 backend/scripts/sync_workshops_from_omie_ploomes.py"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.5.4",
+    "playwright": "^1.65.0",
     "postcss": "^8.5.26",
     "tailwindcss": "^4.3.3",
     "vite": "^5.4.8"
