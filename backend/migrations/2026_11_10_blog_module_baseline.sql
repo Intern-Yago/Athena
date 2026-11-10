@@ -1,11 +1,11 @@
 -- ==============================================================================
--- ATHENA BLOG MODULE — BASELINE DE IMPLEMENTAÇÃO BLINDADO (5 TABELAS)
+-- ATHENA BLOG MODULE — BASELINE DE IMPLEMENTAÇÃO V2 BLINDADO (5 TABELAS + VIEW + ALIASES)
 -- Branch: blog (Isolamento total de schema em relação ao e-commerce)
 -- Arquivo: backend/migrations/2026_11_10_blog_module_baseline.sql
 -- ==============================================================================
--- Este script implementa as 5 entidades do blog da Athena com conformidade LGPD,
--- integridade referencial estrita, moderação de comentários com proteção PII,
--- publicação programada, controle de concorrência e RLS administrativo.
+-- Conformidade: LGPD, BlockNote JSON + HTML pré-renderizado para SEO/OpenGraph,
+-- proteção estrita de PII contra vazamento de author_email, moderação antispam,
+-- integridade de threading de comentários, histórico automático por trigger e RLS.
 -- ==============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -14,13 +14,14 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 0. FUNÇÕES AUXILIARES DE SUPORTE (SEGURANÇA & INTEGRIDADE)
 -- ------------------------------------------------------------------------------
 
--- Função para verificar se o ator possui privilégios de Administrador ou Editor
+-- Função para verificar privilégios de Administrador ou Editor
+-- Blindada contra sequestro de search_path (public, pg_temp)
 CREATE OR REPLACE FUNCTION public.is_blog_admin_or_editor()
 RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
   SELECT (
     -- Acesso via superusuário / backend service role
@@ -48,10 +49,8 @@ CREATE TABLE IF NOT EXISTS public.blog_categories (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- Nota: A coluna slug já possui índice implícito criado pela constraint UNIQUE
 CREATE INDEX IF NOT EXISTS idx_blog_categories_order ON public.blog_categories(display_order ASC);
 
--- Trigger de atualização automática de timestamp
 DROP TRIGGER IF EXISTS trg_blog_categories_updated_at ON public.blog_categories;
 CREATE TRIGGER trg_blog_categories_updated_at
     BEFORE UPDATE ON public.blog_categories
@@ -59,7 +58,7 @@ CREATE TRIGGER trg_blog_categories_updated_at
     EXECUTE FUNCTION public.set_updated_at_timestamp();
 
 -- ------------------------------------------------------------------------------
--- 2. TABELA: blog_posts (Artigos, Guias Técnicos e Tutoriais)
+-- 2. TABELA: blog_posts (Artigos com BlockNote JSON + HTML para SEO e WhatsApp)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.blog_posts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -67,6 +66,7 @@ CREATE TABLE IF NOT EXISTS public.blog_posts (
     slug VARCHAR(280) NOT NULL UNIQUE CHECK (char_length(trim(slug)) >= 3),
     excerpt TEXT,
     content JSONB NOT NULL DEFAULT '[]'::jsonb,
+    content_html TEXT, -- HTML pré-renderizado e sanitizado para SEO, Googlebot e WhatsApp previews
     status VARCHAR(20) NOT NULL DEFAULT 'draft'
         CHECK (status IN ('draft', 'published', 'archived')),
     author_id VARCHAR(100) REFERENCES public.users(id) ON DELETE SET NULL,
@@ -82,13 +82,11 @@ CREATE TABLE IF NOT EXISTS public.blog_posts (
         CHECK (status != 'published' OR published_at IS NOT NULL)
 );
 
--- Nota: A coluna slug já possui índice implícito criado pela constraint UNIQUE
 CREATE INDEX IF NOT EXISTS idx_blog_posts_status_published 
     ON public.blog_posts(status, published_at DESC) 
     WHERE status = 'published';
 CREATE INDEX IF NOT EXISTS idx_blog_posts_author ON public.blog_posts(author_id);
 
--- Trigger de atualização automática de timestamp
 DROP TRIGGER IF EXISTS trg_blog_posts_updated_at ON public.blog_posts;
 CREATE TRIGGER trg_blog_posts_updated_at
     BEFORE UPDATE ON public.blog_posts
@@ -96,7 +94,19 @@ CREATE TRIGGER trg_blog_posts_updated_at
     EXECUTE FUNCTION public.set_updated_at_timestamp();
 
 -- ------------------------------------------------------------------------------
--- 3. TABELA: blog_post_categories (Relacionamento N:N entre Posts e Categorias)
+-- 3. TABELA: blog_slug_aliases (Redirecionamento 301 Automático quando o Slug Mudar)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.blog_slug_aliases (
+    old_slug VARCHAR(280) PRIMARY KEY,
+    target_post_id UUID NOT NULL REFERENCES public.blog_posts(id) ON DELETE CASCADE,
+    target_slug VARCHAR(280) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_blog_slug_aliases_target ON public.blog_slug_aliases(target_post_id);
+
+-- ------------------------------------------------------------------------------
+-- 4. TABELA: blog_post_categories (Relacionamento N:N entre Posts e Categorias)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.blog_post_categories (
     post_id UUID NOT NULL REFERENCES public.blog_posts(id) ON DELETE CASCADE,
@@ -105,11 +115,10 @@ CREATE TABLE IF NOT EXISTS public.blog_post_categories (
     PRIMARY KEY (post_id, category_id)
 );
 
--- Nota: Chave primária composta já indexa (post_id, category_id). Indexamos category_id para buscas reversas:
 CREATE INDEX IF NOT EXISTS idx_blog_post_categories_cat ON public.blog_post_categories(category_id);
 
 -- ------------------------------------------------------------------------------
--- 4. TABELA: blog_comments (Comentários com Threading e Moderação)
+-- 5. TABELA: blog_comments (Comentários com Threading e Moderação)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.blog_comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -134,7 +143,6 @@ CREATE INDEX IF NOT EXISTS idx_blog_comments_post_status ON public.blog_comments
 CREATE INDEX IF NOT EXISTS idx_blog_comments_parent ON public.blog_comments(parent_id);
 CREATE INDEX IF NOT EXISTS idx_blog_comments_status ON public.blog_comments(status, created_at DESC);
 
--- Trigger de atualização automática de timestamp
 DROP TRIGGER IF EXISTS trg_blog_comments_updated_at ON public.blog_comments;
 CREATE TRIGGER trg_blog_comments_updated_at
     BEFORE UPDATE ON public.blog_comments
@@ -146,6 +154,7 @@ CREATE TRIGGER trg_blog_comments_updated_at
 CREATE OR REPLACE FUNCTION public.validate_blog_comment_thread()
 RETURNS trigger
 LANGUAGE plpgsql
+SET search_path = public, pg_temp
 AS $$
 BEGIN
     IF NEW.parent_id IS NOT NULL THEN
@@ -168,7 +177,7 @@ CREATE TRIGGER trg_validate_blog_comment_thread
     EXECUTE FUNCTION public.validate_blog_comment_thread();
 
 -- ------------------------------------------------------------------------------
--- 5. TABELA: blog_post_revisions (Auditoria, Versionamento e Rollback)
+-- 6. TABELA: blog_post_revisions (Histórico Automático por Trigger)
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.blog_post_revisions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -176,6 +185,7 @@ CREATE TABLE IF NOT EXISTS public.blog_post_revisions (
     title VARCHAR(255) NOT NULL,
     excerpt TEXT,
     content JSONB NOT NULL,
+    content_html TEXT,
     cover_image_key VARCHAR(255),
     meta_title VARCHAR(150),
     meta_description VARCHAR(250),
@@ -186,11 +196,90 @@ CREATE TABLE IF NOT EXISTS public.blog_post_revisions (
 
 CREATE INDEX IF NOT EXISTS idx_blog_revisions_post_id ON public.blog_post_revisions(post_id, created_at DESC);
 
+-- Trigger Automática de Criação de Revisão ao Atualizar Artigo:
+-- Garante que nenhum caminho de escrita escape do versionamento
+CREATE OR REPLACE FUNCTION public.record_blog_post_revision()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    -- Dispara revisão somente quando houver alteração substancial no conteúdo ou metadados
+    IF (OLD.title IS DISTINCT FROM NEW.title OR
+        OLD.content IS DISTINCT FROM NEW.content OR
+        OLD.excerpt IS DISTINCT FROM NEW.excerpt OR
+        OLD.cover_image_key IS DISTINCT FROM NEW.cover_image_key OR
+        OLD.meta_title IS DISTINCT FROM NEW.meta_title OR
+        OLD.meta_description IS DISTINCT FROM NEW.meta_description) THEN
+        
+        INSERT INTO public.blog_post_revisions (
+            post_id,
+            title,
+            excerpt,
+            content,
+            content_html,
+            cover_image_key,
+            meta_title,
+            meta_description,
+            edited_by,
+            change_summary,
+            created_at
+        ) VALUES (
+            OLD.id,
+            OLD.title,
+            OLD.excerpt,
+            OLD.content,
+            OLD.content_html,
+            OLD.cover_image_key,
+            OLD.meta_title,
+            OLD.meta_description,
+            NEW.author_id,
+            'Snapshot automático pré-atualização',
+            NOW()
+        );
+    END IF;
+
+    -- Se o slug mudou, registra alias de redirecionamento 301 automaticamente
+    IF (OLD.slug IS DISTINCT FROM NEW.slug) THEN
+        INSERT INTO public.blog_slug_aliases (old_slug, target_post_id, target_slug, created_at)
+        VALUES (OLD.slug, NEW.id, NEW.slug, NOW())
+        ON CONFLICT (old_slug) DO UPDATE
+            SET target_slug = EXCLUDED.target_slug;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_record_blog_post_revision ON public.blog_posts;
+CREATE TRIGGER trg_record_blog_post_revision
+    AFTER UPDATE ON public.blog_posts
+    FOR EACH ROW
+    EXECUTE FUNCTION public.record_blog_post_revision();
+
 -- ------------------------------------------------------------------------------
--- 6. VIEW PÚBLICA SEGURA: blog_comments_public (Proteção PII / LGPD de E-mails)
+-- 7. FUNÇÃO RPC: increment_blog_post_view (Contador Atômico de Visualizações)
 -- ------------------------------------------------------------------------------
--- Impede vazamento público de author_email, author_ip ou moderated_by.
-CREATE OR REPLACE VIEW public.blog_comments_public AS
+-- Impede visitantes de alterar arbitrariamente view_count por UPDATE direto
+CREATE OR REPLACE FUNCTION public.increment_blog_post_view(p_post_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    UPDATE public.blog_posts
+    SET view_count = view_count + 1
+    WHERE id = p_post_id AND status = 'published' AND published_at <= NOW();
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- 8. VIEW PÚBLICA SEGURA: blog_comments_public (Com security_barrier e sem PII)
+-- ------------------------------------------------------------------------------
+-- Blindada contra vazamento de author_email, IP e moderadores
+CREATE OR REPLACE VIEW public.blog_comments_public
+WITH (security_barrier = true) AS
 SELECT 
     id,
     post_id,
@@ -205,10 +294,11 @@ FROM public.blog_comments
 WHERE status = 'approved';
 
 -- ------------------------------------------------------------------------------
--- 7. POLÍTICAS DE ROW LEVEL SECURITY (RLS) IDEMPOTENTES & REAPLICÁVEIS
+-- 9. POLÍTICAS DE ROW LEVEL SECURITY (RLS)
 -- ------------------------------------------------------------------------------
 ALTER TABLE public.blog_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blog_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.blog_slug_aliases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blog_post_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blog_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blog_post_revisions ENABLE ROW LEVEL SECURITY;
@@ -225,22 +315,42 @@ CREATE POLICY p_blog_categories_admin_all ON public.blog_categories
     WITH CHECK (public.is_blog_admin_or_editor());
 
 -- --- B. BLOG_POSTS ---
--- Leitura pública apenas para artigos publicados com data de publicação válida (não futura)
+-- Leitura pública estritamente para posts publicados com data <= NOW()
 DROP POLICY IF EXISTS p_blog_posts_public_read ON public.blog_posts;
 CREATE POLICY p_blog_posts_public_read ON public.blog_posts
     FOR SELECT USING (status = 'published' AND published_at <= NOW());
 
--- Acesso administrativo irrestrito (leitura de rascunhos, agendados, criação e edição)
+-- Acesso administrativo integral
 DROP POLICY IF EXISTS p_blog_posts_admin_all ON public.blog_posts;
 CREATE POLICY p_blog_posts_admin_all ON public.blog_posts
     FOR ALL 
     USING (public.is_blog_admin_or_editor())
     WITH CHECK (public.is_blog_admin_or_editor());
 
--- --- C. BLOG_POST_CATEGORIES ---
+-- --- C. BLOG_SLUG_ALIASES ---
+-- Leitura pública para resolução de redirecionamentos 301
+DROP POLICY IF EXISTS p_blog_slug_aliases_public_read ON public.blog_slug_aliases;
+CREATE POLICY p_blog_slug_aliases_public_read ON public.blog_slug_aliases
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS p_blog_slug_aliases_admin_all ON public.blog_slug_aliases;
+CREATE POLICY p_blog_slug_aliases_admin_all ON public.blog_slug_aliases
+    FOR ALL 
+    USING (public.is_blog_admin_or_editor())
+    WITH CHECK (public.is_blog_admin_or_editor());
+
+-- --- D. BLOG_POST_CATEGORIES ---
+-- Leitura pública restrita a posts publicados (evita vazamento de temas de rascunhos)
 DROP POLICY IF EXISTS p_blog_post_categories_public_read ON public.blog_post_categories;
 CREATE POLICY p_blog_post_categories_public_read ON public.blog_post_categories
-    FOR SELECT USING (true);
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.blog_posts p 
+            WHERE p.id = post_id 
+              AND p.status = 'published' 
+              AND p.published_at <= NOW()
+        )
+    );
 
 DROP POLICY IF EXISTS p_blog_post_categories_admin_all ON public.blog_post_categories;
 CREATE POLICY p_blog_post_categories_admin_all ON public.blog_post_categories
@@ -248,24 +358,29 @@ CREATE POLICY p_blog_post_categories_admin_all ON public.blog_post_categories
     USING (public.is_blog_admin_or_editor())
     WITH CHECK (public.is_blog_admin_or_editor());
 
--- --- D. BLOG_COMMENTS ---
--- Proteção de dados: O leitor comum consulta preferencialmente a VIEW blog_comments_public.
--- Na tabela base, a leitura é permitida se aprovado OU se for administrador
-DROP POLICY IF EXISTS p_blog_comments_read ON public.blog_comments;
-CREATE POLICY p_blog_comments_read ON public.blog_comments
-    FOR SELECT 
-    USING (status = 'approved' OR public.is_blog_admin_or_editor());
+-- --- E. BLOG_COMMENTS ---
+-- Acesso administrativo e por service_role na tabela base
+DROP POLICY IF EXISTS p_blog_comments_admin_all ON public.blog_comments;
+CREATE POLICY p_blog_comments_admin_all ON public.blog_comments
+    FOR ALL 
+    USING (public.is_blog_admin_or_editor())
+    WITH CHECK (public.is_blog_admin_or_editor());
 
--- Inserção pública com travas estritas:
--- 1. Status inicial deve ser obrigatoriamente 'pending';
--- 2. is_official não pode ser forjado como true por anônimos;
--- 3. O artigo de destino DEVE estar publicado e com data <= NOW().
+-- Leitura na tabela base restrita apenas a aprovados para usuários autenticados
+DROP POLICY IF EXISTS p_blog_comments_read_approved ON public.blog_comments;
+CREATE POLICY p_blog_comments_read_approved ON public.blog_comments
+    FOR SELECT 
+    USING (status = 'approved');
+
+-- Inserção pública com todas as blindagens (moderated_by e moderated_at nulos obrigatórios)
 DROP POLICY IF EXISTS p_blog_comments_public_insert ON public.blog_comments;
 CREATE POLICY p_blog_comments_public_insert ON public.blog_comments
     FOR INSERT 
     WITH CHECK (
         status = 'pending' 
         AND is_official = false
+        AND moderated_by IS NULL
+        AND moderated_at IS NULL
         AND EXISTS (
             SELECT 1 FROM public.blog_posts 
             WHERE id = post_id 
@@ -274,15 +389,8 @@ CREATE POLICY p_blog_comments_public_insert ON public.blog_comments
         )
     );
 
--- Gestão administrativa de comentários (aprovação, rejeição, respostas oficiais, exclusão)
-DROP POLICY IF EXISTS p_blog_comments_admin_all ON public.blog_comments;
-CREATE POLICY p_blog_comments_admin_all ON public.blog_comments
-    FOR ALL 
-    USING (public.is_blog_admin_or_editor())
-    WITH CHECK (public.is_blog_admin_or_editor());
-
--- --- E. BLOG_POST_REVISIONS ---
--- Histórico de revisões é 100% restrito a administradores e editores (leitura pública proibida)
+-- --- F. BLOG_POST_REVISIONS ---
+-- Histórico 100% blindado contra acesso público
 DROP POLICY IF EXISTS p_blog_revisions_admin_all ON public.blog_post_revisions;
 CREATE POLICY p_blog_revisions_admin_all ON public.blog_post_revisions
     FOR ALL 
@@ -290,9 +398,26 @@ CREATE POLICY p_blog_revisions_admin_all ON public.blog_post_revisions
     WITH CHECK (public.is_blog_admin_or_editor());
 
 -- ------------------------------------------------------------------------------
--- 8. PRIVILÉGIOS DE ACESSO A NÍVEL DE BANCO (GRANTS & REVOKES)
+-- 10. PRIVILÉGIOS DE ACESSO A NÍVEL DE BANCO (GRANTS & REVOKES ESTRITOS)
 -- ------------------------------------------------------------------------------
--- Garante acesso de leitura da view pública para anon e authenticated
+-- 1. Leitura pública permitida apenas na view desidentificada (sem author_email)
 GRANT SELECT ON public.blog_comments_public TO anon, authenticated;
--- Revoga leitura direta de author_email por anon/authenticated na tabela base
-REVOKE SELECT (author_email) ON public.blog_comments FROM anon, authenticated;
+
+-- 2. Revogação integral de SELECT geral na tabela base de comentários
+REVOKE ALL ON public.blog_comments FROM anon, authenticated;
+
+-- 3. Concessão cirúrgica de SELECT apenas nas colunas não sensíveis da tabela base
+GRANT SELECT (id, post_id, parent_id, author_name, content, status, is_official, created_at, updated_at)
+    ON public.blog_comments TO anon, authenticated;
+
+-- 4. Permissão de inserção pública (para envio de comentários com status pending)
+GRANT INSERT (post_id, parent_id, author_name, author_email, content, status, is_official)
+    ON public.blog_comments TO anon, authenticated;
+
+-- 5. RPC de visualização liberada publicamente
+GRANT EXECUTE ON FUNCTION public.increment_blog_post_view(UUID) TO anon, authenticated;
+
+-- 6. Total privilégio para o service_role (backend da Athena)
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO service_role;
