@@ -5788,7 +5788,8 @@ app.post('/api/payments/charge', async (req, res) => {
       paymentPayload.creditCardHolderInfo = creditCardHolderInfo;
       if (installmentCount > 1) {
         paymentPayload.installmentCount = installmentCount;
-        if (installmentValue && installmentValue > 0) {
+        const minAcceptableInstallment = (finalPayable / installmentCount) * 0.95;
+        if (installmentValue && installmentValue >= minAcceptableInstallment) {
           paymentPayload.installmentValue = installmentValue;
         }
       }
@@ -5819,7 +5820,24 @@ app.post('/api/payments/charge', async (req, res) => {
       model: req.body.equipmentModel,
       serialNumber: req.body.equipmentSerial || ''
     } : null);
-    const attribution = req.body.attribution && typeof req.body.attribution === 'object' ? req.body.attribution : null;
+    const rawAttr = req.body.attribution;
+    let attribution = null;
+    if (rawAttr && typeof rawAttr === 'object' && !Array.isArray(rawAttr)) {
+      const sanitizeStr = (s, max = 150) => typeof s === 'string' ? s.trim().slice(0, max).replace(/[<>'"]/g, '') : null;
+      const sSource = sanitizeStr(rawAttr.source || rawAttr.utm_source, 100);
+      if (sSource) {
+        attribution = {
+          source: sSource,
+          medium: sanitizeStr(rawAttr.medium || rawAttr.utm_medium, 100),
+          campaign: sanitizeStr(rawAttr.campaign || rawAttr.utm_campaign, 150),
+          content: sanitizeStr(rawAttr.content || rawAttr.utm_content, 150),
+          term: sanitizeStr(rawAttr.term || rawAttr.utm_term, 150),
+          gclid: sanitizeStr(rawAttr.gclid, 150),
+          fbclid: sanitizeStr(rawAttr.fbclid, 150),
+          landingPage: sanitizeStr(rawAttr.landingPage || rawAttr.landing_page, 200)
+        };
+      }
+    }
     let attrNote = '';
     if (attribution && attribution.source) {
       const srcMed = attribution.medium ? `${attribution.source} / ${attribution.medium}` : attribution.source;
@@ -8913,7 +8931,12 @@ app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) =
 
 // 1. CATEGORIES
 app.get('/api/categories', async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  const isPublicCatalog = !req.headers.authorization;
+  if (isPublicCatalog) {
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  } else {
+    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+  }
   if (pool) {
     try {
       const result = await pool.query('SELECT id, name, slug, description, icon, "order", department_id AS "departmentId" FROM categories ORDER BY "order" ASC, name ASC');
@@ -8927,7 +8950,12 @@ app.get('/api/categories', async (req, res) => {
 });
 
 app.get('/api/categories/:identifier', async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  const isPublicCatalog = !req.headers.authorization;
+  if (isPublicCatalog) {
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  } else {
+    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+  }
   const { identifier } = req.params;
   if (!identifier) return res.status(400).json({ error: 'Identificador obrigatório.' });
   const cleanId = String(identifier).trim().slice(0, 150);
@@ -9145,7 +9173,12 @@ app.delete('/api/departments/:id', authenticateToken, requireStaff, async (req, 
 
 // 2. BRANDS
 app.get('/api/brands', async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  const isPublicCatalog = !req.headers.authorization;
+  if (isPublicCatalog) {
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  } else {
+    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+  }
   if (pool) {
     try {
       const result = await pool.query('SELECT id, name, slug, description, logo, website_url as "websiteUrl", "order", is_authorized as "isAuthorized", authorization_label as "authorizationLabel" FROM brands ORDER BY "order" ASC, name ASC');
@@ -9159,7 +9192,12 @@ app.get('/api/brands', async (req, res) => {
 });
 
 app.get('/api/brands/:identifier', async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  const isPublicCatalog = !req.headers.authorization;
+  if (isPublicCatalog) {
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  } else {
+    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+  }
   const { identifier } = req.params;
   if (!identifier) return res.status(400).json({ error: 'Identificador obrigatório.' });
   const cleanId = String(identifier).trim().slice(0, 150);
@@ -9502,7 +9540,17 @@ app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
 
 // 3. PRODUCTS
 app.get(['/api/products', '/api/produtos'], async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  const isPublicCatalog = !req.headers.authorization && (!req.query.status || req.query.status === 'published');
+  if (isPublicCatalog) {
+    const isPublicCatalog = !req.headers.authorization;
+  if (isPublicCatalog) {
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  } else {
+    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+  }
+  } else {
+    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+  }
   const isPaginated = req.query.page !== undefined || req.query.limit !== undefined;
 
   if (pool) {
@@ -9674,7 +9722,12 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
 });
 
 app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  const isPublicCatalog = !req.headers.authorization;
+  if (isPublicCatalog) {
+    res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+  } else {
+    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+  }
   const { identifier } = req.params;
   if (!identifier) return res.status(400).json({ error: 'Identificador do produto obrigatório.' });
   const cleanId = String(identifier).trim().slice(0, 200);
@@ -9998,16 +10051,24 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
     incomingIsPriceVisible = Boolean(req.body.is_price_visible);
   }
 
+  const parseSafeNumeric = (val) => {
+    if (val === null || val === undefined || val === '') return null;
+    const num = parseFloat(val);
+    return !isNaN(num) && isFinite(num) && num >= 0 ? num : null;
+  };
+
+  const parseSafeInt = (val) => {
+    if (val === null || val === undefined || val === '') return null;
+    const num = parseInt(val, 10);
+    return !isNaN(num) && isFinite(num) && num >= 0 ? num : null;
+  };
+
   const incomingWarrantyMonths = (req.body.warrantyMonths !== undefined || req.body.warranty_months !== undefined)
-    ? (req.body.warrantyMonths === null || req.body.warrantyMonths === '' || req.body.warranty_months === null || req.body.warranty_months === ''
-        ? null
-        : Math.max(0, parseInt(req.body.warrantyMonths ?? req.body.warranty_months, 10)))
+    ? parseSafeInt(req.body.warrantyMonths ?? req.body.warranty_months)
     : null;
 
   const incomingOriginalPrice = (req.body.originalPrice !== undefined || req.body.original_price !== undefined)
-    ? (req.body.originalPrice === null || req.body.originalPrice === '' || req.body.original_price === null || req.body.original_price === ''
-        ? null
-        : Math.max(0, parseFloat(req.body.originalPrice ?? req.body.original_price)))
+    ? parseSafeNumeric(req.body.originalPrice ?? req.body.original_price)
     : null;
 
   const newProduct = { 
@@ -10199,16 +10260,12 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
 
   const hasWarrantyUpdate = req.body.warrantyMonths !== undefined || req.body.warranty_months !== undefined;
   const warrantyVal = hasWarrantyUpdate
-    ? (req.body.warrantyMonths === null || req.body.warrantyMonths === '' || req.body.warranty_months === null || req.body.warranty_months === ''
-        ? null
-        : Math.max(0, parseInt(req.body.warrantyMonths ?? req.body.warranty_months, 10)))
+    ? parseSafeInt(req.body.warrantyMonths ?? req.body.warranty_months)
     : null;
 
   const hasOriginalPriceUpdate = req.body.originalPrice !== undefined || req.body.original_price !== undefined;
   const originalPriceVal = hasOriginalPriceUpdate
-    ? (req.body.originalPrice === null || req.body.originalPrice === '' || req.body.original_price === null || req.body.original_price === ''
-        ? null
-        : Math.max(0, parseFloat(req.body.originalPrice ?? req.body.original_price)))
+    ? parseSafeNumeric(req.body.originalPrice ?? req.body.original_price)
     : null;
 
   const updatedProduct = { 

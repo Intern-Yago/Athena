@@ -185,13 +185,15 @@ export function buildCartWhatsAppMessage({ cartItems = [], shipping = null, attr
     const variantDisplay = item.variantName ? ` (${item.variantName})` : '';
     const isDirect = canCheckout(item);
 
+    const safeQty = Math.max(1, parseInt(item.quantity, 10) || 1);
+
     if (isDirect && Number(item.price) > 0) {
       hasDirectSaleItems = true;
-      const itemSubtotal = Number(item.price) * (Number(item.quantity) || 1);
+      const itemSubtotal = Number(item.price) * safeQty;
       directSaleSubtotal += itemSubtotal;
-      message += `${idx + 1}. *${item.quantity}x ${item.name}${variantDisplay}*${brand}${sku} - Venda Direta: ${formatBRL(itemSubtotal)}\n`;
+      message += `${idx + 1}. *${safeQty}x ${item.name}${variantDisplay}*${brand}${sku} - Venda Direta: ${formatBRL(itemSubtotal)}\n`;
     } else {
-      message += `${idx + 1}. *${item.quantity}x ${item.name}${variantDisplay}*${brand}${sku} - Cotação Consultiva\n`;
+      message += `${idx + 1}. *${safeQty}x ${item.name}${variantDisplay}*${brand}${sku} - Cotação Consultiva\n`;
     }
   });
 
@@ -228,7 +230,7 @@ export function buildCartWhatsAppMessage({ cartItems = [], shipping = null, attr
 export function getDiscountPercentage(price, originalPrice) {
   const p = Number(price);
   const orig = Number(originalPrice);
-  if (!p || !orig || isNaN(p) || isNaN(orig)) return null;
+  if (!p || !orig || isNaN(p) || isNaN(orig) || p <= 0 || orig <= 0) return null;
   if (orig <= p) return null;
   const pct = Math.round(((orig - p) / orig) * 100);
   return pct > 0 && pct < 100 ? pct : null;

@@ -13,6 +13,12 @@ export const UTM_FIRST_TOUCH_KEY = 'athena_utm_first_touch';
 export const UTM_LAST_TOUCH_KEY = 'athena_utm_last_touch';
 export const ATTRIBUTION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias de janela de atribuição
 
+function sanitizeParam(val, maxLength = 150) {
+  if (!val || typeof val !== 'string') return null;
+  const clean = val.trim().slice(0, maxLength).replace(/[<>'"]/g, '');
+  return clean || null;
+}
+
 /**
  * Detecta a origem orgânica a partir do Referrer caso não haja UTMs na URL.
  */
@@ -58,14 +64,14 @@ export function captureAndStoreUtmParams(searchString = '', referrerString = '')
 
   try {
     const params = new URLSearchParams(rawSearch);
-    const utmSource = params.get('utm_source');
-    const utmMedium = params.get('utm_medium');
-    const utmCampaign = params.get('utm_campaign');
-    const utmContent = params.get('utm_content');
-    const utmTerm = params.get('utm_term');
-    const gclid = params.get('gclid');
-    const fbclid = params.get('fbclid');
-    const ttclid = params.get('ttclid');
+    const utmSource = sanitizeParam(params.get('utm_source'), 100);
+    const utmMedium = sanitizeParam(params.get('utm_medium'), 100);
+    const utmCampaign = sanitizeParam(params.get('utm_campaign'), 150);
+    const utmContent = sanitizeParam(params.get('utm_content'), 150);
+    const utmTerm = sanitizeParam(params.get('utm_term'), 150);
+    const gclid = sanitizeParam(params.get('gclid'), 150);
+    const fbclid = sanitizeParam(params.get('fbclid'), 150);
+    const ttclid = sanitizeParam(params.get('ttclid'), 150);
 
     const hasUtmOrAdId = Boolean(utmSource || utmCampaign || gclid || fbclid || ttclid);
 
@@ -180,21 +186,27 @@ export function getStoredAttribution() {
  */
 export function formatAttributionForWhatsApp(customAttribution = null) {
   const attr = customAttribution || getStoredAttribution();
-  if (!attr || !attr.utm_source) return '';
+  if (!attr) return '';
+  const src = attr.utm_source || attr.source;
+  if (!src) return '';
+
+  const med = attr.utm_medium || attr.medium;
+  const camp = attr.utm_campaign || attr.campaign;
+  const term = attr.utm_term || attr.term;
 
   const parts = [];
-  const sourceMed = attr.utm_medium && attr.utm_medium !== 'none'
-    ? `${attr.utm_source} / ${attr.utm_medium}`
-    : attr.utm_source;
+  const sourceMed = med && med !== 'none'
+    ? `${src} / ${med}`
+    : src;
 
   parts.push(`Origem: ${sourceMed}`);
 
-  if (attr.utm_campaign) {
-    parts.push(`Campanha: ${attr.utm_campaign}`);
+  if (camp) {
+    parts.push(`Campanha: ${camp}`);
   }
 
-  if (attr.utm_term) {
-    parts.push(`Termo: ${attr.utm_term}`);
+  if (term) {
+    parts.push(`Termo: ${term}`);
   }
 
   return `\n\n[${parts.join(' | ')}]`;
@@ -208,17 +220,19 @@ export function formatAttributionForWhatsApp(customAttribution = null) {
  */
 export function formatAttributionForApi(customAttribution = null) {
   const attr = customAttribution || getStoredAttribution();
-  if (!attr || !attr.utm_source) return null;
+  if (!attr) return null;
+  const src = attr.utm_source || attr.source;
+  if (!src) return null;
 
   return {
-    source: attr.utm_source,
-    medium: attr.utm_medium || null,
-    campaign: attr.utm_campaign || null,
-    content: attr.utm_content || null,
-    term: attr.utm_term || null,
+    source: src,
+    medium: attr.utm_medium || attr.medium || null,
+    campaign: attr.utm_campaign || attr.campaign || null,
+    content: attr.utm_content || attr.content || null,
+    term: attr.utm_term || attr.term || null,
     gclid: attr.gclid || null,
     fbclid: attr.fbclid || null,
-    landingPage: attr.landing_page || null,
-    capturedAt: attr.captured_at || Date.now()
+    landingPage: attr.landing_page || attr.landingPage || null,
+    capturedAt: attr.captured_at || attr.capturedAt || Date.now()
   };
 }
