@@ -36,6 +36,8 @@ export function normalizeProduct(p) {
   const normType = p.productType || p.product_type || 'physical';
   const commMode = p.commercialMode || p.commercial_mode || 'variable_tax';
   const priceVis = Boolean(p.isPriceVisible ?? p.is_price_visible ?? false);
+  const origPrice = p.originalPrice != null ? Number(p.originalPrice) : (p.original_price != null ? Number(p.original_price) : null);
+  const wMonths = p.warrantyMonths != null ? p.warrantyMonths : (p.warranty_months != null ? p.warranty_months : null);
 
   return {
     ...p,
@@ -43,6 +45,10 @@ export function normalizeProduct(p) {
     commercial_mode: commMode,
     isPriceVisible: priceVis,
     is_price_visible: priceVis,
+    originalPrice: origPrice,
+    original_price: origPrice,
+    warrantyMonths: wMonths,
+    warranty_months: wMonths,
     productType: normType,
     product_type: normType,
     priceNegotiable: isNegotiable,

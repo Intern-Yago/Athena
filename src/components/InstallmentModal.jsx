@@ -579,6 +579,8 @@ export default function InstallmentModal({
           cpfCnpj: customer.cpfCnpj.replace(/[^0-9a-zA-Z]/g, ''),
           phone: customer.phone.replace(/\D/g, '')
         };
+        payload.installmentCount = Number(selectedInstallmentData?.installments) || Number(card.installments) || 1;
+        payload.installmentValue = Number(selectedInstallmentData?.installmentValue) || Number(selectedInstallmentData?.monthly) || undefined;
       }
 
       const currentIdempotencyKey = idempotencyKeyRef.current || `idem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;

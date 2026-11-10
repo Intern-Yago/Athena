@@ -3,7 +3,7 @@ import { stripFormattingTags } from './FormattedDescription';
 import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles, Layers } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
-import { canCheckout, shouldShowPrice, getCommercialBadge, buildProductWhatsAppMessage } from '../utils/commercialPolicy';
+import { canCheckout, shouldShowPrice, getCommercialBadge, buildProductWhatsAppMessage, getDiscountPercentage } from '../utils/commercialPolicy';
 import { isProductPublished } from '../utils/imageUrl';
 import { isVariantVisibleInCatalog } from '../utils/productVariants';
 import { trackMetaEvent } from '../utils/metaPixel';
@@ -40,6 +40,7 @@ export default function ProductCard({
   const canBuyOnline = canCheckout(product);
   const showPrice = shouldShowPrice(product);
   const commercialBadge = getCommercialBadge(product);
+  const discountPercent = showPrice ? getDiscountPercentage(product.price, product.originalPrice) : null;
 
   const paymentGateways = showPrice ? calculatePaymentGateways(product.price) : null;
   const pixCustomerPrice = showPrice 
@@ -133,6 +134,11 @@ export default function ProductCard({
 
           {/* Badges Overlay - Somente selo promocional (ex: Lançamento) ou Rascunho para admin */}
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 pointer-events-none">
+            {discountPercent && (
+              <span className="badge bg-red-600 text-white font-black text-[10px] px-2.5 py-0.5 shadow-xs border border-red-500">
+                -{discountPercent}% OFF
+              </span>
+            )}
             {product.badge && (
               <span className="badge bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2.5 py-0.5 shadow-xs">
                 {product.badge}
@@ -288,8 +294,13 @@ export default function ProductCard({
           {/* Bottom Bar: Action & Quote */}
           <div className="pt-3 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
+              {discountPercent && (
+                <span className="text-[11px] text-slate-400 line-through font-semibold block">
+                  De: {formatBRL(product.originalPrice)}
+                </span>
+              )}
               <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide block">
-                {showPrice ? (canBuyOnline ? 'À Vista no PIX' : 'Preço de Referência') : 'Condição Comercial'}
+                {showPrice ? (canBuyOnline ? (discountPercent ? 'Por: À Vista no PIX' : 'À Vista no PIX') : 'Preço de Referência') : 'Condição Comercial'}
               </span>
               <span className="text-sm font-extrabold text-amber-800 font-display bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 inline-block mt-0.5">
                 {showPrice ? pixCustomerPrice : (commercialBadge?.label || 'Consulte no WhatsApp')}
@@ -428,6 +439,11 @@ export default function ProductCard({
         {/* Top Badges (Category & Custom Badges) */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none z-10">
           <div className="flex flex-col gap-1.5">
+            {discountPercent && (
+              <span className="bg-red-600 text-white font-black text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-red-500">
+                -{discountPercent}% OFF
+              </span>
+            )}
             {product.badge && (
               <span className="bg-amber-500 text-slate-950 font-extrabold text-[10px] sm:text-[11px] px-2.5 py-1 rounded-lg shadow-sm border border-amber-400">
                 {product.badge}
@@ -593,9 +609,15 @@ export default function ProductCard({
         {/* Price & Action Buttons */}
         <div className="pt-3 border-t border-slate-200/80 space-y-3">
           <div className="space-y-1">
+            {discountPercent && (
+              <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+                <span>De:</span>
+                <span className="line-through">{formatBRL(product.originalPrice)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-1">
               <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide">
-                {showPrice ? (canBuyOnline ? 'À Vista no PIX' : 'Preço de Referência') : 'Condição Comercial'}
+                {showPrice ? (canBuyOnline ? (discountPercent ? 'Por: À Vista PIX' : 'À Vista no PIX') : 'Preço de Referência') : 'Condição Comercial'}
               </span>
               <span className="text-xs font-extrabold text-amber-800 font-display bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-300">
                 {showPrice ? pixCustomerPrice : (commercialBadge?.label || 'Consulte no WhatsApp')}

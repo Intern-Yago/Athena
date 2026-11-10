@@ -1062,6 +1062,7 @@ export default function AdminPanel({
       categoryId: categories[0]?.id || '',
       brandId: brands[0]?.id || '',
       price: '',
+      originalPrice: '',
       commercialMode: 'variable_tax',
       isPriceVisible: false,
       priceNegotiable: true,
@@ -1126,6 +1127,7 @@ export default function AdminPanel({
     setEditingProduct(targetProduct);
     const targetForm = {
       ...targetProduct,
+      originalPrice: targetProduct.originalPrice != null ? targetProduct.originalPrice : (targetProduct.original_price != null ? targetProduct.original_price : ''),
       warrantyMonths: targetProduct.warrantyMonths != null ? targetProduct.warrantyMonths : (targetProduct.warranty_months != null ? targetProduct.warranty_months : ''),
       aPoints: (targetProduct.aPoints != null && Number(targetProduct.aPoints) > 0) ? targetProduct.aPoints : '',
       isFeatured: !!targetProduct.isFeatured,
@@ -1476,6 +1478,7 @@ export default function AdminPanel({
       categoryId: categories[0]?.id || '',
       brandId: brands[0]?.id || '',
       price: '',
+      originalPrice: '',
       commercialMode: 'variable_tax',
       isPriceVisible: false,
       priceNegotiable: true,
@@ -1526,6 +1529,7 @@ export default function AdminPanel({
       ...product,
       commercialMode: product.commercialMode || product.commercial_mode || 'variable_tax',
       isPriceVisible: Boolean(product.isPriceVisible ?? product.is_price_visible ?? false),
+      originalPrice: product.originalPrice != null ? product.originalPrice : (product.original_price != null ? product.original_price : ''),
       warrantyMonths: product.warrantyMonths != null ? product.warrantyMonths : (product.warranty_months != null ? product.warranty_months : ''),
       sku: product.sku || product.omieCode || '',
       stock: product.stock != null ? product.stock : (product.estoqueQuantidade != null ? product.estoqueQuantidade : (product.inStock === false ? 0 : 1)),
@@ -3914,6 +3918,7 @@ export default function AdminPanel({
       requiresEquipmentSerial: productForm.productType === 'digital' ? (productForm.requiresEquipmentSerial !== false) : false,
       requires_equipment_serial: productForm.productType === 'digital' ? (productForm.requiresEquipmentSerial !== false) : false,
       price: parseFloat(productForm.price) || 0,
+      originalPrice: (productForm.originalPrice !== '' && productForm.originalPrice != null && !isNaN(productForm.originalPrice)) ? parseFloat(productForm.originalPrice) : null,
       priceSource: productForm.priceSource || 'manual',
       stockSource: productForm.stockSource || 'manual',
       warrantyMonths: (productForm.warrantyMonths !== '' && productForm.warrantyMonths != null && !isNaN(productForm.warrantyMonths)) ? Math.max(0, parseInt(productForm.warrantyMonths, 10)) : null,
@@ -9705,30 +9710,51 @@ export default function AdminPanel({
                       </div>
 
                       <div className="pt-2 border-t border-slate-100 space-y-3">
-                        <div>
-                          <label className="text-xs font-bold text-slate-700 block mb-1">
-                            Preço Base à Vista / PIX (R$)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            placeholder="600.00"
-                            value={productForm.price}
-                            onChange={(e) => setProductForm({ ...productForm, price: e.target.value, priceSource: 'manual' })}
-                            title={productForm.priceSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
-                            className={`form-input text-xs font-mono font-bold transition-colors ${
-                              productForm.priceSource === 'omie'
-                                ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
-                                : 'bg-white text-slate-800'
-                            }`}
-                          />
-                          <span className="text-[11px] text-slate-500 block mt-0.5">
-                            {productForm.commercialMode === 'direct_sale'
-                              ? 'Preço ativo para Compra Direta no site (visível no catálogo e habilita checkout online).'
-                              : (productForm.isPriceVisible
-                                  ? 'Preço exibido no site como valor de referência, porém a finalização é conduzida no WhatsApp.'
-                                  : 'Preço cadastrado internamente. Como a exibição está desativada, o valor fica oculto e exibe botão para WhatsApp.')}
-                          </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">
+                              Preço Original / Tabela &quot;De&quot; (R$) — Opcional
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Ex: 899.00 (para exibir De R$ 899 por R$ 600)"
+                              value={productForm.originalPrice !== undefined && productForm.originalPrice !== null ? productForm.originalPrice : ''}
+                              onChange={(e) => setProductForm({ ...productForm, originalPrice: e.target.value })}
+                              className="form-input text-xs font-mono"
+                            />
+                            <span className="text-[11px] text-slate-500 block mt-0.5">
+                              {Number(productForm.originalPrice) > Number(productForm.price) && Number(productForm.price) > 0
+                                ? `Desconto Black Friday detectado: -${Math.round(((Number(productForm.originalPrice) - Number(productForm.price)) / Number(productForm.originalPrice)) * 100)}% OFF`
+                                : 'Preço de tabela anterior. Deixe vazio se não estiver em promoção.'}
+                            </span>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">
+                              Preço Base de Venda &quot;Por&quot; (R$)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="600.00"
+                              value={productForm.price}
+                              onChange={(e) => setProductForm({ ...productForm, price: e.target.value, priceSource: 'manual' })}
+                              title={productForm.priceSource === 'omie' ? "Valor gerenciado pelo ERP Omie. Qualquer alteração no Omie atualizará este campo automaticamente." : undefined}
+                              className={`form-input text-xs font-mono font-bold transition-colors ${
+                                productForm.priceSource === 'omie'
+                                  ? 'bg-blue-50/70 border-blue-300 text-blue-950 focus:border-blue-500 focus:ring-blue-500'
+                                  : 'bg-white text-slate-800'
+                              }`}
+                            />
+                            <span className="text-[11px] text-slate-500 block mt-0.5">
+                              {productForm.commercialMode === 'direct_sale'
+                                ? 'Preço ativo para Compra Direta no site.'
+                                : (productForm.isPriceVisible
+                                    ? 'Preço exibido no site como referência.'
+                                    : 'Preço interno (oculto no site).')}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Governança Comercial Desacoplada (Pacote A) */}

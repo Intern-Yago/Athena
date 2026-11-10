@@ -2,6 +2,7 @@ import React from 'react';
 import FormattedDescription from './FormattedDescription';
 import { X, CheckCircle2, ShieldCheck, Tag, Layers, MessageCircle, Sparkles, Play, ExternalLink, CreditCard, Package } from 'lucide-react';
 import { calculatePaymentGateways, getBestInstallmentText, formatBRL } from '../utils/installmentCalculator';
+import { canCheckout, shouldShowPrice, getCommercialBadge, getDiscountPercentage } from '../utils/commercialPolicy';
 import { useCart } from '../context/CartContext';
 
 export default function ProductModal({ 
@@ -20,22 +21,19 @@ export default function ProductModal({
   const category = propCategory || (categories && categories.find(c => c.id === product.categoryId));
   const brand = propBrand || (brands && brands.find(b => b.id === product.brandId));
 
-  const hasPrice = Number(product.price) > 0;
-  const isQuoteOnly = Boolean(
-    product.priceNegotiable === true ||
-    product.price_negotiable === true ||
-    (product.priceNegotiable !== false && product.price_negotiable !== false)
-  );
-  const canBuyOnline = hasPrice && !isQuoteOnly;
+  const canBuyOnline = canCheckout(product);
+  const showPrice = shouldShowPrice(product);
+  const commercialBadge = getCommercialBadge(product);
+  const discountPercent = showPrice ? getDiscountPercentage(product.price, product.originalPrice) : null;
 
-  const paymentGateways = canBuyOnline ? calculatePaymentGateways(product.price) : null;
-  const pixCustomerPrice = canBuyOnline 
+  const paymentGateways = showPrice ? calculatePaymentGateways(product.price) : null;
+  const pixCustomerPrice = showPrice 
     ? (paymentGateways?.pix?.formattedCustomerAmount || formatBRL(product.price))
-    : 'Sob Consulta';
+    : (commercialBadge?.label || 'Consulte no WhatsApp');
 
-  const formattedPrice = canBuyOnline 
+  const formattedPrice = showPrice 
     ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)
-    : 'Sob Consulta';
+    : (commercialBadge?.label || 'Consulte no WhatsApp');
 
   const whatsappBuyMessage = encodeURIComponent(
     `Olá Athena Soluções Automotivas!\n\nGostaria de comprar o equipamento:\n*${product.name}*\nMarca: ${brand?.name || 'Athena'}\nValor: ${pixCustomerPrice} no PIX (ou parcelado no cartão).\n\nPoderia me orientar para concluir o pedido?`
@@ -115,6 +113,11 @@ export default function ProductModal({
                     {brand.name}
                   </span>
                 )}
+                {discountPercent && (
+                  <span className="badge bg-red-600 text-white font-black">
+                    -{discountPercent}% OFF
+                  </span>
+                )}
                 {product.badge && (
                   <span className="badge badge-gold">
                     {product.badge}
@@ -128,12 +131,18 @@ export default function ProductModal({
               </h2>
 
               {/* Price Banner */}
-              {canBuyOnline ? (
+              {showPrice ? (
                 <div className="bg-amber-50/80 p-3.5 rounded-xl border border-amber-200 space-y-1">
+                  {discountPercent && (
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <span>De:</span>
+                      <span className="line-through">{formatBRL(product.originalPrice)}</span>
+                    </div>
+                  )}
                   <div className="flex items-baseline justify-between">
                     <div>
                       <span className="text-[10px] font-black text-amber-900 uppercase block tracking-wider">
-                        À Vista no PIX
+                        {discountPercent ? 'Por: À Vista no PIX' : 'À Vista no PIX'}
                       </span>
                       <span className="text-2xl font-black text-amber-950 font-display">
                         {pixCustomerPrice}
@@ -152,7 +161,7 @@ export default function ProductModal({
                   <div>
                     <span className="text-xs font-semibold text-slate-500 block uppercase">Condição Comercial</span>
                     <span className="text-2xl font-extrabold text-amber-800 font-display">
-                      Sob Consulta
+                      {commercialBadge?.label || 'Sob Consulta'}
                     </span>
                   </div>
                   <span className="text-[11px] text-amber-800 bg-amber-100 px-2.5 py-1 rounded-lg font-semibold">

@@ -212,3 +212,18 @@ export function buildCartWhatsAppMessage({ cartItems = [], shipping = null }) {
 
   return `https://wa.me/5561983485671?text=${encodeURIComponent(message)}`;
 }
+
+/**
+ * Calcula a porcentagem inteira de desconto real entre o preço original e o preço atual (Pacote C - Black Friday).
+ * @param {number|string} price - Preço atual de venda
+ * @param {number|string} originalPrice - Preço original ("De")
+ * @returns {number|null} Porcentagem inteira de desconto (ex: 15 para 15% OFF) ou null se inexistente/inválido.
+ */
+export function getDiscountPercentage(price, originalPrice) {
+  const p = Number(price);
+  const orig = Number(originalPrice);
+  if (!p || !orig || isNaN(p) || isNaN(orig)) return null;
+  if (orig <= p) return null;
+  const pct = Math.round(((orig - p) / orig) * 100);
+  return pct > 0 && pct < 100 ? pct : null;
+}

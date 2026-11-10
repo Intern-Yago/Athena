@@ -5,7 +5,7 @@ import FormattedDescription, { stripFormattingTags } from '../components/Formatt
 import ProductModal from '../components/ProductModal';
 import InstallmentModal from '../components/InstallmentModal';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
-import { canCheckout, shouldShowPrice, getCommercialBadge, buildProductWhatsAppMessage } from '../utils/commercialPolicy';
+import { canCheckout, shouldShowPrice, getCommercialBadge, buildProductWhatsAppMessage, getDiscountPercentage } from '../utils/commercialPolicy';
 import { getRecommendedProducts, getCompatibleProducts } from '../utils/recommendationEngine';
 import NotFoundPage from './NotFoundPage';
 import ShippingCalculator from '../components/ShippingCalculator';
@@ -429,6 +429,7 @@ export default function ProductDetailPage({
   const canBuyOnline = canCheckout(product) && (!selectedVariant || Number(activePrice) > 0);
   const showPrice = shouldShowPrice(product);
   const commercialBadge = getCommercialBadge(product);
+  const discountPercent = showPrice ? getDiscountPercentage(activePrice, product?.originalPrice) : null;
 
   const paymentGateways = showPrice ? calculatePaymentGateways(activePrice) : null;
   const pixCustomerPrice = showPrice 
@@ -846,6 +847,12 @@ export default function ProductDetailPage({
             >
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               <span>{brand?.authorizationLabel || product?.brandAuthorizationLabel || 'Parceiro Autorizado'}</span>
+            </span>
+          )}
+
+          {discountPercent && (
+            <span className="badge bg-red-600 text-white font-black flex items-center gap-1 shadow-2xs">
+              <span>-{discountPercent}% OFF</span>
             </span>
           )}
 
@@ -1288,9 +1295,22 @@ export default function ProductDetailPage({
             {/* Commercial Condition / Price Banner (Positioned above CTA Buttons) */}
             {showPrice ? (
               <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200/80 space-y-2">
+                {product?.originalPrice && Number(product.originalPrice) > Number(activePrice) && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 font-medium line-through">
+                      De: {formatBRL(product.originalPrice)}
+                    </span>
+                    {discountPercent && (
+                      <span className="px-2 py-0.5 rounded-md bg-red-600 text-white text-[11px] font-black shadow-2xs">
+                        -{discountPercent}% OFF
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-200/80 text-amber-900">
-                    À Vista no PIX
+                    {product?.originalPrice && Number(product.originalPrice) > Number(activePrice) ? 'Por: À Vista no PIX' : 'À Vista no PIX'}
                   </span>
                   <span className="text-2xl sm:text-3xl font-black text-amber-950 font-display">
                     {pixCustomerPrice}

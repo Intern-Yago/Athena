@@ -5339,6 +5339,15 @@ app.post('/api/payments/charge', async (req, res) => {
     const cleanCompanyName = (req.body.customerCompanyName || '').trim();
     const orderId = clientOrderId || `athena_ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
+    // Validação estrita de formato de documento (CPF = 11 dígitos, CNPJ = 14 dígitos)
+    const numericDocOnly = cleanDoc.replace(/\D/g, '');
+    if (numericDocOnly.length !== 11 && numericDocOnly.length !== 14) {
+      return res.status(400).json({ error: 'Documento fiscal inválido. Informe um CPF válido com 11 dígitos ou CNPJ com 14 dígitos.' });
+    }
+
+    const installmentCount = req.body.installmentCount ? Math.min(12, Math.max(1, parseInt(req.body.installmentCount, 10))) : 1;
+    const installmentValue = req.body.installmentValue ? Math.max(0, parseFloat(req.body.installmentValue)) : null;
+
     // ---------------------------------------------------------
     // 0. BLINDAGEM DE PAGAMENTO: VERIFICAÇÃO DE IDEMPOTÊNCIA
     // ---------------------------------------------------------
@@ -5482,7 +5491,7 @@ app.post('/api/payments/charge', async (req, res) => {
         let dbProducts = [];
         if (pool) {
           try {
-            const pRes = await pool.query('SELECT id, name, price, variants, commercial_mode FROM products WHERE id = ANY($1::varchar[])', [productIds]);
+            const pRes = await pool.query('SELECT id, name, price, variants, commercial_mode, in_stock, estoque_quantidade, product_type FROM products WHERE id = ANY($1::varchar[])', [productIds]);
             dbProducts = pRes.rows || [];
           } catch (e) {}
         }
@@ -5519,6 +5528,18 @@ app.post('/api/payments/charge', async (req, res) => {
             return res.status(400).json({
               error: `O produto "${dbProd.name || pId}" não possui preço válido cadastrado no catálogo.`
             });
+          }
+
+          // Trava Inviolável 3: Disponibilidade de estoque para produtos físicos
+          const isDigital = dbProd.product_type === 'digital' || item.fulfillmentType === 'digital';
+          if (!isDigital) {
+            const inStockFlag = dbProd.in_stock !== false && dbProd.inStock !== false;
+            const stockQty = dbProd.estoque_quantidade != null ? Number(dbProd.estoque_quantidade) : (dbProd.stock != null ? Number(dbProd.stock) : null);
+            if (!inStockFlag || (stockQty !== null && stockQty <= 0)) {
+              return res.status(400).json({
+                error: `O produto "${dbProd.name || pId}" está temporariamente esgotado para compra direta.`
+              });
+            }
           }
 
           // Trava Inviolável 3: Validação estrita de quantidade por item (inteiro positivo seguro entre 1 e 100)
@@ -5765,6 +5786,12 @@ app.post('/api/payments/charge', async (req, res) => {
     if (billingType === 'CREDIT_CARD' && creditCard) {
       paymentPayload.creditCard = creditCard;
       paymentPayload.creditCardHolderInfo = creditCardHolderInfo;
+      if (installmentCount > 1) {
+        paymentPayload.installmentCount = installmentCount;
+        if (installmentValue && installmentValue > 0) {
+          paymentPayload.installmentValue = installmentValue;
+        }
+      }
     }
 
     const paymentRes = await axios.post(`${ASAAS_BASE_URL}/payments`, paymentPayload, {
@@ -9522,6 +9549,7 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
           b.slug as "brandSlug",
           p.price::float, 
           COALESCE(p.preco_venda, p.price, 0)::float as "precoVenda",
+          p.original_price::float as "originalPrice",
           p.price_negotiable as "priceNegotiable", 
           p.commercial_mode as "commercialMode",
           p.commercial_mode,
@@ -9651,6 +9679,7 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
           b.slug as "brandSlug",
           p.price::float, 
           COALESCE(p.preco_venda, p.price, 0)::float as "precoVenda",
+          p.original_price::float as "originalPrice",
           p.price_negotiable as "priceNegotiable", 
           p.commercial_mode as "commercialMode",
           p.commercial_mode,
@@ -9714,6 +9743,7 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
       categorySlug: cat?.slug || null,
       brandName: br?.name || null,
       brandSlug: br?.slug || null,
+      originalPrice: prod.originalPrice ?? prod.original_price ?? null,
       warrantyMonths: prod.warrantyMonths ?? prod.warranty_months ?? null,
       brandIsAuthorized: br?.isAuthorized ?? br?.is_authorized ?? false,
       brandAuthorizationLabel: br?.authorizationLabel ?? br?.authorization_label ?? null
@@ -9961,12 +9991,19 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
         : Math.max(0, parseInt(req.body.warrantyMonths ?? req.body.warranty_months, 10)))
     : null;
 
+  const incomingOriginalPrice = (req.body.originalPrice !== undefined || req.body.original_price !== undefined)
+    ? (req.body.originalPrice === null || req.body.originalPrice === '' || req.body.original_price === null || req.body.original_price === ''
+        ? null
+        : Math.max(0, parseFloat(req.body.originalPrice ?? req.body.original_price)))
+    : null;
+
   const newProduct = { 
     id: assignedId || `prod_${Date.now()}`, 
     ...req.body,
     ...(incomingCommercialMode ? { commercialMode: incomingCommercialMode, commercial_mode: incomingCommercialMode } : {}),
     ...(incomingIsPriceVisible !== null ? { isPriceVisible: incomingIsPriceVisible, is_price_visible: incomingIsPriceVisible } : {}),
     ...(incomingWarrantyMonths !== null ? { warrantyMonths: incomingWarrantyMonths, warranty_months: incomingWarrantyMonths } : {}),
+    ...(incomingOriginalPrice !== null ? { originalPrice: incomingOriginalPrice, original_price: incomingOriginalPrice } : {}),
     status: finalStatus,
     sku: finalSku,
     omieCode: finalSku,
@@ -9986,7 +10023,7 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           status, is_featured, image, images, alt_text, description, specs, 
           attachments, in_stock, video_url, custom_tabs, product_type, a_points,
           sku, estoque_quantidade, omie_code, variants, model_3d, requires_equipment_serial, price_source, stock_source,
-          commercial_mode, is_price_visible, warranty_months
+          commercial_mode, is_price_visible, warranty_months, original_price
         )
         VALUES (
           $1, $2, $3, $4, $5, $6::numeric, $6::numeric, 
@@ -9995,7 +10032,7 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           $12, $13, $14, $15::jsonb, $16, $17, $18::jsonb, 
           $19::jsonb, $20, $21, $22::jsonb, $23, $24,
           $25, $26, $27, $28::jsonb, $29::jsonb, $30, $31, $32,
-          COALESCE($33, 'variable_tax'), COALESCE($34, false), $35
+          COALESCE($33, 'variable_tax'), COALESCE($34, false), $35, $36::numeric
         )
         ON CONFLICT (id) DO UPDATE SET 
           name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6::numeric, preco_venda=$6::numeric, 
@@ -10008,7 +10045,8 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           attachments=$19::jsonb, in_stock=$20, video_url=$21, custom_tabs=$22::jsonb, 
           product_type=$23, a_points=$24, sku=$25, estoque_quantidade=$26, omie_code=$27,
           variants=$28::jsonb, model_3d=$29::jsonb, requires_equipment_serial=$30,
-          price_source=$31, stock_source=$32, warranty_months=COALESCE($35, products.warranty_months), updated_at=NOW()
+          price_source=$31, stock_source=$32, warranty_months=COALESCE($35, products.warranty_months),
+          original_price=COALESCE($36::numeric, products.original_price), updated_at=NOW()
       `, [
         newProduct.id,
         newProduct.name,
@@ -10044,7 +10082,8 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
         req.body.stockSource || 'manual',
         incomingCommercialMode,
         incomingIsPriceVisible,
-        incomingWarrantyMonths
+        incomingWarrantyMonths,
+        incomingOriginalPrice
       ]);
 
       // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,
@@ -10152,12 +10191,20 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
         : Math.max(0, parseInt(req.body.warrantyMonths ?? req.body.warranty_months, 10)))
     : null;
 
+  const hasOriginalPriceUpdate = req.body.originalPrice !== undefined || req.body.original_price !== undefined;
+  const originalPriceVal = hasOriginalPriceUpdate
+    ? (req.body.originalPrice === null || req.body.originalPrice === '' || req.body.original_price === null || req.body.original_price === ''
+        ? null
+        : Math.max(0, parseFloat(req.body.originalPrice ?? req.body.original_price)))
+    : null;
+
   const updatedProduct = { 
     id: req.params.id, 
     ...req.body,
     ...(incomingCommercialMode ? { commercialMode: incomingCommercialMode, commercial_mode: incomingCommercialMode } : {}),
     ...(incomingIsPriceVisible !== null ? { isPriceVisible: incomingIsPriceVisible, is_price_visible: incomingIsPriceVisible } : {}),
     ...(hasWarrantyUpdate ? { warrantyMonths: warrantyVal, warranty_months: warrantyVal } : {}),
+    ...(hasOriginalPriceUpdate ? { originalPrice: originalPriceVal, original_price: originalPriceVal } : {}),
     status: finalStatus,
     sku: finalSku,
     omieCode: finalSku,
@@ -10193,6 +10240,7 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
           commercial_mode=COALESCE($33, commercial_mode, 'variable_tax'),
           is_price_visible=COALESCE($34, is_price_visible, false),
           warranty_months=CASE WHEN $35::boolean THEN $36::integer ELSE warranty_months END,
+          original_price=CASE WHEN $37::boolean THEN $38::numeric ELSE original_price END,
           updated_at=NOW()
         WHERE id=$30
       `, [
@@ -10231,7 +10279,9 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
         incomingCommercialMode,
         incomingIsPriceVisible,
         hasWarrantyUpdate,
-        warrantyVal
+        warrantyVal,
+        hasOriginalPriceUpdate,
+        originalPriceVal
       ]);
 
       // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,
