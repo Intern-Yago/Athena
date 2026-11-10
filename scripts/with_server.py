@@ -14,11 +14,13 @@ def is_server_ready(port, timeout=30):
     """Wait for server to be ready by polling the port."""
     start_time = time.time()
     while time.time() - start_time < timeout:
-        try:
-            with socket.create_connection(('localhost', port), timeout=1):
-                return True
-        except (socket.error, ConnectionRefusedError):
-            time.sleep(0.5)
+        for host in ('127.0.0.1', 'localhost'):
+            try:
+                with socket.create_connection((host, port), timeout=1):
+                    return True
+            except (socket.error, ConnectionRefusedError):
+                pass
+        time.sleep(0.5)
     return False
 
 
@@ -57,9 +59,7 @@ def main():
 
             process = subprocess.Popen(
                 server['cmd'],
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                shell=True
             )
             server_processes.append(process)
 
