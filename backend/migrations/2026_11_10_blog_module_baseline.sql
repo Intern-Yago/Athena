@@ -1,5 +1,5 @@
 -- ==============================================================================
--- ATHENA BLOG MODULE — BASELINE V4 BLINDADO & CIRÚRGICO
+-- ATHENA BLOG MODULE — BASELINE V5 DEFINITIVO & CIRÚRGICO
 -- Branch: blog (Isolamento total em relação ao e-commerce da Athena)
 -- Arquivo: backend/migrations/2026_11_10_blog_module_baseline.sql
 -- ==============================================================================
@@ -8,42 +8,20 @@
 --    - Autenticação e RBAC via middlewares (requireAdmin, requireStaff).
 --    - Sanitização de HTML com allowlist estrita (DOMPurify/sanitize-html).
 --    - Submissão de comentários exclusiva via endpoint com rate limit e honeypot.
--- 2. Perímetro Secundário (Layer 2): PostgreSQL RLS + Security Barrier View
---    - Defesa em profundidade caso o PostgREST seja exposto.
---    - Grants estritamente delimitados às tabelas do blog (zero impacto no e-commerce).
--- 3. Auditoria de Autoria Real:
---    - Trigger de revisão captura app.current_user_id via current_setting.
--- 4. Prevenção de Colisão e Sequestro de Slugs/Aliases.
+--    - Identificação real de auditoria injetada via app.current_user_id.
+-- 2. Perímetro Secundário (Layer 2): PostgreSQL RLS + Security Barrier Views
+--    - As views públicas (blog_posts_public e blog_comments_public) rodam com os
+--      privilégios do criador/owner por desígnio arquitetural (SECURITY DEFINER implícito),
+--      permitindo ler as tabelas base fechadas sem expor colunas sensíveis (author_email, author_id).
+--      Os filtros WHERE (status = 'published' AND published_at <= NOW()) embutidos
+--      nas views são a barreira de contenção rigorosa.
+-- 3. Decisão sobre FORCE ROW LEVEL SECURITY:
+--    - Não habilitamos FORCE RLS porque o backend da Athena conecta via service_role/postgres
+--      para executar rotas administrativas e tarefas de background com bypass nativo.
+--      A RLS padrão restringe 100% dos acessos de anon e authenticated.
+-- 4. Cadeia de Aliases 301 sem Loops (A -> B -> C colapsa A diretamente para C).
+-- 5. Revogação de escrita para authenticated (PostgREST não permite escrita direta).
 -- ==============================================================================
-
--- ------------------------------------------------------------------------------
--- 0. STUBS DE COMPATIBILIDADE SUPABASE (Para testes em Postgres local / Docker)
--- ------------------------------------------------------------------------------
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') THEN
-        CREATE SCHEMA auth;
-    END IF;
-END $$;
-
-CREATE OR REPLACE FUNCTION auth.uid()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
-$$;
-
-CREATE OR REPLACE FUNCTION auth.jwt()
-RETURNS jsonb
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT COALESCE(
-    NULLIF(current_setting('request.jwt.claims', true), '')::jsonb,
-    '{}'::jsonb
-  );
-$$;
 
 -- ------------------------------------------------------------------------------
 -- 1. FUNÇÕES AUXILIARES DE SUPORTE (SEGURANÇA & INTEGRIDADE)
@@ -60,29 +38,26 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_role text;
-  v_jwt_role text;
 BEGIN
   v_role := current_setting('role', true);
-  v_jwt_role := COALESCE(auth.jwt() ->> 'role', '');
 
   -- Bloqueio categórico: visitante anônimo NUNCA possui privilégio de admin/editor
-  IF v_role = 'anon' OR v_jwt_role = 'anon' THEN
+  IF v_role = 'anon' THEN
     RETURN FALSE;
   END IF;
 
-  -- Acesso irrestrito concedido ao service_role do backend ou superusuário de sessão
+  -- Acesso concedido ao backend service_role ou superusuário de sessão
   IF (
     v_role = 'service_role' 
-    OR v_jwt_role = 'service_role'
     OR (v_role = 'none' AND SESSION_USER IN ('postgres', 'service_role'))
   ) THEN
     RETURN TRUE;
   END IF;
 
-  -- Para sessões autenticadas via Supabase Auth (Layer 2), valida role na tabela users
+  -- Validação de role na tabela users da Athena
   RETURN EXISTS (
     SELECT 1 FROM public.users
-    WHERE (id = auth.uid()::text OR id = (auth.jwt() ->> 'sub'))
+    WHERE id = NULLIF(current_setting('app.current_user_id', true), '')
       AND role IN ('admin', 'editor', 'edicao')
   );
 END;
@@ -279,7 +254,8 @@ CREATE TABLE IF NOT EXISTS public.blog_post_revisions (
 CREATE INDEX IF NOT EXISTS idx_blog_revisions_post_id ON public.blog_post_revisions(post_id, created_at DESC);
 
 -- Trigger Automática: Executa APENAS quando há alteração de conteúdo ou metadados
--- Captura o editor ativo da sessão via app.current_user_id (com fallback para NEW.author_id)
+-- 1. Captura o editor ativo da sessão via app.current_user_id (com fallback para NEW.author_id)
+-- 2. Colapsa cadeias de aliases (A -> B -> C atualiza todos os aliases anteriores para C)
 CREATE OR REPLACE FUNCTION public.record_blog_post_revision()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -288,7 +264,7 @@ AS $$
 DECLARE
   v_editor_id varchar(100);
 BEGIN
-  -- Obtém o ID do usuário que efetuou a requisição no backend via variável de sessão
+  -- Obtém o ID do usuário autenticado no backend via variável de sessão transacional
   v_editor_id := COALESCE(
     NULLIF(current_setting('app.current_user_id', true), ''),
     NEW.author_id
@@ -305,12 +281,18 @@ BEGIN
       v_editor_id, 'Snapshot automático pré-atualização', NOW()
   );
 
-  -- Se o slug mudou, registra alias 301 e destrói loops reversos
+  -- Se o slug mudou, registra alias 301 e colapsa cadeias anteriores
   IF (OLD.slug IS DISTINCT FROM NEW.slug) THEN
       DELETE FROM public.blog_slug_aliases WHERE old_slug = NEW.slug;
+      
       INSERT INTO public.blog_slug_aliases (old_slug, target_post_id, target_slug, created_at)
       VALUES (OLD.slug, NEW.id, NEW.slug, NOW())
       ON CONFLICT (old_slug) DO UPDATE SET target_slug = EXCLUDED.target_slug;
+
+      -- Colapso de cadeia: aliases antigos que apontavam para este post passam a apontar diretamente para o novo slug
+      UPDATE public.blog_slug_aliases
+      SET target_slug = NEW.slug
+      WHERE target_post_id = NEW.id;
   END IF;
 
   RETURN NEW;
@@ -334,7 +316,7 @@ CREATE TRIGGER trg_record_blog_post_revision
     EXECUTE FUNCTION public.record_blog_post_revision();
 
 -- ------------------------------------------------------------------------------
--- 8. FUNÇÃO RPC: increment_blog_post_view (Contador Atômico)
+-- 8. FUNÇÃO RPC: increment_blog_post_view (Contador Atômico - Apenas Backend)
 -- ------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.increment_blog_post_view(p_post_id UUID)
 RETURNS void
@@ -350,12 +332,39 @@ END;
 $$;
 
 -- ------------------------------------------------------------------------------
--- 9. VIEW PÚBLICA SEGURA: blog_comments_public (Com Validação de Post Ativo)
+-- 9. VIEWS PÚBLICAS SEGURAS (Blindagem contra vazamento de author_id e author_email)
 -- ------------------------------------------------------------------------------
--- 1. security_barrier = true impede que filtros do chamador executem antes da view
--- 2. Filtra status = 'approved' E valida se o post pai está publicado no passado
--- NOTA ARQUITETURAL: Como a view roda com privilégios do criador, o EXISTS valida
--- os posts diretamente. O author_email é omitido na raiz da projeção (LGPD).
+-- Decisão Arquitetural:
+-- Estas views rodam intencionalmente como owner (security_invoker = false / padrão do PostgreSQL).
+-- Essa propriedade é o que permite à role anônima (anon) e autenticada (authenticated) ler
+-- os dados públicos formatados sem precisar de acesso direto de leitura nas tabelas base
+-- fechadas (onde author_id e author_email estão blindados).
+-- Portanto, os filtros WHERE status = 'published' AND published_at <= NOW() (para posts)
+-- e status = 'approved' com post ativo (para comentários) constituem a única e definitiva
+-- barreira de isolamento de segurança.
+
+-- View de Posts Públicos: Oculta author_id para leitores anônimos
+CREATE OR REPLACE VIEW public.blog_posts_public
+WITH (security_barrier = true) AS
+SELECT 
+    id,
+    title,
+    slug,
+    excerpt,
+    content,
+    content_html,
+    cover_image_key,
+    meta_title,
+    meta_description,
+    reading_time_minutes,
+    view_count,
+    published_at,
+    created_at,
+    updated_at
+FROM public.blog_posts
+WHERE status = 'published' AND published_at <= NOW();
+
+-- View de Comentários Públicos: Oculta author_email, author_ip e moderadores
 CREATE OR REPLACE VIEW public.blog_comments_public
 WITH (security_barrier = true) AS
 SELECT 
@@ -380,6 +389,16 @@ WHERE c.status = 'approved'
 -- ------------------------------------------------------------------------------
 -- 10. POLÍTICAS DE ROW LEVEL SECURITY (RLS)
 -- ------------------------------------------------------------------------------
+-- Decisão Arquitetural sobre FORCE ROW LEVEL SECURITY:
+-- As tabelas adotam ENABLE ROW LEVEL SECURITY sem a cláusula FORCE.
+-- Motivação:
+-- 1. Roles externas (anon e authenticated) não são donas das tabelas e são 100%
+--    confinadas pelas políticas RLS e pelas permissões restritas de GRANT/REVOKE.
+-- 2. O backend da Athena opera via service_role / conexão direta administrativa
+--    para tarefas de sincronização, consolidação, pipelines e migrações. O uso
+--    de FORCE ROW LEVEL SECURITY imporia sobrecarga e risco de travamento sobre o
+--    service_role e superusuários operacionais, sem adicionar benefício adicional
+--    de segurança para as camadas externas, já que anon e authenticated nunca possuem bypass.
 ALTER TABLE public.blog_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blog_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blog_slug_aliases ENABLE ROW LEVEL SECURITY;
@@ -396,7 +415,7 @@ DROP POLICY IF EXISTS p_blog_categories_admin_all ON public.blog_categories;
 CREATE POLICY p_blog_categories_admin_all ON public.blog_categories
     FOR ALL USING (public.is_blog_admin_or_editor()) WITH CHECK (public.is_blog_admin_or_editor());
 
--- Artigos (Público lê apenas publicados no passado)
+-- Artigos (Leitura pública na tabela base apenas para publicados no passado)
 DROP POLICY IF EXISTS p_blog_posts_public_read ON public.blog_posts;
 CREATE POLICY p_blog_posts_public_read ON public.blog_posts
     FOR SELECT USING (status = 'published' AND published_at <= NOW());
@@ -419,8 +438,8 @@ DROP POLICY IF EXISTS p_blog_post_categories_public_read ON public.blog_post_cat
 CREATE POLICY p_blog_post_categories_public_read ON public.blog_post_categories
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM public.blog_posts p 
-            WHERE p.id = post_id AND p.status = 'published' AND p.published_at <= NOW()
+            SELECT 1 FROM public.blog_posts_public p 
+            WHERE p.id = post_id
         )
     );
 
@@ -428,13 +447,12 @@ DROP POLICY IF EXISTS p_blog_post_categories_admin_all ON public.blog_post_categ
 CREATE POLICY p_blog_post_categories_admin_all ON public.blog_post_categories
     FOR ALL USING (public.is_blog_admin_or_editor()) WITH CHECK (public.is_blog_admin_or_editor());
 
--- Comentários (Tabela Base)
--- Leitura pública proibida na tabela base; apenas service_role e admin
+-- Comentários (Tabela Base: Leitura pública proibida na tabela base; apenas service_role e admin)
 DROP POLICY IF EXISTS p_blog_comments_admin_all ON public.blog_comments;
 CREATE POLICY p_blog_comments_admin_all ON public.blog_comments
     FOR ALL USING (public.is_blog_admin_or_editor()) WITH CHECK (public.is_blog_admin_or_editor());
 
--- Revisões (Histórico)
+-- Revisões (Histórico 100% blindado contra acesso público)
 DROP POLICY IF EXISTS p_blog_revisions_admin_all ON public.blog_post_revisions;
 CREATE POLICY p_blog_revisions_admin_all ON public.blog_post_revisions
     FOR ALL USING (public.is_blog_admin_or_editor()) WITH CHECK (public.is_blog_admin_or_editor());
@@ -442,36 +460,37 @@ CREATE POLICY p_blog_revisions_admin_all ON public.blog_post_revisions
 -- ------------------------------------------------------------------------------
 -- 11. PRIVILÉGIOS DE ACESSO CIRÚRGICOS (GRANTS & REVOKES ESTRITOS AO BLOG)
 -- ------------------------------------------------------------------------------
--- 1. Acesso público (anon) limitado estritamente à leitura de dados aprovados/publicados
+-- 1. Acesso público (anon e authenticated) limitado estritamente a SELECTs públicos
 GRANT SELECT ON public.blog_categories TO anon, authenticated;
-GRANT SELECT ON public.blog_posts TO anon, authenticated;
+GRANT SELECT ON public.blog_posts_public TO anon, authenticated;
 GRANT SELECT ON public.blog_post_categories TO anon, authenticated;
 GRANT SELECT ON public.blog_slug_aliases TO anon, authenticated;
 GRANT SELECT ON public.blog_comments_public TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.increment_blog_post_view(UUID) TO anon, authenticated;
 
--- 2. Tabela base de comentários é 100% fechada contra acessos de visitantes
+-- 2. Revogação de escrita e acesso direto a tabelas base para anon e authenticated
+REVOKE ALL ON public.blog_posts FROM anon, authenticated;
 REVOKE ALL ON public.blog_comments FROM anon, authenticated;
+REVOKE ALL ON public.blog_post_revisions FROM anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.blog_categories FROM anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.blog_post_categories FROM anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.blog_slug_aliases FROM anon, authenticated;
 
--- 3. Grants administrativos para authenticated (Avaliados sob as RLS admin_all)
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.blog_categories TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.blog_posts TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.blog_slug_aliases TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.blog_post_categories TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.blog_comments TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.blog_post_revisions TO authenticated;
+-- 3. Fechamento de execução padrão de funções (Zero execução para PUBLIC)
+REVOKE ALL ON FUNCTION public.is_blog_admin_or_editor() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.check_blog_slug_collision() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.validate_blog_comment_thread() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.record_blog_post_revision() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.increment_blog_post_view(UUID) FROM PUBLIC, anon, authenticated;
 
--- 4. Permissões do backend service_role ESTRITAMENTE delimitadas às tabelas do blog
+-- 4. Permissões operacionais concedidas estritamente ao service_role do backend
 GRANT ALL ON TABLE public.blog_categories TO service_role;
 GRANT ALL ON TABLE public.blog_posts TO service_role;
 GRANT ALL ON TABLE public.blog_slug_aliases TO service_role;
 GRANT ALL ON TABLE public.blog_post_categories TO service_role;
 GRANT ALL ON TABLE public.blog_comments TO service_role;
 GRANT ALL ON TABLE public.blog_post_revisions TO service_role;
+GRANT ALL ON TABLE public.blog_posts_public TO service_role;
 GRANT ALL ON TABLE public.blog_comments_public TO service_role;
 
 GRANT EXECUTE ON FUNCTION public.is_blog_admin_or_editor() TO service_role;
-GRANT EXECUTE ON FUNCTION public.check_blog_slug_collision() TO service_role;
-GRANT EXECUTE ON FUNCTION public.validate_blog_comment_thread() TO service_role;
-GRANT EXECUTE ON FUNCTION public.record_blog_post_revision() TO service_role;
 GRANT EXECUTE ON FUNCTION public.increment_blog_post_view(UUID) TO service_role;
