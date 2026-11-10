@@ -5819,7 +5819,13 @@ app.post('/api/payments/charge', async (req, res) => {
       model: req.body.equipmentModel,
       serialNumber: req.body.equipmentSerial || ''
     } : null);
-    const orderNotes = `Cobrança Asaas ID: ${paymentData.id} (${billingType})${equipmentInfo ? ` | Equipamento: ${equipmentInfo.model || 'N/A'} (SN: ${equipmentInfo.serialNumber || 'N/A'})` : ''}`;
+    const attribution = req.body.attribution && typeof req.body.attribution === 'object' ? req.body.attribution : null;
+    let attrNote = '';
+    if (attribution && attribution.source) {
+      const srcMed = attribution.medium ? `${attribution.source} / ${attribution.medium}` : attribution.source;
+      attrNote = ` | Origem: ${srcMed}${attribution.campaign ? ` (Campanha: ${attribution.campaign})` : ''}`;
+    }
+    const orderNotes = `Cobrança Asaas ID: ${paymentData.id} (${billingType})${equipmentInfo ? ` | Equipamento: ${equipmentInfo.model || 'N/A'} (SN: ${equipmentInfo.serialNumber || 'N/A'})` : ''}${attrNote}`;
 
     let athenaOrder = null;
     try {
@@ -5834,7 +5840,8 @@ app.post('/api/payments/charge', async (req, res) => {
           email: cleanEmail,
           document: cleanDoc,
           phone: cleanPhone,
-          companyName: cleanCompanyName
+          companyName: cleanCompanyName,
+          attribution: attribution || undefined
         },
         couponCode: appliedCoupon ? appliedCoupon.code : null,
         notes: orderNotes,
@@ -8906,6 +8913,7 @@ app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) =
 
 // 1. CATEGORIES
 app.get('/api/categories', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
   if (pool) {
     try {
       const result = await pool.query('SELECT id, name, slug, description, icon, "order", department_id AS "departmentId" FROM categories ORDER BY "order" ASC, name ASC');
@@ -8919,6 +8927,7 @@ app.get('/api/categories', async (req, res) => {
 });
 
 app.get('/api/categories/:identifier', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
   const { identifier } = req.params;
   if (!identifier) return res.status(400).json({ error: 'Identificador obrigatório.' });
   const cleanId = String(identifier).trim().slice(0, 150);
@@ -9136,6 +9145,7 @@ app.delete('/api/departments/:id', authenticateToken, requireStaff, async (req, 
 
 // 2. BRANDS
 app.get('/api/brands', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
   if (pool) {
     try {
       const result = await pool.query('SELECT id, name, slug, description, logo, website_url as "websiteUrl", "order", is_authorized as "isAuthorized", authorization_label as "authorizationLabel" FROM brands ORDER BY "order" ASC, name ASC');
@@ -9149,6 +9159,7 @@ app.get('/api/brands', async (req, res) => {
 });
 
 app.get('/api/brands/:identifier', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
   const { identifier } = req.params;
   if (!identifier) return res.status(400).json({ error: 'Identificador obrigatório.' });
   const cleanId = String(identifier).trim().slice(0, 150);
@@ -9491,6 +9502,7 @@ app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
 
 // 3. PRODUCTS
 app.get(['/api/products', '/api/produtos'], async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
   const isPaginated = req.query.page !== undefined || req.query.limit !== undefined;
 
   if (pool) {
@@ -9662,6 +9674,7 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
 });
 
 app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
   const { identifier } = req.params;
   if (!identifier) return res.status(400).json({ error: 'Identificador do produto obrigatório.' });
   const cleanId = String(identifier).trim().slice(0, 200);

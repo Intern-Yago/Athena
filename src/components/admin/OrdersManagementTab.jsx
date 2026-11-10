@@ -785,6 +785,13 @@ export default function OrdersManagementTab({
                             <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
                               {order.customer_snapshot?.email || order.user_email || '-'}
                             </p>
+                            {order.customer_snapshot?.attribution?.source && (
+                              <div className="pt-0.5">
+                                <span className="inline-block text-[9px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded" title={`Origem: ${order.customer_snapshot.attribution.source}${order.customer_snapshot.attribution.campaign ? ` | Campanha: ${order.customer_snapshot.attribution.campaign}` : ''}`}>
+                                  Origem: {order.customer_snapshot.attribution.source}{order.customer_snapshot.attribution.campaign ? ` (${order.customer_snapshot.attribution.campaign})` : ''}
+                                </span>
+                              </div>
+                            )}
                             {/* Atalhos Rápidos de Contato Telefônico & WhatsApp */}
                             {Boolean(order.customer_snapshot?.phone || order.customer_phone) && (
                               <div className="flex items-center gap-1.5 pt-1">
@@ -1018,6 +1025,18 @@ export default function OrdersManagementTab({
                   <p className="text-slate-500">
                     <strong>Documento:</strong> {selectedOrder.customer_snapshot?.document || selectedOrder.customer_document || '-'}
                   </p>
+                  {selectedOrder.customer_snapshot?.attribution?.source && (
+                    <div className="mt-2 p-2 rounded bg-indigo-50 border border-indigo-200 text-xs text-indigo-900 space-y-0.5">
+                      <p className="font-semibold text-indigo-950">Atribuição de Tráfego / Campanha:</p>
+                      <p>Origem: {selectedOrder.customer_snapshot.attribution.source}{selectedOrder.customer_snapshot.attribution.medium ? ` / ${selectedOrder.customer_snapshot.attribution.medium}` : ''}</p>
+                      {selectedOrder.customer_snapshot.attribution.campaign && (
+                        <p>Campanha: {selectedOrder.customer_snapshot.attribution.campaign}</p>
+                      )}
+                      {selectedOrder.customer_snapshot.attribution.term && (
+                        <p>Termo: {selectedOrder.customer_snapshot.attribution.term}</p>
+                      )}
+                    </div>
+                  )}
                   {Boolean(selectedOrder.customer_snapshot?.phone || selectedOrder.customer_phone) && (
                     <div className="pt-2 flex flex-col gap-1.5 border-t border-slate-200 mt-2">
                       <p className="text-slate-700 font-medium">

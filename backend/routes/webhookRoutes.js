@@ -76,7 +76,15 @@ async function handleAsaasWebhook(req, res) {
       ON CONFLICT (provider, external_event_id) 
       DO UPDATE SET 
         payload = EXCLUDED.payload,
-        event_type = EXCLUDED.event_type
+        event_type = EXCLUDED.event_type,
+        status = CASE 
+          WHEN integration_webhook_events.event_type != EXCLUDED.event_type THEN 'received'
+          ELSE integration_webhook_events.status
+        END,
+        attempts_count = CASE
+          WHEN integration_webhook_events.event_type != EXCLUDED.event_type THEN 0
+          ELSE integration_webhook_events.attempts_count
+        END
       RETURNING id, status
     `, ['asaas', externalEventId, event, JSON.stringify(req.body)]);
 

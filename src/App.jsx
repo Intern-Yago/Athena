@@ -53,6 +53,7 @@ import {
 
 import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
 import { trackMetaEvent, trackMetaCustom, pushGtmEvent } from './utils/metaPixel';
+import { captureAndStoreUtmParams } from './utils/utmTracker';
 
 const REMOTE_API_BASE_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !/^192\.168\./.test(window.location.hostname) && !/^127\./.test(window.location.hostname)
   ? '/api'
@@ -428,7 +429,9 @@ export default function App() {
 
   // Route change listener for browser back/forward and F5 persistence
   useEffect(() => {
+    captureAndStoreUtmParams();
     const handleUrlChange = () => {
+      captureAndStoreUtmParams();
       const route = getRouteFromUrl();
       const isCatalog = !route || route === 'catalog' || route === 'catalogo' || route === 'inicio' || route === 'home';
       if (isCatalog) {

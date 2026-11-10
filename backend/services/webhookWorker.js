@@ -76,7 +76,7 @@ async function processSingleEvent(event) {
   const { id, provider, external_event_id, event_type, payload } = event;
   const parsedPayload = typeof payload === 'string' ? JSON.parse(payload) : payload;
 
-  console.log(`[WEBHOOK WORKER] ⚙️ Iniciando processamento do evento #${external_event_id} (${provider}::${event_type})`);
+  console.log(`[WEBHOOK WORKER] Iniciando processamento do evento #${external_event_id} (${provider}::${event_type})`);
 
   if (provider === 'asaas') {
     const payment = parsedPayload.payment || {};
@@ -171,7 +171,7 @@ async function processSingleEvent(event) {
     WHERE id = $1
   `, [id]);
 
-  console.log(`[WEBHOOK WORKER] ✅ Evento #${external_event_id} concluído com status PROCESSED.`);
+  console.log(`[WEBHOOK WORKER] Evento #${external_event_id} concluído com status PROCESSED.`);
   return { success: true, eventId: id };
 }
 
@@ -309,7 +309,7 @@ function triggerImmediateProcessing() {
  */
 function startWebhookWorker(intervalMs = 5000) {
   if (workerTimer) return;
-  console.log(`[WEBHOOK WORKER] 🚀 Inicializado com ciclo de polling a cada ${intervalMs}ms.`);
+  console.log(`[WEBHOOK WORKER] Inicializado com ciclo de polling a cada ${intervalMs}ms.`);
   workerTimer = setInterval(() => {
     processQueueBatch().catch(() => {});
   }, intervalMs);
@@ -326,7 +326,7 @@ function stopWebhookWorker() {
   if (workerTimer) {
     clearInterval(workerTimer);
     workerTimer = null;
-    console.log('[WEBHOOK WORKER] 🛑 Parado com sucesso.');
+    console.log('[WEBHOOK WORKER] Parado com sucesso.');
   }
 }
 

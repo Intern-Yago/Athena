@@ -33,6 +33,7 @@ import {
   Plus
 } from 'lucide-react';
 import { calculateInstallments, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
+import { formatAttributionForApi } from '../utils/utmTracker';
 import { formatCpfCnpj, fetchCnpjData, formatPhone } from '../utils/documentUtils';
 import { isDigitalProduct, doesProductRequireEquipmentSerial } from '../utils/productVariants';
 
@@ -561,7 +562,8 @@ export default function InstallmentModal({
         ),
         items: activeItems,
         couponCode: appliedCoupon ? appliedCoupon.code : undefined,
-        description: orderDescription
+        description: orderDescription,
+        attribution: formatAttributionForApi()
       };
 
       if (method === 'CREDIT_CARD' && !isFreeOrder) {

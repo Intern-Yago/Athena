@@ -10,6 +10,8 @@
  * 3. technical_consultative: Maquinário pesado (elevadores, alinhadores 3D). Preço oculto por padrão.
  */
 
+import { formatAttributionForWhatsApp } from './utmTracker.js';
+
 export const COMMERCIAL_MODES = Object.freeze({
   DIRECT_SALE: 'direct_sale',
   VARIABLE_TAX: 'variable_tax',
@@ -117,7 +119,7 @@ export function formatDeliveryDays(days) {
  * Regra: ZERO EMOJIS, estritamente texto plano.
  * Para modalidades consultivas, NENHUM preço de referência é incluído.
  */
-export function buildProductWhatsAppMessage({ product, brand, category, variant, quantity = 1, shipping = null }) {
+export function buildProductWhatsAppMessage({ product, brand, category, variant, quantity = 1, shipping = null, attribution = null }) {
   if (!product) return '';
 
   const productName = product.name || 'Equipamento';
@@ -128,6 +130,7 @@ export function buildProductWhatsAppMessage({ product, brand, category, variant,
   const skuText = skuCode ? ` (Cód: ${skuCode})` : '';
   const qtyNum = Math.max(1, parseInt(quantity, 10) || 1);
   const qtyText = `Quantidade: ${qtyNum} ${qtyNum === 1 ? 'unidade' : 'unidades'}`;
+  const attributionTag = formatAttributionForWhatsApp(attribution);
 
   // Seção dinâmica de frete (se calculada pelo cliente)
   let shippingText = '';
@@ -148,7 +151,7 @@ export function buildProductWhatsAppMessage({ product, brand, category, variant,
     const activePrice = Number(variant?.price || product.price || 0);
     const formattedVal = formatBRL(activePrice);
     return encodeURIComponent(
-      `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${productName}${variantDisplay}*${skuText}\nMarca: ${brandName}\n${qtyText}\nValor no site: ${formattedVal} no PIX / cartão.${shippingText}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.`
+      `Olá Athena Soluções Automotivas!\n\nTenho interesse em comprar o equipamento:\n*${productName}${variantDisplay}*${skuText}\nMarca: ${brandName}\n${qtyText}\nValor no site: ${formattedVal} no PIX / cartão.${shippingText}\n\nGostaria de orientações para fechar o pedido ou tirar dúvidas sobre o envio.${attributionTag}`
     );
   }
 
@@ -158,7 +161,7 @@ export function buildProductWhatsAppMessage({ product, brand, category, variant,
     : 'Poderia me informar as condições comerciais para o meu faturamento (CPF / CNPJ), opções de frete e formas de pagamento?';
 
   return encodeURIComponent(
-    `Olá Athena Soluções Automotivas!\n\nGostaria de uma cotação para o equipamento:\n*${productName}${variantDisplay}*${skuText}\nMarca: ${brandName}\nCategoria: ${categoryName}\n${qtyText}${shippingText}\n\n${closingText}`
+    `Olá Athena Soluções Automotivas!\n\nGostaria de uma cotação para o equipamento:\n*${productName}${variantDisplay}*${skuText}\nMarca: ${brandName}\nCategoria: ${categoryName}\n${qtyText}${shippingText}\n\n${closingText}${attributionTag}`
   );
 }
 
@@ -166,7 +169,7 @@ export function buildProductWhatsAppMessage({ product, brand, category, variant,
  * Monta a mensagem de WhatsApp para cotação de múltiplos itens no Carrinho.
  * Regra: ZERO EMOJIS, estritamente texto plano.
  */
-export function buildCartWhatsAppMessage({ cartItems = [], shipping = null }) {
+export function buildCartWhatsAppMessage({ cartItems = [], shipping = null, attribution = null }) {
   if (!Array.isArray(cartItems) || cartItems.length === 0) {
     return 'https://wa.me/5561983485671';
   }
@@ -209,6 +212,9 @@ export function buildCartWhatsAppMessage({ cartItems = [], shipping = null }) {
   } else {
     message += '\nPoderia me informar as condições comerciais para o meu faturamento (CPF / CNPJ), disponibilidade e prazo de entrega?';
   }
+
+  const attributionTag = formatAttributionForWhatsApp(attribution);
+  message += attributionTag;
 
   return `https://wa.me/5561983485671?text=${encodeURIComponent(message)}`;
 }
