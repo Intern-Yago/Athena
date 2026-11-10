@@ -15,25 +15,40 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ------------------------------------------------------------------------------
 
 -- Função para verificar privilégios de Administrador ou Editor
--- Blindada contra sequestro de search_path (public, pg_temp)
+-- Blindada contra sequestro de search_path e bypass de SECURITY DEFINER por anon
 CREATE OR REPLACE FUNCTION public.is_blog_admin_or_editor()
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
-  SELECT (
-    -- Acesso via superusuário / backend service role
-    current_user IN ('postgres', 'service_role')
+DECLARE
+  v_role text;
+BEGIN
+  v_role := current_setting('role', true);
+
+  -- Bloqueio categórico: visitante anônimo NUNCA possui privilégio de admin/editor
+  IF v_role = 'anon' THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Acesso irrestrito concedido apenas ao service_role do backend ou superusuário de sessão
+  IF (
+    v_role = 'service_role' 
+    OR (v_role = 'none' AND SESSION_USER IN ('postgres', 'service_role'))
     OR (auth.jwt() ->> 'role') = 'service_role'
-    -- Acesso via Supabase Auth mapeado para a tabela users
-    OR EXISTS (
-      SELECT 1 FROM public.users
-      WHERE (id = auth.uid()::text OR id = (auth.jwt() ->> 'sub'))
-        AND role IN ('admin', 'editor', 'edicao')
-    )
+  ) THEN
+    RETURN TRUE;
+  END IF;
+
+  -- Para usuários autenticados via Supabase Auth, valida rigorosamente a role na tabela users
+  RETURN EXISTS (
+    SELECT 1 FROM public.users
+    WHERE (id = auth.uid()::text OR id = (auth.jwt() ->> 'sub'))
+      AND role IN ('admin', 'editor', 'edicao')
   );
+END;
 $$;
 
 -- ------------------------------------------------------------------------------
@@ -400,24 +415,30 @@ CREATE POLICY p_blog_revisions_admin_all ON public.blog_post_revisions
 -- ------------------------------------------------------------------------------
 -- 10. PRIVILÉGIOS DE ACESSO A NÍVEL DE BANCO (GRANTS & REVOKES ESTRITOS)
 -- ------------------------------------------------------------------------------
--- 1. Leitura pública permitida apenas na view desidentificada (sem author_email)
+-- 1. Leitura pública permitida para tabelas de catálogo/conteúdo filtradas por RLS
+GRANT SELECT ON public.blog_categories TO anon, authenticated;
+GRANT SELECT ON public.blog_posts TO anon, authenticated;
+GRANT SELECT ON public.blog_post_categories TO anon, authenticated;
+GRANT SELECT ON public.blog_slug_aliases TO anon, authenticated;
+
+-- 2. Leitura pública de comentários permitida apenas na view desidentificada (sem author_email)
 GRANT SELECT ON public.blog_comments_public TO anon, authenticated;
 
--- 2. Revogação integral de SELECT geral na tabela base de comentários
+-- 3. Revogação integral de SELECT geral na tabela base de comentários para anon/authenticated
 REVOKE ALL ON public.blog_comments FROM anon, authenticated;
 
--- 3. Concessão cirúrgica de SELECT apenas nas colunas não sensíveis da tabela base
+-- 4. Concessão cirúrgica de SELECT apenas nas colunas não sensíveis da tabela base
 GRANT SELECT (id, post_id, parent_id, author_name, content, status, is_official, created_at, updated_at)
     ON public.blog_comments TO anon, authenticated;
 
--- 4. Permissão de inserção pública (para envio de comentários com status pending)
+-- 5. Permissão de inserção pública estrita (para envio de comentários com status pending)
 GRANT INSERT (post_id, parent_id, author_name, author_email, content, status, is_official)
     ON public.blog_comments TO anon, authenticated;
 
--- 5. RPC de visualização liberada publicamente
+-- 6. RPC de visualização liberada publicamente
 GRANT EXECUTE ON FUNCTION public.increment_blog_post_view(UUID) TO anon, authenticated;
 
--- 6. Total privilégio para o service_role (backend da Athena)
+-- 7. Total privilégio para o service_role (backend da Athena)
 GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
 GRANT ALL ON ALL ROUTINES IN SCHEMA public TO service_role;
