@@ -142,9 +142,18 @@ export default function PromoPopupModal({
     return null;
   }
 
+  const isFlyerMode = Boolean(popup?.imageUrl) && (
+    popup?.layoutMode === 'flyer' || (
+      !popup?.title?.trim() &&
+      !popup?.subtitle?.trim() &&
+      !popup?.description?.trim() &&
+      !popup?.buttonText?.trim()
+    )
+  );
+
   const handleActionClick = () => {
     handleClose();
-    const url = popup.linkUrl || popup.link_url;
+    const url = popup?.linkUrl || popup?.link_url;
     if (!url) return;
 
     const isBlank = Boolean(popup.targetBlank || popup.target_blank);
@@ -161,6 +170,62 @@ export default function PromoPopupModal({
       }
     }
   };
+
+  // MODO FLYER / ARTE PRONTA:
+  // Exibe a imagem limpa sem degradê, sem textos inferiores e 100% clicável
+  if (isFlyerMode) {
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={popup.title || 'Oferta Promocional Athena'}
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200 will-change-[opacity]"
+        onClick={handleClose}
+      >
+        <div
+          className="relative max-w-sm sm:max-w-md md:max-w-lg max-h-[88vh] sm:max-h-[85vh] bg-slate-950/60 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border border-amber-500/20 transform transition-all animate-in zoom-in-95 duration-200 will-change-[transform,opacity] group cursor-pointer flex items-center justify-center"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleActionClick();
+          }}
+        >
+          <img
+            src={popup.imageUrl}
+            alt={popup.title || 'Oferta Especial Athena'}
+            loading="lazy"
+            decoding="async"
+            fetchpriority="low"
+            className="max-h-[88vh] sm:max-h-[85vh] w-auto max-w-full object-contain rounded-2xl sm:rounded-3xl shadow-2xl block transition-transform duration-300 group-hover:scale-[1.01]"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+
+          {/* Badge opcional sobre o flyer */}
+          {popup.badge && (
+            <span className="absolute top-3.5 left-3.5 bg-amber-500 text-slate-950 font-black text-[10px] sm:text-[11px] px-3 py-1 rounded-full uppercase tracking-wider shadow-lg flex items-center gap-1 z-20 pointer-events-none">
+              <Sparkles className="w-3 h-3 fill-slate-950" />
+              <span>{popup.badge}</span>
+            </span>
+          )}
+
+          {/* Botão de Fechar no topo direito com alto contraste */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
+            className="absolute top-3.5 right-3.5 w-9 h-9 rounded-full bg-black/75 hover:bg-amber-500 text-white hover:text-slate-950 flex items-center justify-center backdrop-blur-md border border-white/20 transition-all hover:scale-110 cursor-pointer shadow-xl z-20"
+            title="Fechar Pop-up"
+            aria-label="Fechar Pop-up"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

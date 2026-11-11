@@ -9540,7 +9540,8 @@ app.get('/api/promo-popup', async (req, res) => {
     buttonText: 'Ver Oferta Exclusiva',
     linkUrl: '/produto/prod_starkx_thinktool-lite',
     targetBlank: false,
-    showOncePerSession: true
+    showOncePerSession: true,
+    layoutMode: 'full'
   });
 });
 
@@ -9563,6 +9564,7 @@ app.put('/api/promo-popup', authenticateToken, requireStaff, async (req, res) =>
       linkUrl: String(popupData.linkUrl || '').trim(),
       targetBlank: Boolean(popupData.targetBlank),
       showOncePerSession: popupData.showOncePerSession !== false,
+      layoutMode: popupData.layoutMode === 'flyer' ? 'flyer' : 'full',
       updatedAt: new Date().toISOString()
     };
 

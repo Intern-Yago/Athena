@@ -538,7 +538,8 @@ export default function AdminPanel({
     buttonText: 'Ver Oferta Exclusiva',
     linkUrl: '/produto/prod_starkx_thinktool-lite',
     targetBlank: false,
-    showOncePerSession: true
+    showOncePerSession: true,
+    layoutMode: 'full'
   });
   const [isPreviewPopupOpen, setIsPreviewPopupOpen] = useState(false);
   const [isSelectingPopupMedia, setIsSelectingPopupMedia] = useState(false);
@@ -6322,152 +6323,270 @@ export default function AdminPanel({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Seletor de Modo de Layout: Completo vs Flyer / Apenas Imagem */}
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-amber-500" />
+                      <span>Estilo Visual do Pop-up</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">Formato de Apresentação</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => canEditContent && setPopupForm(p => ({ ...p, layoutMode: 'full' }))}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
+                        (popupForm.layoutMode || 'full') === 'full'
+                          ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-400/20'
+                          : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900">Layout Completo</span>
+                        {(popupForm.layoutMode || 'full') === 'full' && (
+                          <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-snug">
+                        Banner no topo com degradê suave + Título, Descrição e Botão de Ação abaixo.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => canEditContent && setPopupForm(p => ({ ...p, layoutMode: 'flyer' }))}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
+                        popupForm.layoutMode === 'flyer'
+                          ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-400/20'
+                          : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900">Flyer / Arte Pronta</span>
+                        {popupForm.layoutMode === 'flyer' && (
+                          <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-snug">
+                        Apenas a imagem sem degradê azul ou textos. A arte inteira fica clicável.
+                      </p>
+                    </button>
+                  </div>
+
+                  {popupForm.layoutMode === 'flyer' && (
+                    <div className="p-3 bg-amber-100/70 border border-amber-300/60 rounded-xl flex items-center justify-between gap-3 text-xs text-amber-950">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span>
+                          <strong>Modo Flyer Ativo:</strong> Nenhum texto ou botão será renderizado sobre ou abaixo da arte. O pop-up exibirá a imagem limpa e 100% clicável.
+                        </span>
+                      </div>
+                      {(popupForm.title || popupForm.subtitle || popupForm.description || popupForm.buttonText) && canEditContent && (
+                        <button
+                          type="button"
+                          onClick={() => setPopupForm(p => ({
+                            ...p,
+                            title: '',
+                            subtitle: '',
+                            description: '',
+                            buttonText: ''
+                          }))}
+                          className="shrink-0 px-2.5 py-1 text-[11px] font-bold text-amber-900 bg-amber-200/80 hover:bg-amber-300/80 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Limpar campos de texto
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Campos de Texto (Visíveis em ambos, desabilitados/opcionais no modo flyer) */}
+                <div className={`space-y-4 transition-opacity ${popupForm.layoutMode === 'flyer' ? 'opacity-60' : 'opacity-100'}`}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Título do Pop-up {popupForm.layoutMode === 'flyer' && <span className="text-[10px] text-slate-400 font-normal">(Opcional no modo Flyer)</span>}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Super Promoção Athena"
+                        value={popupForm.title || ''}
+                        onChange={(e) => setPopupForm(p => ({ ...p, title: e.target.value }))}
+                        className="form-input text-xs w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">Selo / Badge (Opcional)</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: OFERTA EXCLUSIVA ou LANÇAMENTO"
+                        value={popupForm.badge || ''}
+                        onChange={(e) => setPopupForm(p => ({ ...p, badge: e.target.value }))}
+                        className="form-input text-xs w-full"
+                      />
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">Título do Pop-up</label>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Subtítulo / Chamada em Destaque {popupForm.layoutMode === 'flyer' && <span className="text-[10px] text-slate-400 font-normal">(Opcional no modo Flyer)</span>}
+                    </label>
                     <input
                       type="text"
-                      placeholder="Ex: Super Promoção Athena"
-                      value={popupForm.title || ''}
-                      onChange={(e) => setPopupForm(p => ({ ...p, title: e.target.value }))}
+                      placeholder="Ex: Scanner Thinkcar THINKTOOL LITE com Condições Especiais!"
+                      value={popupForm.subtitle || ''}
+                      onChange={(e) => setPopupForm(p => ({ ...p, subtitle: e.target.value }))}
                       className="form-input text-xs w-full"
                     />
                   </div>
+
                   <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">Selo / Badge</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: OFERTA EXCLUSIVA ou LANÇAMENTO"
-                      value={popupForm.badge || ''}
-                      onChange={(e) => setPopupForm(p => ({ ...p, badge: e.target.value }))}
-                      className="form-input text-xs w-full"
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Descrição / Texto Informativo {popupForm.layoutMode === 'flyer' && <span className="text-[10px] text-slate-400 font-normal">(Opcional no modo Flyer)</span>}
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Descreva as condições da oferta, diferenciais do produto ou instruções..."
+                      value={popupForm.description || ''}
+                      onChange={(e) => setPopupForm(p => ({ ...p, description: e.target.value }))}
+                      className="form-textarea text-xs w-full"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Texto do Botão de Ação {popupForm.layoutMode === 'flyer' && <span className="text-[10px] text-slate-400 font-normal">(Opcional no modo Flyer)</span>}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Ver Oferta Exclusiva"
+                        value={popupForm.buttonText || ''}
+                        onChange={(e) => setPopupForm(p => ({ ...p, buttonText: e.target.value }))}
+                        className="form-input text-xs w-full"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Subtítulo / Chamada em Destaque</label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Scanner Thinkcar THINKTOOL LITE com Condições Especiais!"
-                    value={popupForm.subtitle || ''}
-                    onChange={(e) => setPopupForm(p => ({ ...p, subtitle: e.target.value }))}
-                    className="form-input text-xs w-full"
+                {/* Seletor Inteligente de Link (SmartLinkPicker com Autocomplete & Árvore) */}
+                <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <LinkIcon className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Link de Destino ao Clicar (No Botão ou na Imagem)</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">Páginas, Produtos ou URL Livre</span>
+                  </div>
+
+                  <SmartLinkPicker
+                    value={popupForm.linkUrl || ''}
+                    onChange={(newUrl) => setPopupForm(p => ({ ...p, linkUrl: newUrl }))}
+                    targetBlank={!!popupForm.targetBlank}
+                    onTargetBlankChange={(newBlank) => setPopupForm(p => ({ ...p, targetBlank: newBlank }))}
+                    products={products}
+                    categories={categories}
+                    brands={brands}
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Descrição / Texto Informativo</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Descreva as condições da oferta, diferenciais do produto ou instruções..."
-                    value={popupForm.description || ''}
-                    onChange={(e) => setPopupForm(p => ({ ...p, description: e.target.value }))}
-                    className="form-textarea text-xs w-full"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">Texto do Botão de Ação</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: Ver Oferta Exclusiva"
-                      value={popupForm.buttonText || ''}
-                      onChange={(e) => setPopupForm(p => ({ ...p, buttonText: e.target.value }))}
-                      className="form-input text-xs w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">Link de Destino</label>
-                    <input
-                      type="text"
-                      placeholder="Ex: /produto/prod_starkx_thinktool-lite ou link externo"
-                      value={popupForm.linkUrl || ''}
-                      onChange={(e) => setPopupForm(p => ({ ...p, linkUrl: e.target.value }))}
-                      className="form-input text-xs w-full"
-                    />
-                  </div>
-                </div>
-
-                {/* Opções de navegação e frequência */}
-                <div className="flex flex-wrap items-center gap-6 pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!popupForm.targetBlank}
-                      onChange={(e) => setPopupForm(p => ({ ...p, targetBlank: e.target.checked }))}
-                      className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4 h-4"
-                    />
-                    <span className="text-xs text-slate-600 font-medium">Abrir link em nova aba</span>
-                  </label>
-
+                {/* Opções de Frequência de Exibição */}
+                <div className="flex flex-wrap items-center gap-6 pt-1">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={popupForm.showOncePerSession !== false}
                       onChange={(e) => setPopupForm(p => ({ ...p, showOncePerSession: e.target.checked }))}
-                      className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4 h-4"
+                      className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
                     />
-                    <span className="text-xs text-slate-600 font-medium">Exibir apenas 1 vez por sessão de navegação</span>
+                    <span className="text-xs text-slate-700 font-medium">Exibir apenas 1 vez por sessão de navegação (Recomendado para Core Web Vitals)</span>
                   </label>
                 </div>
               </div>
 
-              {/* Right Column (Image Picker & Live Preview) */}
-              <div className="lg:col-span-4 space-y-3">
-                <label className="text-xs font-bold text-slate-700 block">Imagem / Banner do Pop-up</label>
-                
-                <div className="flex items-center gap-2">
-                  <input
-                    type="url"
-                    placeholder="URL da imagem ou R2"
-                    value={popupForm.imageUrl || ''}
-                    onChange={(e) => setPopupForm(p => ({ ...p, imageUrl: e.target.value }))}
-                    className="form-input text-xs flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSelectingPopupMedia(true);
-                      setIsLibraryModalOpen(true);
-                    }}
-                    className="btn-secondary text-xs py-2 px-2.5 flex items-center gap-1.5 cursor-pointer shrink-0"
-                    title="Selecionar imagem da Biblioteca R2"
-                  >
-                    <Images className="w-3.5 h-3.5 text-amber-600" />
-                    <span>R2</span>
-                  </button>
+              {/* Right Column (Image Picker, Live Preview & Dimensions Guide) */}
+              <div className="lg:col-span-4 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 block">Imagem / Banner do Pop-up</label>
+                  
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      placeholder="URL da imagem ou R2"
+                      value={popupForm.imageUrl || ''}
+                      onChange={(e) => setPopupForm(p => ({ ...p, imageUrl: e.target.value }))}
+                      className="form-input text-xs flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSelectingPopupMedia(true);
+                        setIsLibraryModalOpen(true);
+                      }}
+                      className="btn-secondary text-xs py-2 px-2.5 flex items-center gap-1.5 cursor-pointer shrink-0"
+                      title="Selecionar imagem da Biblioteca R2"
+                    >
+                      <Images className="w-3.5 h-3.5 text-amber-600" />
+                      <span>R2</span>
+                    </button>
+                  </div>
+
+                  {popupForm.imageUrl ? (
+                    <div className={`relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 group ${
+                      popupForm.layoutMode === 'flyer' ? 'aspect-[4/5] sm:aspect-square' : 'aspect-[16/9]'
+                    }`}>
+                      <img
+                        src={popupForm.imageUrl}
+                        alt="Preview Pop-up"
+                        className={`w-full h-full ${popupForm.layoutMode === 'flyer' ? 'object-contain' : 'object-cover'}`}
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=600&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPopupForm(p => ({ ...p, imageUrl: '' }))}
+                          className="px-2.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remover</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border-2 border-dashed border-slate-200 aspect-[16/9] bg-slate-50 flex flex-col items-center justify-center p-4 text-center">
+                      <Images className="w-8 h-8 text-slate-300 mb-1" />
+                      <span className="text-xs font-bold text-slate-500">Sem imagem</span>
+                      <span className="text-[10px] text-slate-400">Insira uma URL ou escolha na Biblioteca R2</span>
+                    </div>
+                  )}
                 </div>
 
-                {popupForm.imageUrl ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-[16/9] bg-slate-900 group">
-                    <img
-                      src={popupForm.imageUrl}
-                      alt="Preview Pop-up"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=600&auto=format&fit=crop&q=80';
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPopupForm(p => ({ ...p, imageUrl: '' }))}
-                        className="px-2.5 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors cursor-pointer flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Remover</span>
-                      </button>
+                {/* Guia de Resolução Recomendada */}
+                <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Tamanhos Recomendados</span>
+                  </div>
+                  <div className="space-y-1.5 text-[11px] text-slate-600 leading-snug">
+                    <div>
+                      <strong className="text-slate-800 block">Modo Flyer / Arte Pronta:</strong>
+                      <span>• Quadrado: <strong>1080 x 1080 px</strong> (1:1 - Ideal)</span><br />
+                      <span>• Cartaz Vertical: <strong>1080 x 1350 px</strong> (4:5)</span>
+                    </div>
+                    <div>
+                      <strong className="text-slate-800 block">Modo Completo (Com Textos):</strong>
+                      <span>• Panorâmico: <strong>1200 x 675 px</strong> (16:9)</span><br />
+                      <span>• Formato 2:1: <strong>1200 x 600 px</strong></span>
+                    </div>
+                    <div className="pt-1 text-[10px] text-slate-500">
+                      Peso recomendado: <strong>&lt; 250 KB (WebP)</strong> para carregamento imediato sem afetar o Core Web Vitals.
                     </div>
                   </div>
-                ) : (
-                  <div className="rounded-2xl border-2 border-dashed border-slate-200 aspect-[16/9] bg-slate-50 flex flex-col items-center justify-center p-4 text-center">
-                    <Images className="w-8 h-8 text-slate-300 mb-1" />
-                    <span className="text-xs font-bold text-slate-500">Sem imagem</span>
-                    <span className="text-[10px] text-slate-400">O pop-up será exibido com layout textual</span>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
