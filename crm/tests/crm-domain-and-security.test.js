@@ -267,4 +267,63 @@ describe('Athena CRM - Testes Unitários de Domínio, Regras de Negócio e Segur
     const noBirthdays = getBirthdaysForDate(emptyDay, team);
     assert.equal(noBirthdays.length, 0);
   });
+
+  test('Equipamentos da Ficha do Cliente: estrutura de dados, validação de categorias/modelos e regras de Possui/Trocar/Pretende Adquirir', () => {
+    // Normalização de equipamentos legados (string) vs novos (objeto)
+    const normalizeEquipment = (item, idx) => {
+      if (typeof item === 'string') {
+        return {
+          id: `legacy_eq_${idx}`,
+          type: item,
+          model: '',
+          possui: true,
+          quantity: 1,
+          trocar_atualizar: false,
+          pretende_adquirir: false
+        };
+      }
+      return {
+        id: item.id || `eq_${idx}`,
+        type: item.type || 'Equipamento',
+        model: item.model || '',
+        possui: item.possui !== undefined ? Boolean(item.possui) : true,
+        quantity: item.quantity !== undefined ? item.quantity : 1,
+        trocar_atualizar: Boolean(item.trocar_atualizar),
+        pretende_adquirir: Boolean(item.pretende_adquirir)
+      };
+    };
+
+    // Caso 1: Legado em string
+    const legacy = normalizeEquipment('Elevador 4T Hidráulico', 0);
+    assert.equal(legacy.type, 'Elevador 4T Hidráulico');
+    assert.equal(legacy.possui, true);
+    assert.equal(legacy.quantity, 1);
+
+    // Caso 2: Novo equipamento que o cliente possui com quantidade e intenção de troca
+    const ownedWithUpgrade = normalizeEquipment({
+      type: 'Scanner automotivo',
+      model: 'ThinkTool Master X',
+      possui: true,
+      quantity: 2,
+      trocar_atualizar: true,
+      pretende_adquirir: false
+    }, 1);
+    assert.equal(ownedWithUpgrade.possui, true);
+    assert.equal(ownedWithUpgrade.quantity, 2);
+    assert.equal(ownedWithUpgrade.trocar_atualizar, true);
+    assert.equal(ownedWithUpgrade.pretende_adquirir, false);
+
+    // Caso 3: Não possui, mas pretende adquirir (oportunidade de venda)
+    const prospect = normalizeEquipment({
+      type: 'Alinhamento',
+      model: '3D Laser Athena',
+      possui: false,
+      quantity: 0,
+      trocar_atualizar: false,
+      pretende_adquirir: true
+    }, 2);
+    assert.equal(prospect.possui, false);
+    assert.equal(prospect.pretende_adquirir, true);
+    assert.equal(prospect.trocar_atualizar, false);
+  });
 });

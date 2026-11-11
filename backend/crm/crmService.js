@@ -1308,6 +1308,14 @@ async function createCustomer(data) {
       details: { criado_por: 'Equipe Comercial' }
     });
 
+    if (Array.isArray(equipments)) {
+      equipments.forEach((item) => {
+        if (item && item.type) {
+          saveCustomerEquipmentOption({ category: item.type, model: item.model }).catch(() => {});
+        }
+      });
+    }
+
     return res.rows[0];
   }
   return null;
@@ -1341,6 +1349,15 @@ async function updateCustomer(id, data) {
     const query = `UPDATE crm_customers SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${params.length} RETURNING *`;
     const res = await crmPool.query(query, params);
     if (res.rows.length === 0) throw new Error('Cliente não encontrado.');
+
+    if (Array.isArray(data.equipments)) {
+      data.equipments.forEach((item) => {
+        if (item && item.type) {
+          saveCustomerEquipmentOption({ category: item.type, model: item.model }).catch(() => {});
+        }
+      });
+    }
+
     return res.rows[0];
   }
   return null;
@@ -1482,6 +1499,102 @@ async function deleteAppointment(id) {
   return { success: false };
 }
 
+// -------------------------------------------------------------
+// CATÁLOGO DE OPÇÕES DE EQUIPAMENTOS DA FICHA DO CLIENTE
+// -------------------------------------------------------------
+const DEFAULT_CUSTOMER_EQUIPMENT_TYPES = [
+  'Elevador',
+  'Scanner automotivo',
+  'Alinhamento',
+  'ATF (troca de fluido)',
+  'Recuperadora de gás',
+  'Troca de líquido de arrefecimento'
+];
+
+let memoryEquipmentOptions = DEFAULT_CUSTOMER_EQUIPMENT_TYPES.map((cat, idx) => ({
+  id: `local_opt_${idx}`,
+  category: cat,
+  models: []
+}));
+
+async function listCustomerEquipmentOptions() {
+  if (crmPool) {
+    try {
+      const res = await crmPool.query(
+        'SELECT id, category, models, created_at, updated_at FROM crm_customer_equipment_options ORDER BY category ASC'
+      );
+      if (res.rows.length > 0) {
+        return res.rows;
+      }
+    } catch (e) {
+      console.warn('[CRM Equipment Options] Aviso ao listar opções:', e.message);
+    }
+  }
+
+  return memoryEquipmentOptions;
+}
+
+async function saveCustomerEquipmentOption({ category, model }) {
+  if (!category || typeof category !== 'string' || !category.trim()) {
+    throw new Error('A categoria do equipamento é obrigatória.');
+  }
+
+  const cleanCategory = category.trim();
+  const cleanModel = model && typeof model === 'string' ? model.trim() : null;
+
+  if (crmPool) {
+    const existingRes = await crmPool.query(
+      'SELECT id, category, models FROM crm_customer_equipment_options WHERE LOWER(category) = LOWER($1)',
+      [cleanCategory]
+    );
+
+    if (existingRes.rows.length === 0) {
+      const newId = `eq_opt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const initialModels = cleanModel ? [cleanModel] : [];
+      const insertRes = await crmPool.query(
+        `INSERT INTO crm_customer_equipment_options (id, category, models)
+         VALUES ($1, $2, $3)
+         RETURNING *`,
+        [newId, cleanCategory, JSON.stringify(initialModels)]
+      );
+      return insertRes.rows[0];
+    } else {
+      const row = existingRes.rows[0];
+      const existingModels = Array.isArray(row.models) ? row.models : [];
+      if (cleanModel && !existingModels.some(m => m.toLowerCase() === cleanModel.toLowerCase())) {
+        const updatedModels = [...existingModels, cleanModel];
+        const updateRes = await crmPool.query(
+          `UPDATE crm_customer_equipment_options
+           SET models = $1, updated_at = NOW()
+           WHERE id = $2
+           RETURNING *`,
+          [JSON.stringify(updatedModels), row.id]
+        );
+        return updateRes.rows[0];
+      }
+      return row;
+    }
+  }
+
+  // Fallback em memória quando crmPool não estiver conectado
+  const existingIndex = memoryEquipmentOptions.findIndex(o => o.category.toLowerCase() === cleanCategory.toLowerCase());
+  if (existingIndex === -1) {
+    const newEntry = {
+      id: `mem_opt_${Date.now()}`,
+      category: cleanCategory,
+      models: cleanModel ? [cleanModel] : []
+    };
+    memoryEquipmentOptions.push(newEntry);
+    return newEntry;
+  } else {
+    const target = memoryEquipmentOptions[existingIndex];
+    if (cleanModel && !target.models.some(m => m.toLowerCase() === cleanModel.toLowerCase())) {
+      target.models = [...target.models, cleanModel];
+    }
+    return target;
+  }
+}
+
 module.exports = {
   listFunnels,
   createFunnel,
@@ -1515,5 +1628,7 @@ module.exports = {
   listAppointments,
   createAppointment,
   updateAppointment,
-  deleteAppointment
+  deleteAppointment,
+  listCustomerEquipmentOptions,
+  saveCustomerEquipmentOption
 };
