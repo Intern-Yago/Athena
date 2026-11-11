@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Athena Soluções Automotivas - Manual de Marca e Diretrizes de Identidade</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm 14mm 12mm;
+  }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background-color: #ffffff;
+    line-height: 1.45;
+    margin: 0;
+    padding: 0;
+    font-size: 9.5pt;
+  }
+
+  .cover-header {
+    background-color: #020617;
+    color: #ffffff;
+    padding: 20px 22px;
+    border-radius: 6px;
+    margin-bottom: 18px;
+    border-bottom: 4px solid #f59e0b;
+  }
+
+  .brand-badge {
+    display: inline-block;
+    background-color: #f59e0b;
+    color: #020617;
+    font-weight: 700;
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: 20pt;
+    font-weight: 800;
+    margin: 4px 0 8px 0;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 11pt;
+    color: #94a3b8;
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 13pt;
+    font-weight: 700;
+    color: #0f172a;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 4px;
+    margin-top: 24px;
+    margin-bottom: 12px;
+    page-break-after: avoid;
+  }
+
+  h3 {
+    font-size: 11pt;
+    font-weight: 600;
+    color: #b45309;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+
+  p {
+    margin: 0 0 8px 0;
+    color: #334155;
+    text-align: justify;
+  }
+
+  ul, ol {
+    margin: 0 0 10px 0;
+    padding-left: 20px;
+    color: #334155;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  .info-box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #f59e0b;
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+    font-size: 9.5pt;
+  }
+
+  .info-box table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .info-box td {
+    padding: 3px 6px;
+    vertical-align: top;
+  }
+
+  .info-box td.label {
+    font-weight: 600;
+    color: #0f172a;
+    width: 28%;
+  }
+
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    font-size: 9pt;
+  }
+
+  table.data-table th {
+    background-color: #0f172a;
+    color: #ffffff;
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 8.5pt;
+  }
+
+  table.data-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: middle;
+  }
+
+  table.data-table tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-right: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+  }
+
+  .hex-code {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .btn-sample {
+    display: inline-block;
+    background-color: #f59e0b;
+    background-image: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #020617;
+    font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: 1px solid #f59e0b;
+    font-size: 9.5pt;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+
+  .color-bar-container {
+    display: flex;
+    width: 100%;
+    height: 32px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 8px 0 14px 0;
+    border: 1px solid #cbd5e1;
+  }
+
+  .bar-60 {
+    width: 60%;
+    background-color: #f8fafc;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8pt;
+    font-weight: 700;
+    border-right: 1px solid #cbd5e1;
+  }
+
+  .bar-30 {
+    width: 30%;
+    background-color: #0f172a;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+
+  .bar-10 {
+    width: 10%;
+    background-color: #f59e0b;
+    color: #020617;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+
+  .dos-donts {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .dos-box {
+    flex: 1;
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-left: 4px solid #10b981;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 8.5pt;
+  }
+
+  .donts-box {
+    flex: 1;
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    border-left: 4px solid #dc2626;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 8.5pt;
+  }
+
+  .section-footer {
+    text-align: center;
+    margin-top: 18px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 8pt;
+    color: #64748b;
+  }
+
+  .page-break {
+    page-break-before: auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="cover-header">
+  <div class="brand-badge">Documento Oficial &bull; Brand Guidelines</div>
+  <h1>Athena Soluções Automotivas</h1>
+  <div class="subtitle">Manual de Marca, Identidade Visual, Tom de Voz e Diretrizes Técnicas</div>
+</div>
+
+<div class="info-box">
+  <table>
+    <tr>
+      <td class="label">Empresa / Razão Social:</td>
+      <td>Athena Consultoria e Soluções Automotivas</td>
+      <td class="label">CNPJ:</td>
+      <td>48.067.892/0001-38</td>
+    </tr>
+    <tr>
+      <td class="label">Sede Institucional:</td>
+      <td>ST SHA Conjunto 6 Chácara 517, Loja 05 - Arniqueira, Brasília - DF</td>
+      <td class="label">Telefone / WhatsApp:</td>
+      <td>+55 (61) 98348-5671</td>
+    </tr>
+    <tr>
+      <td class="label">E-mail Oficial:</td>
+      <td>contato@athenaconsultoria.com.br</td>
+      <td class="label">Website:</td>
+      <td>https://www.athenaconsultoria.com.br</td>
+    </tr>
+  </table>
+</div>
+
+<h2>1. Propósito, Missão e Posicionamento</h2>
+<p>A <strong>Athena Soluções Automotivas</strong> é distribuidora especializada em equipamentos de alta tecnologia e performance para oficinas mecânicas, centros automotivos, concessionárias, centros de colisão e indústrias automotivas no Brasil.</p>
+<ul>
+  <li><strong>Missão:</strong> Fornecer as mais avançadas ferramentas e equipamentos diagnósticos do mercado mundial, combinados com consultoria técnica de alto nível e pós-venda estruturado, elevando a rentabilidade e capacidade dos reparadores brasileiros.</li>
+  <li><strong>Visão:</strong> Ser a principal autoridade nacional em tecnologia diagnóstica e equipamentos pesados para centros automotivos.</li>
+  <li><strong>Valores:</strong> Rigor técnico, precisão de engenharia, compromisso com a entrega técnica, integridade comercial e agilidade de atendimento.</li>
+</ul>
+
+<h2>2. Nomenclatura e Grafia da Marca</h2>
+<p>O nome da marca deve seguir padrões rigorosos de apresentação para preservar o valor e a autoridade institucional:</p>
+<ul>
+  <li><strong>Nome Comercial:</strong> Athena</li>
+  <li><strong>Nome Institucional Completo:</strong> Athena Soluções Automotivas</li>
+  <li><strong>Razão Social:</strong> Athena Consultoria e Soluções Automotivas</li>
+  <li><strong>Regra de Grafia:</strong> Inicial maiúscula sempre (<em>Athena</em>). É proibida a grafia em minúsculas (<em>athena</em>) ou caixa alta corrida no corpo do texto (<em>ATHENA</em>).</li>
+  <li><strong>Marcas Homologadas Oficiais:</strong> Mahovi Equipamentos, St&auml;rkx Tools, Raven Ferramentas Especiais, Delta Ferramentas, Sigma Tools e Wolfcar Equipamentos.</li>
+</ul>
+
+<h2>3. Tom de Voz e Diretrizes de Comunicação</h2>
+<p>A Athena atua como o <strong>Especialista Técnico Confiável</strong>. A comunicação nunca deve ser superficial ou apelativa; ela deve fundamentar-se em fatos técnicos, dados de engenharia e benefícios práticos para a rotina da oficina.</p>
+<ul>
+  <li><strong>Técnico e Preciso:</strong> Dominar os termos do setor (protocolos CAN FD, DoIP, calibração ADAS, leitura de parâmetros de injeção direta, osciloscópios digitais automotivos).</li>
+  <li><strong>Orientado ao Retorno (ROI):</strong> Demonstrar claramente como cada equipamento economiza tempo de diagnóstico e amplia a receita do reparador.</li>
+  <li><strong>Consultivo e Prático:</strong> No atendimento comercial e no WhatsApp, esclarecer dúvidas com segurança e foco na demanda real do cliente.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>4. Paleta Cromática Institucional &amp; Códigos HEX Oficiais</h2>
+<p>A paleta cromática da Athena expressa energia e tecnologia através do Dourado/Âmbar, equilibrado pela robustez técnica do Grafite/Slate automotivo.</p>
+
+<h3>4.1 Cores Primárias da Marca (Dourado / Âmbar Athena)</h3>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="width: 25%;">Identificação</th>
+      <th style="width: 15%;">Código HEX</th>
+      <th style="width: 25%;">Código RGB</th>
+      <th style="width: 35%;">Uso Principal</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="swatch" style="background-color: #FBBF24;"></span><strong>Dourado Claro</strong></td>
+      <td class="hex-code">#FBBF24</td>
+      <td>rgb(251, 191, 36)</td>
+      <td>Início do gradiente dourado, estrelas de destaque</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #F59E0B;"></span><strong>Dourado Athena Oficial</strong></td>
+      <td class="hex-code">#F59E0B</td>
+      <td>rgb(245, 158, 11)</td>
+      <td>Cor primária institucional, botões de ação (.btn-gold)</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #D97706;"></span><strong>Dourado Queimado</strong></td>
+      <td class="hex-code">#D97706</td>
+      <td>rgb(217, 119, 6)</td>
+      <td>Hover de botões, acentos visuais e bordas ativas</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #B45309;"></span><strong>Ouro Profundo</strong></td>
+      <td class="hex-code">#B45309</td>
+      <td>rgb(180, 83, 9)</td>
+      <td>Tipografia de alto contraste em fundos claros</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #92400E;"></span><strong>Marrom Dourado Escuro</strong></td>
+      <td class="hex-code">#92400E</td>
+      <td>rgb(146, 64, 14)</td>
+      <td>Badges nobres e contornos refinados</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #78350F;"></span><strong>Marrom Café Ouro</strong></td>
+      <td class="hex-code">#78350F</td>
+      <td>rgb(120, 53, 15)</td>
+      <td>Sombras quentes e tipografia fina</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #FEF3C7;"></span><strong>Fundo Dourado Suave</strong></td>
+      <td class="hex-code">#FEF3C7</td>
+      <td>rgb(254, 243, 199)</td>
+      <td>Fundo de produtos em destaque e seleções</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #FFFBEB;"></span><strong>Brilho Dourado Mínimo</strong></td>
+      <td class="hex-code">#FFFBEB</td>
+      <td>rgb(255, 251, 235)</td>
+      <td>Fundo de linhas ativas em tabelas técnicas</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="info-box" style="margin-top: 10px;">
+  <strong>Aplicação do Botão Primário (.btn-gold):</strong><br>
+  <div style="margin-top: 8px;">
+    <span class="btn-sample">SOLICITAR COTAÇÃO / ADICIONAR</span>
+  </div>
+  <p style="margin-top: 8px; font-size: 8.5pt; font-family: monospace;">
+    background-color: #F59E0B; background-image: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%); color: #020617; border: 1px solid #F59E0B;
+  </p>
+</div>
+
+<h3>4.2 Cores Estruturais e Neutras (Slate / Grafite Automotivo)</h3>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="width: 25%;">Identificação</th>
+      <th style="width: 15%;">Código HEX</th>
+      <th style="width: 25%;">Código RGB</th>
+      <th style="width: 35%;">Uso Principal</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="swatch" style="background-color: #020617;"></span><strong>Preto Noturno</strong></td>
+      <td class="hex-code">#020617</td>
+      <td>rgb(2, 6, 23)</td>
+      <td>Top bar, fundo de modais escuros, carrossel hero</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #0F172A;"></span><strong>Grafite Profundo</strong></td>
+      <td class="hex-code">#0F172A</td>
+      <td>rgb(15, 23, 42)</td>
+      <td>Header principal, superfícies institucionais escuras</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #1E293B;"></span><strong>Grafite Médio</strong></td>
+      <td class="hex-code">#1E293B</td>
+      <td>rgb(30, 41, 59)</td>
+      <td>Divisores de seções, caixas em modo escuro</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #334155;"></span><strong>Grafite Neutro</strong></td>
+      <td class="hex-code">#334155</td>
+      <td>rgb(51, 65, 85)</td>
+      <td>Badges de produtos neutros, subtítulos escuros</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #475569;"></span><strong>Cinza Metálico</strong></td>
+      <td class="hex-code">#475569</td>
+      <td>rgb(71, 85, 105)</td>
+      <td>Legendas, notas técnicas e especificações</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #64748B;"></span><strong>Cinza Suave</strong></td>
+      <td class="hex-code">#64748B</td>
+      <td>rgb(100, 116, 139)</td>
+      <td>Placeholders, contadores e textos secundários</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #CBD5E1;"></span><strong>Borda Média</strong></td>
+      <td class="hex-code">#CBD5E1</td>
+      <td>rgb(203, 213, 225)</td>
+      <td>Bordas de formulários e linhas de tabela</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #E2E8F0;"></span><strong>Borda Suave</strong></td>
+      <td class="hex-code">#E2E8F0</td>
+      <td>rgb(226, 232, 240)</td>
+      <td>Bordas de cartões de produto</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #F8FAFC;"></span><strong>Branco Gelo</strong></td>
+      <td class="hex-code">#F8FAFC</td>
+      <td>rgb(248, 250, 252)</td>
+      <td>Fundo da página principal (body background)</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #FFFFFF; border: 1px solid #cbd5e1;"></span><strong>Branco Puro</strong></td>
+      <td class="hex-code">#FFFFFF</td>
+      <td>rgb(255, 255, 255)</td>
+      <td>Fundo de cards de produto e superfícies limpas</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<h3>4.3 Cores Semânticas e Operacionais</h3>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th style="width: 25%;">Identificação</th>
+      <th style="width: 15%;">Código HEX</th>
+      <th style="width: 25%;">Código RGB</th>
+      <th style="width: 35%;">Uso Principal</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="swatch" style="background-color: #25D366;"></span><strong>WhatsApp Oficial</strong></td>
+      <td class="hex-code">#25D366</td>
+      <td>rgb(37, 211, 102)</td>
+      <td>Botões flutuantes e links diretos de atendimento</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #10B981;"></span><strong>Sucesso / Publicado</strong></td>
+      <td class="hex-code">#10B981</td>
+      <td>rgb(16, 185, 129)</td>
+      <td>Status publicado, pedidos faturados, confirmações</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #DC2626;"></span><strong>Atenção / Desconto</strong></td>
+      <td class="hex-code">#DC2626</td>
+      <td>rgb(220, 38, 38)</td>
+      <td>Badges promocionais (-XX% OFF), botões de exclusão</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #0284C7;"></span><strong>Informativo / Links</strong></td>
+      <td class="hex-code">#0284C7</td>
+      <td>rgb(2, 132, 199)</td>
+      <td>Badges de marcas homologadas e links de suporte</td>
+    </tr>
+    <tr>
+      <td><span class="swatch" style="background-color: #9333EA;"></span><strong>A-Points Fidelidade</strong></td>
+      <td class="hex-code">#9333EA</td>
+      <td>rgb(147, 51, 234)</td>
+      <td>Selo do programa de fidelidade e cashback A-Points</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>4.4 Regra de Equilíbrio Proporcional (60-30-10)</h3>
+<div class="color-bar-container">
+  <div class="bar-60">60% SUPERFÍCIE LIMPA (#FFFFFF / #F8FAFC)</div>
+  <div class="bar-30">30% ESTRUTURA (#0F172A)</div>
+  <div class="bar-10">10% OURO (#F59E0B)</div>
+</div>
+<p style="font-size: 8.5pt; color: #64748b;">
+  Para garantir leitura agradável e sofisticação visual, 60% da interface deve utilizar espaços claros e limpos; 30% em estrutura escura técnica para dar peso e contraste; e 10% em Dourado Athena para conversão e foco.
+</p>
+
+<h2>5. Tipografia Institucional</h2>
+<ul>
+  <li><strong>Família Tipográfica Primária:</strong> <code>Inter</code> (sans-serif moderno, geométrico e legível).</li>
+  <li><strong>Pesos Recomendados:</strong> Regular (400) para corpo de texto; Medium (500) para navegação; Semi-Bold (600) para subtítulos e cards; Bold (700) e Extra-Bold (800) para títulos e valores de destaque.</li>
+  <li><strong>Títulos (H1 / H2):</strong> Escritos em cor grafite profunda (#0F172A) ou branca (#FFFFFF) em áreas noturnas.</li>
+</ul>
+
+<h2>6. Diretrizes de Uso e Boas Práticas</h2>
+<div class="dos-donts">
+  <div class="dos-box">
+    <strong style="color: #065f46; font-size: 9pt;">PRÁTICAS RECOMENDADAS</strong>
+    <ul style="margin: 6px 0 0 0; padding-left: 14px;">
+      <li>Usar fotos de equipamentos em alta resolução com fundo branco puro ou oficina organizada.</li>
+      <li>Manter a cor primária dourada (#F59E0B) exclusiva para botões de compra e foco principal.</li>
+      <li>Apresentar fichas técnicas completas com dados de fabricante homologado.</li>
+      <li>Exibir apenas 1 modal de pop-up promocional ativo por sessão para não poluir o usuário.</li>
+    </ul>
+  </div>
+  <div class="donts-box">
+    <strong style="color: #991b1b; font-size: 9pt;">PRÁTICAS PROIBIDAS</strong>
+    <ul style="margin: 6px 0 0 0; padding-left: 14px;">
+      <li>Nunca distorcer as proporções do logotipo da Athena ou alterar sua paleta de cores.</li>
+      <li>Não utilizar fotos escuras, com iluminação amarelada precária ou fundos sujos.</li>
+      <li>Evitar fontes serifadas, manuscritas ou que prejudiquem a leitura técnica.</li>
+      <li>Não aplicar marcas d'água de terceiros não homologados em catálogos oficiais.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="section-footer">
+  Athena Soluções Automotivas &bull; Manual de Marca Versão 1.0 &bull; Novembro de 2026<br>
+  Documentação técnica mantida sob versionamento contínuo em <code>docs/MANUAL_DE_MARCA_ATHENA.md</code>
+</div>
+
+</body>
+</html>

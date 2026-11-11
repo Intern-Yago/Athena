@@ -130,8 +130,35 @@ export function interleaveProducts(items, initialPrev1 = null, initialPrev2 = nu
 }
 
 /**
+ * Helper to determine if a product has an explicit priority order set by admin.
+ */
+export function hasProductPriority(p) {
+  if (!p) return false;
+  if (p.priority != null && p.priority !== '' && !isNaN(Number(p.priority)) && Number(p.priority) > 0) return true;
+  if (p.featuredOrder != null && p.featuredOrder !== '' && !isNaN(Number(p.featuredOrder)) && Number(p.featuredOrder) > 0) return true;
+  if (p.isPriority === true) return true;
+  return false;
+}
+
+/**
+ * Helper to get the numerical priority rank (lower numbers = higher priority, e.g. 1 is first).
+ */
+export function getProductPriorityNumber(p) {
+  if (!p) return 9999;
+  if (p.priority != null && p.priority !== '' && !isNaN(Number(p.priority)) && Number(p.priority) > 0) {
+    return Number(p.priority);
+  }
+  if (p.featuredOrder != null && p.featuredOrder !== '' && !isNaN(Number(p.featuredOrder)) && Number(p.featuredOrder) > 0) {
+    return Number(p.featuredOrder);
+  }
+  if (p.isPriority === true) return 100;
+  return 9999;
+}
+
+/**
  * Sorts products using Athena's Smart Relevance Interleaving:
- * - Featured items (isFeatured === true or featured === true) placed at the top, interleaved by brand and category.
+ * - Priority items (priority > 0 or isPriority === true) placed strictly first, ordered by priority rank (1, 2, 3...).
+ * - Featured items (isFeatured === true or featured === true) follow, interleaved by brand and category.
  * - Standard items follow immediately, continuing the diverse alternating sequence.
  * 
  * @param {Array} products 
@@ -142,11 +169,31 @@ export function getRelevanceSortedProducts(products, seed = null) {
   if (!Array.isArray(products) || products.length === 0) return [];
 
   const randomFn = seed != null ? createPrng(seed) : Math.random;
-  const featured = [];
-  const standard = [];
+  const priorityItems = [];
+  const nonPriorityItems = [];
 
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
+    if (hasProductPriority(p)) {
+      priorityItems.push(p);
+    } else {
+      nonPriorityItems.push(p);
+    }
+  }
+
+  // Sort priority items by numerical order (1, then 2, then 3...)
+  priorityItems.sort((a, b) => {
+    const numA = getProductPriorityNumber(a);
+    const numB = getProductPriorityNumber(b);
+    if (numA !== numB) return numA - numB;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  const featured = [];
+  const standard = [];
+
+  for (let i = 0; i < nonPriorityItems.length; i++) {
+    const p = nonPriorityItems[i];
     const isFeatured = Boolean(p.isFeatured || p.featured || p.destaque);
     if (isFeatured) {
       featured.push(p);
@@ -155,19 +202,23 @@ export function getRelevanceSortedProducts(products, seed = null) {
     }
   }
 
-  const sortedFeatured = interleaveProducts(featured, null, null, null, randomFn);
-  const lastFeatured1 = sortedFeatured.length > 0 ? sortedFeatured[sortedFeatured.length - 1] : null;
-  const lastFeatured2 = sortedFeatured.length > 1 ? sortedFeatured[sortedFeatured.length - 2] : null;
-  const lastFeatured3 = sortedFeatured.length > 2 ? sortedFeatured[sortedFeatured.length - 3] : null;
+  const lastP1 = priorityItems.length > 0 ? priorityItems[priorityItems.length - 1] : null;
+  const lastP2 = priorityItems.length > 1 ? priorityItems[priorityItems.length - 2] : null;
+  const lastP3 = priorityItems.length > 2 ? priorityItems[priorityItems.length - 3] : null;
+
+  const sortedFeatured = interleaveProducts(featured, lastP1, lastP2, lastP3, randomFn);
+  const lastFeatured1 = sortedFeatured.length > 0 ? sortedFeatured[sortedFeatured.length - 1] : lastP1;
+  const lastFeatured2 = sortedFeatured.length > 1 ? sortedFeatured[sortedFeatured.length - 2] : lastP2;
+  const lastFeatured3 = sortedFeatured.length > 2 ? sortedFeatured[sortedFeatured.length - 3] : lastP3;
 
   const sortedStandard = interleaveProducts(standard, lastFeatured1, lastFeatured2, lastFeatured3, randomFn);
 
-  return [...sortedFeatured, ...sortedStandard];
+  return [...priorityItems, ...sortedFeatured, ...sortedStandard];
 }
 
 /**
  * Universal catalog sorting function supporting all sort modes:
- * - 'featured': Smart brand/category interleaved relevance
+ * - 'featured': Smart brand/category interleaved relevance with priority locking at the top
  * - 'price-low': Price ascending
  * - 'price-high': Price descending
  * - 'name-az': Name alphabetical
@@ -178,11 +229,40 @@ export function sortProducts(products, sortBy = 'featured', seed = null, userInt
   const baseRelevanceFn = (items) => getRelevanceSortedProducts(items, seed);
 
   switch (sortBy) {
-    case 'featured':
+    case 'featured': {
+      // Split priority items to lock them unconditionally at position 1, 2, ...
+      const priorityItems = [];
+      const nonPriorityItems = [];
+
+      for (let i = 0; i < products.length; i++) {
+        const p = products[i];
+        if (hasProductPriority(p)) {
+          priorityItems.push(p);
+        } else {
+          nonPriorityItems.push(p);
+        }
+      }
+
+      if (priorityItems.length > 0) {
+        priorityItems.sort((a, b) => {
+          const numA = getProductPriorityNumber(a);
+          const numB = getProductPriorityNumber(b);
+          if (numA !== numB) return numA - numB;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+
+        const remainingSorted = userInterest
+          ? applyPersonalization(nonPriorityItems, userInterest, baseRelevanceFn)
+          : baseRelevanceFn(nonPriorityItems);
+
+        return [...priorityItems, ...remainingSorted];
+      }
+
       if (userInterest) {
         return applyPersonalization(products, userInterest, baseRelevanceFn);
       }
       return baseRelevanceFn(products);
+    }
     case 'price-low':
       return [...products].sort((a, b) => (a.price || 0) - (b.price || 0));
     case 'price-high':

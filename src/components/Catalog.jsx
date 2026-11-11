@@ -3,7 +3,7 @@ import ProductCard from './ProductCard';
 import FilterSidebar from './FilterSidebar';
 import Pagination from './Pagination';
 import { Package, RefreshCw, Plus, Layers, Tag, DollarSign, Search, X, SlidersHorizontal, LayoutGrid, List } from 'lucide-react';
-import { sortProducts } from '../utils/productSorting';
+import { sortProducts, hasProductPriority, getProductPriorityNumber } from '../utils/productSorting';
 import { getUserInterest, recordSearchInterest } from '../utils/userInterestTracker';
 import { 
   buildProductRelationsMap, 
@@ -163,6 +163,9 @@ export default function Catalog({
       }
 
       matched.sort((a, b) => {
+        const aPri = getProductPriorityNumber(a);
+        const bPri = getProductPriorityNumber(b);
+        if (aPri !== bPri) return aPri - bPri;
         if (a._tier !== b._tier) return a._tier - b._tier;
         const aTokensInTitle = queryTokens.filter(tok => matchesToken((a.name || '').toLowerCase(), tok)).length;
         const bTokensInTitle = queryTokens.filter(tok => matchesToken((b.name || '').toLowerCase(), tok)).length;

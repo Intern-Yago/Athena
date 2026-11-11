@@ -25,6 +25,20 @@ export const INITIAL_BANNERS = [
   }
 ];
 
+export const INITIAL_PROMO_POPUP = {
+  id: "popup_thinktool_lite_promo",
+  isActive: true,
+  title: "Super Promoção Athena",
+  badge: "OFERTA EXCLUSIVA",
+  subtitle: "Scanner Thinkcar THINKTOOL LITE com Condições Especiais!",
+  description: "Diagnóstico completo multimarcas, funções especiais, suporte técnico direto de fábrica e pontuação no programa A-Points.",
+  imageUrl: "https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp",
+  buttonText: "Ver Oferta Exclusiva",
+  linkUrl: "/produto/prod_starkx_thinktool-lite",
+  targetBlank: false,
+  showOncePerSession: true
+};
+
 export const INITIAL_CATEGORIES = [
   {
     "id": "cat_elevadores",
@@ -637,6 +651,7 @@ export const INITIAL_PRODUCTS = [
     "badge": "Lançamento Oficial",
     "status": "published",
     "isFeatured": true,
+    "priority": 1,
     "image": "https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp",
     "images": [
       "https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp"
