@@ -46,6 +46,17 @@ export default function HomeBannerCarousel({ banners = [], isLoading = false, on
 
   const total = activeBanners.length;
 
+  // Verifica se há pelo menos um banner com imagem mobile dedicada para calibrar o aspect-ratio
+  const hasAnyMobileBanner = activeBanners.some((b) => {
+    const d = b.desktopImage || b.desktop_image;
+    const m = b.mobileImage || b.mobile_image;
+    return Boolean(m && m !== d);
+  });
+
+  const bannerAspectRatioClass = hasAnyMobileBanner
+    ? 'aspect-square sm:aspect-[16/7] md:aspect-[21/9] 2xl:aspect-[24/9] max-h-[460px] sm:max-h-[380px] md:max-h-[440px] 2xl:max-h-[480px]'
+    : 'aspect-[16/7] sm:aspect-[21/9] md:aspect-[24/9] max-h-[360px] sm:max-h-[400px] md:max-h-[440px] 2xl:max-h-[480px]';
+
   // Ajusta currentIndex se a lista de banners diminuir
   useEffect(() => {
     if (currentIndex >= total && total > 0) {
@@ -126,7 +137,7 @@ export default function HomeBannerCarousel({ banners = [], isLoading = false, on
       return (
         <div className="w-full select-none overflow-hidden bg-slate-950 border-b border-slate-800/80">
           <div className="relative w-full max-w-[1920px] mx-auto overflow-hidden">
-            <div className="w-full aspect-[16/7] sm:aspect-[21/9] md:aspect-[24/9] max-h-[360px] sm:max-h-[400px] md:max-h-[440px] 2xl:max-h-[480px] bg-slate-900/60 animate-pulse flex items-center justify-center">
+            <div className={`w-full ${bannerAspectRatioClass} bg-slate-900/60 animate-pulse flex items-center justify-center`}>
               <div className="w-8 h-8 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin opacity-40" />
             </div>
           </div>
@@ -158,13 +169,14 @@ export default function HomeBannerCarousel({ banners = [], isLoading = false, on
         >
           {activeBanners.map((banner, idx) => {
             const desktopImg = banner.desktopImage || banner.desktop_image;
-            const mobileImg = banner.mobileImage || banner.mobile_image || desktopImg;
+            const mobileImg = banner.mobileImage || banner.mobile_image;
+            const hasDedicatedMobile = Boolean(mobileImg && mobileImg !== desktopImg);
             const hasLink = Boolean(banner.linkUrl || banner.link_url);
 
             return (
               <div
                 key={banner.id || idx}
-                className={`w-full shrink-0 relative overflow-hidden flex items-center justify-center aspect-[16/7] sm:aspect-[21/9] md:aspect-[24/9] max-h-[360px] sm:max-h-[400px] md:max-h-[440px] 2xl:max-h-[480px] ${
+                className={`w-full shrink-0 relative overflow-hidden flex items-center justify-center ${bannerAspectRatioClass} ${
                   hasLink ? 'cursor-pointer' : ''
                 }`}
                 onClick={() => hasLink && handleBannerClick(banner)}
@@ -174,18 +186,59 @@ export default function HomeBannerCarousel({ banners = [], isLoading = false, on
                   WebkitBackfaceVisibility: 'hidden'
                 }}
               >
-                <picture className="w-full h-full block">
-                  {mobileImg && mobileImg !== desktopImg && (
-                    <source media="(max-width: 640px)" srcSet={mobileImg} width="800" height="450" />
-                  )}
+                {hasDedicatedMobile ? (
+                  <>
+                    {/* Imagem dedicada Mobile para smartphones e telas menores que md (< 768px) */}
+                    <img
+                      src={mobileImg}
+                      alt={banner.title || `Banner ${idx + 1}`}
+                      loading={idx === 0 ? 'eager' : 'lazy'}
+                      fetchpriority={idx === 0 ? 'high' : 'low'}
+                      decoding="async"
+                      width="1024"
+                      height="1024"
+                      className="w-full h-full object-cover object-center block md:hidden"
+                      style={{
+                        imageRendering: 'auto',
+                        WebkitFontSmoothing: 'subpixel-antialiased',
+                        transform: 'translateZ(0)',
+                        WebkitTransform: 'translateZ(0)'
+                      }}
+                      onError={(e) => {
+                        e.target.src = desktopImg || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=1920&auto=format&fit=crop&q=80';
+                      }}
+                    />
+                    {/* Imagem dedicada Desktop para tablets e telas a partir de md (>= 768px) */}
+                    <img
+                      src={desktopImg}
+                      alt={banner.title || `Banner ${idx + 1}`}
+                      loading={idx === 0 ? 'eager' : 'lazy'}
+                      fetchpriority={idx === 0 ? 'high' : 'low'}
+                      decoding="async"
+                      width="2172"
+                      height="724"
+                      className="w-full h-full object-cover object-center hidden md:block"
+                      style={{
+                        imageRendering: 'auto',
+                        WebkitFontSmoothing: 'subpixel-antialiased',
+                        transform: 'translateZ(0)',
+                        WebkitTransform: 'translateZ(0)'
+                      }}
+                      onError={(e) => {
+                        e.target.src =
+                          'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=1920&auto=format&fit=crop&q=80';
+                      }}
+                    />
+                  </>
+                ) : (
                   <img
                     src={desktopImg}
                     alt={banner.title || `Banner ${idx + 1}`}
                     loading={idx === 0 ? 'eager' : 'lazy'}
                     fetchpriority={idx === 0 ? 'high' : 'low'}
                     decoding="async"
-                    width="1920"
-                    height="480"
+                    width="2172"
+                    height="724"
                     className="w-full h-full object-cover object-center block"
                     style={{
                       imageRendering: 'auto',
@@ -198,7 +251,7 @@ export default function HomeBannerCarousel({ banners = [], isLoading = false, on
                         'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=1920&auto=format&fit=crop&q=80';
                     }}
                   />
-                </picture>
+                )}
               </div>
             );
           })}
