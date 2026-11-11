@@ -1,8 +1,13 @@
+const fs = require('fs');
+const path = require('path');
+// Prioridade para .env.local (ambiente de testes/desenvolvimento isolado)
+const envLocalPath = path.resolve(__dirname, '../.env.local');
+if (fs.existsSync(envLocalPath)) {
+  require('dotenv').config({ path: envLocalPath });
+}
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
 const { Pool } = require('pg');
 const cloudinary = require('cloudinary').v2;
 const swaggerUi = require('swagger-ui-express');
