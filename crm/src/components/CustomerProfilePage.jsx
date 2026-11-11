@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { crmApiFetch } from '../utils/api';
@@ -29,7 +29,14 @@ import {
   ShieldCheck,
   Tag,
   Copy,
-  Check
+  Check,
+  Mic,
+  MicOff,
+  Square,
+  Sparkles,
+  RefreshCw,
+  ArrowRightLeft,
+  CheckSquare
 } from 'lucide-react';
 
 export default function CustomerProfilePage({ customer, onBack, onCustomerUpdated }) {
@@ -69,9 +76,59 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
     notes: customer.notes || ''
   });
 
-  // Equipamentos instalados
-  const [equipments, setEquipments] = useState(Array.isArray(customer.equipments) ? customer.equipments : []);
-  const [newEquipmentName, setNewEquipmentName] = useState('');
+  // Equipamentos instalados (normalizados para suportar objetos estruturados e legados em string)
+  const [equipments, setEquipments] = useState(() => {
+    const raw = Array.isArray(customer.equipments) ? customer.equipments : [];
+    return raw.map((item, idx) => {
+      if (typeof item === 'string') {
+        return {
+          id: `legacy_eq_${idx}_${Date.now()}`,
+          type: item,
+          model: '',
+          possui: true,
+          quantity: 1,
+          trocar_atualizar: false,
+          pretende_adquirir: false
+        };
+      }
+      return {
+        id: item.id || `eq_${idx}_${Date.now()}`,
+        type: item.type || 'Equipamento',
+        model: item.model || '',
+        possui: item.possui !== undefined ? Boolean(item.possui) : true,
+        quantity: item.quantity !== undefined ? item.quantity : 1,
+        trocar_atualizar: Boolean(item.trocar_atualizar),
+        pretende_adquirir: Boolean(item.pretende_adquirir)
+      };
+    });
+  });
+
+  // Catálogo dinâmico de opções de equipamentos e modelos
+  const [equipmentCatalog, setEquipmentCatalog] = useState([
+    { category: 'Elevador', models: [] },
+    { category: 'Scanner automotivo', models: [] },
+    { category: 'Alinhamento', models: [] },
+    { category: 'ATF (troca de fluido)', models: [] },
+    { category: 'Recuperadora de gás', models: [] },
+    { category: 'Troca de líquido de arrefecimento', models: [] }
+  ]);
+  const [selectedCategory, setSelectedCategory] = useState('Elevador');
+  const [customCategory, setCustomCategory] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [customModel, setCustomModel] = useState('');
+  const [equipPossui, setEquipPossui] = useState(true);
+  const [equipQuantity, setEquipQuantity] = useState(1);
+  const [equipTrocarAtualizar, setEquipTrocarAtualizar] = useState(false);
+  const [equipPretendeAdquirir, setEquipPretendeAdquirir] = useState(false);
+
+  // Gravação e Transcrição de Voz (Web Speech API)
+  const [isRecordingNotes, setIsRecordingNotes] = useState(false);
+  const [isRecordingTimeline, setIsRecordingTimeline] = useState(false);
+  const [speechTimer, setSpeechTimer] = useState(0);
+  const [speechFeedback, setSpeechFeedback] = useState(null);
+  const recognitionRef = useRef(null);
+  const timerIntervalRef = useRef(null);
+  const baseTextRef = useRef('');
 
   // Filiais / Pontos de Atendimento
   const [branches, setBranches] = useState(customer.branches || []);
@@ -232,18 +289,218 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
     }
   };
 
-  // Adicionar Equipamento
-  const handleAddEquipment = () => {
-    if (!newEquipmentName.trim()) return;
-    const updated = [...equipments, newEquipmentName.trim()];
-    setEquipments(updated);
-    setNewEquipmentName('');
+  // Carrega catálogo de categorias e modelos do backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchOptions = async () => {
+      try {
+        const res = await crmApiFetch('/crm/customer-equipment-options');
+        if (res.ok) {
+          const json = await res.json();
+          if (isMounted && Array.isArray(json.data) && json.data.length > 0) {
+            setEquipmentCatalog(json.data);
+          }
+        }
+      } catch (err) {
+        console.warn('Falha ao carregar opções de equipamentos:', err);
+      }
+    };
+    fetchOptions();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Modelos disponíveis para a categoria atualmente selecionada
+  const currentCategoryModels = useMemo(() => {
+    if (selectedCategory === '__outros__') return [];
+    const found = equipmentCatalog.find(
+      c => c.category.toLowerCase() === selectedCategory.toLowerCase()
+    );
+    return Array.isArray(found?.models) ? found.models : [];
+  }, [equipmentCatalog, selectedCategory]);
+
+  // Adicionar Equipamento à Ficha do Cliente
+  const handleAddEquipment = async () => {
+    const finalCategory = (selectedCategory === '__outros__' ? customCategory : selectedCategory).trim();
+    if (!finalCategory) {
+      showToast('Por favor, informe o tipo de equipamento.');
+      return;
+    }
+
+    let finalModel = '';
+    if (currentCategoryModels.length > 0) {
+      finalModel = selectedModel === '__outro_modelo__' ? customModel.trim() : (selectedModel || '').trim();
+    } else {
+      finalModel = customModel.trim();
+    }
+
+    const newEquip = {
+      id: `eq_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      type: finalCategory,
+      model: finalModel,
+      possui: Boolean(equipPossui),
+      quantity: equipPossui ? Math.max(1, parseInt(equipQuantity, 10) || 1) : 0,
+      trocar_atualizar: equipPossui ? Boolean(equipTrocarAtualizar) : false,
+      pretende_adquirir: !equipPossui ? Boolean(equipPretendeAdquirir) : false
+    };
+
+    setEquipments(prev => [...prev, newEquip]);
+
+    // Persiste a nova categoria/modelo no banco de dados para reutilização futura
+    try {
+      crmApiFetch('/crm/customer-equipment-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: finalCategory, model: finalModel || null })
+      }).then(async (res) => {
+        if (res.ok) {
+          const json = await res.json();
+          setEquipmentCatalog(prev => {
+            const idx = prev.findIndex(c => c.category.toLowerCase() === finalCategory.toLowerCase());
+            if (idx === -1) {
+              return [...prev, { id: json.data?.id, category: finalCategory, models: finalModel ? [finalModel] : [] }];
+            } else if (finalModel && !prev[idx].models.some(m => m.toLowerCase() === finalModel.toLowerCase())) {
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], models: [...updated[idx].models, finalModel] };
+              return updated;
+            }
+            return prev;
+          });
+        }
+      }).catch(() => {});
+    } catch (_) {}
+
+    // Limpeza suave dos campos do formulário
+    if (selectedCategory === '__outros__') {
+      setSelectedCategory(finalCategory);
+      setCustomCategory('');
+    }
+    setSelectedModel('');
+    setCustomModel('');
+    setEquipPossui(true);
+    setEquipQuantity(1);
+    setEquipTrocarAtualizar(false);
+    setEquipPretendeAdquirir(false);
+    showToast(`Equipamento "${finalCategory}" adicionado.`);
   };
 
   const handleRemoveEquipment = (index) => {
-    const updated = equipments.filter((_, idx) => idx !== index);
-    setEquipments(updated);
+    setEquipments(prev => prev.filter((_, idx) => idx !== index));
+    showToast('Equipamento removido da lista.');
   };
+
+  // Funções de Gravação e Transcrição de Áudio / Voz (Web Speech API)
+  const stopAudioRecording = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (_) {}
+      recognitionRef.current = null;
+    }
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+    setIsRecordingNotes(false);
+    setIsRecordingTimeline(false);
+    setSpeechTimer(0);
+  };
+
+  const startAudioRecording = (target = 'notes') => {
+    if ((target === 'notes' && isRecordingNotes) || (target === 'timeline' && isRecordingTimeline)) {
+      stopAudioRecording();
+      return;
+    }
+
+    stopAudioRecording();
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showToast('Reconhecimento de voz não suportado neste navegador. Use Google Chrome ou Edge.');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      if (target === 'notes') {
+        setIsRecordingNotes(true);
+        baseTextRef.current = formData.notes || '';
+      } else {
+        setIsRecordingTimeline(true);
+        baseTextRef.current = newNoteText || '';
+      }
+
+      setSpeechTimer(0);
+      timerIntervalRef.current = setInterval(() => {
+        setSpeechTimer(prev => prev + 1);
+      }, 1000);
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = 0; i < event.results.length; ++i) {
+          const piece = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += piece + ' ';
+          } else {
+            interimTranscript += piece;
+          }
+        }
+
+        const combined = (finalTranscript + interimTranscript).trim();
+        const base = baseTextRef.current ? baseTextRef.current.trim() + ' ' : '';
+        const fullText = base + combined;
+
+        if (target === 'notes') {
+          setFormData(prev => ({ ...prev, notes: fullText }));
+        } else {
+          setNewNoteText(fullText);
+        }
+
+        setSpeechFeedback({
+          target,
+          message: 'Transcrevendo áudio em tempo real. Você pode editar o texto livremente com o teclado.'
+        });
+      };
+
+      recognition.onerror = (err) => {
+        console.warn('Erro SpeechRecognition:', err.error);
+        if (err.error !== 'no-speech') {
+          showToast(`Aviso de áudio: ${err.error}`);
+        }
+        stopAudioRecording();
+      };
+
+      recognition.onend = () => {
+        stopAudioRecording();
+        setSpeechFeedback({
+          target,
+          message: 'Áudio concluído e transcrito! Revise e edite qualquer palavra antes de salvar.'
+        });
+        setTimeout(() => setSpeechFeedback(null), 9000);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (e) {
+      console.error(e);
+      showToast('Não foi possível iniciar a gravação. Verifique permissões do microfone.');
+      stopAudioRecording();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAudioRecording();
+    };
+  }, []);
 
   const isCasado = formData.marital_status === 'Casado(a)' || formData.marital_status === 'União Estável';
   const cleanPhone = (formData.phone || '').replace(/\D/g, '');
@@ -646,19 +903,66 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
                 </div>
               </div>
 
-              {/* Observações Internas */}
+              {/* Observações Internas com Gravação e Transcrição de Voz */}
               <div className={`p-6 rounded-2xl border space-y-4 ${
                 isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
               }`}>
-                <h3 className="font-black text-sm uppercase tracking-wider text-amber-500">
-                  Notas Comerciais & Observações Estratégicas
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-black text-sm uppercase tracking-wider text-amber-500 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" />
+                      Notas Comerciais & Observações Estratégicas
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Você pode digitar ou ditar por áudio. O texto transcrito pode ser editado antes de salvar.
+                    </p>
+                  </div>
+
+                  {/* Botão de Gravação de Áudio / Falar */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isRecordingNotes ? (
+                      <button
+                        type="button"
+                        onClick={() => stopAudioRecording()}
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white flex items-center gap-2 transition cursor-pointer shadow-md animate-pulse"
+                      >
+                        <Square className="w-4 h-4 fill-current" />
+                        <span>Parar e Revisar ({Math.floor(speechTimer / 60)}:{(speechTimer % 60).toString().padStart(2, '0')})</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startAudioRecording('notes')}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-2 ${
+                          isDark 
+                            ? 'bg-slate-800/80 border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-slate-950' 
+                            : 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-500 hover:text-slate-950'
+                        }`}
+                        title="Gravar áudio e transcrever fala em texto"
+                      >
+                        <Mic className="w-4 h-4" />
+                        <span>Gravar Áudio / Falar</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Banner de Feedback de Transcrição */}
+                {speechFeedback?.target === 'notes' && (
+                  <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 animate-in fade-in ${
+                    isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-300 text-amber-900'
+                  }`}>
+                    <Sparkles className="w-4 h-4 shrink-0" />
+                    <span>{speechFeedback.message}</span>
+                  </div>
+                )}
+
                 <textarea
                   rows={4}
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="Anotações internas sobre preferências do cliente, prazos de negociação, marcas de ferramentas preferidas, etc."
-                  className={`w-full p-4 rounded-xl border text-xs sm:text-sm outline-none ${
+                  className={`w-full p-4 rounded-xl border text-xs sm:text-sm outline-none transition ${
                     isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
                   }`}
                 />
@@ -842,68 +1146,293 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
           {/* -------------------------------------------------------- */}
           {activeTab === 'equipamentos' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="font-black text-base tracking-tight">Equipamentos & Máquinas da Oficina</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Mapeamento do parque de máquinas instalado (elevadores, alinhadores, scanners, compressores)</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Mapeamento do parque de máquinas instalado, modelos, intenções de troca e aquisição</p>
                 </div>
-              </div>
 
-              {/* Inserir Equipamento */}
-              <div className={`p-5 rounded-2xl border flex items-center gap-3 ${
-                isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-              }`}>
-                <Wrench className="w-5 h-5 text-amber-500 shrink-0" />
-                <input
-                  type="text"
-                  value={newEquipmentName}
-                  onChange={(e) => setNewEquipmentName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddEquipment(); } }}
-                  placeholder="Nome do equipamento (Ex: Elevador Hidráulico 4.0T Mahovi, Scanner Raven 3...)"
-                  className={`flex-1 px-4 py-2.5 rounded-xl border text-xs sm:text-sm outline-none ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  }`}
-                />
                 <button
                   type="button"
-                  onClick={handleAddEquipment}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 transition cursor-pointer shrink-0"
+                  onClick={handleSaveCustomer}
+                  disabled={saving}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-2 transition cursor-pointer shadow-md shadow-amber-500/20 self-start sm:self-auto"
                 >
-                  Adicionar Máquina
+                  <Save className="w-4 h-4" />
+                  <span>{saving ? 'Gravando...' : 'Salvar Alterações'}</span>
                 </button>
               </div>
 
+              {/* Box de Adição de Equipamento */}
+              <div className={`p-6 rounded-2xl border space-y-5 ${
+                isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+              }`}>
+                <div className="flex items-center gap-2 border-b border-slate-800/40 pb-3">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500">
+                    <Wrench className="w-4 h-4" />
+                  </div>
+                  <h4 className="font-black text-xs uppercase tracking-wider text-amber-500">
+                    Adicionar Equipamento ao Parque do Cliente
+                  </h4>
+                </div>
+
+                {/* Linha 1: Tipo e Modelo */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Select Tipo de Equipamento */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 block mb-1.5">
+                      Tipo de Equipamento *
+                    </label>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => {
+                        setSelectedCategory(e.target.value);
+                        setSelectedModel('');
+                        setCustomModel('');
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-xl border text-xs sm:text-sm outline-none transition ${
+                        isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
+                      }`}
+                    >
+                      {equipmentCatalog.map((cat) => (
+                        <option key={cat.id || cat.category} value={cat.category}>
+                          {cat.category}
+                        </option>
+                      ))}
+                      <option value="__outros__">+ Outros (Cadastrar novo tipo)</option>
+                    </select>
+
+                    {/* Input se selecionado "Outros" */}
+                    {selectedCategory === '__outros__' && (
+                      <div className="mt-2.5 animate-in fade-in">
+                        <input
+                          type="text"
+                          value={customCategory}
+                          onChange={(e) => setCustomCategory(e.target.value)}
+                          placeholder="Digite o novo tipo (será salvo no banco para futuros usos)..."
+                          className={`w-full px-4 py-2 rounded-xl border text-xs outline-none ${
+                            isDark ? 'bg-slate-900 border-amber-500/50 text-white focus:border-amber-400' : 'bg-amber-50/50 border-amber-400 text-slate-900 focus:border-amber-500'
+                          }`}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Select ou Input de Modelos */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 block mb-1.5">
+                      Modelo do Equipamento
+                    </label>
+                    {currentCategoryModels.length > 0 ? (
+                      <div className="space-y-2">
+                        <select
+                          value={selectedModel}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          className={`w-full px-4 py-2.5 rounded-xl border text-xs sm:text-sm outline-none transition ${
+                            isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
+                          }`}
+                        >
+                          <option value="">Selecione um modelo cadastrado...</option>
+                          {currentCategoryModels.map((m, idx) => (
+                            <option key={idx} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                          <option value="__outro_modelo__">+ Digitar novo modelo</option>
+                        </select>
+
+                        {selectedModel === '__outro_modelo__' && (
+                          <div className="animate-in fade-in">
+                            <input
+                              type="text"
+                              value={customModel}
+                              onChange={(e) => setCustomModel(e.target.value)}
+                              placeholder="Digite o modelo (será salvo no banco para este tipo)..."
+                              className={`w-full px-4 py-2 rounded-xl border text-xs outline-none ${
+                                isDark ? 'bg-slate-900 border-amber-500/50 text-white' : 'bg-amber-50/50 border-amber-400 text-slate-900'
+                              }`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={customModel}
+                        onChange={(e) => setCustomModel(e.target.value)}
+                        placeholder="Digite o modelo (opcional, ex: ThinkTool Lite, 4.0T...)"
+                        className={`w-full px-4 py-2.5 rounded-xl border text-xs sm:text-sm outline-none transition ${
+                          isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
+                        }`}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Linha 2: Checkbox "Possui", Quantidade e Condições */}
+                <div className={`p-4 rounded-xl border transition ${
+                  isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {/* Checkbox Possui */}
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={equipPossui}
+                        onChange={(e) => {
+                          const isChecked = e.target.checked;
+                          setEquipPossui(isChecked);
+                          if (!isChecked) {
+                            setEquipTrocarAtualizar(false);
+                          } else {
+                            setEquipPretendeAdquirir(false);
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-slate-700 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                      />
+                      <span className="font-bold text-xs sm:text-sm">Possui este equipamento</span>
+                    </label>
+
+                    {/* Se marcado "Possui": Input QT. e Toggle Trocar/Atualizar */}
+                    {equipPossui ? (
+                      <div className="flex items-center gap-4 flex-wrap animate-in fade-in">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs font-bold text-slate-400">QT.:</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={equipQuantity}
+                            onChange={(e) => setEquipQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            className={`w-16 px-2.5 py-1.5 rounded-lg border text-xs font-bold text-center outline-none ${
+                              isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                            }`}
+                          />
+                        </div>
+
+                        {/* Toggle Trocar / Atualizar */}
+                        <button
+                          type="button"
+                          onClick={() => setEquipTrocarAtualizar(!equipTrocarAtualizar)}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer select-none ${
+                            equipTrocarAtualizar
+                              ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
+                              : isDark 
+                                ? 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200' 
+                                : 'bg-white border-slate-300 text-slate-600 hover:text-slate-900'
+                          }`}
+                          title="Indica se o cliente tem interesse em trocar ou atualizar esse equipamento"
+                        >
+                          <ArrowRightLeft className="w-3.5 h-3.5" />
+                          <span>Trocar/Atualizar</span>
+                          <span className={`w-2 h-2 rounded-full ${equipTrocarAtualizar ? 'bg-slate-950' : 'bg-slate-500'}`} />
+                        </button>
+                      </div>
+                    ) : (
+                      /* Se desmarcado: Opção "Pretende adquirir?" com check */
+                      <div className="flex items-center gap-2.5 animate-in fade-in">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={equipPretendeAdquirir}
+                            onChange={(e) => setEquipPretendeAdquirir(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-700 text-sky-500 focus:ring-sky-500 cursor-pointer"
+                          />
+                          <span className={`text-xs sm:text-sm font-bold ${
+                            equipPretendeAdquirir ? 'text-sky-400' : 'text-slate-400'
+                          }`}>
+                            Pretende adquirir?
+                          </span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={handleAddEquipment}
+                    className="px-6 py-2.5 rounded-xl text-xs font-black bg-amber-500 text-slate-950 hover:bg-amber-400 transition cursor-pointer flex items-center gap-2 shadow-md shadow-amber-500/20"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Adicionar Equipamento</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista dos Equipamentos do Cliente */}
               {equipments.length === 0 ? (
                 <div className={`p-12 text-center rounded-2xl border ${
                   isDark ? 'bg-slate-900/50 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
                 }`}>
                   <Wrench className="w-10 h-10 opacity-30 mx-auto mb-2 text-amber-500" />
                   <p className="font-bold text-sm">Nenhum equipamento registrado ainda</p>
-                  <p className="text-xs text-slate-500 mt-1">Cadastre os equipamentos para acompanhar manutenções, peças de reposição e vendas de upgrades.</p>
+                  <p className="text-xs text-slate-500 mt-1">Utilize o formulário acima para registrar o parque instalado, quantidades e interesses de upgrade.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {equipments.map((eq, idx) => (
                     <div
-                      key={idx}
-                      className={`p-4 rounded-xl border flex items-center justify-between gap-2 ${
-                        isDark ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+                      key={eq.id || idx}
+                      className={`p-4 rounded-xl border flex flex-col justify-between gap-3 ${
+                        isDark ? 'bg-slate-900 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800 shadow-xs'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold shrink-0">
-                          <Wrench className="w-4 h-4" />
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold shrink-0 mt-0.5">
+                            <Wrench className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <h5 className="font-bold text-xs truncate" title={eq.type}>
+                              {eq.type}
+                            </h5>
+                            {eq.model && (
+                              <p className="text-[11px] text-slate-400 truncate mt-0.5" title={eq.model}>
+                                {eq.model}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <span className="font-bold text-xs truncate">{eq}</span>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEquipment(idx)}
+                          className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
+                          title="Remover equipamento"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveEquipment(idx)}
-                        className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                        title="Remover"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+
+                      {/* Badges de Status */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-800/40 text-[10px] font-bold">
+                        {eq.possui ? (
+                          <>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                              Possui: {eq.quantity || 1} un.
+                            </span>
+                            {eq.trocar_atualizar && (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                                <ArrowRightLeft className="w-2.5 h-2.5" />
+                                <span>Trocar / Atualizar</span>
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                              Não Possui
+                            </span>
+                            {eq.pretende_adquirir && (
+                              <span className="px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/30 flex items-center gap-1">
+                                <Sparkles className="w-2.5 h-2.5" />
+                                <span>Pretende Adquirir</span>
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1055,11 +1584,11 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
                 </div>
               </div>
 
-              {/* Caixa para Registrar Nova Observação com Ctrl + Enter */}
+              {/* Caixa para Registrar Nova Observação com Gravação de Voz e Ctrl + Enter */}
               <div className={`p-5 rounded-2xl border space-y-3 ${
                 isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
               }`}>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-500 flex items-center justify-center">
                       <MessageSquare className="w-4 h-4 stroke-[2.5]" />
@@ -1068,10 +1597,49 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
                       Registrar Nova Observação / Anotação
                     </h4>
                   </div>
-                  <span className="text-[11px] text-slate-400 hidden sm:inline">
-                    Atalho rápido: <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono text-[10px]">Ctrl + Enter</kbd>
-                  </span>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] text-slate-400 hidden sm:inline mr-1">
+                      Atalho rápido: <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono text-[10px]">Ctrl + Enter</kbd>
+                    </span>
+
+                    {/* Botão de Gravação de Voz na Linha do Tempo */}
+                    {isRecordingTimeline ? (
+                      <button
+                        type="button"
+                        onClick={() => stopAudioRecording()}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white flex items-center gap-1.5 transition cursor-pointer shadow-sm animate-pulse"
+                      >
+                        <Square className="w-3.5 h-3.5 fill-current" />
+                        <span>Parar ({Math.floor(speechTimer / 60)}:{(speechTimer % 60).toString().padStart(2, '0')})</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startAudioRecording('timeline')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                          isDark 
+                            ? 'bg-slate-800/80 border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-slate-950' 
+                            : 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-500 hover:text-slate-950'
+                        }`}
+                        title="Ditar anotação por voz"
+                      >
+                        <Mic className="w-3.5 h-3.5" />
+                        <span>Gravar Áudio</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Banner de Feedback de Transcrição */}
+                {speechFeedback?.target === 'timeline' && (
+                  <div className={`p-2.5 rounded-xl border text-xs flex items-center gap-2 animate-in fade-in ${
+                    isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-300 text-amber-900'
+                  }`}>
+                    <Sparkles className="w-4 h-4 shrink-0" />
+                    <span>{speechFeedback.message}</span>
+                  </div>
+                )}
 
                 <textarea
                   rows={2}
@@ -1091,7 +1659,7 @@ export default function CustomerProfilePage({ customer, onBack, onCustomerUpdate
 
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-[11px] text-slate-500">
-                    Histórico cumulativo gravado com data, hora e responsável
+                    Você pode revisar e editar qualquer palavra transcrita antes de salvar.
                   </span>
                   <button
                     type="button"

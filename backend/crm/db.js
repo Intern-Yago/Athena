@@ -106,8 +106,6 @@ async function initCrmSchema() {
       );
       ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS document VARCHAR(40);
       ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS phone2 VARCHAR(40);
-      ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS customer_id VARCHAR(64) REFERENCES crm_customers(id) ON DELETE SET NULL;
-      ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS equipment_id VARCHAR(64) REFERENCES crm_equipments(id) ON DELETE SET NULL;
       ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS negotiated_price NUMERIC(12, 2) DEFAULT 0;
     `);
 
@@ -224,6 +222,36 @@ async function initCrmSchema() {
       );
     `);
 
+    // 8. Opções e Modelos de Equipamentos para a Ficha do Cliente
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS crm_customer_equipment_options (
+        id VARCHAR(64) PRIMARY KEY,
+        category VARCHAR(120) NOT NULL UNIQUE,
+        models JSONB DEFAULT '[]'::jsonb,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+      ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS customer_id VARCHAR(64) REFERENCES crm_customers(id) ON DELETE SET NULL;
+      ALTER TABLE crm_leads ADD COLUMN IF NOT EXISTS equipment_id VARCHAR(64) REFERENCES crm_equipments(id) ON DELETE SET NULL;
+    `);
+
+    // Semente padrão de tipos de equipamentos
+    const defaultEquipmentTypes = [
+      'Elevador',
+      'Scanner automotivo',
+      'Alinhamento',
+      'ATF (troca de fluido)',
+      'Recuperadora de gás',
+      'Troca de líquido de arrefecimento'
+    ];
+    for (const eqCat of defaultEquipmentTypes) {
+      await client.query(`
+        INSERT INTO crm_customer_equipment_options (id, category, models)
+        VALUES ($1, $2, '[]'::jsonb)
+        ON CONFLICT (category) DO NOTHING
+      `, [`eq_opt_${Buffer.from(eqCat).toString('hex').slice(0, 16)}`, eqCat]);
+    }
+
     // Índices de performance
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_stages_funnel ON crm_stages(funnel_id);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_leads_funnel ON crm_leads(funnel_id);`);
@@ -251,6 +279,7 @@ async function initCrmSchema() {
       ALTER TABLE crm_customer_branches ENABLE ROW LEVEL SECURITY;
       ALTER TABLE crm_customer_history ENABLE ROW LEVEL SECURITY;
       ALTER TABLE crm_appointments ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE crm_customer_equipment_options ENABLE ROW LEVEL SECURITY;
     `);
 
     // Semente inicial de Funis padrões se a tabela estiver vazia

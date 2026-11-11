@@ -702,6 +702,26 @@ router.post('/customers/:id/history', async (req, res) => {
   }
 });
 
+// Opções e modelos dinâmicos de equipamentos para a Ficha do Cliente
+router.get('/customer-equipment-options', async (req, res) => {
+  try {
+    const options = await crmService.listCustomerEquipmentOptions();
+    res.json({ success: true, data: options });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/customer-equipment-options', async (req, res) => {
+  try {
+    const { category, model } = req.body;
+    const option = await crmService.saveCustomerEquipmentOption({ category, model });
+    res.status(201).json({ success: true, data: option });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 // -------------------------------------------------------------
 // ROTAS DE AGENDA (VISITAS + GOOGLE CALENDAR)
 // -------------------------------------------------------------
