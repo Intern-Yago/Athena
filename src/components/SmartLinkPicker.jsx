@@ -237,7 +237,7 @@ export default function SmartLinkPicker({
               onTargetBlankChange(true);
             }
           }}
-          className="form-input text-xs pl-9 pr-24 py-2.5 w-full font-mono text-slate-900 border-slate-300 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl"
+          className="form-input text-xs !pl-10 !pr-24 !py-2.5 w-full font-mono text-slate-900 border-slate-300 focus:border-amber-500 focus:ring-amber-500/20 rounded-xl"
         />
 
         <div className="absolute right-2 flex items-center gap-1">
@@ -646,7 +646,7 @@ export default function SmartLinkPicker({
                       placeholder="Filtrar categoria..."
                       value={drillSearch}
                       onChange={(e) => setDrillSearch(e.target.value)}
-                      className="form-input text-xs pl-8 py-1.5 w-full rounded-xl"
+                      className="form-input text-xs !pl-8.5 !py-1.5 w-full rounded-xl"
                       autoFocus
                     />
                   </div>
@@ -707,7 +707,7 @@ export default function SmartLinkPicker({
                       placeholder="Filtrar marca..."
                       value={drillSearch}
                       onChange={(e) => setDrillSearch(e.target.value)}
-                      className="form-input text-xs pl-8 py-1.5 w-full rounded-xl"
+                      className="form-input text-xs !pl-8.5 !py-1.5 w-full rounded-xl"
                       autoFocus
                     />
                   </div>
@@ -768,7 +768,7 @@ export default function SmartLinkPicker({
                       placeholder="Buscar por nome ou SKU..."
                       value={drillSearch}
                       onChange={(e) => setDrillSearch(e.target.value)}
-                      className="form-input text-xs pl-8 py-1.5 w-full rounded-xl"
+                      className="form-input text-xs !pl-8.5 !py-1.5 w-full rounded-xl"
                       autoFocus
                     />
                   </div>
