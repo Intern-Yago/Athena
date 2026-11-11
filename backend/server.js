@@ -1169,6 +1169,7 @@ async function initDb() {
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS requires_equipment_serial BOOLEAN DEFAULT FALSE;
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price_source VARCHAR(20) DEFAULT 'manual';
         ALTER TABLE public.products ADD COLUMN IF NOT EXISTS stock_source VARCHAR(20) DEFAULT 'manual';
+        ALTER TABLE public.products ADD COLUMN IF NOT EXISTS priority INTEGER DEFAULT NULL;
 
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS document VARCHAR(50);
@@ -9499,6 +9500,80 @@ app.delete('/api/banners/:id', authenticateToken, requireStaff, async (req, res)
   res.json({ success: true, id: req.params.id });
 });
 
+// ----------------------------------------------------
+// PROMO POPUP ENDPOINTS (MODAL PROMOCIONAL DA LOJA)
+// ----------------------------------------------------
+app.get('/api/promo-popup', async (req, res) => {
+  try {
+    const rawSetting = await getSystemSetting('promo_popup', '');
+    if (rawSetting) {
+      try {
+        const parsed = JSON.parse(rawSetting);
+        return res.json(parsed);
+      } catch (parseErr) {
+        // Fallback
+      }
+    }
+  } catch (e) {
+    console.warn('Erro ao ler promo_popup das configurações:', e.message);
+  }
+
+  const db = readDbJson();
+  if (db.promoPopup) {
+    return res.json(db.promoPopup);
+  }
+
+  // Fallback padrão com destaque do ThinkTool Lite
+  return res.json({
+    id: 'popup_thinktool_lite_promo',
+    isActive: true,
+    title: 'Super Promoção Athena',
+    badge: 'OFERTA EXCLUSIVA',
+    subtitle: 'Scanner Thinkcar THINKTOOL LITE com Condições Especiais!',
+    description: 'Diagnóstico completo multimarcas, funções especiais, suporte técnico direto de fábrica e pontuação no programa A-Points.',
+    imageUrl: 'https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp',
+    buttonText: 'Ver Oferta Exclusiva',
+    linkUrl: '/produto/prod_starkx_thinktool-lite',
+    targetBlank: false,
+    showOncePerSession: true
+  });
+});
+
+app.put('/api/promo-popup', authenticateToken, requireStaff, async (req, res) => {
+  try {
+    const popupData = req.body;
+    if (!popupData || typeof popupData !== 'object') {
+      return res.status(400).json({ error: 'Dados do pop-up inválidos.' });
+    }
+
+    const payload = {
+      id: popupData.id || `popup_${Date.now()}`,
+      isActive: Boolean(popupData.isActive),
+      title: String(popupData.title || '').trim(),
+      badge: String(popupData.badge || '').trim(),
+      subtitle: String(popupData.subtitle || '').trim(),
+      description: String(popupData.description || '').trim(),
+      imageUrl: String(popupData.imageUrl || '').trim(),
+      buttonText: String(popupData.buttonText || '').trim(),
+      linkUrl: String(popupData.linkUrl || '').trim(),
+      targetBlank: Boolean(popupData.targetBlank),
+      showOncePerSession: popupData.showOncePerSession !== false,
+      updatedAt: new Date().toISOString()
+    };
+
+    await setSystemSetting('promo_popup', JSON.stringify(payload), 'Configuração do Pop-up Promocional da Loja');
+
+    const db = readDbJson();
+    db.promoPopup = payload;
+    writeDbJson(db);
+
+    return res.json(payload);
+  } catch (e) {
+    console.error('Erro ao atualizar promo-popup:', e);
+    return res.status(500).json({ error: 'Erro ao salvar pop-up promocional.' });
+  }
+});
+
 // Dynamic Catalog Versioning & SWR Cache Invalidation Endpoint
 app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -9625,6 +9700,7 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
           p.recommended_product_ids as "recommendedProductIds", 
           p.status, 
           p.is_featured as "isFeatured", 
+          p.priority,
           p.image, p.images, 
           p.alt_text as "altText", 
           p.description, p.specs, 
@@ -9648,7 +9724,7 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
         ${whereClause}
-        ORDER BY p.is_featured DESC, p.created_at DESC
+        ORDER BY COALESCE(p.priority, 9999) ASC, p.is_featured DESC, p.created_at DESC
       `;
 
       if (isPaginated) {
@@ -10275,6 +10351,7 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
     ...(incomingIsPriceVisible !== null ? { isPriceVisible: incomingIsPriceVisible, is_price_visible: incomingIsPriceVisible } : {}),
     ...(hasWarrantyUpdate ? { warrantyMonths: warrantyVal, warranty_months: warrantyVal } : {}),
     ...(hasOriginalPriceUpdate ? { originalPrice: originalPriceVal, original_price: originalPriceVal } : {}),
+    ...(req.body.priority !== undefined ? { priority: (req.body.priority !== null && req.body.priority !== '' && !isNaN(Number(req.body.priority))) ? Number(req.body.priority) : null } : {}),
     status: finalStatus,
     sku: finalSku,
     omieCode: finalSku,
@@ -10284,6 +10361,11 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
     requiresEquipmentSerial: reqSerial,
     requires_equipment_serial: reqSerial
   };
+
+  const hasPriorityUpdate = req.body.priority !== undefined;
+  const priorityVal = hasPriorityUpdate && req.body.priority !== null && req.body.priority !== '' && !isNaN(Number(req.body.priority))
+    ? Number(req.body.priority)
+    : null;
 
   if (pool) {
     try {
@@ -10311,6 +10393,7 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
           is_price_visible=COALESCE($34, is_price_visible, false),
           warranty_months=CASE WHEN $35::boolean THEN $36::integer ELSE warranty_months END,
           original_price=CASE WHEN $37::boolean THEN $38::numeric ELSE original_price END,
+          priority=CASE WHEN $39::boolean THEN $40::integer ELSE priority END,
           updated_at=NOW()
         WHERE id=$30
       `, [
@@ -10351,7 +10434,9 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
         hasWarrantyUpdate,
         warrantyVal,
         hasOriginalPriceUpdate,
-        originalPriceVal
+        originalPriceVal,
+        hasPriorityUpdate,
+        priorityVal
       ]);
 
       // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,

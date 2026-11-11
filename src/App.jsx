@@ -30,9 +30,10 @@ import APointsBanner from './components/APointsBanner';
 import EmailVerificationModal from './components/EmailVerificationModal';
 import ForceChangePasswordModal from './components/ForceChangePasswordModal';
 import CookieConsentBanner from './components/CookieConsentBanner';
+import PromoPopupModal from './components/PromoPopupModal';
 import { CartProvider, useCart } from './context/CartContext';
 
-import { INITIAL_CATEGORIES, INITIAL_BRANDS, INITIAL_PRODUCTS, INITIAL_BANNERS } from './data/initialData';
+import { INITIAL_CATEGORIES, INITIAL_BRANDS, INITIAL_PRODUCTS, INITIAL_BANNERS, INITIAL_PROMO_POPUP } from './data/initialData';
 import { MACRO_DEPARTMENTS } from './data/departmentsData';
 import { Layers, Tag, ArrowRight, MessageCircle } from 'lucide-react';
 import { 
@@ -150,6 +151,12 @@ export default function App() {
       return saved;
     }
     return MACRO_DEPARTMENTS;
+  });
+
+  const [promoPopup, setPromoPopup] = useState(() => {
+    const saved = safeStorageGet('athena_promo_popup', null);
+    if (saved && typeof saved === 'object') return saved;
+    return INITIAL_PROMO_POPUP;
   });
 
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -808,6 +815,17 @@ export default function App() {
           })
           .catch(() => {});
 
+        // 1.6 Promo Popup dispatch
+        fetch(`${currentBaseUrl}/promo-popup`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((popupData) => {
+            if (popupData && typeof popupData === 'object' && isMounted) {
+              setPromoPopup(popupData);
+              safeStorageSet('athena_promo_popup', popupData);
+            }
+          })
+          .catch(() => {});
+
         // 2. Skip 3.4MB /products payload if exact PostgreSQL snapshot is already cached
         const [prodRes, catRes, brandRes, deptRes] = await Promise.all([
           isCatalogCurrent ? Promise.resolve(null) : fetch(`${currentBaseUrl}/products`),
@@ -1351,6 +1369,24 @@ export default function App() {
     }
   };
 
+  const handleUpdatePromoPopup = async (updatedPopup) => {
+    setPromoPopup(updatedPopup);
+    safeStorageSet('athena_promo_popup', updatedPopup);
+    showNotification('Configurações do Pop-up Promocional salvas com sucesso!', 'success');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/promo-popup`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedPopup)
+      });
+      if (res.ok) setIsBackendConnected(true);
+      handleApiUnauthorized(res);
+    } catch (e) {
+      console.warn('Erro ao salvar pop-up promocional no backend:', e);
+    }
+  };
+
   const handleEditProductFromCatalog = (product) => {
     setEditingProduct(product);
     navigateTo('admin');
@@ -1403,6 +1439,8 @@ export default function App() {
               API_BASE_URL={API_BASE_URL}
               activeAdminTab={activeAdminTab}
               setActiveAdminTab={setActiveAdminTab}
+              promoPopup={promoPopup}
+              onUpdatePromoPopup={handleUpdatePromoPopup}
             />
           );
         }
@@ -1714,6 +1752,8 @@ export default function App() {
           API_BASE_URL={API_BASE_URL}
           activeAdminTab={activeAdminTab}
           setActiveAdminTab={setActiveAdminTab}
+          promoPopup={promoPopup}
+          onUpdatePromoPopup={handleUpdatePromoPopup}
         />
       );
     }
@@ -1924,6 +1964,14 @@ export default function App() {
 
           {/* Cookie & LGPD Consent Floating Banner */}
           <CookieConsentBanner onNavigate={navigateTo} />
+
+          {/* Pop-up Promocional da Loja (Modal de Entrada) */}
+          {(!currentRoute || currentRoute === 'catalog' || currentRoute === 'catalogo' || currentRoute === 'inicio' || currentRoute === 'home') && (
+            <PromoPopupModal
+              popup={promoPopup}
+              onNavigate={navigateTo}
+            />
+          )}
 
         </div>
       </CartProvider>
