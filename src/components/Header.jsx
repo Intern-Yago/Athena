@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Layers, Tag, PackageCheck, Menu, ChevronDown, Info, X, User, LogOut, Shield, ShoppingCart } from 'lucide-react';
+import { Search, Layers, Tag, PackageCheck, Menu, ChevronDown, Info, X, User, LogOut, Shield, ShoppingCart, BookOpen } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import MegaMenu from './MegaMenu';
 import MobileDrawer from './MobileDrawer';
@@ -132,6 +132,21 @@ export default function Header({
               >
                 <Info className="w-4 h-4 shrink-0" />
                 <span>Sobre</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  onNavigate('blog');
+                  setActiveMegaMenu(null);
+                }}
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                  activeTab === 'blog' || (typeof activeTab === 'string' && activeTab.startsWith('blog/'))
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                }`}
+              >
+                <BookOpen className="w-4 h-4 shrink-0" />
+                <span>Blog</span>
               </button>
             </nav>
 

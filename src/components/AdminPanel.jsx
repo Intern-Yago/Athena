@@ -84,7 +84,8 @@ import {
   Grid,
   Receipt,
   Cpu,
-  ShoppingCart
+  ShoppingCart,
+  BookOpen
 } from 'lucide-react';
 import { formatAttachmentLabel, encodeDraftToShareableUrl, getYouTubeEmbedUrl, getVideoEmbedInfo } from '../pages/ProductDetailPage';
 import PdfCatalogGenerator from './PdfCatalogGenerator';
@@ -105,6 +106,7 @@ import ClientsManagementTab from './admin/ClientsManagementTab';
 import OrdersManagementTab from './admin/OrdersManagementTab';
 import FulfillmentKanbanTab from './admin/FulfillmentKanbanTab';
 import DigitalActivationsTab from './admin/DigitalActivationsTab';
+import BlogManagementTab from './admin/BlogManagementTab';
 import PromoPopupModal from './PromoPopupModal';
 import {
   ADMIN_CACHE_KEYS,
@@ -4507,6 +4509,7 @@ export default function AdminPanel({
                 {activeAdminTab === 'brands' && <Tag className="w-4 h-4" />}
                 {activeAdminTab === 'banners' && <Images className="w-4 h-4" />}
                 {activeAdminTab === 'coupons' && <Gift className="w-4 h-4" />}
+                {activeAdminTab === 'blog' && <BookOpen className="w-4 h-4" />}
                 {activeAdminTab === 'clients' && <Users className="w-4 h-4" />}
                 {activeAdminTab === 'users' && <ShieldCheck className="w-4 h-4" />}
                 {activeAdminTab === 'omie' && <RefreshCw className="w-4 h-4" />}
@@ -4523,6 +4526,7 @@ export default function AdminPanel({
                   {activeAdminTab === 'brands' && `Marcas (${brands.length})`}
                   {activeAdminTab === 'banners' && `Banners da Home (${(banners || []).length})`}
                   {activeAdminTab === 'coupons' && 'Cupons & Vouchers'}
+                  {activeAdminTab === 'blog' && 'Blog & Inteligência Técnica'}
                   {activeAdminTab === 'clients' && `Clientes do Site (${clientsList.length})`}
                   {activeAdminTab === 'users' && `Equipe & Acessos (${employeesList.length})`}
                   {activeAdminTab === 'omie' && 'Omie ERP & Fidelidade'}
@@ -4732,6 +4736,21 @@ export default function AdminPanel({
                     <span>Cupons & Vouchers</span>
                   </div>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveAdminTab('blog'); setMobileAdminMenuOpen(false); }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    activeAdminTab === 'blog'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <BookOpen className="w-4 h-4 shrink-0" />
+                    <span>Blog & Artigos</span>
+                  </div>
+                </button>
               </div>
 
               {/* Group 2: Clientes & Fidelidade */}
@@ -4891,6 +4910,19 @@ export default function AdminPanel({
             API_BASE_URL={API_BASE_URL} 
             currentUser={currentUser} 
             showNotification={showNotification} 
+          />
+        )}
+
+        {activeAdminTab === 'blog' && (
+          <BlogManagementTab
+            currentUser={currentUser}
+            showNotification={showNotification}
+            products={products}
+            onOpenMediaLibrary={() => {
+              setIsSelectingBrandMedia(false);
+              setIsSelectingPopupMedia(false);
+              setIsLibraryModalOpen(true);
+            }}
           />
         )}
 

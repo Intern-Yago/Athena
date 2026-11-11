@@ -95,6 +95,11 @@ export default function Footer({ setActiveTab, currentUser }) {
                 </button>
               </li>
               <li>
+                <button onClick={() => { setActiveTab('blog'); scrollToTop(); }} className="hover:text-amber-400 transition-colors cursor-pointer">
+                  Blog & Artigos Técnicos
+                </button>
+              </li>
+              <li>
                 <button onClick={() => { setActiveTab(currentUser ? 'minha-conta' : 'login'); scrollToTop(); }} className="text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer flex items-center gap-1">
                   <span>Minha Conta & Pedidos</span>
                 </button>

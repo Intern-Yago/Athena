@@ -70,6 +70,14 @@ const SYSTEM_PAGES = [
     description: 'Página vitrine com todos os fabricantes parceiros'
   },
   {
+    id: 'blog',
+    name: 'Blog & Artigos Técnicos',
+    url: '/blog',
+    type: 'blog',
+    badge: 'Blog',
+    description: 'Artigos técnicos, inovações, reparação automotiva e guias'
+  },
+  {
     id: 'about',
     name: 'Sobre a Athena Soluções',
     url: '/sobre',

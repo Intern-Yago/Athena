@@ -17,6 +17,8 @@ const CustomerAccountPage = lazyWithRetry(() => import('./pages/CustomerAccountP
 const NotFoundPage = lazyWithRetry(() => import('./pages/NotFoundPage'));
 const LegalPage = lazyWithRetry(() => import('./pages/LegalPage'));
 const ThankYouPage = lazyWithRetry(() => import('./pages/ThankYouPage'));
+const BlogListingPage = lazyWithRetry(() => import('./pages/BlogListingPage'));
+const BlogPostPage = lazyWithRetry(() => import('./pages/BlogPostPage'));
 
 import Footer from './components/Footer';
 import Toast from './components/Toast';
@@ -1692,6 +1694,15 @@ export default function App() {
 
     if (currentRoute === 'about' || currentRoute === 'sobre') {
       return <AboutPage onNavigate={navigateTo} brands={brands} />;
+    }
+
+    if (currentRoute === 'blog' || currentRoute === 'artigos' || currentRoute === 'noticias') {
+      return <BlogListingPage onNavigate={navigateTo} />;
+    }
+
+    if (currentRoute.startsWith('blog/') || currentRoute.startsWith('artigo/')) {
+      const blogSlug = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute;
+      return <BlogPostPage slug={blogSlug} onNavigate={navigateTo} />;
     }
 
     if (currentRoute === 'termos-de-uso' || currentRoute === 'termos' || currentRoute === 'terms') {
