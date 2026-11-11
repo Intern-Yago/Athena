@@ -759,7 +759,7 @@ export default function App() {
           try {
             const probe = await fetch(`${LOCAL_API_BASE_URL}/categories`, { 
               method: 'GET', 
-              signal: AbortSignal.timeout(1500) 
+              signal: AbortSignal.timeout(4000) 
             });
             if (!probe.ok) {
               currentBaseUrl = REMOTE_API_BASE_URL;
@@ -770,6 +770,17 @@ export default function App() {
             activeApiBaseUrl = REMOTE_API_BASE_URL;
           }
         }
+
+        // 1.0 Early immediate dispatch for promo popup (so it arrives before the 1.2s entrance animation)
+        fetch(`${currentBaseUrl}/promo-popup`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((popupData) => {
+            if (popupData && typeof popupData === 'object' && isMounted) {
+              setPromoPopup(popupData);
+              safeStorageSet('athena_promo_popup', popupData);
+            }
+          })
+          .catch(() => {});
 
         // 1. Dynamic version check: verify if client catalog is already byte-for-byte in sync with PostgreSQL
         let serverVersion = null;

@@ -6473,11 +6473,13 @@ export default function AdminPanel({
           </div>
 
           {/* Modal de Preview do Pop-up */}
-          <PromoPopupModal
-            popup={popupForm}
-            forceOpen={isPreviewPopupOpen}
-            onClose={() => setIsPreviewPopupOpen(false)}
-          />
+          {isPreviewPopupOpen && (
+            <PromoPopupModal
+              popup={popupForm}
+              forceOpen={true}
+              onClose={() => setIsPreviewPopupOpen(false)}
+            />
+          )}
         </div>
       )}
 

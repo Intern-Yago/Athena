@@ -29,7 +29,7 @@ export default function PromoPopupModal({
       return;
     }
 
-    if (!popup || popup.isActive === false) {
+    if (!popup || popup.isActive === false || (!popup.title && !popup.imageUrl && !popup.subtitle)) {
       setIsVisible(false);
       return;
     }
@@ -77,7 +77,7 @@ export default function PromoPopupModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isVisible, handleClose]);
 
-  if (!isVisible || (!popup && !forceOpen)) {
+  if (!isVisible || (!popup && !forceOpen) || (!forceOpen && !popup?.title && !popup?.imageUrl && !popup?.subtitle)) {
     return null;
   }
 
