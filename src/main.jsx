@@ -22,8 +22,9 @@ window.addEventListener('vite:preloadError', (event) => {
 });
 
 const isCardMode = isDigitalCardSubdomain();
+const rootElement = document.getElementById('root');
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const appContent = (
   <React.StrictMode>
     {isCardMode ? (
       <DigitalCardPage />
@@ -32,5 +33,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <App />
       </React.Suspense>
     )}
-  </React.StrictMode>,
-)
+  </React.StrictMode>
+);
+
+// Decisão Arquitetural de Hidratação (Requisito 6):
+// Se o container #root contiver nós filhos pré-renderizados pelo Edge Serverless / SSR do Blog,
+// utilizamos hydrateRoot para preservar o DOM e evitar Cumulative Layout Shift (CLS).
+// Caso contrário (modo SPA cliente tradicional), utilizamos createRoot.
+if (rootElement && rootElement.hasChildNodes()) {
+  ReactDOM.hydrateRoot(rootElement, appContent);
+} else if (rootElement) {
+  ReactDOM.createRoot(rootElement).render(appContent);
+}

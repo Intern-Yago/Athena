@@ -21,18 +21,26 @@ if (!connectionString) {
 }
 
 // -----------------------------------------------------------------------------
-// TRAVA DE SEGURANÇA 1: Validação de Host da URL
+// TRAVA DE SEGURANÇA 1: Allowlist Exata de Host de Testes
 // -----------------------------------------------------------------------------
-const isAllowedTestHost = connectionString.includes('gbbenlovgpuvahqvuvzf') || 
-                          connectionString.includes('localhost') || 
-                          connectionString.includes('127.0.0.1') || 
-                          connectionString.includes('_test');
+const ALLOWED_TEST_HOST = 'db.gbbenlovgpuvahqvuvzf.supabase.co';
+let connectionHost = '';
+try {
+  const parsed = new URL(connectionString.startsWith('postgres') ? connectionString : `postgresql://${connectionString}`);
+  connectionHost = parsed.hostname;
+} catch (e) {
+  connectionHost = (connectionString.split('@')[1] || '').split(':')[0].split('/')[0];
+}
 
-if (!isAllowedTestHost) {
+const isAllowedHost = connectionHost === ALLOWED_TEST_HOST || 
+                      connectionHost === 'localhost' || 
+                      connectionHost === '127.0.0.1';
+
+if (!isAllowedHost) {
   console.error("================================================================================");
-  console.error("BLOQUEIO DE SEGURANÇA: A DATABASE_URL não corresponde ao projeto de teste aprovado!");
-  console.error("Host recebido:", connectionString.split('@')[1] || 'desconhecido');
-  console.error("Abortando imediatamente para proteger bancos que não sejam de teste.");
+  console.error("BLOQUEIO DE SEGURANÇA: Host de conexão não autorizado:", connectionHost);
+  console.error("A allowlist autoriza estritamente o host de teste homologado:", ALLOWED_TEST_HOST);
+  console.error("Abortando imediatamente para proteger bancos não descartáveis.");
   console.error("================================================================================");
   process.exit(1);
 }

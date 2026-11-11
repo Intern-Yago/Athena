@@ -1026,6 +1026,17 @@ const crmRoutes = require('./crm/crmRoutes');
 app.use('/api/crm', crmRoutes);
 
 // -------------------------------------------------------------
+// ATHENA BLOG MODULE (MÓDULO DE CONTEÚDO, SEO & COMENTÁRIOS)
+// -------------------------------------------------------------
+const blogRoutes = require('./routes/blogRoutes');
+app.use('/api/blog', (req, res, next) => {
+  if (req.path.startsWith('/admin')) {
+    return authenticateToken(req, res, next);
+  }
+  next();
+}, blogRoutes);
+
+// -------------------------------------------------------------
 // POSTGRESQL POOL SETUP & USERS TABLE (IPV4 COMPLIANT POOLER)
 // -------------------------------------------------------------
 const dbConnectionString = process.env.DATABASE_URL;

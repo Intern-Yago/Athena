@@ -163,6 +163,8 @@
       ],
       "destination": "https://athena-backend-hu1m.onrender.com/api/share/product/:slug*"
     },
+    { "source": "/sitemap-blog.xml", "destination": "/api/blog-og?sitemap=true" },
+    { "source": "/blog/:slug", "destination": "/api/blog-og?slug=:slug" },
     { "source": "/api/:match*", "destination": "https://athena-backend-hu1m.onrender.com/api/:match*" },
     { "source": "/facebook-catalog.xml", "destination": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/facebook-catalog.xml" },
     { "source": "/facebook-catalog.csv", "destination": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/facebook-catalog.csv" },
