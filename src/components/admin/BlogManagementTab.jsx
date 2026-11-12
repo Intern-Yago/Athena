@@ -248,6 +248,17 @@ export default function BlogManagementTab({
       });
 
       if (res.ok) {
+        // Limpa cache público local para refletir a edição imediatamente no navegador do admin
+        try {
+          localStorage.removeItem('athena_blog_posts_cache_v1');
+          if (payload.slug) {
+            localStorage.removeItem(`athena_blog_post_full_${payload.slug}`);
+          }
+          if (editingPost?.slug) {
+            localStorage.removeItem(`athena_blog_post_full_${editingPost.slug}`);
+          }
+        } catch {}
+
         if (showNotification) {
           showNotification(
             editingPost

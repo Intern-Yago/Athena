@@ -89,8 +89,40 @@ function getPostCover(post) {
 }
 
 export default function BlogListingPage({ onNavigate }) {
-  const [posts, setPosts] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [posts, setPosts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('athena_blog_posts_cache_v1');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {
+        // Ignora erro de parse
+      }
+    }
+    return FALLBACK_POSTS;
+  });
+
+  const [categories, setCategories] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('athena_blog_cats_cache_v1');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {
+        // Ignora erro de parse
+      }
+    }
+    return [
+      { id: 'cat_diag', name: 'Diagnóstico & IA', slug: 'diagnostico-ia' },
+      { id: 'cat_adas', name: 'Sistemas ADAS', slug: 'sistemas-adas' },
+      { id: 'cat_elev', name: 'Elevadores & Oficinas', slug: 'elevadores-oficinas' },
+      { id: 'cat_gest', name: 'Gestão de Auto Centers', slug: 'gestao-auto-centers' }
+    ];
+  });
   
   // Persistência de categoria selecionada via URL search param e sessionStorage
   const [selectedCategory, setSelectedCategory] = useState(() => {
@@ -120,7 +152,8 @@ export default function BlogListingPage({ onNavigate }) {
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
+  // Inicia com false porque já temos os artigos pré-carregados (Stale-While-Revalidate instantâneo)
+  const [isLoading, setIsLoading] = useState(false);
 
   // Manipulador com persistência de categoria
   const handleSelectCategory = (catSlug) => {
@@ -164,7 +197,7 @@ export default function BlogListingPage({ onNavigate }) {
     }
   };
 
-  // Carrega categorias disponíveis
+  // Carrega categorias disponíveis em segundo plano (Stale-While-Revalidate)
   useEffect(() => {
     let isMounted = true;
     async function loadCategories() {
@@ -174,29 +207,27 @@ export default function BlogListingPage({ onNavigate }) {
           const data = await res.json();
           if (isMounted && Array.isArray(data) && data.length > 0) {
             setCategories(data);
+            try {
+              localStorage.setItem('athena_blog_cats_cache_v1', JSON.stringify(data));
+            } catch {}
           }
         }
       } catch (err) {
-        // Fallback para categorias padrão
-        if (isMounted) {
-          setCategories([
-            { id: 'cat_diag', name: 'Diagnóstico & IA', slug: 'diagnostico-ia' },
-            { id: 'cat_adas', name: 'Sistemas ADAS', slug: 'sistemas-adas' },
-            { id: 'cat_elev', name: 'Elevadores & Oficinas', slug: 'elevadores-oficinas' },
-            { id: 'cat_gest', name: 'Gestão de Auto Centers', slug: 'gestao-auto-centers' }
-          ]);
-        }
+        // Mantém categorias já exibidas
       }
     }
     loadCategories();
     return () => { isMounted = false; };
   }, []);
 
-  // Carrega posts com paginação e filtro de categoria
+  // Carrega posts com paginação e filtro de categoria em segundo plano sem bloquear a tela
   useEffect(() => {
     let isMounted = true;
     async function loadPosts() {
-      setIsLoading(true);
+      // Só mostra spinner se não houver nenhum post na lista atual
+      if (!posts || posts.length === 0) {
+        setIsLoading(true);
+      }
       try {
         const catParam = selectedCategory !== 'all' ? `&category=${encodeURIComponent(selectedCategory)}` : '';
         const res = await fetch(`/api/blog/posts?page=${page}&limit=9${catParam}`);
@@ -207,6 +238,12 @@ export default function BlogListingPage({ onNavigate }) {
             const total = data.total || data.posts.length;
             setTotalPages(Math.max(1, Math.ceil(total / 9)));
             setIsLoading(false);
+
+            if (page === 1 && selectedCategory === 'all') {
+              try {
+                localStorage.setItem('athena_blog_posts_cache_v1', JSON.stringify(data.posts));
+              } catch {}
+            }
             return;
           }
         }
@@ -214,13 +251,21 @@ export default function BlogListingPage({ onNavigate }) {
         // Fallback controlado
       }
 
-      // Aplica fallback se a API não retornou artigos
+      // Aplica filtro local se a API ainda estiver em cold start
       if (isMounted) {
-        let filtered = FALLBACK_POSTS;
+        let baseList = FALLBACK_POSTS;
+        try {
+          const cached = localStorage.getItem('athena_blog_posts_cache_v1');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) baseList = parsed;
+          }
+        } catch {}
+
         if (selectedCategory !== 'all') {
-          filtered = filtered.filter(p => p.categories?.some(c => c.slug === selectedCategory));
+          baseList = baseList.filter(p => p.categories?.some(c => c.slug === selectedCategory));
         }
-        setPosts(filtered);
+        setPosts(baseList);
         setTotalPages(1);
         setIsLoading(false);
       }
@@ -269,6 +314,14 @@ export default function BlogListingPage({ onNavigate }) {
 
   const handlePostClick = (slug) => {
     if (!slug) return;
+    // Pré-salva o resumo do artigo clicado para abertura em 0ms na página do post
+    try {
+      const targetPost = (posts || []).find(p => p.slug === slug);
+      if (targetPost) {
+        sessionStorage.setItem(`athena_blog_post_preview_${slug}`, JSON.stringify(targetPost));
+      }
+    } catch {}
+
     if (onNavigate) {
       onNavigate(`blog/${slug}`);
     } else {

@@ -134,11 +134,70 @@ function getPostCover(post) {
   return `https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/${img.replace(/^\//, '')}`;
 }
 
+// Helper síncrono para obter o artigo imediatamente em 0ms (Preloaded SSR, Cache Local ou Fallback)
+function getInitialPostForSlug(slug) {
+  if (!slug) return null;
+  if (typeof window !== 'undefined') {
+    try {
+      // 1. Verifica payload injetado pelo Edge/SSR (api/blog-og.js)
+      if (window.__ATHENA_PRELOADED_POST__ && window.__ATHENA_PRELOADED_POST__.slug === slug) {
+        return window.__ATHENA_PRELOADED_POST__;
+      }
+      // 2. Verifica cache completo do artigo no localStorage
+      const fullCached = localStorage.getItem(`athena_blog_post_full_${slug}`);
+      if (fullCached) {
+        const parsed = JSON.parse(fullCached);
+        if (parsed && parsed.slug === slug) return parsed;
+      }
+      // 3. Verifica preview clicado na listagem + mescla com detalhes locais se existir
+      const previewCached = sessionStorage.getItem(`athena_blog_post_preview_${slug}`);
+      if (previewCached) {
+        const parsedPreview = JSON.parse(previewCached);
+        if (FALLBACK_POST_DETAILS[slug]) {
+          return { ...FALLBACK_POST_DETAILS[slug], ...parsedPreview };
+        }
+        if (parsedPreview?.content || parsedPreview?.content_html) {
+          return parsedPreview;
+        }
+      }
+    } catch {
+      // Ignora erro de storage
+    }
+  }
+  // 4. Fallback instantâneo se for um dos artigos técnicos padrão
+  if (FALLBACK_POST_DETAILS[slug]) {
+    return FALLBACK_POST_DETAILS[slug];
+  }
+  return null;
+}
+
 export default function BlogPostPage({ slug, onNavigate }) {
-  const [post, setPost] = useState(null);
-  const [allPosts, setAllPosts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [post, setPost] = useState(() => getInitialPostForSlug(slug));
+  const [allPosts, setAllPosts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('athena_blog_posts_cache_v1');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return Object.values(FALLBACK_POST_DETAILS);
+  });
+  const [categories, setCategories] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('athena_blog_cats_cache_v1');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState(() => !getInitialPostForSlug(slug));
   const [error, setError] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -186,12 +245,15 @@ export default function BlogPostPage({ slug, onNavigate }) {
     return () => { isMounted = false; };
   }, []);
 
-  // Carrega dados do post por slug (somente quando slug mudar, sem recarregamento desnecessário)
+  // Carrega dados do post por slug com exibição instantânea do cache/fallback e atualização silenciosa (SWR)
   useEffect(() => {
     let isMounted = true;
     async function loadPost() {
-      // Se já temos o post atual carregado na memória, não limpa a tela para evitar flash
-      if (!post || post.slug !== slug) {
+      const immediatePost = getInitialPostForSlug(slug);
+      if (immediatePost) {
+        setPost(immediatePost);
+        setIsLoading(false);
+      } else if (!post || post.slug !== slug) {
         setIsLoading(true);
       }
       setError(null);
@@ -220,6 +282,10 @@ export default function BlogPostPage({ slug, onNavigate }) {
             }
             setIsLoading(false);
 
+            try {
+              localStorage.setItem(`athena_blog_post_full_${slug}`, JSON.stringify(articleData));
+            } catch {}
+
             // Incremento atômico de visualização silencioso
             if (articleData?.id) {
               fetch(`/api/blog/posts/${articleData.id}/view`, { method: 'POST' }).catch(() => {});
@@ -233,7 +299,8 @@ export default function BlogPostPage({ slug, onNavigate }) {
 
       // Fallback local se não encontrado na API
       if (isMounted) {
-        const fallback = FALLBACK_POST_DETAILS[slug] || 
+        const fallback = immediatePost ||
+          FALLBACK_POST_DETAILS[slug] || 
           FALLBACK_POST_DETAILS['scanner-topologia-de-rede-ia-eaata-90-oficina'] || 
           FALLBACK_POST_DETAILS['guia-definitivo-thinkcar-thinktool-lite-diagnostico-ia'];
         

@@ -64,6 +64,7 @@ router.get('/posts', async (req, res) => {
     const categorySlug = req.query.category || null;
 
     const data = await blogService.getPublicPosts({ page, limit, categorySlug });
+    res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=120, stale-while-revalidate=3600');
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao carregar artigos do blog.', details: err.message });
@@ -81,6 +82,7 @@ router.get('/posts/:slug', async (req, res) => {
     }
 
     if (result.redirect === 301) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
       return res.status(301).json({
         redirect: true,
         targetSlug: result.targetSlug,
@@ -88,6 +90,7 @@ router.get('/posts/:slug', async (req, res) => {
       });
     }
 
+    res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=120, stale-while-revalidate=3600');
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao consultar artigo.', details: err.message });
@@ -125,6 +128,7 @@ router.get('/posts/:slug/seo', async (req, res) => {
 router.get('/categories', async (req, res) => {
   try {
     const categories = await blogService.listCategories();
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=3600');
     res.json(categories);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao listar categorias.', details: err.message });

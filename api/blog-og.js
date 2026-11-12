@@ -231,6 +231,7 @@ module.exports = async function handler(req, res) {
 
     <!-- Schema.org JSON-LD (com escape seguro de <) -->
     <script type="application/ld+json">${safeJsonLdString}</script>
+    <script>window.__ATHENA_PRELOADED_POST__ = ${safeJsonLd(post)};</script>
     `;
 
     // Injeção no HTML do Vite
