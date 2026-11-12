@@ -411,7 +411,7 @@ export default function App() {
 
   // Resolve category/brand slugs from initial URL to internal IDs when catalog metadata loads
   useEffect(() => {
-    if (categories.length > 0 && selectedCategories.length > 0) {
+    if (Array.isArray(categories) && categories.length > 0 && Array.isArray(selectedCategories) && selectedCategories.length > 0) {
       const resolved = selectedCategories.map((item) => {
         const found = categories.find((c) => c.slug === item || c.id === item);
         return found ? found.id : item;
@@ -424,7 +424,7 @@ export default function App() {
   }, [categories]);
 
   useEffect(() => {
-    if (brands.length > 0 && selectedBrands.length > 0) {
+    if (Array.isArray(brands) && brands.length > 0 && Array.isArray(selectedBrands) && selectedBrands.length > 0) {
       const resolved = selectedBrands.map((item) => {
         const found = brands.find((b) => b.slug === item || b.id === item);
         return found ? found.id : item;
@@ -445,10 +445,10 @@ export default function App() {
       const isCatalog = !route || route === 'catalog' || route === 'catalogo' || route === 'inicio' || route === 'home';
       if (isCatalog) {
         const filters = getInitialFiltersFromUrl();
-        setSearchTerm(filters.search);
-        if (filters.categories.length > 0) setSelectedCategories(filters.categories);
-        if (filters.brands.length > 0) setSelectedBrands(filters.brands);
-        setMaxPriceFilter(filters.maxPrice);
+        setSearchTerm(filters?.search || '');
+        if (Array.isArray(filters?.categories) && filters.categories.length > 0) setSelectedCategories(filters.categories);
+        if (Array.isArray(filters?.brands) && filters.brands.length > 0) setSelectedBrands(filters.brands);
+        setMaxPriceFilter(filters?.maxPrice ?? null);
       }
       setCurrentRoute((prev) => {
         setPreviousRoute(prev);
@@ -486,9 +486,9 @@ export default function App() {
         }
 
         // 2. Categories (convert IDs to friendly slugs if available)
-        if (selectedCategories.length > 0) {
+        if (Array.isArray(selectedCategories) && selectedCategories.length > 0) {
           const catSlugs = selectedCategories.map((catId) => {
-            const found = categories.find((c) => c.id === catId);
+            const found = (categories || []).find((c) => c.id === catId);
             return found?.slug || catId;
           });
           params.set('categoria', catSlugs.join(','));
@@ -499,9 +499,9 @@ export default function App() {
         }
 
         // 3. Brands (convert IDs to friendly slugs if available)
-        if (selectedBrands.length > 0) {
+        if (Array.isArray(selectedBrands) && selectedBrands.length > 0) {
           const brandSlugs = selectedBrands.map((bId) => {
-            const found = brands.find((b) => b.id === bId);
+            const found = (brands || []).find((b) => b.id === bId);
             return found?.slug || bId;
           });
           params.set('marca', brandSlugs.join(','));
@@ -660,17 +660,24 @@ export default function App() {
         if (Array.isArray(idbProds) && idbProds.length > 0) {
           const normProds = idbProds.map(normalizeProduct);
           setProducts((prev) => {
-            if (prev.length === 0 || prev.length <= INITIAL_PRODUCTS.length) {
+            const safePrev = Array.isArray(prev) ? prev : [];
+            if (safePrev.length === 0 || safePrev.length <= (INITIAL_PRODUCTS || []).length) {
               return normProds;
             }
             return prev;
           });
         }
         if (Array.isArray(idbCats) && idbCats.length > 0) {
-          setCategories((prev) => (prev.length <= INITIAL_CATEGORIES.length ? idbCats : prev));
+          setCategories((prev) => {
+            const safePrev = Array.isArray(prev) ? prev : [];
+            return safePrev.length <= (INITIAL_CATEGORIES || []).length ? idbCats : prev;
+          });
         }
         if (Array.isArray(idbBrands) && idbBrands.length > 0) {
-          setBrands((prev) => (prev.length <= INITIAL_BRANDS.length ? idbBrands.map(normalizeBrand) : prev));
+          setBrands((prev) => {
+            const safePrev = Array.isArray(prev) ? prev : [];
+            return safePrev.length <= (INITIAL_BRANDS || []).length ? idbBrands.map(normalizeBrand) : prev;
+          });
         }
       } catch (e) {
         console.warn('[Athena Storage] Erro ao sincronizar IndexedDB:', e);
@@ -857,8 +864,9 @@ export default function App() {
 
             if (isMounted) {
               setProducts((prev) => {
+                const safePrev = Array.isArray(prev) ? prev : [];
                 if (normProds.length === 0) {
-                  return prev.length > 0 ? prev : INITIAL_PRODUCTS;
+                  return safePrev.length > 0 ? safePrev : INITIAL_PRODUCTS;
                 }
 
                 // Backend products are the authoritative source of truth
@@ -1524,10 +1532,11 @@ export default function App() {
           onProductLoaded={(loadedProd) => {
             if (!loadedProd || !loadedProd.id) return;
             setProducts((prev) => {
-              if (prev.some((p) => p.id === loadedProd.id || (p.slug && p.slug === loadedProd.slug))) {
-                return prev;
+              const safePrev = Array.isArray(prev) ? prev : [];
+              if (safePrev.some((p) => p.id === loadedProd.id || (p.slug && p.slug === loadedProd.slug))) {
+                return safePrev;
               }
-              return [...prev, loadedProd];
+              return [...safePrev, loadedProd];
             });
           }}
         />
@@ -1863,13 +1872,13 @@ export default function App() {
             onNavigate={navigateTo}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
-            productsCount={publicProducts.length}
-            categoriesCount={categories.length}
-            brandsCount={brands.length}
-            categories={categories}
-            brands={brands}
-            departments={departments}
-            products={publicProducts}
+            productsCount={(publicProducts || []).length}
+            categoriesCount={(categories || []).length}
+            brandsCount={(brands || []).length}
+            categories={categories || []}
+            brands={brands || []}
+            departments={departments || []}
+            products={publicProducts || []}
             currentUser={currentUser}
             onLogout={handleLogout}
             activeAdminTab={activeAdminTab}

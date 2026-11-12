@@ -900,7 +900,9 @@ export const getSearchSuggestions = (products, rawTerm, categories = [], brands 
   // Ordena por tier (título primeiro) e depois por tamanho do título
   matched.sort((a, b) => {
     if (a.tier !== b.tier) return a.tier - b.tier;
-    return a.product.name.length - b.product.name.length;
+    const aLen = (a?.product?.name || '').length;
+    const bLen = (b?.product?.name || '').length;
+    return aLen - bLen;
   });
 
   return {

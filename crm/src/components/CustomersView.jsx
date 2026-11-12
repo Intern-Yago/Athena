@@ -103,6 +103,66 @@ export default function CustomersView() {
   const [selectedStage, setSelectedStage] = useState('all');
   const [sortBy, setSortBy] = useState('name_asc');
 
+  // Filtros Avançados por Equipamento & Modelo
+  const [catalogOptions, setCatalogOptions] = useState([
+    { category: 'Elevador', models: [] },
+    { category: 'Scanner automotivo', models: [] },
+    { category: 'Alinhamento', models: [] },
+    { category: 'ATF (troca de fluido)', models: [] },
+    { category: 'Recuperadora de gás', models: [] },
+    { category: 'Troca de líquido de arrefecimento', models: [] }
+  ]);
+  const [equipmentFilters, setEquipmentFilters] = useState(() => {
+    try {
+      const saved = initialParams.get('eqFilters');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (_) {}
+    return [];
+  });
+  const [showEquipFilterBar, setShowEquipFilterBar] = useState(false);
+  const [filterEquipType, setFilterEquipType] = useState('Elevador');
+  const [filterEquipModel, setFilterEquipModel] = useState('');
+
+  // Carrega opções de equipamentos do backend para autocompletar no filtro
+  useEffect(() => {
+    let isMounted = true;
+    crmApiFetch('/crm/customer-equipment-options')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (isMounted && data && Array.isArray(data.data) && data.data.length > 0) {
+          setCatalogOptions(data.data);
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
+  // Modelos disponíveis para o tipo de equipamento atualmente selecionado
+  const selectedCatModels = useMemo(() => {
+    const found = catalogOptions.find(
+      c => c.category.toLowerCase() === filterEquipType.toLowerCase()
+    );
+    return Array.isArray(found?.models) ? found.models : [];
+  }, [catalogOptions, filterEquipType]);
+
+  const handleAddEquipmentFilter = () => {
+    if (!filterEquipType && !filterEquipModel) return;
+    const newFilter = {
+      id: `ef_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      type: filterEquipType.trim(),
+      model: filterEquipModel.trim()
+    };
+    setEquipmentFilters(prev => [...prev, newFilter]);
+    setFilterEquipModel('');
+  };
+
+  const handleRemoveEquipmentFilter = (filterId) => {
+    setEquipmentFilters(prev => prev.filter(f => f.id !== filterId));
+  };
+
   // Paginação no Banco de Dados (PostgreSQL LIMIT/OFFSET)
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(48);
@@ -125,7 +185,7 @@ export default function CustomersView() {
       return;
     }
     setCurrentPage(1);
-  }, [selectedCategory, selectedStage, debouncedSearch, sortBy, pageSize]);
+  }, [selectedCategory, selectedStage, debouncedSearch, sortBy, pageSize, equipmentFilters]);
 
   // Modal de Detalhes (Ficha Completa)
   const [activeCustomer, setActiveCustomer] = useState(null);
@@ -174,10 +234,17 @@ export default function CustomersView() {
         url.searchParams.delete('search');
       }
 
+      // Sincroniza Filtros de Equipamentos
+      if (equipmentFilters.length > 0) {
+        url.searchParams.set('eqFilters', JSON.stringify(equipmentFilters));
+      } else {
+        url.searchParams.delete('eqFilters');
+      }
+
       const nextUrl = url.pathname + (url.search ? url.search : '');
       window.history.replaceState({}, '', nextUrl);
     } catch (_) {}
-  }, [activeCustomer, currentPage, debouncedSearch]);
+  }, [activeCustomer, currentPage, debouncedSearch, equipmentFilters]);
 
   // Modal de Cadastro Rápido de Novo Cliente
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -217,6 +284,7 @@ export default function CustomersView() {
       if (selectedCategory !== 'all') params.append('category', selectedCategory);
       if (selectedStage !== 'all') params.append('stage', selectedStage);
       if (sortBy) params.append('sortBy', sortBy);
+      if (equipmentFilters.length > 0) params.append('equipmentFilters', JSON.stringify(equipmentFilters));
 
       const res = await crmApiFetch(`/crm/customers?${params.toString()}`);
       if (!res.ok) {
@@ -236,7 +304,7 @@ export default function CustomersView() {
 
   useEffect(() => {
     loadCustomers();
-  }, [selectedCategory, selectedStage, debouncedSearch, sortBy, currentPage, pageSize]);
+  }, [selectedCategory, selectedStage, debouncedSearch, sortBy, currentPage, pageSize, equipmentFilters]);
 
   // Filtragem responsiva instantânea em memória e ordenação flexível
   const filteredCustomers = useMemo(() => {
@@ -271,6 +339,36 @@ export default function CustomersView() {
           return false;
         }
       }
+
+      // Filtros por Equipamentos & Modelos (Interseção AND: cliente deve possuir todos os critérios configurados)
+      if (equipmentFilters.length > 0) {
+        const cEquips = Array.isArray(c.equipments) ? c.equipments : [];
+        const matchesAllEquipFilters = equipmentFilters.every(ef => {
+          const targetType = normalizeSearchText(ef.type || '');
+          const targetModel = normalizeSearchText(ef.model || '');
+          if (!targetType && !targetModel) return true;
+
+          return cEquips.some(eq => {
+            if (typeof eq === 'string') {
+              const norm = normalizeSearchText(eq);
+              const mType = !targetType || norm.includes(targetType);
+              const mModel = !targetModel || norm.includes(targetModel);
+              return mType && mModel;
+            }
+            if (typeof eq === 'object' && eq !== null) {
+              const eqType = normalizeSearchText(eq.type || '');
+              const eqModel = normalizeSearchText(eq.model || '');
+              const mType = !targetType || eqType.includes(targetType);
+              const mModel = !targetModel || eqModel.includes(targetModel);
+              return mType && mModel;
+            }
+            return false;
+          });
+        });
+
+        if (!matchesAllEquipFilters) return false;
+      }
+
       return true;
     });
 
@@ -296,7 +394,7 @@ export default function CustomersView() {
       const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
       return dateB - dateA;
     });
-  }, [customers, search, selectedCategory, selectedStage, sortBy]);
+  }, [customers, search, selectedCategory, selectedStage, sortBy, equipmentFilters]);
 
   // Abrir detalhes completos com busca de filiais e histórico
   const handleOpenDetails = async (cust) => {
@@ -561,7 +659,29 @@ export default function CustomersView() {
             </select>
           </div>
 
-          {(search || selectedCategory !== 'all' || selectedStage !== 'all' || sortBy !== 'name_asc') && (
+          {/* Botão de Filtro por Equipamento */}
+          <button
+            type="button"
+            onClick={() => setShowEquipFilterBar(!showEquipFilterBar)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
+              equipmentFilters.length > 0 || showEquipFilterBar
+                ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs font-black'
+                : isDark 
+                  ? 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700' 
+                  : 'bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 hover:border-slate-400'
+            }`}
+            title="Filtrar clientes por máquinas instaladas e modelos específicos"
+          >
+            <Wrench className="w-3.5 h-3.5" />
+            <span>Equipamentos</span>
+            {equipmentFilters.length > 0 && (
+              <span className="w-4 h-4 rounded-full bg-slate-950 text-amber-400 text-[10px] font-black flex items-center justify-center">
+                {equipmentFilters.length}
+              </span>
+            )}
+          </button>
+
+          {(search || selectedCategory !== 'all' || selectedStage !== 'all' || sortBy !== 'name_asc' || equipmentFilters.length > 0) && (
             <button
               type="button"
               onClick={() => {
@@ -569,6 +689,7 @@ export default function CustomersView() {
                 setSelectedCategory('all');
                 setSelectedStage('all');
                 setSortBy('name_asc');
+                setEquipmentFilters([]);
               }}
               className="text-[11px] font-bold text-amber-500 hover:underline px-2 py-1 cursor-pointer shrink-0"
             >
@@ -577,6 +698,122 @@ export default function CustomersView() {
           )}
         </div>
       </div>
+
+      {/* Barra Expansível de Filtro por Equipamento & Modelo */}
+      {(showEquipFilterBar || equipmentFilters.length > 0) && (
+        <div className={`px-4 sm:px-6 py-3 border-b flex flex-col gap-2.5 transition animate-in fade-in shrink-0 ${
+          isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-100/70 border-slate-200'
+        }`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
+                <Wrench className="w-3.5 h-3.5" />
+                Filtrar por Máquinas & Modelos
+              </span>
+              <span className="text-[11px] text-slate-400 hidden sm:inline">
+                (Combine múltiplos equipamentos: ex: Elevador geral + Scanner eaata90)
+              </span>
+            </div>
+
+            {equipmentFilters.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setEquipmentFilters([])}
+                className="text-[11px] font-bold text-rose-400 hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                <span>Limpar Critérios de Equipamento</span>
+              </button>
+            )}
+          </div>
+
+          {/* Form para adicionar critério de filtro */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5">
+              <label className="text-[11px] font-bold text-slate-400">Tipo:</label>
+              <select
+                value={filterEquipType}
+                onChange={(e) => {
+                  setFilterEquipType(e.target.value);
+                  setFilterEquipModel('');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition outline-none cursor-pointer ${
+                  isDark ? 'bg-slate-950 border-slate-800 text-white focus:border-amber-500' : 'bg-white border-slate-300 text-slate-900 focus:border-amber-500'
+                }`}
+              >
+                {catalogOptions.map(cat => (
+                  <option key={cat.id || cat.category} value={cat.category}>{cat.category}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-1 min-w-[200px] max-w-sm">
+              <label className="text-[11px] font-bold text-slate-400">Modelo:</label>
+              <input
+                type="text"
+                list="crm-equip-models-datalist"
+                value={filterEquipModel}
+                onChange={(e) => setFilterEquipModel(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddEquipmentFilter(); } }}
+                placeholder="Ex: eaata90, 4T... (deixe em branco para qualquer modelo)"
+                className={`w-full px-3 py-1.5 rounded-xl text-xs border transition outline-none ${
+                  isDark 
+                    ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-amber-500' 
+                    : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-500'
+                }`}
+              />
+              <datalist id="crm-equip-models-datalist">
+                {selectedCatModels.map((m, idx) => (
+                  <option key={idx} value={m} />
+                ))}
+              </datalist>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAddEquipmentFilter}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Adicionar Critério</span>
+            </button>
+          </div>
+
+          {/* Tags dos Filtros Ativos */}
+          {equipmentFilters.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap pt-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ativos:</span>
+              {equipmentFilters.map((ef) => (
+                <span
+                  key={ef.id}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border ${
+                    isDark ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-amber-50 text-amber-900 border-amber-300'
+                  }`}
+                >
+                  <Wrench className="w-3 h-3 text-amber-500" />
+                  <span>{ef.type}</span>
+                  {ef.model ? (
+                    <span className="font-mono text-[11px] opacity-90">• Modelo: <strong>"{ef.model}"</strong></span>
+                  ) : (
+                    <span className="text-[10px] opacity-75">(Geral / Qualquer modelo)</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveEquipmentFilter(ef.id)}
+                    className="hover:text-rose-400 p-0.5 rounded cursor-pointer transition"
+                    title="Remover filtro"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <span className="text-[11px] text-slate-400 ml-1">
+                • {filteredCustomers.length} {filteredCustomers.length === 1 ? 'cliente compatível' : 'clientes compatíveis'}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Conteúdo Principal: GRADE DE CARDS OU TABELA */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
@@ -778,13 +1015,22 @@ export default function CustomersView() {
                     {equipments.length > 0 && (
                       <div className="mt-3 flex items-center gap-1.5 flex-wrap">
                         <Wrench className="w-3 h-3 text-amber-500 shrink-0" />
-                        {equipments.slice(0, 2).map((eq, idx) => (
-                          <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 truncate max-w-[140px]">
-                            {eq}
-                          </span>
-                        ))}
-                        {equipments.length > 2 && (
-                          <span className="text-[10px] text-slate-500">+{equipments.length - 2}</span>
+                        {equipments.slice(0, 3).map((eq, idx) => {
+                          const eqLabel = typeof eq === 'string'
+                            ? eq
+                            : (eq.model ? `${eq.type} (${eq.model})` : eq.type);
+                          return (
+                            <span 
+                              key={idx} 
+                              className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 truncate max-w-[150px]"
+                              title={eqLabel}
+                            >
+                              {eqLabel}
+                            </span>
+                          );
+                        })}
+                        {equipments.length > 3 && (
+                          <span className="text-[10px] text-slate-500 font-bold">+{equipments.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -846,6 +1092,22 @@ export default function CustomersView() {
                       <td className="p-3.5">
                         <div className="font-black text-xs text-white">{cust.name}</div>
                         <div className="text-[11px] text-amber-500 font-semibold">{cust.fantasy_name || '—'}</div>
+                        {Array.isArray(cust.equipments) && cust.equipments.length > 0 && (
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            <Wrench className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                            {cust.equipments.slice(0, 2).map((eq, idx) => {
+                              const eqLabel = typeof eq === 'string' ? eq : (eq.model ? `${eq.type} (${eq.model})` : eq.type);
+                              return (
+                                <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 truncate max-w-[130px]" title={eqLabel}>
+                                  {eqLabel}
+                                </span>
+                              );
+                            })}
+                            {cust.equipments.length > 2 && (
+                              <span className="text-[9px] text-slate-500 font-bold">+{cust.equipments.length - 2}</span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="p-3.5">
                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${

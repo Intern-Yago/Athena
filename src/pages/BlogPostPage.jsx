@@ -412,7 +412,7 @@ export default function BlogPostPage({ slug, onNavigate }) {
           )}
 
           {/* Sumário do Artigo (se houver tópicos identificados) */}
-          {tocItems.length > 0 && (
+          {(tocItems || []).length > 0 && (
             <div className="p-6 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-3">
               <span className="text-xs font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-600" />
@@ -497,13 +497,13 @@ export default function BlogPostPage({ slug, onNavigate }) {
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-amber-500" />
-                <span>Comentários Técnicos ({comments.length})</span>
+                <span>Comentários Técnicos ({(comments || []).length})</span>
               </h3>
               <span className="text-[11px] text-slate-500 font-medium">Moderação ativa</span>
             </div>
 
             {/* Lista de Comentários Aprovados */}
-            {comments.length > 0 ? (
+            {(comments || []).length > 0 ? (
               <div className="space-y-4">
                 {comments.map((c) => (
                   <div key={c.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">

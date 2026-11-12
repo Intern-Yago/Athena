@@ -408,10 +408,10 @@ export default function ProductDetailPage({
   const isAdminUser = Boolean(currentUser && (currentUser.role === 'admin' || currentUser.isAdmin));
   const canAccessDraft = isPreviewMode || isAdminUser;
 
-  const category = (product ? categories.find((c) => c.id === product.categoryId) : null) || (
+  const category = (product ? (categories || []).find((c) => c.id === product.categoryId) : null) || (
     product?.categoryName ? { id: product.categoryId, name: product.categoryName, slug: product.categorySlug } : null
   );
-  const brand = (product ? brands.find((b) => b.id === product.brandId) : null) || (
+  const brand = (product ? (brands || []).find((b) => b.id === product.brandId) : null) || (
     product?.brandName ? { id: product.brandId, name: product.brandName, slug: product.brandSlug } : null
   );
 
@@ -754,12 +754,12 @@ export default function ProductDetailPage({
   } else if (previousRoute) {
     if (previousRoute.startsWith('categoria/') || previousRoute.startsWith('category:')) {
       const catSlugOrId = previousRoute.includes('/') ? previousRoute.split('/')[1] : previousRoute.split(':')[1];
-      const prevCat = categories.find(c => c.slug === catSlugOrId || c.id === catSlugOrId);
+      const prevCat = (categories || []).find(c => c.slug === catSlugOrId || c.id === catSlugOrId);
       backTargetRoute = previousRoute;
       backButtonLabel = prevCat ? `Voltar para ${prevCat.name}` : 'Voltar para Categoria';
     } else if (previousRoute.startsWith('marca/') || previousRoute.startsWith('brand:')) {
       const brandSlugOrId = previousRoute.includes('/') ? previousRoute.split('/')[1] : previousRoute.split(':')[1];
-      const prevBrand = brands.find(b => b.slug === brandSlugOrId || b.id === brandSlugOrId);
+      const prevBrand = (brands || []).find(b => b.slug === brandSlugOrId || b.id === brandSlugOrId);
       backTargetRoute = previousRoute;
       backButtonLabel = prevBrand ? `Voltar para ${prevBrand.name}` : 'Voltar para Marca';
     }
@@ -1648,7 +1648,7 @@ export default function ProductDetailPage({
                       <FileText className={`w-3.5 h-3.5 ${activeTab === 'attachments' ? 'text-amber-400' : 'text-slate-500'}`} />
                       <span>Ficha Técnica</span>
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-md ${activeTab === 'attachments' ? 'bg-slate-800 text-amber-300' : 'bg-slate-200 text-slate-600'}`}>
-                        {product.attachments.length}
+                        {(product?.attachments || []).length}
                       </span>
                     </button>
                   )}
@@ -1750,16 +1750,16 @@ export default function ProductDetailPage({
                       </div>
                     )}
 
-                    {compatibleProductsList.length > 0 && (
+                    {(compatibleProductsList || []).length > 0 && (
                       <div className="space-y-2.5">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Equipamentos e Acessórios Vinculados ({compatibleProductsList.length}):</span>
+                          <span>Equipamentos e Acessórios Vinculados ({(compatibleProductsList || []).length}):</span>
                         </h4>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {compatibleProductsList.map((cProd) => {
-                            const cBrand = brands.find(b => b.id === cProd.brandId);
+                            const cBrand = (brands || []).find(b => b.id === cProd.brandId);
                             const isCQuoteOnly = isProductQuoteOnly(cProd);
                             const canCBuyOnline = !isCQuoteOnly && Number(cProd.price) > 0;
                             const cPrice = canCBuyOnline 
@@ -1913,7 +1913,7 @@ export default function ProductDetailPage({
         </div>
 
         {/* SMART RELATED PRODUCTS SECTION (Ultra-Compact Mini Cards) */}
-        {relatedProducts.length > 0 && (
+        {(relatedProducts || []).length > 0 && (
           <div className="pt-8 border-t border-slate-200 space-y-4">
             <div>
               <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
@@ -1929,8 +1929,8 @@ export default function ProductDetailPage({
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
               {relatedProducts.map((relProduct) => {
-                const relCat = categories.find((c) => c.id === relProduct.categoryId);
-                const relBrand = brands.find((b) => b.id === relProduct.brandId);
+                const relCat = (categories || []).find((c) => c.id === relProduct.categoryId);
+                const relBrand = (brands || []).find((b) => b.id === relProduct.brandId);
                 const isRelQuoteOnly = isProductQuoteOnly(relProduct);
                 const canRelBuyOnline = !isRelQuoteOnly && Number(relProduct.price) > 0;
                 const relPrice = canRelBuyOnline 

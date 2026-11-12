@@ -28,7 +28,7 @@ export default function CategoryPage({
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1000000));
 
-  const category = categories.find((c) => c.id === categoryId || c.slug === categoryId);
+  const category = (categories || []).find((c) => c.id === categoryId || c.slug === categoryId);
 
   // Reset to page 1 when category, search, sort or shuffle changes
   useEffect(() => {

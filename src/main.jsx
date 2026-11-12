@@ -37,10 +37,17 @@ const appContent = (
 );
 
 // Decisão Arquitetural de Hidratação (Requisito 6):
-// Se o container #root contiver nós filhos pré-renderizados pelo Edge Serverless / SSR do Blog,
-// utilizamos hydrateRoot para preservar o DOM e evitar Cumulative Layout Shift (CLS).
-// Caso contrário (modo SPA cliente tradicional), utilizamos createRoot.
-if (rootElement && rootElement.hasChildNodes()) {
+// Se o container #root contiver nós filhos pré-renderizados pelo Edge Serverless / SSR do Blog
+// (identificado pelo atributo data-ssr="true" ou window.__ATHENA_SSR__), utilizamos hydrateRoot para preservar o DOM e evitar CLS.
+// Caso contrário (modo SPA cliente tradicional com fallback SEO estático no index.html), utilizamos createRoot.
+const hasSsrContent = Boolean(
+  rootElement && (
+    rootElement.getAttribute('data-ssr') === 'true' || 
+    (typeof window !== 'undefined' && window.__ATHENA_SSR__ === true)
+  )
+);
+
+if (rootElement && hasSsrContent) {
   ReactDOM.hydrateRoot(rootElement, appContent);
 } else if (rootElement) {
   ReactDOM.createRoot(rootElement).render(appContent);

@@ -1193,10 +1193,22 @@ async function triggerOmieEquipmentBatchSync() {
 // CLIENTES DO CRM (KANBAN + LISTA + FICHA COM FILIAIS + HISTÓRICO)
 // -------------------------------------------------------------
 
-async function listCustomers({ search = '', category = '', stage = '', sortBy = 'name_asc', page = 1, limit = 50 } = {}) {
+async function listCustomers({ search = '', category = '', stage = '', sortBy = 'name_asc', page = 1, limit = 50, equipmentFilters = null } = {}) {
   const p = Math.max(1, parseInt(page, 10) || 1);
   const l = Math.min(1000, Math.max(1, parseInt(limit, 10) || 50));
   const offset = (p - 1) * l;
+
+  let parsedEqFilters = [];
+  if (equipmentFilters) {
+    if (Array.isArray(equipmentFilters)) {
+      parsedEqFilters = equipmentFilters;
+    } else if (typeof equipmentFilters === 'string') {
+      try {
+        const parsed = JSON.parse(equipmentFilters);
+        if (Array.isArray(parsed)) parsedEqFilters = parsed;
+      } catch (_) {}
+    }
+  }
 
   if (crmPool) {
     let where = 'WHERE 1=1';
@@ -1223,6 +1235,35 @@ async function listCustomers({ search = '', category = '', stage = '', sortBy = 
         OR unaccent(COALESCE(email, '')) ILIKE unaccent($${pIdx})
         OR unaccent(COALESCE(city, '')) ILIKE unaccent($${pIdx})
         OR unaccent(COALESCE(notes, '')) ILIKE unaccent($${pIdx})
+      )`;
+    }
+
+    // Filtros por Equipamentos e Modelos
+    for (const eqFilter of parsedEqFilters) {
+      const fType = (eqFilter.type || '').trim();
+      const fModel = (eqFilter.model || '').trim();
+      if (!fType && !fModel) continue;
+
+      const tParam = fType ? `%${fType}%` : '';
+      const mParam = fModel ? `%${fModel}%` : '';
+
+      params.push(tParam, mParam);
+      const pTypeIdx = params.length - 1;
+      const pModelIdx = params.length;
+
+      where += ` AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements(COALESCE(NULLIF(equipments, 'null'::jsonb), '[]'::jsonb)) elem
+        WHERE (
+          (jsonb_typeof(elem) = 'string' AND (
+            ($${pTypeIdx} = '' OR unaccent(elem::text) ILIKE unaccent($${pTypeIdx}))
+            AND ($${pModelIdx} = '' OR unaccent(elem::text) ILIKE unaccent($${pModelIdx}))
+          ))
+          OR
+          (jsonb_typeof(elem) = 'object' AND (
+            ($${pTypeIdx} = '' OR unaccent(COALESCE(elem->>'type', '')) ILIKE unaccent($${pTypeIdx}))
+            AND ($${pModelIdx} = '' OR unaccent(COALESCE(elem->>'model', '')) ILIKE unaccent($${pModelIdx}))
+          ))
+        )
       )`;
     }
 

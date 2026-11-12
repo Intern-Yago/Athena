@@ -242,11 +242,11 @@ export function ShippingCalculator({
       // Fallback em caso de erro inesperado
       try {
         const fallbackOptions = getFallbackShippingOptions(targetRawCep, payloadProducts);
-        finalOptions = fallbackOptions || [];
-        setShippingOptions(fallbackOptions);
+        finalOptions = Array.isArray(fallbackOptions) ? fallbackOptions : [];
+        setShippingOptions(finalOptions);
         setIsSimulated(true);
-        if (fallbackOptions.length > 0) {
-          setSelectedOptionId(fallbackOptions[0].id);
+        if (finalOptions.length > 0) {
+          setSelectedOptionId(finalOptions[0].id);
         }
       } catch {
         setErrorMessage('Não foi possível calcular o frete. Tente novamente mais tarde.');

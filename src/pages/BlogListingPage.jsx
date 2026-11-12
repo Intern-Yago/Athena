@@ -148,7 +148,7 @@ export default function BlogListingPage({ onNavigate }) {
 
   // Artigo em Destaque (primeiro artigo da lista se na página 1 e sem busca)
   const featuredPost = useMemo(() => {
-    if (page === 1 && !searchQuery.trim() && selectedCategory === 'all' && filteredPosts.length > 0) {
+    if (page === 1 && !searchQuery.trim() && selectedCategory === 'all' && (filteredPosts || []).length > 0) {
       return filteredPosts[0];
     }
     return null;
@@ -156,9 +156,9 @@ export default function BlogListingPage({ onNavigate }) {
 
   const regularPosts = useMemo(() => {
     if (featuredPost) {
-      return filteredPosts.slice(1);
+      return (filteredPosts || []).slice(1);
     }
-    return filteredPosts;
+    return filteredPosts || [];
   }, [filteredPosts, featuredPost]);
 
   const formatDate = (dateStr) => {
@@ -283,7 +283,7 @@ export default function BlogListingPage({ onNavigate }) {
         )}
 
         {/* Empty State */}
-        {!isLoading && filteredPosts.length === 0 && (
+        {!isLoading && (filteredPosts || []).length === 0 && (
           <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 space-y-4 max-w-lg mx-auto">
             <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
               <BookOpen className="w-6 h-6" />
@@ -373,7 +373,7 @@ export default function BlogListingPage({ onNavigate }) {
         )}
 
         {/* Grid dos Demais Artigos */}
-        {!isLoading && regularPosts.length > 0 && (
+        {!isLoading && (regularPosts || []).length > 0 && (
           <section aria-label="Lista de Artigos" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {regularPosts.map((post) => (
               <article

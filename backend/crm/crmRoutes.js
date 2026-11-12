@@ -640,8 +640,8 @@ router.get('/equipments/:id/sales', async (req, res) => {
 
 router.get('/customers', async (req, res) => {
   try {
-    const { search, category, stage, sortBy, page, limit } = req.query;
-    const result = await crmService.listCustomers({ search, category, stage, sortBy, page, limit });
+    const { search, category, stage, sortBy, page, limit, equipmentFilters } = req.query;
+    const result = await crmService.listCustomers({ search, category, stage, sortBy, page, limit, equipmentFilters });
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

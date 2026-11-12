@@ -334,7 +334,7 @@ export default function MegaMenu({ type, categories, brands, products, onNavigat
                           {dept.shortName || dept.name}
                         </p>
                         <span className="text-[10px] text-slate-500 font-medium block">
-                          {dept.categories.length} categorias • {dept.totalEquipment} equip.
+                          {(dept.categories || []).length} categorias • {dept.totalEquipment || 0} equip.
                         </span>
                       </div>
                     </div>
@@ -358,7 +358,7 @@ export default function MegaMenu({ type, categories, brands, products, onNavigat
                           {currentDept.shortName || currentDept.name}
                         </span>
                         <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                          {currentDept.categories.length} categorias
+                          {(currentDept.categories || []).length} categorias
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5 max-w-xl line-clamp-1">

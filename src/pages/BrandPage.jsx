@@ -28,7 +28,7 @@ export default function BrandPage({
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1000000));
 
-  const brand = brands.find((b) => b.id === brandId || b.slug === brandId);
+  const brand = (brands || []).find((b) => b.id === brandId || b.slug === brandId);
 
   // Reset to page 1 when brand, search, sort or shuffle changes
   useEffect(() => {

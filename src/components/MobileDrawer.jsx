@@ -486,7 +486,7 @@ export default function MobileDrawer({
                                 {dept.shortName || dept.name}
                               </span>
                               <span className="text-[10px] text-slate-500 block truncate">
-                                {dept.categories.length} categorias • {dept.totalProducts} produtos
+                                {(dept.categories || []).length} categorias • {dept.totalProducts || 0} produtos
                               </span>
                             </div>
                           </div>
@@ -630,10 +630,10 @@ export default function MobileDrawer({
                     )}
                     <div className="flex items-center gap-2 pt-1 text-[10px] font-extrabold text-amber-800">
                       <span className="bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300/80">
-                        {selectedDept.categories.length} {selectedDept.categories.length === 1 ? 'categoria' : 'categorias'}
+                        {(selectedDept.categories || []).length} {(selectedDept.categories || []).length === 1 ? 'categoria' : 'categorias'}
                       </span>
                       <span>•</span>
-                      <span>{selectedDept.totalProducts} equipamentos</span>
+                      <span>{selectedDept.totalProducts || 0} equipamentos</span>
                     </div>
                   </div>
 
@@ -643,7 +643,7 @@ export default function MobileDrawer({
                       Categorias deste Departamento
                     </div>
 
-                    {selectedDept.categories.length === 0 ? (
+                    {(selectedDept.categories || []).length === 0 ? (
                       <p className="text-xs text-slate-400 italic p-3 text-center bg-slate-50 rounded-xl">
                         Nenhuma categoria cadastrada neste departamento.
                       </p>

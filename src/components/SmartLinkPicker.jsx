@@ -523,7 +523,7 @@ export default function SmartLinkPicker({
                         </div>
                         <div>
                           <div className="font-bold text-slate-900 text-xs">Categorias</div>
-                          <div className="text-[10px] text-slate-500">{categories.length} categorias cadastradas</div>
+                          <div className="text-[10px] text-slate-500">{(categories || []).length} categorias cadastradas</div>
                         </div>
                       </button>
                       <button
@@ -553,7 +553,7 @@ export default function SmartLinkPicker({
                         </div>
                         <div>
                           <div className="font-bold text-slate-900 text-xs">Marcas & Fabricantes</div>
-                          <div className="text-[10px] text-slate-500">{brands.length} marcas parceiras</div>
+                          <div className="text-[10px] text-slate-500">{(brands || []).length} marcas parceiras</div>
                         </div>
                       </button>
                       <button
@@ -583,7 +583,7 @@ export default function SmartLinkPicker({
                         </div>
                         <div>
                           <div className="font-bold text-slate-900 text-xs">Produtos / Equipamentos</div>
-                          <div className="text-[10px] text-slate-500">{products.length} produtos no catálogo</div>
+                          <div className="text-[10px] text-slate-500">{(products || []).length} produtos no catálogo</div>
                         </div>
                       </button>
                       <button
