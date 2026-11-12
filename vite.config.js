@@ -15,8 +15,8 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('lucide-react')) return 'vendor-lucide';
-            if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
-            return 'vendor-libs';
+            if (id.includes('@tiptap') || id.includes('prosemirror')) return 'vendor-tiptap';
+            return 'vendor-react';
           }
         }
       }

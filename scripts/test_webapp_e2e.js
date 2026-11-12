@@ -97,9 +97,19 @@ async function runWebappTesting() {
     );
 
     if (filteredErrors.length > 0) {
-      console.warn('[WEBAPP TESTING] Avisos/Erros no console do navegador:', filteredErrors);
+      console.error('[WEBAPP TESTING] ERROS CRITICOS NO CONSOLE/PAGINA:', filteredErrors);
+      throw new Error(`Falha de execucao no navegador: ${filteredErrors.join(' | ')}`);
     } else {
       console.log('[WEBAPP TESTING] Zero erros criticos no console do navegador.');
+    }
+
+    // 7. Testar carregamento da página /blog e artigo individual sem erros de bundle
+    console.log('[WEBAPP TESTING] Testando rota /blog...');
+    await page.goto('http://localhost:5173/blog', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForSelector('aside[aria-label="Barra Lateral do Blog"]', { timeout: 15000 });
+
+    if (consoleErrors.some(err => err.includes('TypeError') || err.includes('ReferenceError'))) {
+      throw new Error(`Erro de runtime detectado no Blog: ${consoleErrors.join(' | ')}`);
     }
 
     console.log('[WEBAPP TESTING] Bateria de testes E2E do Anthropic Webapp-Testing concluida com SUCESSO!');

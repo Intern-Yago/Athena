@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "test": "node --test --test-concurrency=1 tests/unit/*.test.js",
     "test:coverage": "node --test --test-concurrency=1 --experimental-test-coverage tests/unit/*.test.js",
-    "test:e2e": "python3 scripts/with_server.py --server \"npx vite --port 5173\" --port 5173 -- node scripts/test_webapp_e2e.js",
+    "test:e2e": "python3 scripts/with_server.py --server \"npx vite preview --port 5173 --host 127.0.0.1\" --port 5173 -- node scripts/test_webapp_e2e.js",
     "sync:workshops": "python3 backend/scripts/sync_workshops_from_omie_ploomes.py"
   },
   "dependencies": {
