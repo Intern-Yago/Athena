@@ -583,38 +583,6 @@ export default function BlogPostPage({ slug, onNavigate }) {
                 )}
               </div>
 
-              {/* Cross-Sell Inteligente com Equipamentos do Catálogo Athena */}
-              <div className="bg-gradient-to-r from-slate-900 to-slate-950 rounded-3xl p-6 sm:p-8 text-white border border-amber-500/30 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="space-y-2 text-center md:text-left">
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 px-2.5 py-0.5 rounded-full">
-                    Equipamento em Destaque
-                  </span>
-                  <h3 className="text-lg sm:text-xl font-black text-white">
-                    {post.related_product_name || 'Scanner com IA e Diagnóstico Avançado'}
-                  </h3>
-                  <p className="text-xs text-slate-300 max-w-lg leading-relaxed">
-                    Garanta o equipamento mencionado neste artigo com garantia oficial de fábrica, treinamento operacional e condições exclusivas de parcelamento.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const target = post.related_product_slug || 'scanner-automotivo-eaata-90-com-diagnostico-por-topologia-e-ia-eaata';
-                    if (onNavigate) {
-                      onNavigate(`produto/${target}`);
-                    } else {
-                      window.location.href = `/produto/${target}`;
-                    }
-                  }}
-                  className="shrink-0 btn-gold text-xs font-bold py-3 px-6 inline-flex items-center gap-2 cursor-pointer shadow-lg"
-                >
-                  <Package className="w-4 h-4" />
-                  <span>Ver Condições Especiais</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
               {/* Seção de Artigos Recomendados (Cards no final da página) */}
               {recommendedArticles.length > 0 && (
                 <section aria-label="Artigos Recomendados" className="space-y-4 pt-4">

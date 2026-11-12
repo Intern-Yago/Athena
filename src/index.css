@@ -475,3 +475,80 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 1rem;
   margin: 1.5rem auto;
 }
+
+/* Blocos Customizados WordPress / Gutenberg do Blog Athena */
+.tiptap-editor-canvas div.athena-blog-product-block,
+.blog-article-content div.athena-blog-product-block {
+  background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+  color: #f8fafc;
+  padding: 1.5rem 1.75rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  margin: 1.75rem 0;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
+}
+
+.tiptap-editor-canvas div.athena-blog-product-block h3,
+.blog-article-content div.athena-blog-product-block h3 {
+  color: #fbbf24 !important;
+  font-size: 1.15rem !important;
+  font-weight: 800 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.tiptap-editor-canvas div.athena-blog-product-block p,
+.blog-article-content div.athena-blog-product-block p {
+  color: #cbd5e1 !important;
+  font-size: 0.875rem !important;
+  margin-bottom: 0.75rem !important;
+  line-height: 1.6 !important;
+}
+
+.tiptap-editor-canvas div.athena-blog-product-block p:last-child,
+.blog-article-content div.athena-blog-product-block p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.tiptap-editor-canvas div.athena-blog-product-block a,
+.blog-article-content div.athena-blog-product-block a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #020617 !important;
+  font-weight: 800 !important;
+  font-size: 0.8125rem !important;
+  padding: 0.65rem 1.25rem;
+  border-radius: 0.75rem;
+  text-decoration: none !important;
+  margin-top: 0.25rem;
+}
+
+.tiptap-editor-canvas a.athena-blog-cta-btn,
+.blog-article-content a.athena-blog-cta-btn {
+  display: inline-block;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #020617 !important;
+  font-weight: 800 !important;
+  font-size: 0.875rem !important;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.875rem;
+  text-decoration: none !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+  margin: 0.5rem 0;
+}
+
+.tiptap-editor-canvas blockquote.athena-blog-callout-warning,
+.blog-article-content blockquote.athena-blog-callout-warning {
+  border-left: 4px solid #ef4444;
+  background-color: #fef2f2;
+  color: #7f1d1d;
+}
+
+.tiptap-editor-canvas blockquote.athena-blog-callout-success,
+.blog-article-content blockquote.athena-blog-callout-success {
+  border-left: 4px solid #10b981;
+  background-color: #ecfdf5;
+  color: #064e3b;
+}

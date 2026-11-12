@@ -23,11 +23,14 @@ import {
   Plus,
   Eye,
   Edit3,
-  Check,
   X,
   Search,
   Sparkles,
-  Type
+  Type,
+  MousePointerClick,
+  AlertTriangle,
+  CheckCircle2,
+  Layers
 } from 'lucide-react';
 
 /**
@@ -40,7 +43,6 @@ export function normalizeContentToHtml(rawContent, rawHtml) {
 
   if (!rawContent) return '';
 
-  // Se for array de blocos (BlockNote JSON ou Tiptap JSON)
   if (Array.isArray(rawContent)) {
     return blocksArrayToHtml(rawContent);
   }
@@ -53,7 +55,6 @@ export function normalizeContentToHtml(rawContent, rawHtml) {
     const trimmed = rawContent.trim();
     if (!trimmed) return '';
 
-    // Verifica se é JSON serializado
     if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
       try {
         const parsed = JSON.parse(trimmed);
@@ -65,12 +66,10 @@ export function normalizeContentToHtml(rawContent, rawHtml) {
       }
     }
 
-    // Se já parece HTML
     if (/<(p|h[1-6]|ul|ol|li|blockquote|div|strong|em|img)\b/i.test(trimmed)) {
       return trimmed;
     }
 
-    // Converte Markdown simples para HTML
     return simpleMarkdownToHtml(trimmed);
   }
 
@@ -176,22 +175,45 @@ function formatInlineMd(text) {
 }
 
 export default function TiptapBlogEditor({
+  title = '',
+  onChangeTitle,
+  summary = '',
+  onChangeSummary,
   initialHtml = '',
   onChangeHtml,
   products = [],
   onRequestImageFromLibrary,
-  placeholder = 'Comece a escrever seu artigo técnico aqui ou clique no botão "+" para inserir blocos estilo Gutenberg (Títulos, Imagens, Listas, Citações ou Equipamentos do Catálogo)...'
+  placeholder = 'Comece a escrever seu parágrafo aqui ou clique em "+ Adicionar Bloco" para inserir Títulos, Imagens, Botões CTA, Alertas ou Cards de Equipamento...'
 }) {
   const [activeMode, setActiveMode] = useState('visual'); // 'visual' | 'preview'
   const [showBlockMenu, setShowBlockMenu] = useState(false);
+
+  // Modal de Link
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkText, setLinkText] = useState('');
+
+  // Modal de Botão CTA (Estilo WordPress Gutenberg Button Block)
+  const [showCtaModal, setShowCtaModal] = useState(false);
+  const [ctaLabel, setCtaLabel] = useState('Falar com Consultor Técnico');
+  const [ctaUrl, setCtaUrl] = useState('https://wa.me/5561983485671');
+
+  // Modal de Imagem
   const [showImageModal, setShowImageModal] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [imageAlt, setImageAlt] = useState('');
+
+  // Modal de Card de Equipamento Configurável (Substitui o card engessado antigo)
   const [showProductModal, setShowProductModal] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  const [selectedProdForBlock, setSelectedProdForBlock] = useState(null);
+  const [prodBlockBadge, setProdBlockBadge] = useState('Equipamento em Destaque');
+  const [prodBlockTitle, setProdBlockTitle] = useState('');
+  const [prodBlockDesc, setProdBlockDesc] = useState(
+    'Garanta o equipamento mencionado neste artigo com garantia oficial de fábrica, treinamento operacional e condições exclusivas de parcelamento.'
+  );
+  const [prodBlockBtnText, setProdBlockBtnText] = useState('Ver Condições Especiais');
+
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
 
   const toolbarRef = useRef(null);
@@ -224,7 +246,7 @@ export default function TiptapBlogEditor({
     content: initialHtml || '<p></p>',
     editorProps: {
       attributes: {
-        class: 'tiptap-editor-canvas focus:outline-none min-h-[420px] px-6 sm:px-10 py-6 text-slate-800 leading-relaxed text-sm sm:text-base'
+        class: 'tiptap-editor-canvas focus:outline-none min-h-[460px] text-slate-800 leading-relaxed text-sm sm:text-base'
       }
     },
     onUpdate: ({ editor: ed }) => {
@@ -235,7 +257,6 @@ export default function TiptapBlogEditor({
     }
   });
 
-  // Atualiza conteúdo se o post em edição mudar externamente
   useEffect(() => {
     if (editor && initialHtml !== undefined) {
       const currentHtml = editor.getHTML();
@@ -295,7 +316,6 @@ export default function TiptapBlogEditor({
     };
   }, [editor]);
 
-  // Fecha menu de blocos ao clicar fora
   useEffect(() => {
     const handleOutside = (e) => {
       if (blockMenuRef.current && !blockMenuRef.current.contains(e.target)) {
@@ -311,7 +331,7 @@ export default function TiptapBlogEditor({
   if (!editor) {
     return (
       <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-500">
-        Inicializando editor visual de blocos...
+        Inicializando construtor de páginas WordPress / Gutenberg...
       </div>
     );
   }
@@ -358,6 +378,15 @@ export default function TiptapBlogEditor({
     setStatusAnnouncement('Link inserido no artigo');
   };
 
+  const handleConfirmCtaButton = (e) => {
+    e.preventDefault();
+    if (!ctaUrl.trim() || !ctaLabel.trim()) return;
+    const html = `<p><a href="${ctaUrl.trim()}" class="athena-blog-cta-btn">${ctaLabel.trim()} &rarr;</a></p><p></p>`;
+    editor.chain().focus().insertContent(html).run();
+    setShowCtaModal(false);
+    setStatusAnnouncement('Botão CTA inserido na página');
+  };
+
   const handleConfirmImage = (e) => {
     e.preventDefault();
     if (!imageUrl.trim()) return;
@@ -373,29 +402,52 @@ export default function TiptapBlogEditor({
     setShowImageModal(false);
     setImageUrl('');
     setImageAlt('');
-    setStatusAnnouncement('Imagem adicionada ao artigo');
+    setStatusAnnouncement('Imagem adicionada à página');
   };
 
-  const handleInsertProductBox = (prod) => {
-    if (!prod) return;
-    const prodUrl = `/produto/${prod.slug || prod.id}`;
+  const handleSelectProdForConfig = (prod) => {
+    setSelectedProdForBlock(prod);
+    setProdBlockTitle(prod.name || 'Equipamento Athena');
+    setProdBlockBadge('Equipamento em Destaque');
+    setProdBlockDesc(
+      'Garanta o equipamento mencionado neste artigo com garantia oficial de fábrica, treinamento operacional e condições exclusivas de parcelamento.'
+    );
+    setProdBlockBtnText('Ver Condições Especiais');
+  };
+
+  const handleConfirmProductBlock = (e) => {
+    e.preventDefault();
+    if (!selectedProdForBlock) return;
+    const prodUrl = `/produto/${selectedProdForBlock.slug || selectedProdForBlock.id}`;
     const htmlBlock = `
       <blockquote>
-        <p><strong>Equipamento Recomendado Athena:</strong> <a href="${prodUrl}">${prod.name}</a></p>
-        <p>Confira especificações técnicas completas, garantia oficial e condições especiais para oficinas no catálogo da Athena Soluções Automotivas.</p>
+        <p><strong>[${prodBlockBadge.trim() || 'Equipamento em Destaque'}] ${prodBlockTitle.trim()}</strong></p>
+        <p>${prodBlockDesc.trim()}</p>
+        <p><a href="${prodUrl}" class="athena-blog-cta-btn">${prodBlockBtnText.trim() || 'Ver Condições Especiais'} &rarr;</a></p>
       </blockquote>
       <p></p>
     `;
     editor.chain().focus().insertContent(htmlBlock).run();
     setShowProductModal(false);
+    setSelectedProdForBlock(null);
     setProductSearch('');
-    setStatusAnnouncement(`Produto ${prod.name} inserido no artigo`);
+    setStatusAnnouncement('Bloco de equipamento inserido na página');
   };
 
-  const handleInsertCalloutBlock = () => {
+  const handleInsertCalloutBlock = (type = 'tip') => {
+    let titlePrefix = 'Dica Técnica de Oficina:';
+    let defaultBody = 'Descreva aqui uma recomendação importante de diagnóstico ou ponto de atenção para o reparador.';
+    if (type === 'warning') {
+      titlePrefix = 'Atenção Operacional:';
+      defaultBody = 'Cuidado essencial durante o procedimento técnico ou manutenção do equipamento.';
+    } else if (type === 'conclusion') {
+      titlePrefix = 'Resumo & Veredito Técnico:';
+      defaultBody = 'Síntese final sobre os ganhos de produtividade e retorno financeiro para a oficina.';
+    }
+
     const htmlBlock = `
       <blockquote>
-        <p><strong>Dica Técnica de Oficina:</strong> Descreva aqui uma recomendação importante de diagnóstico ou ponto de atenção para o reparador.</p>
+        <p><strong>${titlePrefix}</strong> ${defaultBody}</p>
       </blockquote>
       <p></p>
     `;
@@ -416,180 +468,212 @@ export default function TiptapBlogEditor({
     .slice(0, 12);
 
   return (
-    <div className="rounded-2xl border border-slate-300 bg-white shadow-sm overflow-visible flex flex-col">
+    <div className="flex flex-col">
       {/* Live Region para Leitores de Tela (WCAG Toolbar) */}
       <p role="status" className="sr-only">
         {statusAnnouncement}
       </p>
 
-      {/* Barra de Ferramentas Superior Fixa (Estilo Gutenberg / Tiptap) */}
+      {/* Barra de Ferramentas Superior Fixa Estilo WordPress Gutenberg */}
       <div
         ref={toolbarRef}
         role="toolbar"
         {...({ focusgroup: 'toolbar wrap' })}
-        aria-label="Formatação do artigo e inserção de blocos"
-        className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md border-b border-slate-200 px-3 py-2 flex flex-wrap items-center justify-between gap-2 rounded-t-2xl"
+        aria-label="Construtor de blocos da página e formatação"
+        className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border border-slate-200 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-2 rounded-2xl shadow-sm mb-6"
       >
         <div className="flex flex-wrap items-center gap-1">
-          {/* Botão Gutenberg "+" Inserir Bloco */}
+          {/* Botão WordPress "+" Inserir Bloco */}
           <div className="relative" ref={blockMenuRef}>
             <button
               type="button"
               onClick={() => setShowBlockMenu((prev) => !prev)}
-              aria-label="Inserir novo bloco de conteúdo"
-              title="Inserir Bloco (Estilo Gutenberg)"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition cursor-pointer shadow-2xs mr-1"
+              aria-label="Inserir novo bloco na página"
+              title="Inserir Bloco (Estilo WordPress Gutenberg)"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition cursor-pointer shadow-xs mr-1"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
-              <span>Bloco</span>
+              <span>Inserir Bloco</span>
             </button>
 
             {showBlockMenu && (
-              <div className="absolute left-0 top-full mt-2 w-72 bg-white rounded-2xl border border-slate-200 shadow-2xl p-2 z-50 space-y-1">
-                <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Blocos de Estrutura e Mídia
+              <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-2xl border border-slate-200 shadow-2xl p-3 z-50 space-y-2 max-h-[75vh] overflow-y-auto">
+                <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                  1. Blocos de Texto & Títulos
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().toggleHeading({ level: 2 }).run();
-                    setShowBlockMenu(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-amber-100 text-slate-700 group-hover:text-amber-800 flex items-center justify-center shrink-0">
-                    <Heading2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">Título de Seção (H2)</span>
-                    <span className="text-[10px] text-slate-500">Subtítulo principal indexado no sumário</span>
-                  </div>
-                </button>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().toggleHeading({ level: 2 }).run();
+                      setShowBlockMenu(false);
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer border border-transparent hover:border-amber-200"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
+                      <Heading2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Título H2</span>
+                      <span className="text-[10px] text-slate-500">Seção principal</span>
+                    </div>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().toggleHeading({ level: 3 }).run();
-                    setShowBlockMenu(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-amber-100 text-slate-700 group-hover:text-amber-800 flex items-center justify-center shrink-0">
-                    <Heading3 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">Subtítulo Menor (H3)</span>
-                    <span className="text-[10px] text-slate-500">Para dividir tópicos técnicos</span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().toggleHeading({ level: 3 }).run();
+                      setShowBlockMenu(false);
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer border border-transparent hover:border-amber-200"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
+                      <Heading3 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Subtítulo H3</span>
+                      <span className="text-[10px] text-slate-500">Subseção</span>
+                    </div>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().toggleBulletList().run();
-                    setShowBlockMenu(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-amber-100 text-slate-700 group-hover:text-amber-800 flex items-center justify-center shrink-0">
-                    <List className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">Lista com Marcadores</span>
-                    <span className="text-[10px] text-slate-500">Ideal para características e benefícios</span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().toggleBulletList().run();
+                      setShowBlockMenu(false);
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer border border-transparent hover:border-amber-200"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
+                      <List className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Lista Pontos</span>
+                      <span className="text-[10px] text-slate-500">Marcadores</span>
+                    </div>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().toggleOrderedList().run();
-                    setShowBlockMenu(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-amber-100 text-slate-700 group-hover:text-amber-800 flex items-center justify-center shrink-0">
-                    <ListOrdered className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">Passo a Passo Numerado</span>
-                    <span className="text-[10px] text-slate-500">Procedimentos de calibração ou teste</span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().toggleOrderedList().run();
+                      setShowBlockMenu(false);
+                    }}
+                    className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer border border-transparent hover:border-amber-200"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center shrink-0">
+                      <ListOrdered className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Numerada</span>
+                      <span className="text-[10px] text-slate-500">Passo a passo</span>
+                    </div>
+                  </button>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={handleInsertCalloutBlock}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">Destaque / Dica Técnica</span>
-                    <span className="text-[10px] text-slate-500">Caixa destacada para avisos de oficina</span>
-                  </div>
-                </button>
+                <div className="px-2 pt-2 pb-1 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                  2. Blocos Visuais, Mídia & Conversão
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBlockMenu(false);
-                    if (onRequestImageFromLibrary) {
-                      onRequestImageFromLibrary((selectedUrl) => {
-                        if (selectedUrl) {
-                          editor.chain().focus().setImage({ src: selectedUrl, alt: 'Imagem técnica Athena' }).run();
-                        }
-                      });
-                    } else {
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBlockMenu(false);
                       setShowImageModal(true);
-                    }
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
-                    <ImageIcon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">Imagem da Biblioteca R2 / URL</span>
-                    <span className="text-[10px] text-slate-500">Insira fotos no meio do artigo</span>
-                  </div>
-                </button>
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Bloco de Imagem (R2 ou URL)</span>
+                      <span className="text-[10px] text-slate-500">Insira fotos ou diagramas no meio da página</span>
+                    </div>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBlockMenu(false);
-                    setShowProductModal(true);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                    <Package className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">Card de Equipamento Athena</span>
-                    <span className="text-[10px] text-slate-500">Link direto para produto do catálogo</span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBlockMenu(false);
+                      setShowCtaModal(true);
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                      <MousePointerClick className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Botão de Ação (CTA)</span>
+                      <span className="text-[10px] text-slate-500">Botão destacado dourado com link customizável</span>
+                    </div>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    editor.chain().focus().setHorizontalRule().run();
-                    setShowBlockMenu(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                    <Minus className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-900 block">Divisor de Seção</span>
-                    <span className="text-[10px] text-slate-500">Linha horizontal separadora</span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBlockMenu(false);
+                      setSelectedProdForBlock(null);
+                      setShowProductModal(true);
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                      <Package className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Bloco de Equipamento em Destaque</span>
+                      <span className="text-[10px] text-slate-500">Você escolhe o produto, título, texto e botão</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleInsertCalloutBlock('tip')}
+                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Caixa de Dica Técnica</span>
+                      <span className="text-[10px] text-slate-500">Quadro de destaque para recomendações</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleInsertCalloutBlock('warning')}
+                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Caixa de Alerta / Cuidado</span>
+                      <span className="text-[10px] text-slate-500">Aviso importante de segurança ou operação</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().setHorizontalRule().run();
+                      setShowBlockMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-amber-50 text-left transition cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                      <Minus className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">Divisor Horizontal de Seção</span>
+                      <span className="text-[10px] text-slate-500">Linha separadora entre tópicos</span>
+                    </div>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -603,15 +687,15 @@ export default function TiptapBlogEditor({
               onClick={() => editor.chain().focus().setParagraph().run()}
               aria-pressed={editor.isActive('paragraph')}
               aria-label="Parágrafo normal"
-              title="Texto Normal (Parágrafo)"
+              title="Parágrafo Normal"
               className={`min-w-7 min-h-7 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
                 editor.isActive('paragraph')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Type className="w-3.5 h-3.5" aria-hidden="true" />
-              <span className="hidden sm:inline">Texto</span>
+              <span className="hidden sm:inline">Parágrafo</span>
             </button>
 
             <button
@@ -619,11 +703,11 @@ export default function TiptapBlogEditor({
               onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
               aria-pressed={editor.isActive('heading', { level: 2 })}
               aria-label="Título H2"
-              title="Título Principal da Seção (H2)"
+              title="Título de Seção (H2)"
               className={`min-w-7 min-h-7 px-2 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center gap-1 ${
                 editor.isActive('heading', { level: 2 })
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Heading2 className="w-4 h-4" aria-hidden="true" />
@@ -639,7 +723,7 @@ export default function TiptapBlogEditor({
               className={`min-w-7 min-h-7 px-2 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center gap-1 ${
                 editor.isActive('heading', { level: 3 })
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Heading3 className="w-4 h-4" aria-hidden="true" />
@@ -660,7 +744,7 @@ export default function TiptapBlogEditor({
               className={`min-w-7 min-h-7 p-1.5 rounded-lg transition cursor-pointer ${
                 editor.isActive('bold')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Bold className="w-4 h-4" aria-hidden="true" />
@@ -675,7 +759,7 @@ export default function TiptapBlogEditor({
               className={`min-w-7 min-h-7 p-1.5 rounded-lg transition cursor-pointer ${
                 editor.isActive('italic')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Italic className="w-4 h-4" aria-hidden="true" />
@@ -690,7 +774,7 @@ export default function TiptapBlogEditor({
               className={`min-w-7 min-h-7 p-1.5 rounded-lg transition cursor-pointer ${
                 editor.isActive('underline')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Underline className="w-4 h-4" aria-hidden="true" />
@@ -705,7 +789,7 @@ export default function TiptapBlogEditor({
               className={`min-w-7 min-h-7 p-1.5 rounded-lg transition cursor-pointer ${
                 editor.isActive('strike')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Strikethrough className="w-4 h-4" aria-hidden="true" />
@@ -725,7 +809,7 @@ export default function TiptapBlogEditor({
               className={`min-w-7 min-h-7 p-1.5 rounded-lg transition cursor-pointer ${
                 editor.isActive('bulletList')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <List className="w-4 h-4" aria-hidden="true" />
@@ -736,11 +820,11 @@ export default function TiptapBlogEditor({
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
               aria-pressed={editor.isActive('orderedList')}
               aria-label="Lista numerada"
-              title="Lista Numerada (Passo a Passo)"
+              title="Lista Numerada"
               className={`min-w-7 min-h-7 p-1.5 rounded-lg transition cursor-pointer ${
                 editor.isActive('orderedList')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <ListOrdered className="w-4 h-4" aria-hidden="true" />
@@ -751,11 +835,11 @@ export default function TiptapBlogEditor({
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
               aria-pressed={editor.isActive('blockquote')}
               aria-label="Citação ou Destaque"
-              title="Bloco de Citação / Destaque Técnico"
+              title="Bloco de Citação / Destaque"
               className={`min-w-7 min-h-7 p-1.5 rounded-lg transition cursor-pointer ${
                 editor.isActive('blockquote')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Quote className="w-4 h-4" aria-hidden="true" />
@@ -765,12 +849,12 @@ export default function TiptapBlogEditor({
               type="button"
               onClick={() => editor.chain().focus().toggleCodeBlock().run()}
               aria-pressed={editor.isActive('codeBlock')}
-              aria-label="Bloco de código ou diagnóstico"
-              title="Bloco de Código / Leitura de Scanner"
+              aria-label="Bloco de código"
+              title="Bloco de Código"
               className={`min-w-7 min-h-7 p-1.5 rounded-lg transition cursor-pointer ${
                 editor.isActive('codeBlock')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <Code className="w-4 h-4" aria-hidden="true" />
@@ -779,18 +863,18 @@ export default function TiptapBlogEditor({
 
           <span role="separator" aria-orientation="vertical" className="h-5 w-px bg-slate-200 mx-1" />
 
-          {/* Grupo: Inserções Rápidas (Link, Imagem, Produto) */}
-          <div role="group" aria-label="Inserir mídia e links" className="flex items-center gap-0.5">
+          {/* Grupo: Inserções Rápidas (Link, Imagem, Botão CTA, Produto) */}
+          <div role="group" aria-label="Inserir elementos" className="flex items-center gap-0.5">
             <button
               type="button"
               onClick={handleOpenLinkDialog}
               aria-pressed={editor.isActive('link')}
-              aria-label="Inserir ou editar link"
+              aria-label="Inserir link"
               title="Inserir Link"
               className={`min-w-7 min-h-7 p-1.5 rounded-lg transition cursor-pointer ${
                 editor.isActive('link')
                   ? 'bg-slate-900 text-amber-400 shadow-2xs'
-                  : 'text-slate-700 hover:bg-slate-200/70'
+                  : 'text-slate-700 hover:bg-slate-100'
               }`}
             >
               <LinkIcon className="w-4 h-4" aria-hidden="true" />
@@ -799,22 +883,36 @@ export default function TiptapBlogEditor({
             <button
               type="button"
               onClick={() => setShowImageModal(true)}
-              aria-label="Inserir imagem no artigo"
-              title="Inserir Imagem no Corpo do Artigo"
-              className="min-w-7 min-h-7 p-1.5 rounded-lg text-slate-700 hover:bg-slate-200/70 transition cursor-pointer"
+              aria-label="Inserir imagem"
+              title="Inserir Imagem"
+              className="min-w-7 min-h-7 p-1.5 rounded-lg text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             >
               <ImageIcon className="w-4 h-4" aria-hidden="true" />
             </button>
 
             <button
               type="button"
-              onClick={() => setShowProductModal(true)}
-              aria-label="Inserir equipamento do catálogo"
-              title="Inserir Card de Produto Athena"
-              className="min-w-7 min-h-7 px-2 py-1 rounded-lg text-xs font-bold text-amber-800 bg-amber-100/80 hover:bg-amber-200/80 transition cursor-pointer flex items-center gap-1 ml-0.5"
+              onClick={() => setShowCtaModal(true)}
+              aria-label="Inserir botão CTA"
+              title="Inserir Botão de Ação (CTA)"
+              className="min-w-7 min-h-7 px-2 py-1 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1"
+            >
+              <MousePointerClick className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
+              <span className="hidden xl:inline">Botão CTA</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedProdForBlock(null);
+                setShowProductModal(true);
+              }}
+              aria-label="Inserir bloco de equipamento"
+              title="Inserir Card de Equipamento Configurável"
+              className="min-w-7 min-h-7 px-2 py-1 rounded-lg text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 transition cursor-pointer flex items-center gap-1 ml-0.5"
             >
               <Package className="w-3.5 h-3.5" aria-hidden="true" />
-              <span className="hidden md:inline">Produto</span>
+              <span className="hidden md:inline">+ Equipamento</span>
             </button>
           </div>
 
@@ -828,7 +926,7 @@ export default function TiptapBlogEditor({
               aria-disabled={!editor.can().undo()}
               aria-label="Desfazer"
               title="Desfazer (Ctrl+Z)"
-              className="min-w-7 min-h-7 p-1.5 rounded-lg text-slate-700 hover:bg-slate-200/70 aria-disabled:opacity-35 transition cursor-pointer"
+              className="min-w-7 min-h-7 p-1.5 rounded-lg text-slate-700 hover:bg-slate-100 aria-disabled:opacity-35 transition cursor-pointer"
             >
               <Undo2 className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -839,80 +937,138 @@ export default function TiptapBlogEditor({
               aria-disabled={!editor.can().redo()}
               aria-label="Refazer"
               title="Refazer (Ctrl+Y)"
-              className="min-w-7 min-h-7 p-1.5 rounded-lg text-slate-700 hover:bg-slate-200/70 aria-disabled:opacity-35 transition cursor-pointer"
+              className="min-w-7 min-h-7 p-1.5 rounded-lg text-slate-700 hover:bg-slate-100 aria-disabled:opacity-35 transition cursor-pointer"
             >
               <Redo2 className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
 
-        {/* Alternador entre Editor Visual e Pré-visualização de Leitura */}
-        <div role="group" aria-label="Modo de visualização" className="flex items-center bg-slate-200/70 p-0.5 rounded-xl">
+        {/* Alternador entre Construtor Visual e Pré-visualização Real */}
+        <div role="group" aria-label="Modo de visualização" className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
           <button
             type="button"
             onClick={() => setActiveMode('visual')}
             aria-pressed={activeMode === 'visual'}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+            className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
               activeMode === 'visual'
                 ? 'bg-white text-slate-900 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Edit3 className="w-3 h-3" aria-hidden="true" />
-            <span>Editor Visual</span>
+            <Edit3 className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Construtor</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveMode('preview')}
             aria-pressed={activeMode === 'preview'}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+            className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
               activeMode === 'preview'
                 ? 'bg-white text-slate-900 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Eye className="w-3 h-3" aria-hidden="true" />
-            <span>Prévia Real</span>
+            <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Ver Página Pronta</span>
           </button>
         </div>
       </div>
 
-      {/* Área de Edição estilo Gutenberg ou Pré-visualização */}
+      {/* FOLHA DE PÁGINA ESTILO WORDPRESS GUTENBERG (Canvas Unificado: Título + Lead + Conteúdo em Blocos) */}
       {activeMode === 'visual' ? (
-        <div
-          onClick={() => {
-            if (!editor.isFocused) {
-              editor.commands.focus();
-            }
-          }}
-          className="bg-white cursor-text rounded-b-2xl"
-        >
-          <EditorContent editor={editor} />
-        </div>
-      ) : (
-        <div className="p-6 sm:p-10 bg-slate-50/50 min-h-[420px] rounded-b-2xl">
-          <div className="max-w-2xl mx-auto bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-2xs">
-            <div className="text-[10px] font-black uppercase tracking-wider text-amber-600 mb-4 pb-2 border-b border-slate-100 flex items-center gap-1.5">
-              <Eye className="w-3.5 h-3.5" />
-              <span>Pré-visualização de Como o Artigo Aparecerá no Site</span>
-            </div>
-            <div
-              className="tiptap-editor-canvas prose max-w-none text-slate-800 leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: editor.getHTML() }}
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md px-6 sm:px-14 py-8 sm:py-12 space-y-6">
+          {/* Bloco de Título Nativo Estilo WordPress */}
+          <div className="space-y-3 border-b border-slate-100 pb-6">
+            <textarea
+              rows={2}
+              placeholder="Adicionar título da página / artigo..."
+              value={title}
+              onChange={(e) => onChangeTitle && onChangeTitle(e.target.value)}
+              className="w-full text-2xl sm:text-4xl font-black text-slate-950 placeholder:text-slate-300 border-0 focus:outline-none resize-none leading-tight tracking-tight bg-transparent"
+            />
+
+            <textarea
+              rows={2}
+              placeholder="Adicionar subtítulo ou resumo de abertura (aparece abaixo do título e na busca do Google)..."
+              value={summary}
+              onChange={(e) => onChangeSummary && onChangeSummary(e.target.value)}
+              className="w-full text-sm sm:text-base font-medium text-slate-500 placeholder:text-slate-300 border-0 focus:outline-none resize-none leading-relaxed bg-transparent"
             />
           </div>
+
+          {/* Corpo de Blocos da Página */}
+          <div
+            onClick={() => {
+              if (!editor.isFocused) {
+                editor.commands.focus();
+              }
+            }}
+            className="cursor-text"
+          >
+            <EditorContent editor={editor} />
+          </div>
+
+          {/* Barra Rápida de Adição de Bloco no Final da Folha (Igual ao rodapé do WordPress) */}
+          <div className="pt-6 border-t border-dashed border-slate-200 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs text-slate-400">
+              Você tem controle 100% livre sobre o que aparece na página. Nenhum bloco extra será adicionado sem você pedir.
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50 text-xs font-bold text-slate-700 cursor-pointer transition flex items-center gap-1.5"
+              >
+                <Heading2 className="w-3.5 h-3.5 text-amber-600" />
+                <span>+ Título H2</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowImageModal(true)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50 text-xs font-bold text-slate-700 cursor-pointer transition flex items-center gap-1.5"
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-amber-600" />
+                <span>+ Imagem</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedProdForBlock(null);
+                  setShowProductModal(true);
+                }}
+                className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 cursor-pointer transition flex items-center gap-1.5"
+              >
+                <Package className="w-3.5 h-3.5 text-amber-700" />
+                <span>+ Equipamento em Destaque</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-md px-6 sm:px-14 py-8 sm:py-12 space-y-6">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-black uppercase tracking-wider">
+            <Eye className="w-3.5 h-3.5" />
+            <span>Simulação Exata da Página Publicada</span>
+          </div>
+
+          <header className="space-y-3 border-b border-slate-200 pb-6">
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-950 leading-tight">
+              {title || 'Título do Artigo'}
+            </h1>
+            {summary && (
+              <p className="text-base text-slate-600 leading-relaxed font-medium">
+                {summary}
+              </p>
+            )}
+          </header>
+
+          <div
+            className="blog-article-content max-w-none text-slate-800 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: editor.getHTML() }}
+          />
         </div>
       )}
-
-      {/* Rodapé informativo do Editor */}
-      <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
-        <span>
-          Dica: Use <strong>H2</strong> para criar seções que entram automaticamente no sumário <em>"Neste Artigo"</em>.
-        </span>
-        <span className="font-semibold text-slate-600">
-          Editor Visual em Blocos (Tiptap / Gutenberg)
-        </span>
-      </div>
 
       {/* Modal de Inserção de Link */}
       {showLinkModal && (
@@ -921,7 +1077,7 @@ export default function TiptapBlogEditor({
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
                 <LinkIcon className="w-4 h-4 text-amber-600" />
-                <span>Inserir Link no Artigo</span>
+                <span>Inserir Link no Texto</span>
               </h4>
               <button
                 type="button"
@@ -988,6 +1144,67 @@ export default function TiptapBlogEditor({
         </div>
       )}
 
+      {/* Modal de Inserção de Botão de Ação (CTA) Estilo WordPress */}
+      {showCtaModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 border border-slate-200 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <MousePointerClick className="w-4 h-4 text-amber-600" />
+                <span>Criar Bloco de Botão (CTA)</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowCtaModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Texto do Botão *</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Solicitar Orçamento no WhatsApp"
+                  value={ctaLabel}
+                  onChange={(e) => setCtaLabel(e.target.value)}
+                  className="form-input text-xs w-full rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Link de Destino do Botão *</label>
+                <input
+                  type="text"
+                  placeholder="https://wa.me/5561983485671 ou /produto/..."
+                  value={ctaUrl}
+                  onChange={(e) => setCtaUrl(e.target.value)}
+                  className="form-input text-xs w-full rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowCtaModal(false)}
+                className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCtaButton}
+                className="btn-gold text-xs font-bold py-2 px-4 rounded-xl cursor-pointer"
+              >
+                Inserir Botão na Página
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de Inserção de Imagem no Corpo do Artigo */}
       {showImageModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
@@ -995,7 +1212,7 @@ export default function TiptapBlogEditor({
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
                 <ImageIcon className="w-4 h-4 text-amber-600" />
-                <span>Inserir Imagem no Artigo</span>
+                <span>Inserir Bloco de Imagem</span>
               </h4>
               <button
                 type="button"
@@ -1037,7 +1254,7 @@ export default function TiptapBlogEditor({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Descrição da Imagem (Alt Text SEO)</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Legenda / Alt Text (SEO)</label>
                 <input
                   type="text"
                   placeholder="Ex: Tela de topologia de rede do scanner EAATA 90"
@@ -1082,65 +1299,145 @@ export default function TiptapBlogEditor({
         </div>
       )}
 
-      {/* Modal de Inserção de Card de Produto do Catálogo */}
+      {/* Modal de Bloco de Equipamento em Destaque (100% Configurável pelo Usuário) */}
       {showProductModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-lg w-full p-5 border border-slate-200 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
                 <Package className="w-4 h-4 text-amber-600" />
-                <span>Vincular Equipamento do Catálogo no Texto</span>
+                <span>
+                  {selectedProdForBlock
+                    ? 'Personalizar Textos do Card de Equipamento'
+                    : 'Escolher Equipamento para Inserir no Artigo'}
+                </span>
               </h4>
               <button
                 type="button"
-                onClick={() => setShowProductModal(false)}
+                onClick={() => {
+                  setShowProductModal(false);
+                  setSelectedProdForBlock(null);
+                }}
                 className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Buscar equipamento pelo nome, marca ou código..."
-                value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
-                className="form-input text-xs !pl-9 w-full rounded-xl"
-                autoFocus
-              />
-            </div>
+            {!selectedProdForBlock ? (
+              <>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Buscar equipamento pelo nome, marca ou código..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    className="form-input text-xs !pl-9 w-full rounded-xl"
+                    autoFocus
+                  />
+                </div>
 
-            <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-xl">
-              {filteredProducts.length === 0 ? (
-                <p className="p-4 text-center text-xs text-slate-400">Nenhum equipamento encontrado.</p>
-              ) : (
-                filteredProducts.map((prod) => (
+                <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 border border-slate-100 rounded-xl">
+                  {filteredProducts.length === 0 ? (
+                    <p className="p-4 text-center text-xs text-slate-400">Nenhum equipamento encontrado.</p>
+                  ) : (
+                    filteredProducts.map((prod) => (
+                      <button
+                        key={prod.id}
+                        type="button"
+                        onClick={() => handleSelectProdForConfig(prod)}
+                        className="w-full p-2.5 hover:bg-amber-50 flex items-center gap-3 text-left transition cursor-pointer"
+                      >
+                        {prod.image && (
+                          <img
+                            src={prod.image}
+                            alt=""
+                            className="w-10 h-10 rounded-lg object-contain bg-white border border-slate-200 p-0.5 shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-bold text-slate-900 block truncate">{prod.name}</span>
+                          <span className="text-[10px] text-slate-500 block truncate">
+                            {prod.brand || 'Athena'} {prod.sku ? `• SKU: ${prod.sku}` : ''}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-bold text-amber-600 shrink-0">Configurar &rarr;</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <form onSubmit={handleConfirmProductBlock} className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Selo Superior (Badge)</label>
+                  <input
+                    type="text"
+                    value={prodBlockBadge}
+                    onChange={(e) => setProdBlockBadge(e.target.value)}
+                    className="form-input text-xs w-full rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Título do Equipamento *</label>
+                  <input
+                    type="text"
+                    required
+                    value={prodBlockTitle}
+                    onChange={(e) => setProdBlockTitle(e.target.value)}
+                    className="form-input text-xs w-full rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Texto de Chamada *</label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={prodBlockDesc}
+                    onChange={(e) => setProdBlockDesc(e.target.value)}
+                    className="form-textarea text-xs w-full rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Texto do Botão</label>
+                  <input
+                    type="text"
+                    value={prodBlockBtnText}
+                    onChange={(e) => setProdBlockBtnText(e.target.value)}
+                    className="form-input text-xs w-full rounded-xl"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
                   <button
-                    key={prod.id}
                     type="button"
-                    onClick={() => handleInsertProductBox(prod)}
-                    className="w-full p-2.5 hover:bg-amber-50 flex items-center gap-3 text-left transition cursor-pointer"
+                    onClick={() => setSelectedProdForBlock(null)}
+                    className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
                   >
-                    {prod.image && (
-                      <img
-                        src={prod.image}
-                        alt=""
-                        className="w-10 h-10 rounded-lg object-contain bg-white border border-slate-200 p-0.5 shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold text-slate-900 block truncate">{prod.name}</span>
-                      <span className="text-[10px] text-slate-500 block truncate">
-                        {prod.brand || 'Athena'} {prod.sku ? `• SKU: ${prod.sku}` : ''}
-                      </span>
-                    </div>
-                    <span className="text-[11px] font-bold text-amber-600 shrink-0">Inserir +</span>
+                    &larr; Trocar Produto
                   </button>
-                ))
-              )}
-            </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowProductModal(false)}
+                      className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-gold text-xs font-bold py-2 px-4 rounded-xl cursor-pointer"
+                    >
+                      Inserir Bloco na Página
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

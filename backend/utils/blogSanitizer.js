@@ -23,8 +23,8 @@ const SANITIZE_OPTIONS = {
     'span', 'img', 'div'
   ],
   allowedAttributes: {
-    'a': ['href', 'target', 'rel', 'title'],
-    'img': ['src', 'alt', 'title', 'width', 'height', 'loading'],
+    'a': ['href', 'target', 'rel', 'title', 'class'],
+    'img': ['src', 'alt', 'title', 'width', 'height', 'loading', 'class'],
     'div': ['data-athena-product-id', 'class'],
     'span': ['class'],
     'p': ['class'],

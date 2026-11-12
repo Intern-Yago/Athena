@@ -863,44 +863,17 @@ export default function BlogManagementTab({
               </div>
             </div>
 
-            {/* Corpo do Editor em 2 Colunas (Canvas Principal 8 cols + Painel Lateral de Configurações 4 cols) */}
+            {/* Corpo do Editor em 2 Colunas (Folha WordPress Gutenberg 8 cols + Painel Lateral de Configurações 4 cols) */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                {/* COLUNA ESQUERDA: Título Estilo Gutenberg + Resumo + Editor Visual Tiptap */}
-                <div className="lg:col-span-8 space-y-5">
-                  <div className="bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
-                    <div>
-                      <label className="text-[11px] font-black uppercase tracking-wider text-amber-600 block mb-1">
-                        Título Principal do Artigo *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Digite o título do artigo aqui (Ex: Vale a pena investir no Scanner EAATA 90?)..."
-                        value={postForm.title}
-                        onChange={(e) => handleTitleChange(e.target.value)}
-                        className="w-full text-xl sm:text-2xl font-black text-slate-900 placeholder:text-slate-300 border-0 border-b border-slate-200 focus:border-amber-500 pb-2 focus:outline-none transition-colors"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
-                        Resumo / Subtítulo de Abertura (Exibido nos cards e no Google) *
-                      </label>
-                      <textarea
-                        rows={2}
-                        required
-                        placeholder="Escreva um parágrafo curto resumindo o que o mecânico ou gestor aprenderá neste artigo..."
-                        value={postForm.summary}
-                        onChange={(e) => setPostForm((p) => ({ ...p, summary: e.target.value }))}
-                        className="form-textarea text-xs w-full rounded-xl bg-slate-50 focus:bg-white"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Componente Tiptap Estilo Gutenberg em Português */}
+                {/* COLUNA ESQUERDA: Construtor de Página Estilo WordPress (Título + Resumo + Blocos na mesma folha) */}
+                <div className="lg:col-span-8">
                   <TiptapBlogEditor
                     key={editingPost?.id || 'new_post'}
+                    title={postForm.title}
+                    onChangeTitle={(val) => handleTitleChange(val)}
+                    summary={postForm.summary}
+                    onChangeSummary={(val) => setPostForm((p) => ({ ...p, summary: val }))}
                     initialHtml={postForm.contentHtml}
                     onChangeHtml={(html) => setPostForm((p) => ({ ...p, contentHtml: html }))}
                     products={products}
