@@ -77,7 +77,15 @@ async function runWebappTesting() {
 
     console.log(`[WEBAPP TESTING] Link de WhatsApp com UTM presente: ${foundAttributedLink ? 'SIM' : 'PENDENTE (verificar carrinho)'}`);
 
-    // 5. Testar abertura do Carrinho
+    // 5. Fechar PromoPopupModal se estiver visível na tela antes de interagir com o Carrinho
+    const promoPopupCloseBtn = page.locator('[aria-labelledby="promo-popup-title"] button[aria-label*="Fechar" i], [aria-labelledby="promo-popup-title"] button:has(svg.lucide-x)').first();
+    if (await promoPopupCloseBtn.isVisible().catch(() => false)) {
+      console.log('[WEBAPP TESTING] Fechando pop-up promocional inicial...');
+      await promoPopupCloseBtn.click();
+      await page.waitForTimeout(400);
+    }
+
+    // 6. Testar abertura do Carrinho
     const cartButton = page.locator('button[aria-label*="carrinho" i], button:has-text("Carrinho"), button:has(svg.lucide-shopping-bag), button:has(svg.lucide-shopping-cart)').first();
     if (await cartButton.isVisible()) {
       console.log('[WEBAPP TESTING] Clicando no botao do carrinho...');
