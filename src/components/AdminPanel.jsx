@@ -527,6 +527,7 @@ export default function AdminPanel({
   const [bannerToDelete, setBannerToDelete] = useState(null);
   const [isSelectingBannerMedia, setIsSelectingBannerMedia] = useState(null); // 'desktop' | 'mobile' | null
   const [isSelectingBrandMedia, setIsSelectingBrandMedia] = useState(false);
+  const [pendingBlogMediaCallback, setPendingBlogMediaCallback] = useState(null);
 
   // Promo Popup State (Modal Promocional da Loja)
   const [popupForm, setPopupForm] = useState(() => promoPopup || {
@@ -4918,9 +4919,15 @@ export default function AdminPanel({
             currentUser={currentUser}
             showNotification={showNotification}
             products={products}
-            onOpenMediaLibrary={() => {
+            onOpenMediaLibrary={(callback) => {
               setIsSelectingBrandMedia(false);
               setIsSelectingPopupMedia(false);
+              setIsSelectingBannerMedia(null);
+              if (typeof callback === 'function') {
+                setPendingBlogMediaCallback(() => callback);
+              } else {
+                setPendingBlogMediaCallback(null);
+              }
               setIsLibraryModalOpen(true);
             }}
           />
@@ -12962,8 +12969,9 @@ export default function AdminPanel({
             setIsSelectingBrandMedia(false);
             setIsSelectingVariantMedia(false);
             setIsSelectingPopupMedia(false);
+            setPendingBlogMediaCallback(null);
           }}
-          isStandalone={!isProductModalOpen && !isSelectingBannerMedia && !isSelectingBrandMedia && !isSelectingVariantMedia && !isSelectingPopupMedia}
+          isStandalone={!isProductModalOpen && !isSelectingBannerMedia && !isSelectingBrandMedia && !isSelectingVariantMedia && !isSelectingPopupMedia && !pendingBlogMediaCallback}
           products={(() => {
             if (!isProductModalOpen || !productForm) return products;
             const currentProdId = productForm.id || editingProduct?.id;
@@ -13012,7 +13020,12 @@ export default function AdminPanel({
                   : (isProductModalOpen ? (productForm.image || '') : ''))
           }
           onSelectImage={
-            isSelectingPopupMedia ? (url) => {
+            pendingBlogMediaCallback ? (url) => {
+              pendingBlogMediaCallback(url);
+              setPendingBlogMediaCallback(null);
+              setIsLibraryModalOpen(false);
+              showNotification('Imagem selecionada da Biblioteca R2 para o artigo!', 'success');
+            } : isSelectingPopupMedia ? (url) => {
               setPopupForm(prev => ({ ...prev, imageUrl: url }));
               setIsSelectingPopupMedia(false);
               setIsLibraryModalOpen(false);

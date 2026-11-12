@@ -577,10 +577,9 @@ export default function BlogListingPage({ onNavigate }) {
             )}
           </main>
 
-          {/* Menu Lateral Direito (Aside) */}
-          <div className="lg:col-span-4 min-w-0 mt-8 lg:mt-0">
+          {/* Menu Lateral Direito (Aside) Fixo na Rolagem */}
+          <div className="lg:col-span-4 min-w-0 mt-8 lg:mt-0 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:pr-1 [overscroll-behavior:contain]">
             <BlogSidebar
-              className="sticky top-24 self-start"
               categories={categories}
               selectedCategory={selectedCategory}
               onSelectCategory={handleSelectCategory}

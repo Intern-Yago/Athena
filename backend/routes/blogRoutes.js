@@ -207,7 +207,15 @@ router.get('/admin/posts', requireStaff, async (req, res) => {
       GROUP BY p.id, u.name
       ORDER BY p.created_at DESC;
     `);
-    res.json(posts.rows);
+    const formatted = posts.rows.map((post) => ({
+      ...post,
+      cover_image_url: blogService.resolveCoverImageUrl
+        ? blogService.resolveCoverImageUrl(post.cover_image_key, post.slug)
+        : post.cover_image_key,
+      summary: post.excerpt || '',
+      views_count: Number(post.view_count || 0)
+    }));
+    res.json(formatted);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao listar artigos administrativos.', details: err.message });
   }

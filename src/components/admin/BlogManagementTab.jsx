@@ -17,11 +17,37 @@ import {
   ExternalLink, 
   Tag, 
   Layers, 
-  Filter, 
   ChevronRight,
   AlertTriangle,
-  RotateCcw
+  Package,
+  ArrowLeft
 } from 'lucide-react';
+import TiptapBlogEditor, { normalizeContentToHtml } from './TiptapBlogEditor';
+
+// Helper para garantir URL pública válida para imagem de capa no Admin
+function resolveAdminPostCover(postOrUrl, slug = '') {
+  if (!postOrUrl) {
+    if (slug && String(slug).includes('eaata')) {
+      return 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/eaata-aa7d50879091.webp';
+    }
+    return '';
+  }
+
+  const raw = typeof postOrUrl === 'string'
+    ? postOrUrl.trim()
+    : (postOrUrl.cover_image_url || postOrUrl.cover_image_key || postOrUrl.coverImage || '').trim();
+
+  if (!raw) {
+    const targetSlug = typeof postOrUrl === 'object' ? postOrUrl.slug : slug;
+    if (targetSlug && String(targetSlug).includes('eaata')) {
+      return 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/eaata-aa7d50879091.webp';
+    }
+    return '';
+  }
+
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+  return `https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/${raw.replace(/^\//, '')}`;
+}
 
 export default function BlogManagementTab({
   currentUser,
@@ -37,23 +63,30 @@ export default function BlogManagementTab({
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'published' | 'draft'
 
-  // Modal de Criação / Edição de Post
+  // Modal / Tela de Criação e Edição de Post (Estilo Gutenberg)
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [coverPreviewError, setCoverPreviewError] = useState(false);
+
+  // Estado de Nova Categoria Rápida
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDesc, setNewCategoryDesc] = useState('');
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
   // Form State do Post
   const [postForm, setPostForm] = useState({
     title: '',
     slug: '',
     summary: '',
-    content: '',
+    contentHtml: '',
     cover_image_url: '',
     status: 'published',
     category_id: '',
     tags: '',
     related_product_slug: '',
-    reading_time_minutes: 5
+    metaTitle: '',
+    metaDescription: ''
   });
 
   // Modal de Exclusão de Post
@@ -71,23 +104,23 @@ export default function BlogManagementTab({
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
-      // 1. Carrega posts administrativos
-      const resPosts = await fetch('/api/blog/admin/posts', { headers });
-      if (resPosts.ok) {
+      const [resPosts, resCats, resComments] = await Promise.all([
+        fetch('/api/blog/admin/posts', { headers }).catch(() => null),
+        fetch('/api/blog/categories').catch(() => null),
+        fetch('/api/blog/admin/comments', { headers }).catch(() => null)
+      ]);
+
+      if (resPosts && resPosts.ok) {
         const postsData = await resPosts.json();
         setPosts(Array.isArray(postsData) ? postsData : []);
       }
 
-      // 2. Carrega categorias
-      const resCats = await fetch('/api/blog/categories');
-      if (resCats.ok) {
+      if (resCats && resCats.ok) {
         const catsData = await resCats.json();
         setCategories(Array.isArray(catsData) ? catsData : []);
       }
 
-      // 3. Carrega comentários
-      const resComments = await fetch('/api/blog/admin/comments', { headers });
-      if (resComments.ok) {
+      if (resComments && resComments.ok) {
         const commentsData = await resComments.json();
         setComments(Array.isArray(commentsData) ? commentsData : []);
       }
@@ -104,17 +137,10 @@ export default function BlogManagementTab({
     loadBlogData();
   }, []);
 
-  // Gerador automático de slug a partir do título
-  const handleTitleChange = (val) => {
-    setPostForm(prev => {
-      const isAutoSlug = !editingPost || prev.slug === generateSlug(prev.title);
-      return {
-        ...prev,
-        title: val,
-        slug: isAutoSlug ? generateSlug(val) : prev.slug
-      };
-    });
-  };
+  // Reseta erro da imagem de capa sempre que a URL mudar
+  useEffect(() => {
+    setCoverPreviewError(false);
+  }, [postForm.cover_image_url]);
 
   const generateSlug = (text) => {
     return (text || '')
@@ -125,21 +151,38 @@ export default function BlogManagementTab({
       .replace(/(^-|-$)+/g, '');
   };
 
-  // Abre editor para novo post ou edição
+  // Gerador automático de slug a partir do título
+  const handleTitleChange = (val) => {
+    setPostForm((prev) => {
+      const isAutoSlug = !editingPost || prev.slug === generateSlug(prev.title);
+      return {
+        ...prev,
+        title: val,
+        slug: isAutoSlug ? generateSlug(val) : prev.slug
+      };
+    });
+  };
+
+  // Abre editor visual Tiptap / Gutenberg para novo post ou edição de existente
   const handleOpenEditor = (post = null) => {
+    setCoverPreviewError(false);
     if (post) {
       setEditingPost(post);
+      const resolvedCover = resolveAdminPostCover(post, post.slug);
+      const normalizedHtml = normalizeContentToHtml(post.content, post.content_html);
+
       setPostForm({
         title: post.title || '',
         slug: post.slug || '',
-        summary: post.summary || '',
-        content: post.content || '',
-        cover_image_url: post.cover_image_url || '',
+        summary: post.excerpt || post.summary || '',
+        contentHtml: normalizedHtml || '<p></p>',
+        cover_image_url: resolvedCover,
         status: post.status || 'published',
-        category_id: post.categories?.[0]?.id || '',
+        category_id: post.categories?.[0]?.id || categories[0]?.id || '',
         tags: Array.isArray(post.tags) ? post.tags.join(', ') : (post.tags || ''),
         related_product_slug: post.related_product_slug || '',
-        reading_time_minutes: post.reading_time_minutes || 5
+        metaTitle: post.meta_title || post.title || '',
+        metaDescription: post.meta_description || post.excerpt || post.summary || ''
       });
     } else {
       setEditingPost(null);
@@ -147,34 +190,46 @@ export default function BlogManagementTab({
         title: '',
         slug: '',
         summary: '',
-        content: '',
+        contentHtml: '<p></p>',
         cover_image_url: '',
         status: 'published',
         category_id: categories[0]?.id || '',
         tags: '',
         related_product_slug: '',
-        reading_time_minutes: 5
+        metaTitle: '',
+        metaDescription: ''
       });
     }
     setIsEditorOpen(true);
   };
 
   // Salva artigo (criação ou atualização)
-  const handleSavePost = async (e) => {
-    e.preventDefault();
+  const handleSavePost = async (e, overrideStatus = null) => {
+    if (e && e.preventDefault) e.preventDefault();
+
     if (!postForm.title.trim()) {
-      if (showNotification) showNotification('O título do artigo é obrigatório.', 'error');
+      if (showNotification) showNotification('Por favor, informe o título do artigo.', 'error');
       return;
     }
 
+    const finalStatus = overrideStatus || postForm.status || 'published';
     setIsSaving(true);
     const token = getAuthToken();
+
     const payload = {
-      ...postForm,
+      title: postForm.title.trim(),
+      slug: postForm.slug.trim() || generateSlug(postForm.title),
+      excerpt: postForm.summary.trim(),
+      summary: postForm.summary.trim(),
+      content: postForm.contentHtml,
+      contentHtml: postForm.contentHtml,
+      content_html: postForm.contentHtml,
+      cover_image_url: postForm.cover_image_url.trim() || null,
+      coverImageKey: postForm.cover_image_url.trim() || null,
+      status: finalStatus,
       categoryIds: postForm.category_id ? [postForm.category_id] : [],
-      tags: typeof postForm.tags === 'string'
-        ? postForm.tags.split(',').map(t => t.trim()).filter(Boolean)
-        : postForm.tags
+      metaTitle: (postForm.metaTitle || postForm.title).trim().slice(0, 150),
+      metaDescription: (postForm.metaDescription || postForm.summary).trim().slice(0, 250)
     };
 
     try {
@@ -195,14 +250,19 @@ export default function BlogManagementTab({
       if (res.ok) {
         if (showNotification) {
           showNotification(
-            editingPost ? 'Artigo atualizado com sucesso!' : 'Novo artigo publicado!',
+            editingPost
+              ? 'Artigo atualizado com sucesso!'
+              : finalStatus === 'published'
+              ? 'Novo artigo publicado no Blog!'
+              : 'Rascunho salvo com sucesso!',
             'success'
           );
         }
         setIsEditorOpen(false);
+        setEditingPost(null);
         loadBlogData();
       } else {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
         if (showNotification) {
           showNotification(errData.error || 'Erro ao salvar artigo.', 'error');
         }
@@ -213,6 +273,61 @@ export default function BlogManagementTab({
       }
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Criar nova categoria de blog
+  const handleCreateCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    setIsCreatingCategory(true);
+    const token = getAuthToken();
+
+    try {
+      const res = await fetch('/api/blog/admin/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          slug: generateSlug(newCategoryName),
+          description: newCategoryDesc.trim() || null
+        })
+      });
+
+      if (res.ok) {
+        const created = await res.json();
+        setCategories((prev) => [...prev, created]);
+        setNewCategoryName('');
+        setNewCategoryDesc('');
+        if (showNotification) showNotification('Categoria criada com sucesso!', 'success');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        if (showNotification) showNotification(err.error || 'Erro ao criar categoria.', 'error');
+      }
+    } catch {
+      if (showNotification) showNotification('Falha de rede ao criar categoria.', 'error');
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (catId) => {
+    if (!window.confirm('Deseja excluir esta categoria do blog?')) return;
+    const token = getAuthToken();
+    try {
+      const res = await fetch(`/api/blog/admin/categories/${catId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setCategories((prev) => prev.filter((c) => c.id !== catId));
+        if (showNotification) showNotification('Categoria removida.', 'success');
+      }
+    } catch {
+      if (showNotification) showNotification('Erro ao remover categoria.', 'error');
     }
   };
 
@@ -254,7 +369,10 @@ export default function BlogManagementTab({
 
       if (res.ok) {
         if (showNotification) {
-          showNotification(`Comentário ${status === 'approved' ? 'aprovado' : status === 'rejected' ? 'rejeitado' : 'marcado como spam'}.`, 'success');
+          showNotification(
+            `Comentário ${status === 'approved' ? 'aprovado' : status === 'rejected' ? 'rejeitado' : 'marcado como spam'}.`,
+            'success'
+          );
         }
         loadBlogData();
       } else {
@@ -291,8 +409,9 @@ export default function BlogManagementTab({
 
   // Filtragem de posts
   const filteredPosts = useMemo(() => {
-    return posts.filter(p => {
-      const matchesSearch = !searchFilter.trim() || 
+    return posts.filter((p) => {
+      const matchesSearch =
+        !searchFilter.trim() ||
         (p.title || '').toLowerCase().includes(searchFilter.toLowerCase()) ||
         (p.slug || '').toLowerCase().includes(searchFilter.toLowerCase());
       const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
@@ -300,37 +419,39 @@ export default function BlogManagementTab({
     });
   }, [posts, searchFilter, statusFilter]);
 
+  const resolvedFormCoverPreview = resolveAdminPostCover(postForm.cover_image_url, postForm.slug);
+
   return (
     <div className="space-y-6">
       {/* Header do Módulo Blog no Admin */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
         <div>
           <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-amber-500" />
-            <span>Gestão do Blog & Inteligência Técnica</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+            <span>Gestão do Blog & Editor Visual (Tiptap / Gutenberg)</span>
+            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
               {posts.length} Artigos
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Gerencie artigos técnicos, publicações sobre diagnósticos automotivos, moderação de comentários e SEO orgânico.
+            Clique no título de qualquer artigo para abrir o editor em blocos, gerenciar imagens de capa da R2, categorias e SEO.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => handleOpenEditor()}
-            className="btn-gold text-xs font-bold py-2.5 px-4 cursor-pointer inline-flex items-center gap-2 shadow-xs"
+            onClick={() => handleOpenEditor(null)}
+            className="btn-gold text-xs font-bold py-2.5 px-5 cursor-pointer inline-flex items-center gap-2 shadow-xs"
           >
             <Plus className="w-4 h-4" />
-            <span>Novo Artigo</span>
+            <span>Criar Novo Artigo</span>
           </button>
         </div>
       </div>
 
       {/* Navegação entre Sub-Abas do Blog */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
         <button
           type="button"
           onClick={() => setActiveSubTab('posts')}
@@ -346,6 +467,19 @@ export default function BlogManagementTab({
 
         <button
           type="button"
+          onClick={() => setActiveSubTab('categories')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+            activeSubTab === 'categories'
+              ? 'bg-amber-600 text-white shadow-xs'
+              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Categorias ({categories.length})</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveSubTab('comments')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
             activeSubTab === 'comments'
@@ -354,7 +488,7 @@ export default function BlogManagementTab({
           }`}
         >
           <MessageSquare className="w-4 h-4" />
-          <span>Moderação de Comentários ({comments.filter(c => c.status === 'pending').length} Pendentes)</span>
+          <span>Comentários ({comments.filter((c) => c.status === 'pending').length} Pendentes)</span>
         </button>
 
         <button
@@ -405,15 +539,22 @@ export default function BlogManagementTab({
                 Carregando artigos...
               </div>
             ) : filteredPosts.length === 0 ? (
-              <div className="p-12 text-center text-slate-500 text-xs">
-                Nenhum artigo encontrado. Clique em "Novo Artigo" para começar.
+              <div className="p-12 text-center text-slate-500 text-xs space-y-3">
+                <p>Nenhum artigo encontrado.</p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenEditor(null)}
+                  className="btn-gold text-xs font-bold py-2 px-4 cursor-pointer"
+                >
+                  Criar Primeiro Artigo
+                </button>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold">
-                      <th className="p-3.5 pl-4">Capa & Artigo</th>
+                      <th className="p-3.5 pl-4">Capa & Artigo (Clique para Editar)</th>
                       <th className="p-3.5">Categoria</th>
                       <th className="p-3.5">Autor</th>
                       <th className="p-3.5 text-center">Visualizações</th>
@@ -422,81 +563,111 @@ export default function BlogManagementTab({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredPosts.map((post) => (
-                      <tr key={post.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="p-3.5 pl-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-14 h-10 rounded-lg overflow-hidden bg-slate-900 shrink-0 border border-slate-200">
-                              <img
-                                src={post.cover_image_url || 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=200&auto=format&fit=crop&q=80'}
-                                alt=""
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <span className="font-bold text-slate-900 block truncate max-w-md">
-                                {post.title}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono block truncate">
-                                /blog/{post.slug}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
+                    {filteredPosts.map((post) => {
+                      const coverThumb =
+                        resolveAdminPostCover(post, post.slug) ||
+                        'https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp';
 
-                        <td className="p-3.5 text-slate-600 font-medium">
-                          {post.categories?.[0]?.name || '-'}
-                        </td>
-
-                        <td className="p-3.5 text-slate-600">
-                          {post.author_name || 'Athena'}
-                        </td>
-
-                        <td className="p-3.5 text-center font-bold text-slate-700">
-                          {post.views_count || 0}
-                        </td>
-
-                        <td className="p-3.5 text-center">
-                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
-                            post.status === 'published'
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200'
-                          }`}>
-                            {post.status === 'published' ? 'Publicado' : 'Rascunho'}
-                          </span>
-                        </td>
-
-                        <td className="p-3.5 pr-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <a
-                              href={`/blog/${post.slug}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-                              title="Visualizar Artigo"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                            <button
-                              type="button"
+                      return (
+                        <tr key={post.id} className="hover:bg-amber-50/30 transition-colors group">
+                          <td className="p-3.5 pl-4">
+                            <div
                               onClick={() => handleOpenEditor(post)}
-                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition cursor-pointer"
-                              title="Editar Artigo"
+                              className="flex items-center gap-3 cursor-pointer"
+                              title="Clique para editar este artigo"
                             >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPostToDelete(post)}
-                              className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition cursor-pointer"
-                              title="Excluir Artigo"
+                              <div className="w-16 h-11 rounded-lg overflow-hidden bg-slate-900 shrink-0 border border-slate-200 group-hover:border-amber-400 transition-colors">
+                                <img
+                                  src={coverThumb}
+                                  alt={post.title}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src =
+                                      'https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp';
+                                  }}
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditor(post);
+                                  }}
+                                  className="font-bold text-slate-900 group-hover:text-amber-600 hover:underline text-left block truncate max-w-md cursor-pointer transition-colors"
+                                >
+                                  {post.title}
+                                </button>
+                                <span className="text-[10px] text-slate-400 font-mono block truncate">
+                                  /blog/{post.slug}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="p-3.5 text-slate-600 font-medium">
+                            {post.categories?.[0]?.name ? (
+                              <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold">
+                                {post.categories[0].name}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+
+                          <td className="p-3.5 text-slate-600">
+                            {post.author_name || 'Equipe Athena'}
+                          </td>
+
+                          <td className="p-3.5 text-center font-bold text-slate-700">
+                            {post.view_count ?? post.views_count ?? 0}
+                          </td>
+
+                          <td className="p-3.5 text-center">
+                            <span
+                              className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase ${
+                                post.status === 'published'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              }`}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              {post.status === 'published' ? 'Publicado' : 'Rascunho'}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5 pr-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <a
+                                href={`/blog/${post.slug}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                                title="Visualizar Artigo no Site"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditor(post)}
+                                className="px-2.5 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                                title="Editar Artigo"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>Editar</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPostToDelete(post)}
+                                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition cursor-pointer"
+                                title="Excluir Artigo"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -505,7 +676,78 @@ export default function BlogManagementTab({
         </div>
       )}
 
-      {/* SUB-ABA 2: MODERAÇÃO DE COMENTÁRIOS */}
+      {/* SUB-ABA 2: CATEGORIAS DO BLOG */}
+      {activeSubTab === 'categories' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <Plus className="w-4 h-4 text-amber-600" />
+              <span>Nova Categoria do Blog</span>
+            </h3>
+            <form onSubmit={handleCreateCategory} className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Nome da Categoria *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Diagnóstico & IA"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="form-input text-xs w-full rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Descrição Curta</label>
+                <textarea
+                  rows={2}
+                  placeholder="Assuntos abordados nesta categoria..."
+                  value={newCategoryDesc}
+                  onChange={(e) => setNewCategoryDesc(e.target.value)}
+                  className="form-textarea text-xs w-full rounded-xl"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isCreatingCategory}
+                className="btn-gold text-xs font-bold py-2.5 px-4 w-full cursor-pointer"
+              >
+                {isCreatingCategory ? 'Criando...' : 'Adicionar Categoria'}
+              </button>
+            </form>
+          </div>
+
+          <div className="md:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+            <h3 className="text-sm font-black text-slate-900">Categorias Cadastradas ({categories.length})</h3>
+            {categories.length === 0 ? (
+              <p className="text-xs text-slate-400 py-4">Nenhuma categoria cadastrada.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {categories.map((cat) => (
+                  <div key={cat.id} className="py-3 flex items-center justify-between gap-4">
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">{cat.name}</span>
+                      <span className="text-[10px] font-mono text-slate-400">Slug: {cat.slug}</span>
+                      {cat.description && (
+                        <p className="text-xs text-slate-500 mt-0.5">{cat.description}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"
+                      title="Excluir Categoria"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SUB-ABA 3: MODERAÇÃO DE COMENTÁRIOS */}
       {activeSubTab === 'comments' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -523,13 +765,20 @@ export default function BlogManagementTab({
                     <div>
                       <strong className="text-slate-900">{c.author_name}</strong>
                       <span className="text-slate-400 ml-2">({c.author_email})</span>
+                      {c.post_title && (
+                        <span className="text-amber-700 font-bold ml-2">• Artigo: {c.post_title}</span>
+                      )}
                     </div>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
-                      c.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
-                      c.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                      'bg-amber-100 text-amber-800'
-                    }`}>
-                      {c.status}
+                    <span
+                      className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                        c.status === 'approved'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : c.status === 'rejected'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {c.status === 'approved' ? 'Aprovado' : c.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
                     </span>
                   </div>
 
@@ -544,7 +793,7 @@ export default function BlogManagementTab({
                         onClick={() => handleModerateComment(c.id, 'approved')}
                         className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer"
                       >
-                        Aprovar
+                        Aprovar Comentário
                       </button>
                     )}
                     {c.status !== 'rejected' && (
@@ -564,174 +813,251 @@ export default function BlogManagementTab({
         </div>
       )}
 
-      {/* MODAL DE CRIAÇÃO / EDIÇÃO DE POST */}
+      {/* =====================================================================
+          ESTÚDIO DE CRIAÇÃO / EDIÇÃO DE ARTIGO (ESTILO GUTENBERG + TIPTAP)
+         ===================================================================== */}
       {isEditorOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl p-6 sm:p-8 space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Edit3 className="w-5 h-5 text-amber-500" />
-                <span>{editingPost ? 'Editar Artigo' : 'Novo Artigo para o Blog'}</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsEditorOpen(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSavePost} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Título do Artigo *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Scanner Thinkcar THINKTOOL LITE com IA"
-                    value={postForm.title}
-                    onChange={(e) => handleTitleChange(e.target.value)}
-                    className="form-input text-xs w-full rounded-xl"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Slug da URL *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="ex: scanner-thinkcar-thinktool-lite"
-                    value={postForm.slug}
-                    onChange={(e) => setPostForm(p => ({ ...p, slug: generateSlug(e.target.value) }))}
-                    className="form-input text-xs w-full rounded-xl font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Resumo / Lead (Meta Description) *</label>
-                <textarea
-                  rows={2}
-                  required
-                  placeholder="Breve resumo informativo exibido nos cards e no Google..."
-                  value={postForm.summary}
-                  onChange={(e) => setPostForm(p => ({ ...p, summary: e.target.value }))}
-                  className="form-textarea text-xs w-full rounded-xl"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Imagem de Capa (URL)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="url"
-                      placeholder="https://images.athenaconsultoria.com.br/..."
-                      value={postForm.cover_image_url}
-                      onChange={(e) => setPostForm(p => ({ ...p, cover_image_url: e.target.value }))}
-                      className="form-input text-xs flex-1 rounded-xl"
-                    />
-                    {onOpenMediaLibrary && (
-                      <button
-                        type="button"
-                        onClick={onOpenMediaLibrary}
-                        className="btn-secondary text-xs py-2 px-2.5 flex items-center gap-1.5 shrink-0 cursor-pointer"
-                        title="Selecionar imagem da Biblioteca R2"
-                      >
-                        <Images className="w-3.5 h-3.5 text-amber-600" />
-                        <span>R2</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Categoria Principal</label>
-                  <select
-                    value={postForm.category_id}
-                    onChange={(e) => setPostForm(p => ({ ...p, category_id: e.target.value }))}
-                    className="form-select text-xs w-full rounded-xl"
-                  >
-                    <option value="">Selecione uma categoria...</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Tags (Separadas por vírgula)</label>
-                  <input
-                    type="text"
-                    placeholder="Thinkcar, Diagnóstico, ADAS"
-                    value={postForm.tags}
-                    onChange={(e) => setPostForm(p => ({ ...p, tags: e.target.value }))}
-                    className="form-input text-xs w-full rounded-xl"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Produto para Cross-Sell</label>
-                  <select
-                    value={postForm.related_product_slug}
-                    onChange={(e) => setPostForm(p => ({ ...p, related_product_slug: e.target.value }))}
-                    className="form-select text-xs w-full rounded-xl"
-                  >
-                    <option value="">Nenhum produto vinculado</option>
-                    {products.slice(0, 30).map((prod) => (
-                      <option key={prod.id} value={prod.slug || prod.id}>
-                        {prod.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Status de Publicação</label>
-                  <select
-                    value={postForm.status}
-                    onChange={(e) => setPostForm(p => ({ ...p, status: e.target.value }))}
-                    className="form-select text-xs w-full rounded-xl"
-                  >
-                    <option value="published">Publicado no Site</option>
-                    <option value="draft">Rascunho (Oculto)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Conteúdo Completo do Artigo (Markdown) *</label>
-                <textarea
-                  rows={10}
-                  required
-                  placeholder="Escreva o artigo em Markdown com subtítulos (##), listas e formatação técnica..."
-                  value={postForm.content}
-                  onChange={(e) => setPostForm(p => ({ ...p, content: e.target.value }))}
-                  className="form-textarea text-xs w-full rounded-xl font-mono leading-relaxed"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-slate-50 rounded-3xl max-w-6xl w-full h-[94vh] flex flex-col border border-slate-200 shadow-2xl overflow-hidden">
+            {/* Top Bar Fixa do Estúdio de Edição */}
+            <div className="bg-white px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setIsEditorOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold"
                 >
-                  Cancelar
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Voltar</span>
                 </button>
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>{editingPost ? 'Editando Artigo do Blog' : 'Novo Artigo no Blog Athena'}</span>
+                  </h3>
+                  <span className="text-[11px] text-slate-500 block">
+                    URL amigável: <strong className="font-mono text-slate-700">/blog/{postForm.slug || 'novo-artigo'}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
                 <button
-                  type="submit"
+                  type="button"
                   disabled={isSaving}
-                  className="btn-gold text-xs font-bold py-2.5 px-6 cursor-pointer inline-flex items-center gap-2 shadow-xs"
+                  onClick={(e) => handleSavePost(e, 'draft')}
+                  className="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-xs font-bold text-slate-700 transition cursor-pointer disabled:opacity-50"
+                >
+                  Salvar como Rascunho
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={(e) => handleSavePost(e, 'published')}
+                  className="btn-gold text-xs font-bold py-2.5 px-5 cursor-pointer inline-flex items-center gap-2 shadow-sm disabled:opacity-50"
                 >
                   <Check className="w-4 h-4" />
-                  <span>{isSaving ? 'Salvando...' : 'Salvar e Publicar'}</span>
+                  <span>{isSaving ? 'Salvando...' : editingPost ? 'Salvar e Atualizar Artigo' : 'Publicar Artigo Agora'}</span>
                 </button>
               </div>
-            </form>
+            </div>
+
+            {/* Corpo do Editor em 2 Colunas (Canvas Principal 8 cols + Painel Lateral de Configurações 4 cols) */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* COLUNA ESQUERDA: Título Estilo Gutenberg + Resumo + Editor Visual Tiptap */}
+                <div className="lg:col-span-8 space-y-5">
+                  <div className="bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+                    <div>
+                      <label className="text-[11px] font-black uppercase tracking-wider text-amber-600 block mb-1">
+                        Título Principal do Artigo *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Digite o título do artigo aqui (Ex: Vale a pena investir no Scanner EAATA 90?)..."
+                        value={postForm.title}
+                        onChange={(e) => handleTitleChange(e.target.value)}
+                        className="w-full text-xl sm:text-2xl font-black text-slate-900 placeholder:text-slate-300 border-0 border-b border-slate-200 focus:border-amber-500 pb-2 focus:outline-none transition-colors"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">
+                        Resumo / Subtítulo de Abertura (Exibido nos cards e no Google) *
+                      </label>
+                      <textarea
+                        rows={2}
+                        required
+                        placeholder="Escreva um parágrafo curto resumindo o que o mecânico ou gestor aprenderá neste artigo..."
+                        value={postForm.summary}
+                        onChange={(e) => setPostForm((p) => ({ ...p, summary: e.target.value }))}
+                        className="form-textarea text-xs w-full rounded-xl bg-slate-50 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Componente Tiptap Estilo Gutenberg em Português */}
+                  <TiptapBlogEditor
+                    key={editingPost?.id || 'new_post'}
+                    initialHtml={postForm.contentHtml}
+                    onChangeHtml={(html) => setPostForm((p) => ({ ...p, contentHtml: html }))}
+                    products={products}
+                    onRequestImageFromLibrary={
+                      onOpenMediaLibrary
+                        ? (callback) => onOpenMediaLibrary(callback)
+                        : null
+                    }
+                  />
+                </div>
+
+                {/* COLUNA DIREITA: Configurações do Documento (Capa com Preview ao Vivo, Categoria, Slug, SEO) */}
+                <aside className="lg:col-span-4 space-y-5 lg:sticky lg:top-0">
+                  {/* Card 1: Imagem de Capa com Preview ao Vivo */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                        <Images className="w-4 h-4 text-amber-600" />
+                        <span>Imagem de Capa</span>
+                      </label>
+                      {onOpenMediaLibrary && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onOpenMediaLibrary((selectedUrl) => {
+                              if (selectedUrl) {
+                                setPostForm((p) => ({ ...p, cover_image_url: selectedUrl }));
+                              }
+                            })
+                          }
+                          className="text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 cursor-pointer transition flex items-center gap-1"
+                        >
+                          <Images className="w-3.5 h-3.5" />
+                          <span>Biblioteca R2</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Preview Visual da Imagem de Capa */}
+                    <div className="relative aspect-[16/9] rounded-xl overflow-hidden bg-slate-900 border border-slate-200 flex items-center justify-center">
+                      {resolvedFormCoverPreview && !coverPreviewError ? (
+                        <img
+                          src={resolvedFormCoverPreview}
+                          alt="Prévia da Capa"
+                          className="w-full h-full object-cover"
+                          onError={() => setCoverPreviewError(true)}
+                        />
+                      ) : (
+                        <div className="text-center p-4 space-y-1">
+                          <Images className="w-7 h-7 text-slate-500 mx-auto" />
+                          <span className="text-[11px] text-slate-400 block">
+                            {coverPreviewError
+                              ? 'Não foi possível carregar esta URL de imagem.'
+                              : 'Nenhuma imagem de capa selecionada'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                        URL da Imagem de Capa
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="https://images.athenaconsultoria.com.br/..."
+                        value={postForm.cover_image_url}
+                        onChange={(e) => setPostForm((p) => ({ ...p, cover_image_url: e.target.value }))}
+                        className="form-input text-xs w-full rounded-xl"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Card 2: Publicação, Categoria e URL */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5 pb-2 border-b border-slate-100">
+                      <Layers className="w-4 h-4 text-amber-600" />
+                      <span>Classificação & URL</span>
+                    </h4>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">Status de Visibilidade</label>
+                      <select
+                        value={postForm.status}
+                        onChange={(e) => setPostForm((p) => ({ ...p, status: e.target.value }))}
+                        className="form-select text-xs w-full rounded-xl"
+                      >
+                        <option value="published">Publicado (Visível no Blog)</option>
+                        <option value="draft">Rascunho (Oculto)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">Categoria Principal</label>
+                      <select
+                        value={postForm.category_id}
+                        onChange={(e) => setPostForm((p) => ({ ...p, category_id: e.target.value }))}
+                        className="form-select text-xs w-full rounded-xl"
+                      >
+                        <option value="">Selecione uma categoria...</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 block mb-1">Slug da URL *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="ex: scanner-eaata-90-topologia"
+                        value={postForm.slug}
+                        onChange={(e) => setPostForm((p) => ({ ...p, slug: generateSlug(e.target.value) }))}
+                        className="form-input text-xs w-full rounded-xl font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Card 3: SEO Avançado */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5 pb-2 border-b border-slate-100">
+                      <Tag className="w-4 h-4 text-amber-600" />
+                      <span>Otimização Google (SEO)</span>
+                    </h4>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Título SEO (Meta Title)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={postForm.title || 'Título para o Google...'}
+                        value={postForm.metaTitle}
+                        onChange={(e) => setPostForm((p) => ({ ...p, metaTitle: e.target.value }))}
+                        className="form-input text-xs w-full rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Descrição SEO (Meta Description)
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder={postForm.summary || 'Resumo para aparecer nos resultados de busca...'}
+                        value={postForm.metaDescription}
+                        onChange={(e) => setPostForm((p) => ({ ...p, metaDescription: e.target.value }))}
+                        className="form-textarea text-xs w-full rounded-xl"
+                      />
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            </div>
           </div>
         </div>
       )}

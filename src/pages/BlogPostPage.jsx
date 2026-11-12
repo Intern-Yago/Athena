@@ -556,11 +556,11 @@ export default function BlogPostPage({ slug, onNavigate }) {
               <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-xs space-y-6 text-slate-800 leading-relaxed text-sm sm:text-base">
                 {post.content_html ? (
                   <div
-                    className="space-y-4 font-sans leading-relaxed text-sm sm:text-base prose max-w-none text-slate-800"
+                    className="blog-article-content space-y-4 font-sans leading-relaxed text-sm sm:text-base max-w-none text-slate-800"
                     dangerouslySetInnerHTML={{ __html: post.content_html }}
                   />
                 ) : typeof post.content === 'string' ? (
-                  <div className="space-y-6 whitespace-pre-line font-sans">
+                  <div className="blog-article-content space-y-6 whitespace-pre-line font-sans">
                     {post.content}
                   </div>
                 ) : (
@@ -795,10 +795,9 @@ export default function BlogPostPage({ slug, onNavigate }) {
             </article>
           </main>
 
-          {/* Menu Lateral Direito Aside (4 colunas) */}
-          <div className="lg:col-span-4 min-w-0 mt-8 lg:mt-0">
+          {/* Menu Lateral Direito Aside (4 colunas) Fixo na Rolagem */}
+          <div className="lg:col-span-4 min-w-0 mt-8 lg:mt-0 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto lg:pr-1 [overscroll-behavior:contain]">
             <BlogSidebar
-              className="sticky top-24 self-start"
               categories={categories}
               selectedCategory={post?.categories?.[0]?.slug || 'all'}
               onSelectCategory={(catSlug) => {

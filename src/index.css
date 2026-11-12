@@ -362,3 +362,116 @@ h1, h2, h3, h4, h5, h6 {
   overflow-y: auto;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
 }
+
+/* ==========================================================================
+   Tiptap / Gutenberg Rich Blog Editor & Article Typography
+   ========================================================================== */
+.tiptap-editor-canvas p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+.tiptap-editor-canvas h2,
+.blog-article-content h2 {
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.tiptap-editor-canvas h3,
+.blog-article-content h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-top: 1.4rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.35;
+}
+
+.tiptap-editor-canvas p,
+.blog-article-content p {
+  margin-bottom: 1rem;
+  line-height: 1.75;
+  color: #334155;
+}
+
+.tiptap-editor-canvas ul,
+.blog-article-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.tiptap-editor-canvas ol,
+.blog-article-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.tiptap-editor-canvas li,
+.blog-article-content li {
+  margin-bottom: 0.375rem;
+  line-height: 1.65;
+  color: #334155;
+}
+
+.tiptap-editor-canvas blockquote,
+.blog-article-content blockquote {
+  border-left: 4px solid #f59e0b;
+  background-color: #fffbeb;
+  padding: 1rem 1.25rem;
+  border-radius: 0 1rem 1rem 0;
+  margin: 1.25rem 0;
+  color: #78350f;
+}
+
+.tiptap-editor-canvas blockquote p:last-child,
+.blog-article-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.tiptap-editor-canvas pre,
+.blog-article-content pre {
+  background-color: #0f172a;
+  color: #f8fafc;
+  padding: 1rem 1.25rem;
+  border-radius: 0.875rem;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  margin: 1.25rem 0;
+}
+
+.tiptap-editor-canvas hr,
+.blog-article-content hr {
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 2rem 0;
+}
+
+.tiptap-editor-canvas a,
+.blog-article-content a {
+  color: #d97706;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.tiptap-editor-canvas img,
+.blog-article-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 1rem;
+  margin: 1.5rem auto;
+}

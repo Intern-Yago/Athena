@@ -45,8 +45,13 @@ function calculateReadingTime(textOrBlocks) {
 /**
  * Normaliza e resolve o link público seguro para a imagem de capa
  */
-function resolveCoverImageUrl(key) {
-  if (!key) return null;
+function resolveCoverImageUrl(key, slug = '') {
+  if (!key) {
+    if (slug && String(slug).includes('eaata')) {
+      return 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/eaata-aa7d50879091.webp';
+    }
+    return null;
+  }
   if (key.startsWith('http://') || key.startsWith('https://')) return key;
   const baseUrl = process.env.R2_PUBLIC_URL || 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev';
   return `${baseUrl.replace(/\/$/, '')}/${key.replace(/^\//, '')}`;
@@ -164,10 +169,20 @@ async function createPost(postData, authorId) {
     throw new Error('Slug inválido. Deve conter apenas letras minúsculas, números e hífens.');
   }
 
-  const contentBlocks = Array.isArray(postData.content) ? postData.content : [];
-  const contentHtml = blockNoteToHtml(contentBlocks);
-  const readingTime = calculateReadingTime(contentBlocks);
+  let contentBlocks = [];
+  let contentHtml = '';
+  if (Array.isArray(postData.content)) {
+    contentBlocks = postData.content;
+    contentHtml = blockNoteToHtml(contentBlocks);
+  } else {
+    const rawContent = postData.contentHtml || postData.content_html || postData.content || '';
+    contentHtml = sanitizePostHtml(rawContent);
+    contentBlocks = [{ type: 'paragraph', content: [{ type: 'text', text: typeof postData.content === 'string' ? postData.content : '' }] }];
+  }
+  const readingTime = calculateReadingTime(Array.isArray(postData.content) ? contentBlocks : contentHtml);
   const status = ['draft', 'published', 'archived'].includes(postData.status) ? postData.status : 'draft';
+  const coverKey = postData.coverImageKey || postData.cover_image_key || postData.cover_image_url || null;
+  const excerpt = postData.excerpt || postData.summary || null;
 
   // Se publicado, published_at é obrigatório por constraint (default: agora)
   let publishedAt = postData.publishedAt ? new Date(postData.publishedAt) : null;
@@ -186,12 +201,12 @@ async function createPost(postData, authorId) {
     `, [
       title,
       slug,
-      postData.excerpt || null,
+      excerpt,
       JSON.stringify(contentBlocks),
       contentHtml,
       status,
       authorId,
-      postData.coverImageKey || null,
+      coverKey,
       postData.metaTitle || null,
       postData.metaDescription || null,
       readingTime,
@@ -259,15 +274,23 @@ async function updatePost(id, updateData, currentUserId) {
       values.push(newSlug);
     }
 
-    if (updateData.excerpt !== undefined) {
+    if (updateData.excerpt !== undefined || updateData.summary !== undefined) {
       updates.push(`excerpt = $${paramIdx++}`);
-      values.push(updateData.excerpt);
+      values.push(updateData.excerpt !== undefined ? updateData.excerpt : updateData.summary);
     }
 
-    if (updateData.content !== undefined) {
-      const contentBlocks = Array.isArray(updateData.content) ? updateData.content : [];
-      const contentHtml = blockNoteToHtml(contentBlocks);
-      const readingTime = calculateReadingTime(contentBlocks);
+    if (updateData.content !== undefined || updateData.content_html !== undefined || updateData.contentHtml !== undefined) {
+      let contentBlocks = [];
+      let contentHtml = '';
+      if (Array.isArray(updateData.content)) {
+        contentBlocks = updateData.content;
+        contentHtml = blockNoteToHtml(contentBlocks);
+      } else {
+        const rawContent = updateData.content_html || updateData.contentHtml || updateData.content || '';
+        contentHtml = sanitizePostHtml(rawContent);
+        contentBlocks = [{ type: 'paragraph', content: [{ type: 'text', text: typeof updateData.content === 'string' ? updateData.content : '' }] }];
+      }
+      const readingTime = calculateReadingTime(Array.isArray(updateData.content) ? contentBlocks : contentHtml);
 
       updates.push(`content = $${paramIdx++}`);
       values.push(JSON.stringify(contentBlocks));
@@ -298,9 +321,14 @@ async function updatePost(id, updateData, currentUserId) {
       values.push(updateData.publishedAt ? new Date(updateData.publishedAt) : null);
     }
 
-    if (updateData.coverImageKey !== undefined) {
+    const coverKey = updateData.coverImageKey !== undefined 
+      ? updateData.coverImageKey 
+      : (updateData.cover_image_key !== undefined 
+          ? updateData.cover_image_key 
+          : updateData.cover_image_url);
+    if (coverKey !== undefined) {
       updates.push(`cover_image_key = $${paramIdx++}`);
-      values.push(updateData.coverImageKey);
+      values.push(coverKey);
     }
 
     if (updateData.metaTitle !== undefined) {
@@ -397,7 +425,7 @@ async function getPublicPosts({ page = 1, limit = 10, categorySlug = null }) {
   return {
     posts: postsRes.rows.map((post) => ({
       ...post,
-      cover_image_url: resolveCoverImageUrl(post.cover_image_key)
+      cover_image_url: resolveCoverImageUrl(post.cover_image_key, post.slug)
     })),
     total: Number(countRes.rows[0]?.total || 0),
     page: Math.max(1, page),
@@ -428,7 +456,7 @@ async function getPublicPostBySlug(slug) {
   if (postRes.rows.length > 0) {
     const post = {
       ...postRes.rows[0],
-      cover_image_url: resolveCoverImageUrl(postRes.rows[0].cover_image_key)
+      cover_image_url: resolveCoverImageUrl(postRes.rows[0].cover_image_key, postRes.rows[0].slug)
     };
 
     // Busca comentários públicos aprovados
@@ -676,5 +704,6 @@ module.exports = {
   moderateComment,
   purgeOldCommentIps,
   incrementPostView,
-  calculateReadingTime
+  calculateReadingTime,
+  resolveCoverImageUrl
 };
