@@ -627,6 +627,16 @@ export default function ProductDetailPage({
 
   // DYNAMIC SEO, OPENGRAPH & SCHEMA.ORG JSON-LD INJECTION
   useEffect(() => {
+    // Atualiza a canonical imediatamente com o slug da URL mesmo enquanto o produto ainda está carregando,
+    // evitando que o Googlebot leia a canonical da página inicial ("/") durante o fetch inicial.
+    const immediateSlug = product?.slug || product?.id || productSlugOrId;
+    if (immediateSlug && immediateSlug !== 'preview') {
+      const immediateCanonical = document.querySelector('link[rel="canonical"]');
+      if (immediateCanonical) {
+        immediateCanonical.setAttribute('href', `https://www.athenaconsultoria.com.br/produto/${immediateSlug}`);
+      }
+    }
+
     if (!product) return;
 
     const originalTitle = document.title;

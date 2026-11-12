@@ -7,8 +7,11 @@ Allow: /
 Allow: /produto/
 Allow: /categoria/
 Allow: /marca/
+Allow: /blog
+Allow: /blog/
 Allow: /sobre
 Allow: /sitemap.xml
+Allow: /sitemap-blog.xml
 Allow: /llms.txt
 Allow: /llms-full.txt
 Allow: /ai-catalog.json
@@ -25,6 +28,7 @@ Disallow: /api-docs
 
 # Sitemaps e Recursos para Inteligência Artificial (LLMs / ARD)
 Sitemap: https://www.athenaconsultoria.com.br/sitemap.xml
+Sitemap: https://www.athenaconsultoria.com.br/sitemap-blog.xml
 # AI Resource Catalog: https://www.athenaconsultoria.com.br/.well-known/ai-catalog.json
 # LLM Context: https://www.athenaconsultoria.com.br/llms.txt
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { setPageSeo } from '../utils/seoManager';
 import { 
   ShieldCheck, 
   FileText, 
@@ -69,6 +70,32 @@ export default function LegalPage({ initialTab = 'terms', onNavigate }) {
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [initialTab]);
+
+  useEffect(() => {
+    const tabMeta = {
+      terms: {
+        title: 'Termos de Uso e Condições Comerciais | Athena Soluções Automotivas',
+        description: 'Termos de uso, condições comerciais, garantia de fábrica, faturamento e entrega de equipamentos automotivos da Athena Soluções Automotivas.',
+        path: '/termos-de-uso'
+      },
+      privacy: {
+        title: 'Política de Privacidade e Proteção de Dados (LGPD) | Athena Soluções Automotivas',
+        description: 'Política de Privacidade e conformidade LGPD da Athena Soluções Automotivas. Saiba como protegemos seus dados cadastrais e comerciais.',
+        path: '/politica-de-privacidade'
+      },
+      cookies: {
+        title: 'Política de Cookies e Preferências de Privacidade | Athena Soluções Automotivas',
+        description: 'Gerencie suas preferências de cookies e conheça as tecnologias de segurança e desempenho utilizadas no portal da Athena Soluções Automotivas.',
+        path: '/politica-de-cookies'
+      }
+    };
+    const meta = tabMeta[activeTab] || tabMeta.terms;
+    setPageSeo({
+      title: meta.title,
+      description: meta.description,
+      canonicalPath: meta.path
+    });
+  }, [activeTab]);
 
   const showToast = (msg) => {
     setToastMessage(msg);

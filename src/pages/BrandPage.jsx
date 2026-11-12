@@ -7,6 +7,7 @@ import { Tag, ArrowLeft, Layers, ExternalLink, Globe, Search, LayoutGrid, List, 
 import { sortProducts } from '../utils/productSorting';
 import { buildProductRelationsMap, matchProductWithRelations } from '../utils/productSearch';
 import { isProductPublished } from '../utils/imageUrl';
+import { setPageSeo } from '../utils/seoManager';
 
 export default function BrandPage({
   brandId,
@@ -35,12 +36,38 @@ export default function BrandPage({
     setCurrentPage(1);
   }, [brandId, searchTerm, sortBy, itemsPerPage, shuffleSeed]);
 
+  const rawBrandProducts = (products || []).filter((p) => brand && p.brandId === brand.id && isProductPublished(p));
+
+  // SEO Dinâmico (Title, Meta Description, Canonical e Schema Brand + ItemList)
+  useEffect(() => {
+    const slugFromUrl = typeof window !== 'undefined' ? window.location.pathname : `/marca/${brand?.slug || brandId}`;
+    const bName = brand?.name || 'Marca Parceira';
+    const bSlug = brand?.slug || brand?.id || brandId;
+    const canonicalPath = `/marca/${bSlug}`;
+    const desc = brand?.description
+      ? `${brand.description.slice(0, 135)} Confira ${rawBrandProducts.length} equipamento(s) na Athena.`
+      : `Catálogo oficial de equipamentos ${bName} na Athena Soluções Automotivas (${rawBrandProducts.length} produtos disponíveis com garantia de fábrica).`;
+
+    setPageSeo({
+      title: `Equipamentos ${bName} | Revenda Oficial - Athena Soluções Automotivas`,
+      description: desc,
+      canonicalPath: brand ? canonicalPath : slugFromUrl,
+      image: brand?.logo,
+      schemaId: 'brand-page-json-ld',
+      schemaData: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": `Equipamentos ${bName} - Athena Soluções Automotivas`,
+        "description": desc,
+        "url": `https://www.athenaconsultoria.com.br${brand ? canonicalPath : slugFromUrl}`
+      }
+    });
+  }, [brand, brandId, rawBrandProducts.length]);
+
   const normalizeText = (text) => {
     if (!text) return '';
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   };
-
-  const rawBrandProducts = (products || []).filter((p) => brand && p.brandId === brand.id && isProductPublished(p));
 
   // Build bidirectional relation map across all catalog items
   const relationsMap = useMemo(() => {

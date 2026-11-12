@@ -7,6 +7,7 @@ import { Layers, ArrowLeft, Package, Search, LayoutGrid, List, SlidersHorizontal
 import { sortProducts } from '../utils/productSorting';
 import { buildProductRelationsMap, matchProductWithRelations } from '../utils/productSearch';
 import { isProductPublished } from '../utils/imageUrl';
+import { setPageSeo } from '../utils/seoManager';
 
 export default function CategoryPage({ 
   categoryId, 
@@ -35,12 +36,49 @@ export default function CategoryPage({
     setCurrentPage(1);
   }, [categoryId, searchTerm, sortBy, itemsPerPage, shuffleSeed]);
 
+  const rawCategoryProducts = (products || []).filter((p) => category && p.categoryId === category.id && isProductPublished(p));
+
+  // SEO Dinâmico (Title, Meta Description, Canonical e Schema CollectionPage + ItemList) para indexação de categorias no Google
+  useEffect(() => {
+    const slugFromUrl = typeof window !== 'undefined' ? window.location.pathname : `/categoria/${category?.slug || categoryId}`;
+    const catName = category?.name || 'Equipamentos Automotivos';
+    const catSlug = category?.slug || category?.id || categoryId;
+    const canonicalPath = `/categoria/${catSlug}`;
+    const desc = category?.description
+      ? `${category.description.slice(0, 135)} Confira ${rawCategoryProducts.length} equipamento(s) com garantia na Athena.`
+      : `Catálogo de ${catName} para oficinas mecânicas e auto centers (${rawCategoryProducts.length} equipamentos disponíveis). Pronta-entrega e suporte técnico na Athena.`;
+
+    const itemListElements = rawCategoryProducts.slice(0, 20).map((prod, idx) => ({
+      "@type": "ListItem",
+      "position": idx + 1,
+      "url": `https://www.athenaconsultoria.com.br/produto/${prod.slug || prod.id}`,
+      "name": prod.name
+    }));
+
+    setPageSeo({
+      title: `${catName} para Oficina Mecânica | Athena Soluções Automotivas`,
+      description: desc,
+      canonicalPath: category ? canonicalPath : slugFromUrl,
+      schemaId: 'category-page-json-ld',
+      schemaData: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": `${catName} - Athena Soluções Automotivas`,
+        "description": desc,
+        "url": `https://www.athenaconsultoria.com.br${category ? canonicalPath : slugFromUrl}`,
+        "mainEntity": {
+          "@type": "ItemList",
+          "numberOfItems": rawCategoryProducts.length,
+          "itemListElement": itemListElements
+        }
+      }
+    });
+  }, [category, categoryId, rawCategoryProducts.length]);
+
   const normalizeText = (text) => {
     if (!text) return '';
     return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   };
-
-  const rawCategoryProducts = (products || []).filter((p) => category && p.categoryId === category.id && isProductPublished(p));
 
   // Build bidirectional relation map across all catalog items
   const relationsMap = useMemo(() => {

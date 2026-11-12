@@ -17,9 +17,49 @@ import {
   Package
 } from 'lucide-react';
 import BlogSidebar from '../components/BlogSidebar';
+import { setPageSeo } from '../utils/seoManager';
 
 // Artigos de fallback com imagens oficiais corretas (incluindo EAATA 90 e Thinkcar)
 const FALLBACK_POSTS = [
+  {
+    id: 'post_prog5_ecm45',
+    slug: 'clonagem-programacao-modulos-ecu-tcu-eaata-prog-5-ecm-45',
+    title: 'Clonagem e Programação de Módulos ECU e TCU na Oficina: Guia Técnico da EAATA PROG 5 e ECM 45',
+    summary: 'Entenda como realizar leitura, backup e clonagem de centrais de injeção (ECU) e câmbio (TCU) em bancada com a EAATA PROG 5, além de reset de módulos de airbag, bateria BMS e direção elétrica (SAS) com o programador ECM 45.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/eaata-programadora-prog-5-c6e2e7396d01.webp',
+    published_at: '2026-11-12T20:50:00.000Z',
+    reading_time_minutes: 7,
+    views_count: 195,
+    author_name: 'Equipe Técnica Athena',
+    categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
+    tags: ['PROG 5', 'ECM 45', 'Clonagem ECU', 'TCU', 'Airbag']
+  },
+  {
+    id: 'post_ev_ccs2_tc1108',
+    slug: 'recarga-veiculos-eletricos-adaptador-ccs2-gbt-carregador-portatil-7kw',
+    title: 'Recarga de Veículos Elétricos no Brasil: Quando Usar Adaptador CCS2 para GB/T e Carregadores Portáteis Tipo 2 (7kW)',
+    summary: 'Guia prático sobre padrões de recarga de carros elétricos e híbridos plug-in no Brasil: como funcionam os adaptadores rápidos DC CCS2 para GB/T (80kW) e os carregadores portáteis Tipo 2 de 7kW 32A.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/ew1135-173eeeb34c90.webp',
+    published_at: '2026-11-12T20:45:00.000Z',
+    reading_time_minutes: 6,
+    views_count: 178,
+    author_name: 'Equipe Técnica Athena',
+    categories: [{ id: 'cat_ev', name: 'Tendências Automotivas', slug: 'tendencias-automotivas' }],
+    tags: ['CCS2 para GB/T', 'Carregador 7kW', 'Carros Elétricos', 'Top Charger']
+  },
+  {
+    id: 'post_cambio_automatico',
+    slug: 'troca-oleo-cambio-automatico-dialise-maquina-100-automatica',
+    title: 'Troca de Óleo de Câmbio Automático por Diálise vs. Gravidade: Como Faturar Alto na Oficina',
+    summary: 'Descubra por que a troca parcial por gravidade deixa até 50% de fluido contaminado no conversor de torque e como máquinas 100% automáticas elevam o ticket médio e a segurança da transmissão.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1788372279810-07af1d2e7d7b.webp',
+    published_at: '2026-11-12T20:40:00.000Z',
+    reading_time_minutes: 6,
+    views_count: 164,
+    author_name: 'Equipe Técnica Athena',
+    categories: [{ id: 'cat_gest', name: 'Gestão & Produtividade', slug: 'gestao-produtividade' }],
+    tags: ['Câmbio Automático', 'Diálise', 'Transmissão', 'Oficina Lucrativa']
+  },
   {
     id: 'post_eaata_90',
     slug: 'scanner-topologia-de-rede-ia-eaata-90-oficina',
@@ -154,6 +194,23 @@ export default function BlogListingPage({ onNavigate }) {
   const [totalPages, setTotalPages] = useState(1);
   // Inicia com false porque já temos os artigos pré-carregados (Stale-While-Revalidate instantâneo)
   const [isLoading, setIsLoading] = useState(false);
+
+  // SEO Dinâmico da Central de Inteligência / Blog
+  useEffect(() => {
+    setPageSeo({
+      title: 'Blog Técnico Athena | Diagnóstico, Scanners com IA e Equipamentos de Oficina',
+      description: 'Artigos técnicos, manuais práticos e comparativos sobre scanners automotivos com IA, clonagem de módulos ECU/TCU, recarga EV, câmbio automático e elevadores.',
+      canonicalPath: '/blog',
+      schemaId: 'blog-listing-json-ld',
+      schemaData: {
+        "@context": "https://schema.org",
+        "@type": "Blog",
+        "name": "Blog Técnico Athena Soluções Automotivas",
+        "url": "https://www.athenaconsultoria.com.br/blog",
+        "description": "Conteúdo técnico especializado para proprietários de oficinas mecânicas e centros automotivos."
+      }
+    });
+  }, []);
 
   // Manipulador com persistência de categoria
   const handleSelectCategory = (catSlug) => {

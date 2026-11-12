@@ -57,6 +57,7 @@ import {
 import { normalizeProduct, normalizeBrand, isProductPublished } from './utils/imageUrl';
 import { trackMetaEvent, trackMetaCustom, pushGtmEvent } from './utils/metaPixel';
 import { captureAndStoreUtmParams } from './utils/utmTracker';
+import { setPageSeo } from './utils/seoManager';
 
 const REMOTE_API_BASE_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && !/^192\.168\./.test(window.location.hostname) && !/^127\./.test(window.location.hostname)
   ? '/api'
@@ -542,6 +543,41 @@ export default function App() {
     const cleanRoute = (currentRoute || 'catalog').replace(/^\//, '');
     const diretorio = `/${cleanRoute === 'catalog' ? 'catalogo' : cleanRoute}`;
     const paginaAnterior = previousRoute ? `/${previousRoute === 'catalog' ? 'catalogo' : previousRoute}` : 'Acesso Direto / Externo';
+
+    // Sincroniza imediatamente a tag <link rel="canonical"> na mudança de rota para que o Googlebot
+    // nunca veja a canonical da Home ("/") em uma rota interna durante o carregamento inicial.
+    const isHomeRoute = !cleanRoute || cleanRoute === 'catalog' || cleanRoute === 'catalogo' || cleanRoute === 'inicio' || cleanRoute === 'home';
+    const isNoIndexRoute = cleanRoute === 'admin' || cleanRoute === 'login' || cleanRoute === 'cadastro' || cleanRoute === 'minha-conta' || cleanRoute === 'obrigado';
+    if (isHomeRoute) {
+      setPageSeo({
+        title: 'Athena Soluções Automotivas | Catálogo de Equipamentos',
+        description: 'Equipamentos para oficinas mecânicas e auto centers: elevadores hidráulicos, scanners de diagnóstico, alinhadores 3D e ferramentas especiais. Pronta-entrega!',
+        canonicalPath: '/'
+      });
+    } else if (cleanRoute === 'categories' || cleanRoute === 'categorias') {
+      setPageSeo({
+        title: 'Categorias de Equipamentos para Oficina | Athena Soluções Automotivas',
+        description: 'Explore todas as categorias de equipamentos automotivos da Athena: scanners com IA, elevadores hidráulicos, alinhadores 3D, desmontadoras e ferramentas especiais.',
+        canonicalPath: '/categories'
+      });
+    } else if (cleanRoute === 'brands' || cleanRoute === 'marcas') {
+      setPageSeo({
+        title: 'Marcas Homologadas de Equipamentos Automotivos | Athena Soluções Automotivas',
+        description: 'Conheça os fabricantes oficiais distribuídos pela Athena Soluções Automotivas: EAATA, Mahovi, Raven, Thinkcar, Sigma Tools, Delta, Wolfcar e Stärkx.',
+        canonicalPath: '/brands'
+      });
+    } else if (isNoIndexRoute) {
+      setPageSeo({
+        title: `${cleanRoute === 'admin' ? 'Painel Administrativo' : 'Área do Cliente'} | Athena Soluções Automotivas`,
+        canonicalPath: `/${cleanRoute}`,
+        noindex: true
+      });
+    } else {
+      const canonicalEl = document.querySelector('link[rel="canonical"]');
+      if (canonicalEl) {
+        canonicalEl.setAttribute('href', `https://www.athenaconsultoria.com.br/${cleanRoute.split('?')[0].split('#')[0]}`);
+      }
+    }
 
     let secao = 'Catálogo Principal';
     let itemNome = 'Vitrine Geral de Equipamentos';

@@ -19,9 +19,55 @@ import {
   TrendingUp
 } from 'lucide-react';
 import BlogSidebar from '../components/BlogSidebar';
+import { setPageSeo } from '../utils/seoManager';
 
 // Fallback detalhado para artigos técnicos caso a API esteja indisponível
 const FALLBACK_POST_DETAILS = {
+  'clonagem-programacao-modulos-ecu-tcu-eaata-prog-5-ecm-45': {
+    id: 'post_prog5_ecm45',
+    slug: 'clonagem-programacao-modulos-ecu-tcu-eaata-prog-5-ecm-45',
+    title: 'Clonagem e Programação de Módulos ECU e TCU na Oficina: Guia Técnico da EAATA PROG 5 e ECM 45',
+    summary: 'Entenda como realizar leitura, backup e clonagem de centrais de injeção (ECU) e câmbio (TCU) em bancada com a EAATA PROG 5, além de reset de módulos de airbag, bateria BMS e direção elétrica (SAS) com o programador ECM 45.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/eaata-programadora-prog-5-c6e2e7396d01.webp',
+    published_at: '2026-11-12T20:50:00.000Z',
+    reading_time_minutes: 7,
+    views_count: 195,
+    author_name: 'Equipe Técnica Athena',
+    author_role: 'Especialista em Eletrônica Embarcada & Módulos',
+    categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
+    tags: ['PROG 5', 'ECM 45', 'Clonagem ECU', 'TCU', 'Airbag'],
+    content_html: `<p>Com a eletrônica embarcada cada vez mais protegida por criptografia e sistemas anti-furto (IMMO de última geração), substituir uma central de injeção eletrônica (<strong>ECU</strong>) ou de transmissão automatizada/automática (<strong>TCU</strong>) deixou de ser uma simples troca física de peça. Hoje, a oficina que domina a <strong>clonagem de módulos em bancada e o reset de unidades de controle</strong> retém os serviços de maior margem de lucro do mercado.</p><h2>1. O Que Faz a Programadora e Clonadora EAATA PROG 5?</h2><p>A <strong>EAATA PROG 5</strong> permite que o técnico conecte-se diretamente à central (em modo <em>Bench</em> sem abrir a carcaça, ou em modo <em>Boot</em> na placa) para ler e salvar backup integral (Flash + EEPROM) e realizar clonagem 1:1 para módulos doadores.</p><div class="athena-blog-product-card" style="margin:28px 0;padding:24px;border-radius:16px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#ffffff;border:1px solid #334155;"><span style="display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(245,158,11,0.15);color:#fbbf24;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Equipamento em Destaque</span><h4 style="margin:0 0 8px 0;font-size:20px;font-weight:800;color:#ffffff;">Programadora e Clonadora de Módulos ECU/TCU PROG 5 – EAATA</h4><p style="margin:0 0 16px 0;font-size:14px;color:#cbd5e1;line-height:1.6;">Leitura e gravação de memória EEPROM e Flash de centrais de motor e câmbio em modo Bench e Boot.</p><a href="/produto/programadora-e-clonadora-de-modulos-ecu-tcu-prog-5-eaata-prog-5" style="display:inline-block;padding:10px 20px;border-radius:10px;background:#f59e0b;color:#020617;font-weight:800;font-size:13px;text-decoration:none;">Ver Ficha Técnica da PROG 5 →</a></div><h2>2. Reset de Airbag, Baterias de Lítio e Direção (SAS) com o EAATA ECM 45</h2><p>O <strong>EAATA ECM 45</strong> limpa o registro de impacto (Crash Data) em módulos de Airbag, destrava baterias de lítio BMS 12V/48V e recupera sensores de ângulo de direção SAS.</p>`
+  },
+  'recarga-veiculos-eletricos-adaptador-ccs2-gbt-carregador-portatil-7kw': {
+    id: 'post_ev_ccs2_tc1108',
+    slug: 'recarga-veiculos-eletricos-adaptador-ccs2-gbt-carregador-portatil-7kw',
+    title: 'Recarga de Veículos Elétricos no Brasil: Quando Usar Adaptador CCS2 para GB/T e Carregadores Portáteis Tipo 2 (7kW)',
+    summary: 'Guia prático sobre padrões de recarga de carros elétricos e híbridos plug-in no Brasil: como funcionam os adaptadores rápidos DC CCS2 para GB/T (80kW) e os carregadores portáteis Tipo 2 de 7kW 32A.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/ew1135-173eeeb34c90.webp',
+    published_at: '2026-11-12T20:45:00.000Z',
+    reading_time_minutes: 6,
+    views_count: 178,
+    author_name: 'Equipe Técnica Athena',
+    author_role: 'Especialista em Eletromobilidade & Infraestrutura EV',
+    categories: [{ id: 'cat_ev', name: 'Tendências Automotivas', slug: 'tendencias-automotivas' }],
+    tags: ['CCS2 para GB/T', 'Carregador 7kW', 'Carros Elétricos', 'Top Charger'],
+    content_html: `<p>O crescimento acelerado da frota de veículos elétricos (BEV) e híbridos plug-in (PHEV) no Brasil trouxe uma nova demanda diária tanto para proprietários quanto para oficinas: a compatibilidade entre os padrões de plugues de recarga AC e DC.</p><h2>1. Adaptador CCS2 para GB/T 80kW (E-Wolf EW1135)</h2><p>Permite carregar veículos com entrada padrão GB/T em qualquer eletroposto rápido CCS2 nas rodovias brasileiras com potência de até 80kW.</p><h2>2. Carregador Portátil Tipo 2 de 7kW (32A) Top Charger TC1108</h2><p>Entrega velocidade de Wallbox (7kW em 220V) com 4 adaptadores intercambiáveis e proteção IP65.</p>`
+  },
+  'troca-oleo-cambio-automatico-dialise-maquina-100-automatica': {
+    id: 'post_cambio_automatico',
+    slug: 'troca-oleo-cambio-automatico-dialise-maquina-100-automatica',
+    title: 'Troca de Óleo de Câmbio Automático por Diálise vs. Gravidade: Como Faturar Alto na Oficina',
+    summary: 'Descubra por que a troca parcial por gravidade deixa até 50% de fluido contaminado no conversor de torque e como máquinas 100% automáticas elevam o ticket médio e a segurança da transmissão.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1788372279810-07af1d2e7d7b.webp',
+    published_at: '2026-11-12T20:40:00.000Z',
+    reading_time_minutes: 6,
+    views_count: 164,
+    author_name: 'Equipe Técnica Athena',
+    author_role: 'Engenharia de Transmissões & Equipamentos',
+    categories: [{ id: 'cat_gest', name: 'Gestão & Produtividade', slug: 'gestao-produtividade' }],
+    tags: ['Câmbio Automático', 'Diálise', 'Transmissão', 'Oficina Lucrativa'],
+    content_html: `<p>A manutenção preventiva de câmbio automático tornou-se um dos serviços de maior rentabilidade por hora trabalhada em oficinas mecânicas e auto centers.</p><h2>Por Que Usar Máquina 100% Automática por Diálise?</h2><p>Enquanto a drenagem por gravidade substitui apenas 40% do fluido, a diálise computadorizada renova quase 100% do óleo retido no conversor de torque, corpo de válvulas e radiador com balança eletrônica de precisão.</p>`
+  },
   'scanner-topologia-de-rede-ia-eaata-90-oficina': {
     id: 'd7f7f07a-126d-4d68-8db9-6fc1438ad289',
     slug: 'scanner-topologia-de-rede-ia-eaata-90-oficina',
@@ -200,6 +246,49 @@ export default function BlogPostPage({ slug, onNavigate }) {
   const [isLoading, setIsLoading] = useState(() => !getInitialPostForSlug(slug));
   const [error, setError] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // SEO Dinâmico (Title, Meta Description, Canonical e Schema BlogPosting) para o artigo atual
+  useEffect(() => {
+    const activeSlug = post?.slug || slug;
+    if (!activeSlug) return;
+    const pTitle = post?.meta_title || post?.title || 'Artigo Técnico | Blog Athena Soluções Automotivas';
+    const pDesc = post?.meta_description || post?.summary || post?.excerpt || 'Artigo técnico sobre diagnóstico automotivo, scanners com IA e equipamentos para oficinas mecânicas.';
+    const pCover = post?.cover_image_url || post?.cover_image_key || 'https://www.athenaconsultoria.com.br/logo.jpg';
+
+    setPageSeo({
+      title: pTitle.includes('Athena') ? pTitle : `${pTitle} | Blog Athena`,
+      description: pDesc,
+      canonicalPath: `/blog/${activeSlug}`,
+      image: pCover,
+      type: 'article',
+      schemaId: 'blog-post-json-ld',
+      schemaData: post ? {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "headline": post.title || pTitle,
+        "description": pDesc,
+        "image": pCover,
+        "datePublished": post.published_at || new Date().toISOString(),
+        "dateModified": post.updated_at || post.published_at || new Date().toISOString(),
+        "author": {
+          "@type": "Organization",
+          "name": post.author_name || "Equipe Técnica Athena"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Athena Soluções Automotivas",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://www.athenaconsultoria.com.br/logo.jpg"
+          }
+        },
+        "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": `https://www.athenaconsultoria.com.br/blog/${activeSlug}`
+        }
+      } : null
+    });
+  }, [post, slug]);
 
   // Estados de comentários
   const [comments, setComments] = useState([]);

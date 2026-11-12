@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { setPageSeo } from '../utils/seoManager';
 import { 
   ShieldCheck, 
   Wrench, 
@@ -33,6 +34,14 @@ export default function AboutPage({ onNavigate, brands = [] }) {
 
   const athenaBrand = brands.find(b => b.slug === 'athena' || b.name?.toLowerCase().includes('athena'));
   const showroomImage = athenaBrand?.logo || '/images/athena-showroom.png';
+
+  useEffect(() => {
+    setPageSeo({
+      title: 'Sobre a Athena Soluções Automotivas | Equipamentos para Oficinas em Brasília DF',
+      description: 'Conheça a Athena Soluções Automotivas: distribuidora oficial de elevadores hidráulicos, scanners com IA, alinhadores 3D e ferramentas especiais com suporte em todo o Brasil.',
+      canonicalPath: '/sobre'
+    });
+  }, []);
 
   const handleNavigate = (route) => {
     if (onNavigate) {

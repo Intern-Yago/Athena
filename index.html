@@ -51,7 +51,24 @@
     <meta name="description" content="Equipamentos para oficinas mecânicas e auto centers: elevadores hidráulicos, scanners de diagnóstico, alinhadores 3D e ferramentas especiais. Pronta-entrega!" />
     <meta name="keywords" content="equipamentos automotivos, elevador automotivo, elevador hidráulico, elevador pantográfico, scanner automotivo, scanner de diagnóstico, scanner raven, alinhador 3D, desmontadora de pneus, balanceadora de rodas, compressor parafuso, ferramentas especiais para oficina, oficina mecânica, auto center, Athena Soluções Automotivas, Mahovi, Raven, Delta Ferramentas, Stärkx, Sigma Tools, Wolfcar, Brasília DF" />
     <meta name="author" content="Athena Soluções Automotivas" />
-    <link rel="canonical" href="https://www.athenaconsultoria.com.br/" />
+    <!-- Dynamic Canonical & Initial Route Title Synchronization (Prevents Google Search Console "Alternate page with proper canonical tag" on SPA deep links) -->
+    <script>
+      (function() {
+        try {
+          var path = window.location.pathname || '/';
+          if (path === '/catalog' || path === '/catalogo' || path === '/inicio' || path === '/home') {
+            path = '/';
+          } else if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+            path = path.slice(0, -1);
+          }
+          var canonicalUrl = 'https://www.athenaconsultoria.com.br' + path;
+          var link = document.createElement('link');
+          link.rel = 'canonical';
+          link.href = canonicalUrl;
+          document.head.appendChild(link);
+        } catch (e) {}
+      })();
+    </script>
     <link rel="help" type="text/markdown" href="/llms.txt" title="Athena AI & LLM Context" />
     <link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json" />
     <link rel="service-desc" type="application/json" href="/.well-known/ai-catalog.json" />
