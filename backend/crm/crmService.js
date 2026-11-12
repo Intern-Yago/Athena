@@ -1560,25 +1560,65 @@ async function listAppointments({ start, end, type = '' } = {}) {
 
 async function createAppointment(data) {
   const id = generateId('apt');
-  const { customer_id = null, title, description = '', start_time, end_time, type = 'visita', status = 'agendado', location = '' } = data;
+  let { customer_id = null, title, description = '', start_time, end_time, type = 'visita', status = 'agendado', location = '' } = data;
   if (!title) throw new Error('Título do agendamento é obrigatório.');
 
   if (crmPool) {
+    let resolvedCustomerId = null;
+
+    // 1. Verifica se customer_id informado é válido na tabela crm_customers
+    if (customer_id) {
+      const custCheck = await crmPool.query('SELECT id FROM crm_customers WHERE id = $1', [customer_id]);
+      if (custCheck.rows.length > 0) {
+        resolvedCustomerId = custCheck.rows[0].id;
+      } else {
+        // Tenta buscar se foi informado o id de um lead
+        const leadCheck = await crmPool.query('SELECT customer_id FROM crm_leads WHERE id = $1', [customer_id]);
+        if (leadCheck.rows.length > 0 && leadCheck.rows[0].customer_id) {
+          resolvedCustomerId = leadCheck.rows[0].customer_id;
+        }
+      }
+    }
+
+    // 2. Se ainda não resolveu, tenta localizar pelo nome do cliente (no payload ou extraído do título)
+    if (!resolvedCustomerId && (data.customer_name || title)) {
+      const candidate = (data.customer_name || title.replace(/^[^:]*:\s*/, '')).trim();
+      if (candidate.length >= 3) {
+        const matchRes = await crmPool.query(`
+          SELECT id FROM crm_customers 
+          WHERE name ILIKE $1 OR fantasy_name ILIKE $1 
+          ORDER BY (CASE WHEN name ILIKE $1 THEN 1 ELSE 2 END)
+          LIMIT 1
+        `, [`%${candidate}%`]);
+        if (matchRes.rows.length > 0) {
+          resolvedCustomerId = matchRes.rows[0].id;
+        }
+      }
+    }
+
     const res = await crmPool.query(`
       INSERT INTO crm_appointments (id, customer_id, title, description, start_time, end_time, type, status, location)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
-    `, [id, customer_id || null, title.trim(), description.trim(), start_time, end_time, type, status, location.trim()]);
+    `, [id, resolvedCustomerId, title.trim(), description.trim(), start_time, end_time, type, status, location.trim()]);
 
-    if (customer_id) {
-      await addCustomerHistory(customer_id, {
+    const createdApt = res.rows[0];
+
+    if (resolvedCustomerId) {
+      await addCustomerHistory(resolvedCustomerId, {
         type: 'agendamento_criado',
         title: `Visita agendada: ${title}`,
         details: { data: start_time, local: location }
-      });
+      }).catch(() => {});
+
+      const cData = await crmPool.query('SELECT name, fantasy_name FROM crm_customers WHERE id = $1', [resolvedCustomerId]);
+      if (cData.rows.length > 0) {
+        createdApt.customer_name = cData.rows[0].name;
+        createdApt.customer_fantasy = cData.rows[0].fantasy_name;
+      }
     }
 
-    return res.rows[0];
+    return createdApt;
   }
   return null;
 }

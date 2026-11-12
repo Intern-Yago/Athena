@@ -587,7 +587,7 @@ function CRMContent() {
         ) : currentPath === '/equipamentos' ? (
           <EquipmentsView />
         ) : currentPath === '/agenda' ? (
-          <AgendaView />
+          <AgendaView onNavigate={navigateTo} />
         ) : currentPath === '/equipe' ? (
           <TeamManagementView
             onOpenCreateModal={() => setIsCreateEmployeeOpen(true)}

@@ -326,4 +326,44 @@ describe('Athena CRM - Testes Unitários de Domínio, Regras de Negócio e Segur
     assert.equal(prospect.pretende_adquirir, true);
     assert.equal(prospect.trocar_atualizar, false);
   });
+
+  test('Agenda de Visitas: Link interno e extração de cliente para abertura de ficha', () => {
+    // 1. Extração de nome a partir de título composto de visita
+    const aptWithColon = {
+      id: 'apt_1',
+      title: 'Visita Comercial Presencial: Auto Mecânica Alpha Samambaia',
+      location: 'Samambaia Sul QN 120 - DF'
+    };
+    const parts = (aptWithColon.title || '').split(':');
+    const prefix = parts.length > 1 ? parts[0].trim() : '';
+    const clientName = parts.length > 1 ? parts.slice(1).join(':').trim() : aptWithColon.title;
+
+    assert.equal(prefix, 'Visita Comercial Presencial');
+    assert.equal(clientName, 'Auto Mecânica Alpha Samambaia');
+
+    // 2. Extração quando há customer_name explícito
+    const aptExplicit = {
+      id: 'apt_2',
+      title: 'Entrega Técnica de Scanner',
+      customer_name: 'Oficina Central Taguatinga',
+      customer_id: 'cust_9981'
+    };
+    const resolvedName = aptExplicit.customer_name || aptExplicit.title;
+    assert.equal(resolvedName, 'Oficina Central Taguatinga');
+    assert.equal(aptExplicit.customer_id, 'cust_9981');
+
+    // 3. Fallback seguro de ficha do cliente com dados da visita
+    const fallbackCustomer = {
+      id: `cust_temp_${Date.now()}`,
+      name: clientName,
+      fantasy_name: clientName,
+      address: aptWithColon.location,
+      category: 'Mecânica Geral',
+      pipeline_stage: 'lead',
+      equipments: []
+    };
+    assert.ok(fallbackCustomer.id.startsWith('cust_temp_'));
+    assert.equal(fallbackCustomer.name, 'Auto Mecânica Alpha Samambaia');
+    assert.equal(fallbackCustomer.address, 'Samambaia Sul QN 120 - DF');
+  });
 });

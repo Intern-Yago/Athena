@@ -67,7 +67,9 @@ export default function ScheduleVisitModal({
       end_time: endDateTime,
       type: 'visita',
       location: leadAddress,
-      customer_id: lead.id || '',
+      customer_id: lead.customer_id || lead.customerId || (String(lead.id).startsWith('cust_') ? lead.id : null),
+      customer_name: leadName,
+      lead_id: lead.id || '',
       workshop_id: workshopId,
       created_at: new Date().toISOString()
     };

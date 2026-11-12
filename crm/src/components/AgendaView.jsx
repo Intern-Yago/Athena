@@ -3,6 +3,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { crmApiFetch } from '../utils/api';
 import { autoSyncEventToGoogle, autoRemoveEventFromGoogle } from '../utils/googleCalendarSync';
+import CustomerProfilePage from './CustomerProfilePage';
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -24,7 +25,8 @@ import {
   Download,
   Sparkles,
   Share2,
-  Key
+  Key,
+  Loader2
 } from 'lucide-react';
 
 function buildGoogleCalendarUrl(apt) {
@@ -121,7 +123,7 @@ function getBirthdaysForDate(date, members) {
   });
 }
 
-export default function AgendaView() {
+export default function AgendaView({ onNavigate }) {
   const { isDark } = useTheme();
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState('semanal'); // 'mensal' | 'semanal' | 'diario'
@@ -129,6 +131,157 @@ export default function AgendaView() {
   const [appointments, setAppointments] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Visualização e Acesso Direto à Ficha do Cliente
+  const [activeCustomerProfile, setActiveCustomerProfile] = useState(null);
+  const [loadingCustomerDossier, setLoadingCustomerDossier] = useState(false);
+  const [dossierError, setDossierError] = useState('');
+
+  // Auto-carregamento de cliente se especificado na URL (?clienteId=xxx)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlCustId = params.get('clienteId') || params.get('customerId') || params.get('id');
+      if (urlCustId && window.location.pathname.startsWith('/agenda')) {
+        crmApiFetch(`/crm/customers/${urlCustId}?_t=${Date.now()}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(json => {
+            if (json?.data) {
+              setActiveCustomerProfile(json.data);
+            }
+          })
+          .catch(() => {});
+      }
+    } catch (_) {}
+  }, []);
+
+  // Abre a Ficha do Cliente a partir de um Agendamento da Agenda
+  const handleOpenCustomerDossier = async (apt) => {
+    if (!apt) return;
+    setLoadingCustomerDossier(true);
+    setDossierError('');
+
+    try {
+      let targetCustomerId = apt.customer_id;
+      let clientName = '';
+
+      if (apt.customer_name) {
+        clientName = apt.customer_name;
+      } else if (apt.customer_fantasy) {
+        clientName = apt.customer_fantasy;
+      } else if (apt.title && apt.title.includes(':')) {
+        clientName = apt.title.split(':').slice(1).join(':').trim();
+      } else {
+        clientName = (apt.title || '').trim();
+      }
+
+      // 1. Se tem customer_id direto e válido (não é lead_ ou radar_)
+      if (targetCustomerId && !String(targetCustomerId).startsWith('lead_') && !String(targetCustomerId).startsWith('radar_')) {
+        const res = await crmApiFetch(`/crm/customers/${targetCustomerId}?_t=${Date.now()}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.data) {
+            setActiveCustomerProfile(json.data);
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.set('clienteId', json.data.id);
+              window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+            } catch (_) {}
+            setLoadingCustomerDossier(false);
+            return;
+          }
+        }
+      }
+
+      // 2. Se for lead_id ou workshop_id, busca o lead correspondente para obter o customer_id
+      const possibleLeadId = apt.lead_id || (targetCustomerId && String(targetCustomerId).startsWith('lead_') ? targetCustomerId : null);
+      if (possibleLeadId) {
+        try {
+          const leadRes = await crmApiFetch(`/crm/leads?_t=${Date.now()}`);
+          if (leadRes.ok) {
+            const leadJson = await leadRes.json();
+            const list = Array.isArray(leadJson?.data) ? leadJson.data : [];
+            const foundLead = list.find(l => l.id === possibleLeadId);
+            if (foundLead) {
+              if (foundLead.customer_id) {
+                const cRes = await crmApiFetch(`/crm/customers/${foundLead.customer_id}?_t=${Date.now()}`);
+                if (cRes.ok) {
+                  const cJson = await cRes.json();
+                  if (cJson?.data) {
+                    setActiveCustomerProfile(cJson.data);
+                    try {
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('clienteId', cJson.data.id);
+                      window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+                    } catch (_) {}
+                    setLoadingCustomerDossier(false);
+                    return;
+                  }
+                }
+              }
+              if (!clientName) clientName = foundLead.name || foundLead.company || '';
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3. Busca por nome / razão / fantasia na base de clientes
+      if (clientName) {
+        const cleanName = clientName.replace(/[^\w\s\d]/gi, ' ').trim();
+        const searchRes = await crmApiFetch(`/crm/customers?search=${encodeURIComponent(cleanName)}&limit=10&_t=${Date.now()}`);
+        if (searchRes.ok) {
+          const searchJson = await searchRes.json();
+          const list = searchJson?.data?.customers || (Array.isArray(searchJson?.data) ? searchJson.data : []);
+          if (list.length > 0) {
+            const match = list.find(c => 
+              (c.name && c.name.toLowerCase().includes(clientName.toLowerCase())) ||
+              (c.fantasy_name && c.fantasy_name.toLowerCase().includes(clientName.toLowerCase()))
+            ) || list[0];
+
+            const fullRes = await crmApiFetch(`/crm/customers/${match.id}?_t=${Date.now()}`);
+            if (fullRes.ok) {
+              const fullJson = await fullRes.json();
+              if (fullJson?.data) {
+                setActiveCustomerProfile(fullJson.data);
+                try {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('clienteId', fullJson.data.id);
+                  window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+                } catch (_) {}
+                setLoadingCustomerDossier(false);
+                return;
+              }
+            }
+            setActiveCustomerProfile(match);
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.set('clienteId', match.id);
+              window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+            } catch (_) {}
+            setLoadingCustomerDossier(false);
+            return;
+          }
+        }
+      }
+
+      // 4. Fallback: cria perfil inicial para o cliente do agendamento com os dados conhecidos
+      const fallbackCustomer = {
+        id: `cust_temp_${Date.now()}`,
+        name: clientName || 'Oficina / Cliente Agendado',
+        fantasy_name: clientName || 'Centro Automotivo DF',
+        address: apt.location || '',
+        category: 'Mecânica Geral',
+        pipeline_stage: 'lead',
+        notes: `Cliente agendado para visita comercial: ${apt.title || ''}\nLocal: ${apt.location || ''}\nData: ${apt.start_time || ''}`,
+        equipments: []
+      };
+      setActiveCustomerProfile(fallbackCustomer);
+    } catch (err) {
+      console.error('Falha ao abrir ficha do cliente:', err);
+    } finally {
+      setLoadingCustomerDossier(false);
+    }
+  };
 
   // Sincronização Google Agenda Pessoal
   const [syncingGoogle, setSyncingGoogle] = useState(false);
@@ -582,6 +735,34 @@ export default function AgendaView() {
 
   const monthGridDays = getDaysInMonth();
 
+  // Se houver uma ficha de cliente selecionada, exibe a CustomerProfilePage dedicada completa com retorno perfeito para a Agenda
+  if (activeCustomerProfile) {
+    return (
+      <CustomerProfilePage
+        customer={activeCustomerProfile}
+        onBack={() => {
+          setActiveCustomerProfile(null);
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('clienteId');
+            url.searchParams.delete('customerId');
+            url.searchParams.delete('id');
+            window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+          } catch (_) {}
+        }}
+        onCustomerUpdated={(updated) => {
+          setActiveCustomerProfile(updated);
+          setAppointments(prev => prev.map(a => {
+            if (a.customer_id === updated.id) {
+              return { ...a, customer_name: updated.name, customer_fantasy: updated.fantasy_name };
+            }
+            return a;
+          }));
+        }}
+      />
+    );
+  }
+
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden select-none ${
       isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
@@ -870,10 +1051,56 @@ export default function AgendaView() {
                                 <Clock className="w-3 h-3" />
                                 {apt.start_time.slice(11, 16)}
                               </span>
-                              <span className="capitalize text-[9px] uppercase tracking-wider font-extrabold">{apt.type}</span>
+                              <div className="flex items-center gap-1">
+                                <span className="capitalize text-[9px] uppercase tracking-wider font-extrabold">{apt.type}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenCustomerDossier(apt);
+                                  }}
+                                  className="p-0.5 rounded bg-black/15 hover:bg-black/35 text-current transition cursor-pointer"
+                                  title="Abrir ficha completa do cliente"
+                                >
+                                  <User className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
                             </div>
                             <div className="truncate font-black text-xs leading-tight">
-                              {apt.title}
+                              {(() => {
+                                const titleParts = (apt.title || '').split(':');
+                                if (titleParts.length > 1) {
+                                  const prefix = titleParts[0].trim();
+                                  const clientName = titleParts.slice(1).join(':').trim();
+                                  return (
+                                    <span className="truncate block">
+                                      <span className="opacity-80 font-medium">{prefix}: </span>
+                                      <span
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenCustomerDossier(apt);
+                                        }}
+                                        className="hover:underline underline-offset-2 decoration-dotted font-black cursor-pointer"
+                                        title="Clique para abrir a ficha do cliente"
+                                      >
+                                        {clientName}
+                                      </span>
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <span
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenCustomerDossier(apt);
+                                    }}
+                                    className="hover:underline underline-offset-2 decoration-dotted font-black cursor-pointer truncate block"
+                                    title="Clique para abrir a ficha do cliente"
+                                  >
+                                    {apt.title}
+                                  </span>
+                                );
+                              })()}
                             </div>
                             {apt.location && (
                               <div className="text-[10px] truncate opacity-90 flex items-center gap-1 mt-0.5">
@@ -961,10 +1188,30 @@ export default function AgendaView() {
                           e.stopPropagation();
                           handleOpenAppointmentDetails(apt);
                         }}
-                        className="p-1 bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold rounded-md truncate shadow-xs cursor-pointer transition hover:scale-[1.02]"
-                        title={`Clique para ver detalhes, editar ou excluir:\n${apt.title}`}
+                        className="p-1 bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold rounded-md truncate shadow-xs cursor-pointer transition hover:scale-[1.02] flex items-center justify-between gap-1 group/mcard"
+                        title="Clique no nome para abrir a ficha do cliente ou no card para detalhes do agendamento"
                       >
-                        {apt.title}
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenCustomerDossier(apt);
+                          }}
+                          className="truncate hover:underline cursor-pointer flex-1 font-bold"
+                          title="Clique para abrir a ficha do cliente"
+                        >
+                          {apt.title}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenCustomerDossier(apt);
+                          }}
+                          className="opacity-0 group-hover/mcard:opacity-100 p-0.5 rounded bg-black/20 hover:bg-black/40 text-slate-950 transition shrink-0 cursor-pointer"
+                          title="Abrir ficha completa do cliente"
+                        >
+                          <User className="w-2.5 h-2.5" />
+                        </button>
                       </div>
                     ))}
                     {dayApts.length > 3 && (
@@ -1004,7 +1251,21 @@ export default function AgendaView() {
                 </div>
                 <div>
                   <h3 className="font-black text-base truncate max-w-xs">
-                    {isEditingAppointment ? 'Editar Agendamento' : selectedAppointment.title}
+                    {isEditingAppointment ? 'Editar Agendamento' : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const apt = selectedAppointment;
+                          setSelectedAppointment(null);
+                          handleOpenCustomerDossier(apt);
+                        }}
+                        className="hover:underline hover:text-amber-400 text-left truncate flex items-center gap-1.5 cursor-pointer"
+                        title="Clique para abrir a ficha completa do cliente"
+                      >
+                        <span className="truncate">{selectedAppointment.title}</span>
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                      </button>
+                    )}
                   </h3>
                   <span className="text-[10px] uppercase font-extrabold tracking-wider opacity-75">
                     {selectedAppointment.type || 'Visita'}
@@ -1156,6 +1417,56 @@ export default function AgendaView() {
             ) : (
               /* Visualização de Detalhes */
               <div className="space-y-4 overflow-y-auto pr-1">
+                {/* Card de Acesso Direto à Ficha do Cliente */}
+                <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                  isDark ? 'bg-amber-500/10 border-amber-500/25' : 'bg-amber-50 border-amber-200'
+                }`}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
+                      <User className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase font-extrabold text-amber-500 tracking-wider">
+                        Cliente Vinculado
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const apt = selectedAppointment;
+                          setSelectedAppointment(null);
+                          handleOpenCustomerDossier(apt);
+                        }}
+                        className="text-xs font-black truncate hover:underline hover:text-amber-400 text-left flex items-center gap-1.5 transition cursor-pointer"
+                        title="Clique para abrir a ficha completa do cliente"
+                      >
+                        <span className="truncate">
+                          {(() => {
+                            if (selectedAppointment.customer_name) return selectedAppointment.customer_name;
+                            if (selectedAppointment.customer_fantasy) return selectedAppointment.customer_fantasy;
+                            const parts = (selectedAppointment.title || '').split(':');
+                            return parts.length > 1 ? parts.slice(1).join(':').trim() : (selectedAppointment.title || 'Ver Ficha do Cliente');
+                          })()}
+                        </span>
+                        <ExternalLink className="w-3 h-3 shrink-0 text-amber-500" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const apt = selectedAppointment;
+                      setSelectedAppointment(null);
+                      handleOpenCustomerDossier(apt);
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center gap-1.5 transition shrink-0 shadow-xs cursor-pointer"
+                    title="Abrir a ficha completa do cliente"
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    <span>Abrir Ficha</span>
+                  </button>
+                </div>
+
                 {/* Horário e Data */}
                 <div className={`p-3.5 rounded-xl border flex items-center gap-3 ${
                   isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
@@ -1394,6 +1705,18 @@ export default function AgendaView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Overlay de Carregamento da Ficha do Cliente */}
+      {loadingCustomerDossier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none">
+          <div className={`px-5 py-4 rounded-2xl border shadow-2xl flex items-center gap-3 ${
+            isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
+            <span className="text-xs font-bold">Localizando e abrindo ficha do cliente...</span>
           </div>
         </div>
       )}
