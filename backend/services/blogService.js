@@ -42,6 +42,16 @@ function calculateReadingTime(textOrBlocks) {
   return Math.max(1, Math.ceil(wordCount / 200));
 }
 
+/**
+ * Normaliza e resolve o link público seguro para a imagem de capa
+ */
+function resolveCoverImageUrl(key) {
+  if (!key) return null;
+  if (key.startsWith('http://') || key.startsWith('https://')) return key;
+  const baseUrl = process.env.R2_PUBLIC_URL || 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev';
+  return `${baseUrl.replace(/\/$/, '')}/${key.replace(/^\//, '')}`;
+}
+
 // =============================================================================
 // 1. GESTÃO DE CATEGORIAS
 // =============================================================================
@@ -385,7 +395,10 @@ async function getPublicPosts({ page = 1, limit = 10, categorySlug = null }) {
   `, categorySlug ? [categorySlug] : []);
 
   return {
-    posts: postsRes.rows,
+    posts: postsRes.rows.map((post) => ({
+      ...post,
+      cover_image_url: resolveCoverImageUrl(post.cover_image_key)
+    })),
     total: Number(countRes.rows[0]?.total || 0),
     page: Math.max(1, page),
     limit
@@ -413,7 +426,10 @@ async function getPublicPostBySlug(slug) {
   `, [cleanSlug]);
 
   if (postRes.rows.length > 0) {
-    const post = postRes.rows[0];
+    const post = {
+      ...postRes.rows[0],
+      cover_image_url: resolveCoverImageUrl(postRes.rows[0].cover_image_key)
+    };
 
     // Busca comentários públicos aprovados
     const commentsRes = await query(`
@@ -459,7 +475,10 @@ async function getSeoPostBySlug(slug) {
   `, [cleanSlug]);
 
   if (res.rows.length > 0) {
-    return res.rows[0];
+    return {
+      ...res.rows[0],
+      cover_image_url: resolveCoverImageUrl(res.rows[0].cover_image_key)
+    };
   }
 
   // Verifica se é alias 301

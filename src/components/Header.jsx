@@ -83,7 +83,7 @@ export default function Header({
                   onNavigate('catalog');
                   setActiveMegaMenu(null);
                 }}
-                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                   activeTab === 'catalog' && !activeMegaMenu
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white'
@@ -95,7 +95,7 @@ export default function Header({
 
               <button
                 onClick={() => toggleMegaMenu('categories')}
-                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                   activeMegaMenu === 'categories' || activeTab.startsWith('category')
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white'
@@ -108,7 +108,7 @@ export default function Header({
 
               <button
                 onClick={() => toggleMegaMenu('brands')}
-                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                   activeMegaMenu === 'brands' || activeTab.startsWith('brand')
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white'
@@ -124,7 +124,7 @@ export default function Header({
                   onNavigate('about');
                   setActiveMegaMenu(null);
                 }}
-                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                   activeTab === 'about'
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white'
@@ -139,7 +139,7 @@ export default function Header({
                   onNavigate('blog');
                   setActiveMegaMenu(null);
                 }}
-                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors ${
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                   activeTab === 'blog' || (typeof activeTab === 'string' && activeTab.startsWith('blog/'))
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white'

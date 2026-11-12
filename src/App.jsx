@@ -401,13 +401,15 @@ export default function App() {
   }, [currentUser, currentRoute]);
 
   // Navigation helper using HTML5 PushState (Clean URLs without hashtags)
-  const navigateTo = (routePath) => {
-    setPreviousRoute(currentRoute);
+  const navigateTo = useCallback((routePath) => {
+    setCurrentRoute((prev) => {
+      setPreviousRoute(prev);
+      return routePath.replace(/^\//, '');
+    });
     const cleanPath = routePath.startsWith('/') ? routePath : `/${routePath}`;
     window.history.pushState({}, '', cleanPath);
-    setCurrentRoute(routePath.replace(/^\//, ''));
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
   // Resolve category/brand slugs from initial URL to internal IDs when catalog metadata loads
   useEffect(() => {
