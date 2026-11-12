@@ -89,6 +89,10 @@
       "source": "/(sitemap\\.xml|robots\\.txt|llms\\.txt|llms-full\\.txt|BingSiteAuth\\.xml)",
       "headers": [
         {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        },
+        {
           "key": "Access-Control-Allow-Origin",
           "value": "*"
         },
