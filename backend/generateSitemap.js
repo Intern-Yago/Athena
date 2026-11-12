@@ -51,6 +51,20 @@ async function generateSitemap() {
     `);
     const products = productsRes.rows;
 
+    // 4. Artigos do Blog Publicados
+    let blogPosts = [];
+    try {
+      const blogPostsRes = await pool.query(`
+        SELECT id, title, slug, cover_image_key, updated_at, published_at
+        FROM blog_posts
+        WHERE status = 'published'
+        ORDER BY published_at DESC NULLS LAST
+      `);
+      blogPosts = blogPostsRes.rows;
+    } catch (blogErr) {
+      console.warn('Aviso ao consultar blog_posts para o sitemap:', blogErr.message);
+    }
+
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
     xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
 
@@ -65,6 +79,7 @@ async function generateSitemap() {
     // 2. Páginas Institucionais & Legais
     const institutionalPages = [
       { path: '/sobre', changefreq: 'monthly', priority: '0.7' },
+      { path: '/blog', changefreq: 'daily', priority: '0.8' },
       { path: '/termos-de-uso', changefreq: 'monthly', priority: '0.5' },
       { path: '/politica-de-privacidade', changefreq: 'monthly', priority: '0.5' },
       { path: '/politica-de-cookies', changefreq: 'monthly', priority: '0.5' }
@@ -119,21 +134,40 @@ async function generateSitemap() {
       xml += `  </url>\n`;
     }
 
+    // 6. Artigos do Blog
+    for (const post of blogPosts) {
+      if (!post.slug) continue;
+      const lastMod = post.updated_at ? new Date(post.updated_at).toISOString().split('T')[0] : (post.published_at ? new Date(post.published_at).toISOString().split('T')[0] : today);
+      xml += `  <url>\n`;
+      xml += `    <loc>${BASE_URL}/blog/${escapeXml(post.slug)}</loc>\n`;
+      xml += `    <lastmod>${lastMod}</lastmod>\n`;
+      xml += `    <changefreq>weekly</changefreq>\n`;
+      xml += `    <priority>0.7</priority>\n`;
+      if (post.cover_image_key && post.cover_image_key.startsWith('http')) {
+        xml += `    <image:image>\n`;
+        xml += `      <image:loc>${escapeXml(post.cover_image_key)}</image:loc>\n`;
+        xml += `      <image:title>${escapeXml(post.title || '')}</image:title>\n`;
+        xml += `    </image:image>\n`;
+      }
+      xml += `  </url>\n`;
+    }
+
     xml += `</urlset>\n`;
 
     fs.writeFileSync(PUBLIC_SITEMAP_PATH, xml, 'utf8');
-    console.log(`✅ sitemap.xml salvo em: ${PUBLIC_SITEMAP_PATH}`);
+    console.log(`sitemap.xml salvo em: ${PUBLIC_SITEMAP_PATH}`);
 
     if (fs.existsSync(path.dirname(DIST_SITEMAP_PATH))) {
       fs.writeFileSync(DIST_SITEMAP_PATH, xml, 'utf8');
-      console.log(`✅ sitemap.xml sincronizado também em: ${DIST_SITEMAP_PATH}`);
+      console.log(`sitemap.xml sincronizado também em: ${DIST_SITEMAP_PATH}`);
     }
 
-    console.log(`🎉 Sucesso! Sitemap gerado com:`);
-    console.log(`   - 5 páginas institucionais e legais`);
+    console.log(`Sucesso! Sitemap gerado com:`);
+    console.log(`   - 5 paginas institucionais e legais (incluindo /blog)`);
     console.log(`   - ${categories.length} categorias`);
     console.log(`   - ${brands.length} marcas`);
     console.log(`   - ${products.length} produtos publicados com imagens`);
+    console.log(`   - ${blogPosts.length} artigos do blog publicados`);
   } catch (err) {
     console.error('❌ Erro ao gerar sitemap:', err);
   } finally {

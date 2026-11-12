@@ -119,8 +119,8 @@ export default function BlogPostPage({ slug, onNavigate }) {
             setIsLoading(false);
 
             // Incremento atômico de visualização silencioso
-            if (data.id) {
-              fetch(`/api/blog/posts/${data.id}/view`, { method: 'POST' }).catch(() => {});
+            if (articleData?.id) {
+              fetch(`/api/blog/posts/${articleData.id}/view`, { method: 'POST' }).catch(() => {});
             }
             return;
           }
