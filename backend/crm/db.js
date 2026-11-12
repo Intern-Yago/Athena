@@ -176,6 +176,12 @@ async function initCrmSchema() {
         pipeline_stage VARCHAR(60) DEFAULT 'lead',
         notes TEXT,
         equipments JSONB DEFAULT '[]'::jsonb,
+        is_inactive BOOLEAN DEFAULT false,
+        inactivity_reason VARCHAR(60) DEFAULT NULL,
+        inactivity_notes TEXT DEFAULT NULL,
+        allow_marketing_campaigns BOOLEAN DEFAULT false,
+        inactivated_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+        inactivated_by VARCHAR(120) DEFAULT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );
@@ -261,26 +267,35 @@ async function initCrmSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_doc ON crm_customers(cpf, cnpj);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_phone ON crm_customers(phone);`);
     await client.query(`ALTER TABLE crm_customers ADD COLUMN IF NOT EXISTS phone2 VARCHAR(40);`);
+    await client.query(`ALTER TABLE crm_customers ADD COLUMN IF NOT EXISTS is_inactive BOOLEAN DEFAULT false;`);
+    await client.query(`ALTER TABLE crm_customers ADD COLUMN IF NOT EXISTS inactivity_reason VARCHAR(60) DEFAULT NULL;`);
+    await client.query(`ALTER TABLE crm_customers ADD COLUMN IF NOT EXISTS inactivity_notes TEXT DEFAULT NULL;`);
+    await client.query(`ALTER TABLE crm_customers ADD COLUMN IF NOT EXISTS allow_marketing_campaigns BOOLEAN DEFAULT false;`);
+    await client.query(`ALTER TABLE crm_customers ADD COLUMN IF NOT EXISTS inactivated_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;`);
+    await client.query(`ALTER TABLE crm_customers ADD COLUMN IF NOT EXISTS inactivated_by VARCHAR(120) DEFAULT NULL;`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_inactive ON crm_customers(is_inactive);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_customers_inactive_mkt ON crm_customers(is_inactive, allow_marketing_campaigns);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_appointments_time ON crm_appointments(start_time);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_status ON crm_workshops(status_visita);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_ra ON crm_workshops(regiao_administrativa);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_name ON crm_workshops(nome_fantasia);`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_cnpj ON crm_workshops(cnpj);`);
+    const checkWorkshops = await client.query("SELECT 1 FROM information_schema.tables WHERE table_name = 'crm_workshops'");
+    if (checkWorkshops.rows.length > 0) {
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_status ON crm_workshops(status_visita);`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_ra ON crm_workshops(regiao_administrativa);`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_name ON crm_workshops(nome_fantasia);`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_crm_workshops_cnpj ON crm_workshops(cnpj);`);
+    }
 
     // Ativação mandatória de Row Level Security (RLS) nas tabelas do CRM (Segurança Supabase)
-    await client.query(`
-      ALTER TABLE crm_funnels ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_stages ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_leads ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_activities ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_workshops ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_equipments ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_customers ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_customer_branches ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_customer_history ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_appointments ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE crm_customer_equipment_options ENABLE ROW LEVEL SECURITY;
-    `);
+    const rlsTables = [
+      'crm_funnels', 'crm_stages', 'crm_leads', 'crm_activities',
+      'crm_equipments', 'crm_customers', 'crm_customer_branches',
+      'crm_customer_history', 'crm_appointments', 'crm_customer_equipment_options'
+    ];
+    if (checkWorkshops.rows.length > 0) {
+      rlsTables.push('crm_workshops');
+    }
+    for (const tbl of rlsTables) {
+      await client.query(`ALTER TABLE ${tbl} ENABLE ROW LEVEL SECURITY;`);
+    }
 
     // Semente inicial de Funis padrões se a tabela estiver vazia
     const countCheck = await client.query('SELECT COUNT(*) FROM crm_funnels');

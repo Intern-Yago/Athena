@@ -3,15 +3,21 @@ const { spawn } = require('child_process');
 
 async function run() {
   console.log('[E2E Test] Iniciando Vite preview na porta 4173...');
-  const server = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', '4173'], {
-    stdio: 'pipe'
-  });
+  const server = spawn('./node_modules/.bin/vite', ['preview', '--host', '127.0.0.1', '--port', '4173']);
 
-  server.stdout.on('data', d => console.log('[Server stdout]', d.toString().trim()));
+  let serverReady = false;
+  server.stdout.on('data', d => {
+    const str = d.toString();
+    console.log('[Server stdout]', str.trim());
+    if (str.includes('Local:')) serverReady = true;
+  });
   server.stderr.on('data', d => console.error('[Server stderr]', d.toString().trim()));
 
-  // Aguarda 3s para o preview subir
-  await new Promise(r => setTimeout(r, 3000));
+  // Aguarda até o servidor estar pronto (max 10s)
+  for (let i = 0; i < 20; i++) {
+    if (serverReady) break;
+    await new Promise(r => setTimeout(r, 500));
+  }
 
   const browser = await chromium.launch({
     headless: true,

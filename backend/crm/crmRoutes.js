@@ -640,8 +640,8 @@ router.get('/equipments/:id/sales', async (req, res) => {
 
 router.get('/customers', async (req, res) => {
   try {
-    const { search, category, stage, sortBy, page, limit, equipmentFilters } = req.query;
-    const result = await crmService.listCustomers({ search, category, stage, sortBy, page, limit, equipmentFilters });
+    const { search, category, stage, inactivityStatus, sortBy, page, limit, equipmentFilters } = req.query;
+    const result = await crmService.listCustomers({ search, category, stage, inactivityStatus, sortBy, page, limit, equipmentFilters });
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -670,6 +670,18 @@ router.put('/customers/:id', async (req, res) => {
   try {
     const updated = await crmService.updateCustomer(req.params.id, req.body);
     res.json({ success: true, data: updated, message: 'Ficha do cliente atualizada com sucesso!' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.patch('/customers/:id/inactivity', async (req, res) => {
+  try {
+    const updated = await crmService.updateCustomerInactivity(req.params.id, req.body);
+    const msg = req.body.is_inactive 
+      ? 'Cliente marcado como inativo com sucesso!' 
+      : 'Cliente reativado com sucesso!';
+    res.json({ success: true, data: updated, message: msg });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }

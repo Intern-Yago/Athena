@@ -1193,7 +1193,7 @@ async function triggerOmieEquipmentBatchSync() {
 // CLIENTES DO CRM (KANBAN + LISTA + FICHA COM FILIAIS + HISTÓRICO)
 // -------------------------------------------------------------
 
-async function listCustomers({ search = '', category = '', stage = '', sortBy = 'name_asc', page = 1, limit = 50, equipmentFilters = null } = {}) {
+async function listCustomers({ search = '', category = '', stage = '', inactivityStatus = 'all', sortBy = 'name_asc', page = 1, limit = 50, equipmentFilters = null } = {}) {
   const p = Math.max(1, parseInt(page, 10) || 1);
   const l = Math.min(1000, Math.max(1, parseInt(limit, 10) || 50));
   const offset = (p - 1) * l;
@@ -1222,6 +1222,19 @@ async function listCustomers({ search = '', category = '', stage = '', sortBy = 
       params.push(stage.trim());
       where += ` AND pipeline_stage = $${params.length}`;
     }
+
+    if (inactivityStatus === 'active') {
+      where += ` AND (is_inactive IS FALSE OR is_inactive IS NULL)`;
+    } else if (inactivityStatus === 'inactive') {
+      where += ` AND is_inactive IS TRUE`;
+    } else if (inactivityStatus === 'campaign_eligible') {
+      where += ` AND is_inactive IS TRUE AND allow_marketing_campaigns IS TRUE`;
+    } else if (inactivityStatus === 'blocked') {
+      where += ` AND is_inactive IS TRUE AND inactivity_reason = 'bloqueado'`;
+    } else if (inactivityStatus === 'distributor') {
+      where += ` AND is_inactive IS TRUE AND inactivity_reason = 'distribuidor'`;
+    }
+
     if (search && search.trim()) {
       params.push(`%${search.trim()}%`);
       const pIdx = params.length;
@@ -1368,7 +1381,9 @@ async function updateCustomer(id, data) {
       'name', 'fantasy_name', 'cpf', 'cnpj', 'phone', 'phone2', 'email', 'birthday',
       'address', 'city', 'state', 'cep', 'marital_status', 'spouse_works_in_shop',
       'spouse_birthday', 'football_team', 'hobbies', 'category', 'pipeline_stage',
-      'notes', 'equipments'
+      'notes', 'equipments',
+      'is_inactive', 'inactivity_reason', 'inactivity_notes', 'allow_marketing_campaigns',
+      'inactivated_at', 'inactivated_by'
     ];
     const fields = [];
     const params = [];
@@ -1395,6 +1410,68 @@ async function updateCustomer(id, data) {
       data.equipments.forEach((item) => {
         if (item && item.type) {
           saveCustomerEquipmentOption({ category: item.type, model: item.model }).catch(() => {});
+        }
+      });
+    }
+
+    return res.rows[0];
+  }
+  return null;
+}
+
+async function updateCustomerInactivity(id, data = {}) {
+  if (crmPool) {
+    const isInactive = Boolean(data.is_inactive);
+    const reason = isInactive ? (data.inactivity_reason || 'outro') : null;
+    const notes = isInactive ? (data.inactivity_notes || '') : null;
+    const allowMarketing = isInactive ? Boolean(data.allow_marketing_campaigns) : false;
+    const userName = (data.user_name || 'Equipe Comercial').trim();
+    const inactivatedAt = isInactive ? new Date().toISOString() : null;
+    const inactivatedBy = isInactive ? userName : null;
+
+    const res = await crmPool.query(`
+      UPDATE crm_customers
+      SET 
+        is_inactive = $1,
+        inactivity_reason = $2,
+        inactivity_notes = $3,
+        allow_marketing_campaigns = $4,
+        inactivated_at = $5,
+        inactivated_by = $6,
+        updated_at = NOW()
+      WHERE id = $7
+      RETURNING *
+    `, [isInactive, reason, notes, allowMarketing, inactivatedAt, inactivatedBy, id]);
+
+    if (res.rows.length === 0) throw new Error('Cliente não encontrado.');
+
+    const reasonLabels = {
+      distribuidor: 'Distribuidor / Parceiro Comercial',
+      bloqueado: 'Cliente Bloqueado / Mau Caráter / Não Atender',
+      fechou_oficina: 'Oficina Fechada / Encerrou Atividades',
+      outro: 'Outro Motivo'
+    };
+
+    if (isInactive) {
+      await addCustomerHistory(id, {
+        type: 'inativacao',
+        title: `Cliente inativado: ${reasonLabels[reason] || reason}`,
+        details: {
+          motivo: reason,
+          rotulo_motivo: reasonLabels[reason] || reason,
+          observacao: notes,
+          campanhas_marketing: allowMarketing,
+          inativado_por: userName,
+          data: inactivatedAt
+        }
+      });
+    } else {
+      await addCustomerHistory(id, {
+        type: 'reativacao',
+        title: 'Cliente reativado para atendimento comercial',
+        details: {
+          reativado_por: userName,
+          data: new Date().toISOString()
         }
       });
     }
@@ -1663,6 +1740,7 @@ module.exports = {
   getCustomerById,
   createCustomer,
   updateCustomer,
+  updateCustomerInactivity,
   addCustomerBranch,
   deleteCustomerBranch,
   addCustomerHistory,

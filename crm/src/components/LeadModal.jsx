@@ -20,7 +20,11 @@ import {
   ArrowRight,
   ExternalLink,
   MessageSquare,
-  Plus
+  Plus,
+  ShieldAlert,
+  Handshake,
+  Store,
+  UserX
 } from 'lucide-react';
 
 /**
@@ -130,6 +134,7 @@ export default function LeadModal({
   // Sugestão em tempo real ao digitar (In-line Auto-lookup)
   const [matchedCustomerSuggestion, setMatchedCustomerSuggestion] = useState(null);
   const [updateCustomerOptIn, setUpdateCustomerOptIn] = useState(false);
+  const [linkedCustomerInfo, setLinkedCustomerInfo] = useState(null);
 
   const { user } = useAuth();
   const [newNoteInput, setNewNoteInput] = useState('');
@@ -200,10 +205,27 @@ export default function LeadModal({
         customer_id: null,
         equipment_id: null
       });
+      setLinkedCustomerInfo(null);
       setLookupSource(null);
       setLookupMessage(null);
     }
   }, [lead, stages, isOpen]);
+
+  // Consulta status de inativação do cliente vinculado
+  useEffect(() => {
+    if (form.customer_id) {
+      fetch(`${API_BASE_URL}/crm/customers/${form.customer_id}`, { headers: getAuthHeaders() })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && data.data) {
+            setLinkedCustomerInfo(data.data);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setLinkedCustomerInfo(null);
+    }
+  }, [form.customer_id]);
 
   // Carregamento de clientes para a Lupa (com paginação / infinite scroll)
   const loadCustomersSearch = async (query = '', page = 1, append = false) => {
@@ -259,6 +281,7 @@ export default function LeadModal({
       source: 'base_central',
       label: 'Base Central de Clientes'
     });
+    setLinkedCustomerInfo(cust);
     setMatchedCustomerSuggestion(null);
     setShowCustomerSearchModal(false);
   };
@@ -425,6 +448,64 @@ export default function LeadModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Banner de Aviso caso o Cliente Vinculado seja Inativo ou Bloqueado */}
+          {linkedCustomerInfo?.is_inactive && (
+            <div className={`p-4 rounded-2xl border flex items-start gap-3.5 ${
+              linkedCustomerInfo.inactivity_reason === 'bloqueado'
+                ? (isDark ? 'bg-rose-950/40 border-rose-500/40 text-rose-200' : 'bg-rose-50 border-rose-300 text-rose-950')
+                : linkedCustomerInfo.inactivity_reason === 'distribuidor'
+                  ? (isDark ? 'bg-sky-950/40 border-sky-500/40 text-sky-200' : 'bg-sky-50 border-sky-300 text-sky-950')
+                  : (isDark ? 'bg-amber-950/30 border-amber-500/40 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-950')
+            }`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 font-bold ${
+                linkedCustomerInfo.inactivity_reason === 'bloqueado'
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                : linkedCustomerInfo.inactivity_reason === 'distribuidor'
+                  ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
+                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+              }`}>
+                {linkedCustomerInfo.inactivity_reason === 'bloqueado' && <ShieldAlert className="w-5 h-5" />}
+                {linkedCustomerInfo.inactivity_reason === 'distribuidor' && <Handshake className="w-5 h-5" />}
+                {linkedCustomerInfo.inactivity_reason === 'fechou_oficina' && <Store className="w-5 h-5" />}
+                {linkedCustomerInfo.inactivity_reason === 'outro' && <UserX className="w-5 h-5" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-black text-xs sm:text-sm uppercase tracking-wide">
+                    {linkedCustomerInfo.inactivity_reason === 'bloqueado'
+                      ? 'Atenção: Cliente Bloqueado / Mau Caráter / Não Atender'
+                      : linkedCustomerInfo.inactivity_reason === 'distribuidor'
+                        ? 'Cliente Inativo • Perfil Distribuidor / Parceiro Comercial'
+                        : linkedCustomerInfo.inactivity_reason === 'fechou_oficina'
+                          ? 'Cliente Inativo • Oficina Fechada / Encerrou Atividades'
+                          : 'Cliente Marcado como Inativo na Base'}
+                  </span>
+                  {linkedCustomerInfo.inactivity_reason === 'distribuidor' && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                      linkedCustomerInfo.allow_marketing_campaigns
+                        ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}>
+                      {linkedCustomerInfo.allow_marketing_campaigns ? 'Campanhas & Rifas: PERMITIDAS' : 'Campanhas: BLOQUEADAS'}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs opacity-90 mt-1 leading-relaxed">
+                  {linkedCustomerInfo.inactivity_reason === 'bloqueado'
+                    ? 'Atenção comercial: este cliente possui bloqueio grave no CRM Athena. Proibido emitir orçamentos ou negociar sem autorização superior.'
+                    : linkedCustomerInfo.inactivity_reason === 'distribuidor'
+                      ? 'Este cliente é um parceiro distribuidor. Não deve ser atendido com ofertas comerciais de rotina para oficinas mecânicas.'
+                      : 'Este cliente está marcado como inativo na Base Central.'}
+                  {linkedCustomerInfo.inactivity_notes && (
+                    <span className={`block mt-1 font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Observações: "{linkedCustomerInfo.inactivity_notes}"
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Layout Split-View: Duas colunas em telas grandes (lg), empilhado no mobile */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Coluna Esquerda: Dados Comerciais do Lead (7 colunas) */}
@@ -855,7 +936,8 @@ export default function LeadModal({
                       <div className="flex items-center justify-between gap-2 mb-1.5 text-[10px] text-slate-400">
                         {card.author && (
                           <span className="font-bold text-amber-500 flex items-center gap-1">
-                            👤 {card.author}
+                            <User className="w-3 h-3" />
+                            <span>{card.author}</span>
                           </span>
                         )}
                         {card.timestamp && (
@@ -996,10 +1078,10 @@ export default function LeadModal({
                           </p>
                         )}
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400 mt-1">
-                          {c.phone && <span>📞 {c.phone}</span>}
-                          {c.phone2 && <span>📱 {c.phone2}</span>}
-                          {c.cnpj || c.cpf ? <span>📄 {c.cnpj || c.cpf}</span> : null}
-                          {c.city && <span>📍 {c.city} - {c.state || 'DF'}</span>}
+                          {c.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-slate-500" /> {c.phone}</span>}
+                          {c.phone2 && <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-slate-500" /> {c.phone2}</span>}
+                          {c.cnpj || c.cpf ? <span className="flex items-center gap-1"><FileText className="w-3 h-3 text-slate-500" /> {c.cnpj || c.cpf}</span> : null}
+                          {c.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-500" /> {c.city} - {c.state || 'DF'}</span>}
                         </div>
                       </div>
 

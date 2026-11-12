@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { crmApiFetch } from '../utils/api';
 import CustomerProfilePage from './CustomerProfilePage';
+import CustomerInactivityModal from './CustomerInactivityModal';
 import { 
   Users, 
   Search, 
@@ -23,7 +24,13 @@ import {
   Filter,
   ArrowUpDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  UserX,
+  UserCheck,
+  ShieldAlert,
+  Handshake,
+  Store,
+  Megaphone
 } from 'lucide-react';
 
 // Categorias organizadas em ordem alfabética (com 'all' no topo)
@@ -53,6 +60,16 @@ const SORT_OPTIONS = [
   { id: 'name_desc', label: 'Nome (Z → A)' },
   { id: 'date_desc', label: 'Data de Cadastro (Mais Recentes)' },
   { id: 'date_asc', label: 'Data de Cadastro (Mais Antigos)' }
+];
+
+// Filtro de Status de Inativação Comercial
+const INACTIVITY_OPTIONS = [
+  { id: 'all', label: 'Status: Todos' },
+  { id: 'active', label: 'Apenas Ativos' },
+  { id: 'inactive', label: 'Inativos (Geral)' },
+  { id: 'distributor', label: 'Inativos • Distribuidores' },
+  { id: 'campaign_eligible', label: 'Inativos • Campanhas OK' },
+  { id: 'blocked', label: 'Inativos • Bloqueados' }
 ];
 
 /**
@@ -101,7 +118,9 @@ export default function CustomersView() {
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStage, setSelectedStage] = useState('all');
+  const [inactivityFilter, setInactivityFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name_asc');
+  const [inactivityModalCustomer, setInactivityModalCustomer] = useState(null);
 
   // Filtros Avançados por Equipamento & Modelo
   const [catalogOptions, setCatalogOptions] = useState([
@@ -185,7 +204,7 @@ export default function CustomersView() {
       return;
     }
     setCurrentPage(1);
-  }, [selectedCategory, selectedStage, debouncedSearch, sortBy, pageSize, equipmentFilters]);
+  }, [selectedCategory, selectedStage, inactivityFilter, debouncedSearch, sortBy, pageSize, equipmentFilters]);
 
   // Modal de Detalhes (Ficha Completa)
   const [activeCustomer, setActiveCustomer] = useState(null);
@@ -283,6 +302,7 @@ export default function CustomersView() {
       if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
       if (selectedCategory !== 'all') params.append('category', selectedCategory);
       if (selectedStage !== 'all') params.append('stage', selectedStage);
+      if (inactivityFilter !== 'all') params.append('inactivityStatus', inactivityFilter);
       if (sortBy) params.append('sortBy', sortBy);
       if (equipmentFilters.length > 0) params.append('equipmentFilters', JSON.stringify(equipmentFilters));
 
@@ -304,7 +324,7 @@ export default function CustomersView() {
 
   useEffect(() => {
     loadCustomers();
-  }, [selectedCategory, selectedStage, debouncedSearch, sortBy, currentPage, pageSize, equipmentFilters]);
+  }, [selectedCategory, selectedStage, inactivityFilter, debouncedSearch, sortBy, currentPage, pageSize, equipmentFilters]);
 
   // Filtragem responsiva instantânea em memória e ordenação flexível
   const filteredCustomers = useMemo(() => {
@@ -320,6 +340,22 @@ export default function CustomersView() {
       if (selectedStage !== 'all') {
         const stage = c.pipeline_stage || 'lead';
         if (stage !== selectedStage) return false;
+      }
+      // Filtro de Status de Inativação Comercial
+      if (inactivityFilter === 'active' && c.is_inactive) {
+        return false;
+      }
+      if (inactivityFilter === 'inactive' && !c.is_inactive) {
+        return false;
+      }
+      if (inactivityFilter === 'distributor' && (!c.is_inactive || c.inactivity_reason !== 'distribuidor')) {
+        return false;
+      }
+      if (inactivityFilter === 'blocked' && (!c.is_inactive || c.inactivity_reason !== 'bloqueado')) {
+        return false;
+      }
+      if (inactivityFilter === 'campaign_eligible' && (!c.is_inactive || !c.allow_marketing_campaigns)) {
+        return false;
       }
       // Busca Textual Accent-Insensitive
       if (q) {
@@ -394,7 +430,7 @@ export default function CustomersView() {
       const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
       return dateB - dateA;
     });
-  }, [customers, search, selectedCategory, selectedStage, sortBy, equipmentFilters]);
+  }, [customers, search, selectedCategory, selectedStage, inactivityFilter, sortBy, equipmentFilters]);
 
   // Abrir detalhes completos com busca de filiais e histórico
   const handleOpenDetails = async (cust) => {
@@ -638,6 +674,30 @@ export default function CustomersView() {
             </select>
           </div>
 
+          {/* Filtro de Atividade / Inativação Comercial */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <select
+              value={inactivityFilter}
+              onChange={(e) => setInactivityFilter(e.target.value)}
+              title="Filtrar por Status de Atividade (Ativos, Inativos, Distribuidores, Bloqueados)"
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition outline-none cursor-pointer ${
+                inactivityFilter !== 'all'
+                  ? (inactivityFilter === 'blocked' 
+                      ? 'bg-rose-500/15 border-rose-500/50 text-rose-400 font-extrabold'
+                      : inactivityFilter === 'distributor'
+                        ? 'bg-sky-500/15 border-sky-500/50 text-sky-400 font-extrabold'
+                        : 'bg-amber-500/10 border-amber-500/40 text-amber-500 font-extrabold')
+                  : isDark 
+                    ? 'bg-slate-950 border-slate-800 text-slate-300' 
+                    : 'bg-slate-50 border-slate-300 text-slate-700'
+              }`}
+            >
+              {INACTIVITY_OPTIONS.map(opt => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Ordenação Alfabética e Temporal */}
           <div className="flex items-center gap-1.5 shrink-0">
             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
@@ -681,13 +741,14 @@ export default function CustomersView() {
             )}
           </button>
 
-          {(search || selectedCategory !== 'all' || selectedStage !== 'all' || sortBy !== 'name_asc' || equipmentFilters.length > 0) && (
+          {(search || selectedCategory !== 'all' || selectedStage !== 'all' || inactivityFilter !== 'all' || sortBy !== 'name_asc' || equipmentFilters.length > 0) && (
             <button
               type="button"
               onClick={() => {
                 setSearch('');
                 setSelectedCategory('all');
                 setSelectedStage('all');
+                setInactivityFilter('all');
                 setSortBy('name_asc');
                 setEquipmentFilters([]);
               }}
@@ -881,7 +942,7 @@ export default function CustomersView() {
                       : 'bg-white border-slate-200/90 hover:border-amber-500/50 hover:shadow-md'
                   }`}
                 >
-                  {/* Top do Card: Avatar, Nome e Tag de Categoria */}
+                  {/* Top do Card: Avatar, Nome e Botão de Status */}
                   <div>
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-3 min-w-0">
@@ -906,9 +967,30 @@ export default function CustomersView() {
                           )}
                         </div>
                       </div>
+
+                      {/* Botão Rápido de Gestão de Status */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setInactivityModalCustomer(cust);
+                        }}
+                        title={cust.is_inactive ? "Gerenciar inativação deste cliente" : "Marcar cliente como inativo"}
+                        className={`p-1.5 rounded-lg border text-xs transition cursor-pointer shrink-0 ${
+                          cust.is_inactive 
+                            ? (cust.inactivity_reason === 'bloqueado' 
+                                ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25' 
+                                : cust.inactivity_reason === 'distribuidor'
+                                  ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 hover:bg-sky-500/25'
+                                  : 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25')
+                            : isDark ? 'border-slate-800 text-slate-500 hover:text-white hover:bg-slate-800' : 'border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+                        }`}
+                      >
+                        {cust.is_inactive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
 
-                    {/* Tags: Categoria e Status */}
+                    {/* Tags: Categoria, Status de Pipeline e Status de Inativação */}
                     <div className="flex items-center gap-1.5 flex-wrap mb-3.5">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
                         isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
@@ -916,15 +998,49 @@ export default function CustomersView() {
                         {cust.category || 'Mecânica Geral'}
                       </span>
 
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                        (cust.pipeline_stage === 'cliente_ativo' || cust.pipeline_stage === 'ganho')
-                          ? isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                          : cust.pipeline_stage === 'negociacao'
-                            ? isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-700'
-                            : isDark ? 'bg-slate-800/60 border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
-                      }`}>
-                        {cust.pipeline_stage === 'cliente_ativo' ? 'Cliente Ativo' : cust.pipeline_stage === 'ganho' ? 'Parceria Fechada' : cust.pipeline_stage === 'negociacao' ? 'Em Negociação' : 'Lead'}
-                      </span>
+                      {!cust.is_inactive ? (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                          (cust.pipeline_stage === 'cliente_ativo' || cust.pipeline_stage === 'ganho')
+                            ? isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                            : cust.pipeline_stage === 'negociacao'
+                              ? isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-700'
+                              : isDark ? 'bg-slate-800/60 border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
+                        }`}>
+                          {cust.pipeline_stage === 'cliente_ativo' ? 'Cliente Ativo' : cust.pipeline_stage === 'ganho' ? 'Parceria Fechada' : cust.pipeline_stage === 'negociacao' ? 'Em Negociação' : 'Lead'}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInactivityModalCustomer(cust);
+                          }}
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-md border flex items-center gap-1 transition cursor-pointer ${
+                            cust.inactivity_reason === 'bloqueado'
+                              ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
+                              : cust.inactivity_reason === 'distribuidor'
+                                ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 hover:bg-sky-500/25'
+                                : cust.inactivity_reason === 'fechou_oficina'
+                                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25'
+                                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                          }`}
+                          title="Clique para gerenciar o status de inativação"
+                        >
+                          {cust.inactivity_reason === 'bloqueado' && <ShieldAlert className="w-3 h-3 shrink-0" />}
+                          {cust.inactivity_reason === 'distribuidor' && <Handshake className="w-3 h-3 shrink-0" />}
+                          {cust.inactivity_reason === 'fechou_oficina' && <Store className="w-3 h-3 shrink-0" />}
+                          <span>
+                            {cust.inactivity_reason === 'bloqueado' ? 'Inativo • Bloqueado' :
+                             cust.inactivity_reason === 'distribuidor' ? 'Inativo • Distribuidor' :
+                             cust.inactivity_reason === 'fechou_oficina' ? 'Inativo • Fechou' : 'Inativo'}
+                          </span>
+                          {cust.inactivity_reason === 'distribuidor' && cust.allow_marketing_campaigns && (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                              Rifas OK
+                            </span>
+                          )}
+                        </button>
+                      )}
                     </div>
 
                     {/* Informações de Contato e Documento */}
@@ -1117,11 +1233,43 @@ export default function CustomersView() {
                         </span>
                       </td>
                       <td className="p-3.5">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                          cust.pipeline_stage === 'cliente_ativo' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-400'
-                        }`}>
-                          {cust.pipeline_stage === 'cliente_ativo' ? 'Ativo' : 'Lead'}
-                        </span>
+                        {!cust.is_inactive ? (
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            cust.pipeline_stage === 'cliente_ativo' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {cust.pipeline_stage === 'cliente_ativo' ? 'Ativo' : 'Lead'}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInactivityModalCustomer(cust);
+                            }}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black border flex items-center gap-1 transition cursor-pointer ${
+                              cust.inactivity_reason === 'bloqueado'
+                                ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25'
+                                : cust.inactivity_reason === 'distribuidor'
+                                  ? 'bg-sky-500/15 border-sky-500/40 text-sky-400 hover:bg-sky-500/25'
+                                  : 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25'
+                            }`}
+                            title="Clique para gerenciar o status de inativação"
+                          >
+                            {cust.inactivity_reason === 'bloqueado' && <ShieldAlert className="w-3 h-3 shrink-0" />}
+                            {cust.inactivity_reason === 'distribuidor' && <Handshake className="w-3 h-3 shrink-0" />}
+                            {cust.inactivity_reason === 'fechou_oficina' && <Store className="w-3 h-3 shrink-0" />}
+                            <span>
+                              {cust.inactivity_reason === 'bloqueado' ? 'Inativo • Bloqueado' :
+                               cust.inactivity_reason === 'distribuidor' ? 'Inativo • Distribuidor' :
+                               cust.inactivity_reason === 'fechou_oficina' ? 'Inativo • Fechou' : 'Inativo'}
+                            </span>
+                            {cust.inactivity_reason === 'distribuidor' && cust.allow_marketing_campaigns && (
+                              <span className="text-[9px] px-1 py-0.2 rounded bg-sky-500/20 text-sky-300">
+                                Rifas OK
+                              </span>
+                            )}
+                          </button>
+                        )}
                       </td>
                       <td className="p-3.5 text-[11px] text-slate-400 font-mono">
                         <div>{cust.cnpj || cust.cpf || '—'}</div>
@@ -1180,9 +1328,26 @@ export default function CustomersView() {
                         </div>
                       </td>
                       <td className="p-3.5 text-right">
-                        <span className="text-amber-500 font-bold hover:underline">
-                          Abrir Ficha &rarr;
-                        </span>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInactivityModalCustomer(cust);
+                            }}
+                            title={cust.is_inactive ? "Gerenciar status de inativação" : "Marcar cliente como inativo"}
+                            className={`p-1.5 rounded-lg border text-xs transition cursor-pointer ${
+                              cust.is_inactive 
+                                ? (cust.inactivity_reason === 'bloqueado' ? 'bg-rose-500/15 border-rose-500/40 text-rose-400' : 'bg-sky-500/15 border-sky-500/40 text-sky-400')
+                                : isDark ? 'border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                            }`}
+                          >
+                            {cust.is_inactive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                          </button>
+                          <span className="text-amber-500 font-bold hover:underline">
+                            Abrir Ficha &rarr;
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1429,6 +1594,19 @@ export default function CustomersView() {
           </div>
         </div>
       )}
+
+      {/* MODAL DE GESTÃO DE INATIVAÇÃO DE CLIENTE */}
+      <CustomerInactivityModal
+        customer={inactivityModalCustomer}
+        isOpen={Boolean(inactivityModalCustomer)}
+        onClose={() => setInactivityModalCustomer(null)}
+        onSuccess={(updated) => {
+          setCustomers(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+          if (activeCustomer && activeCustomer.id === updated.id) {
+            setActiveCustomer(prev => ({ ...prev, ...updated }));
+          }
+        }}
+      />
     </div>
   );
 }
