@@ -102,14 +102,14 @@ const FALLBACK_POSTS = [
   {
     id: 'post_manutencao_elevadores',
     slug: 'seguranca-e-manutencao-preventiva-em-elevadores-automotivos',
-    title: 'Segurança Operacional e Manutenção Preventiva em Elevadores Automotivos',
+    title: 'Segurança Operacional e Manutenção Preventiva em Elevadores Automotivos (NR-12)',
     summary: 'Checklist prático diário e mensal para garantir vida útil longa, cabos de aço calibrados, travas pneumáticas e conformidade com as normas regulamentadoras NR-12 nas oficinas.',
-    cover_image_url: 'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=800&auto=format&fit=crop&q=80',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1787756310359-838a1d6700f8.webp',
     published_at: '2026-11-05T09:15:00.000Z',
     reading_time_minutes: 5,
     views_count: 288,
     author_name: 'Engenharia de Equipamentos',
-    categories: [{ id: 'cat_elev', name: 'Elevadores & Oficinas', slug: 'elevadores-oficinas' }],
+    categories: [{ id: 'cat_elev', name: 'Manutenção Preventiva', slug: 'manutencao-preventiva' }],
     tags: ['Elevadores', 'Manutenção', 'NR-12', 'Oficina Segura']
   }
 ];

@@ -158,6 +158,97 @@ const STRATEGIC_ARTICLES = [
 <h2>3. Pós-Serviço Obrigatório: Reset de Adaptação via Scanner</h2>
 <p>Após a substituição completa do fluido e do filtro da transmissão, é fundamental utilizar um scanner avançado (<a href="/produto/scanner-automotivo-eaata-90-com-diagnostico-por-topologia-e-ia-eaata">EAATA 90</a>) para aferir a temperatura exata de nível (geralmente entre 40°C e 45°C) e realizar o <strong>reset dos parâmetros adaptativos de pressão das solenoides</strong>, garantindo trocas suaves desde o primeiro quilômetro.</p>
 `.trim()
+  },
+  {
+    slug: 'como-escolher-o-scanner-automotivo-ideal-para-sua-oficina',
+    title: 'Como Escolher o Scanner Automotivo Ideal para sua Oficina Mecânica',
+    excerpt: 'Descubra como o ThinkTool Lite, EAATA 360Pro e scanners modernos revolucionam oficinas mecânicas através de diagnósticos inteligentes, leitura rápida de módulos, funções especiais e atualização direta de fábrica.',
+    meta_title: 'Como Escolher o Scanner Automotivo Ideal para Oficina | Blog Athena',
+    meta_description: 'Guia prático para escolher o scanner automotivo ideal: cobertura CAN-FD e DoIP, topologia de rede, funções especiais de reset e custo-benefício.',
+    cover_image_key: 'https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp',
+    reading_time_minutes: 6,
+    category_slug: 'equipamentos-tecnologia',
+    content_html: `
+<p>Com a complexidade crescente dos veículos com redes multiplexadas, sistemas híbridos e elétricos, escolher o <strong>scanner automotivo correto</strong> impacta diretamente a produtividade, a reputação técnica e o faturamento de qualquer oficina mecânica ou auto center.</p>
+
+<p>Equipamentos defasados geram perdas de tempo e recusas de serviços por falta de cobertura em sistemas modernos como freio de estacionamento eletrônico (EPB), calibração de direção elétrica (SAS), regeneração de filtro DPF e aprendizado de transmissões automatizadas.</p>
+
+<h2>Os 4 Critérios Essenciais Antes de Comprar seu Scanner</h2>
+<ol>
+  <li><strong>Suporte Nativo a Protocolos Modernos (CAN-FD e DoIP):</strong> Veículos Chevrolet (Onix, Tracker, Montana), Fiat/Jeep (com Security Gateway SGW), Volvo e BMW exigem comunicação de alta velocidade.</li>
+  <li><strong>Mapeamento Visual por Topologia de Rede:</strong> Permite enxergar toda a árvore de módulos do carro por cores, isolando falhas de comunicação (código U) em segundos sem desmontar o painel.</li>
+  <li><strong>Funções Especiais e Testes Bidirecionais (Atuadores):</strong> Um scanner profissional não serve apenas para "apagar luz de injeção"; ele precisa acionar ventoinhas, bombas, solenoides, bicos injetores e válvulas EGR diretamente pela tela.</li>
+  <li><strong>Suporte Técnico, Garantia Oficial e Programador IMMO:</strong> Adquirir o equipamento em distribuidor homologado garante treinamento e assistência nacional.</li>
+</ol>
+
+<div class="athena-blog-product-card" style="margin:28px 0;padding:24px;border-radius:16px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#ffffff;border:1px solid #334155;">
+  <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(245,158,11,0.15);color:#fbbf24;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Diagnóstico + Imobilizador</span>
+  <h4 style="margin:0 0 8px 0;font-size:20px;font-weight:800;color:#ffffff;">Scanner Automotivo EAATA 360Pro com Programador IMMO</h4>
+  <p style="margin:0 0 16px 0;font-size:14px;color:#cbd5e1;line-height:1.6;">Diagnóstico multimarcas avançado combinado com funções completas de programação de chaves, imobilizador e resets especiais para oficinas exigentes.</p>
+  <a href="/produto/scanner-automotivo-eaata-360pro-com-programador-immo-eaata" style="display:inline-block;padding:10px 20px;border-radius:10px;background:#f59e0b;color:#020617;font-weight:800;font-size:13px;text-decoration:none;">Ver Scanner EAATA 360Pro →</a>
+</div>
+`.trim()
+  },
+  {
+    slug: 'calibracao-adas-e-sensores-radar-o-futuro-da-reparacao',
+    title: 'Calibração ADAS e Câmeras de Para-brisa: Por Que Toda Oficina Precisa se Adaptar',
+    excerpt: 'A presença massiva de frenagem autônoma, assistente de faixa e piloto automático adaptativo exige alinhamento 3D e calibração milimétrica após serviços de suspensão ou troca de para-brisa.',
+    meta_title: 'Calibração ADAS e Alinhamento 3D na Oficina: Guia Completo | Blog Athena',
+    meta_description: 'Entenda como funciona a calibração de sistemas ADAS (câmeras e radares) integrada ao alinhamento 3D e como transformar esse serviço em receita recorrente.',
+    cover_image_key: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80',
+    reading_time_minutes: 8,
+    category_slug: 'tendencias-automotivas',
+    content_html: `
+<p>Os Sistemas Avançados de Assistência ao Motorista (<strong>ADAS</strong> — <em>Advanced Driver Assistance Systems</em>) deixaram de ser exclusividade de sedãs importados de luxo. Hoje, modelos populares e SUVs compactos saem de fábrica com <strong>frenagem autônoma de emergência (AEB), assistente de permanência em faixa (LKA), alerta de ponto cego e controle de cruzeiro adaptativo (ACC)</strong>.</p>
+
+<h2>Quando a Calibração ADAS é Obrigatória?</h2>
+<p>Um erro de apenas 1 grau no ângulo de leitura de um radar frontal no para-choque representa um desvio de vários metros a 100 metros de distância. Por isso, as montadoras determinam a recalibração estática ou dinâmica sempre que o veículo passa por:</p>
+<ul>
+  <li><strong>Substituição ou remoção do para-brisa</strong> (onde fica alojada a câmera multifuncional);</li>
+  <li><strong>Alinhamento de direção / geometria de suspensão</strong> ou troca de amortecedores, bandejas e terminais;</li>
+  <li><strong>Reparos de funilaria em para-choques, grade frontal ou retrovisores</strong> (que abrigam radares e câmeras 360°);</li>
+  <li><strong>Alteração na altura de rodagem ou troca de medidas de pneus.</strong></li>
+</ul>
+
+<h2>Integração entre Geometria da Suspensão e Diagnóstico Eletrônico</h2>
+<p>Nenhum sistema ADAS pode ser calibrado corretamente se o ângulo de impulso do eixo traseiro estiver desalinhado. Por isso, o processo profissional começa com a aferição da geometria do chassi seguida pela inicialização do modo de calibração via scanner com suporte ADAS (<a href="/produto/scanner-automotivo-eaata-90-com-diagnostico-por-topologia-e-ia-eaata">EAATA 90</a>).</p>
+`.trim()
+  },
+  {
+    slug: 'seguranca-e-manutencao-preventiva-em-elevadores-automotivos',
+    title: 'Segurança Operacional e Manutenção Preventiva em Elevadores Automotivos (NR-12)',
+    excerpt: 'Checklist prático diário e mensal para garantir vida útil longa, cabos de aço e cilindros hidráulicos íntegros, travas de segurança calibradas e conformidade com a norma NR-12 na oficina.',
+    meta_title: 'Manutenção Preventiva em Elevadores Automotivos e Norma NR-12 | Blog Athena',
+    meta_description: 'Checklist completo de segurança e manutenção preventiva para elevadores automotivos eletro-hidráulicos e pantográficos conforme a norma NR-12.',
+    cover_image_key: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1787756310359-838a1d6700f8.webp',
+    reading_time_minutes: 5,
+    category_slug: 'manutencao-preventiva',
+    content_html: `
+<p>O <strong>elevador automotivo</strong> é o coração produtivo de qualquer box mecânico. Com o aumento do peso médio da frota brasileira — impulsionado por picapes cabine dupla, SUVs blindados, vans utilitárias e veículos elétricos com pesadas baterias no assoalho —, operar com equipamentos subdimensionados ou sem manutenção preventiva representa um risco grave.</p>
+
+<h2>1. Por Que Migrar para Elevadores Eletro-Hidráulicos de Pórtico (4T a 4,5T)?</h2>
+<p>Diferente dos antigos elevadores eletromecânicos de fuso e correia (que exigem lubrificação constante, consomem mais energia elétrica e sofrem desgaste prematuro de porcas de carga), os modernos <strong>elevadores eletro-hidráulicos com pórtico superior</strong> oferecem:</p>
+<ul>
+  <li><strong>Piso Totalmente Livre entre as Colunas:</strong> Facilita a passagem de carrinhos de ferramentas, coletores de óleo de 80L e macacos de transmissão;</li>
+  <li><strong>Duplo Cilindro Hidráulico com Equalização por Cabos de Aço:</strong> Elevação suave, silenciosa e rápida (cerca de 50 segundos);</li>
+  <li><strong>Sensor Fim de Curso no Pórtico Superior:</strong> Desliga automaticamente a subida caso o teto de um SUV alto encoste na barra acolchoada;</li>
+  <li><strong>Travas Mecânicas de Segurança em Todas as Alturas:</strong> Aliviam a pressão hidráulica durante o serviço sob o veículo.</li>
+</ul>
+
+<div class="athena-blog-product-card" style="margin:28px 0;padding:24px;border-radius:16px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#ffffff;border:1px solid #334155;">
+  <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(245,158,11,0.15);color:#fbbf24;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Infraestrutura Pesada</span>
+  <h4 style="margin:0 0 8px 0;font-size:20px;font-weight:800;color:#ffffff;">Elevador Automotivo Eletro-Hidráulico 4,5 Toneladas MAH-1020</h4>
+  <p style="margin:0 0 16px 0;font-size:14px;color:#cbd5e1;line-height:1.6;">Capacidade real de 4.500 kg para carros de passeio, SUVs blindados e caminhonetes pesadas. Estrutura reforçada com travas de segurança e garantia oficial.</p>
+  <a href="/produto/elevador-automotivo-eletro-hidraulico-45-toneladas" style="display:inline-block;padding:10px 20px;border-radius:10px;background:#f59e0b;color:#020617;font-weight:800;font-size:13px;text-decoration:none;">Ver Elevador Eletro-Hidráulico 4,5T →</a>
+</div>
+
+<h2>2. Checklist Mensal de Manutenção Preventiva (NR-12)</h2>
+<ol>
+  <li><strong>Inspeção das Sapatas de Borracha:</strong> Sapatas gastas ou rasgadas causam escorregamento da longarina. Substitua imediatamente se o metal da bandeja estiver exposto.</li>
+  <li><strong>Reaperto dos Chumbadores (Pabolts) no Piso:</strong> Verifique com torquímetro a fixação na laje de concreto (mínimo FCK 25 MPa e 15cm de espessura).</li>
+  <li><strong>Tensão dos Cabos de Equalização e Nível do Fluido Hidráulico:</strong> Certifique-se de que as travas clicam simultaneamente nos dois lados durante a subida.</li>
+</ol>
+`.trim()
   }
 ];
 
