@@ -111,13 +111,22 @@ async function runWebappTesting() {
       console.log('[WEBAPP TESTING] Zero erros criticos no console do navegador.');
     }
 
-    // 7. Testar carregamento da página /blog e artigo individual sem erros de bundle
+    // 7. Testar carregamento da página /blog, artigo individual e link direto de /produto/:slug sem erros de bundle
     console.log('[WEBAPP TESTING] Testando rota /blog...');
     await page.goto('http://localhost:5173/blog', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForSelector('aside[aria-label="Barra Lateral do Blog"]', { timeout: 15000 });
 
+    console.log('[WEBAPP TESTING] Testando carregamento frio (cold load) de /produto/:slug...');
+    await page.goto('http://localhost:5173/produto/programadora-e-clonadora-de-modulos-ecu-tcu-prog-5-eaata-prog-5', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1000);
+
+    const bodyText = await page.locator('body').innerText();
+    if (bodyText.includes('Erro Interno no Servidor') || bodyText.includes('Cannot destructure property')) {
+      throw new Error(`ErrorBoundary disparado em /produto/:slug: ${bodyText.slice(0, 300)}`);
+    }
+
     if (consoleErrors.some(err => err.includes('TypeError') || err.includes('ReferenceError'))) {
-      throw new Error(`Erro de runtime detectado no Blog: ${consoleErrors.join(' | ')}`);
+      throw new Error(`Erro de runtime detectado: ${consoleErrors.join(' | ')}`);
     }
 
     console.log('[WEBAPP TESTING] Bateria de testes E2E do Anthropic Webapp-Testing concluida com SUCESSO!');

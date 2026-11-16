@@ -44,8 +44,20 @@ export function isProductEligibleForRecommendation(product) {
 
 /**
  * Obtém produtos compatíveis tecnicamente (acessórios, flanges, cabos, adaptadores).
+ * Suporta tanto chamada com objeto ({ currentProduct, allProducts }) quanto posicional (currentProduct, allProducts).
  */
-export function getCompatibleProducts({ currentProduct, allProducts = [] }) {
+export function getCompatibleProducts(arg1, arg2 = []) {
+  let currentProduct = null;
+  let allProducts = [];
+
+  if (arg1 && typeof arg1 === 'object' && ('currentProduct' in arg1 || 'allProducts' in arg1)) {
+    currentProduct = arg1.currentProduct || null;
+    allProducts = Array.isArray(arg1.allProducts) ? arg1.allProducts : [];
+  } else {
+    currentProduct = arg1 || null;
+    allProducts = Array.isArray(arg2) ? arg2 : [];
+  }
+
   if (!currentProduct || !Array.isArray(allProducts)) return [];
 
   const currentId = currentProduct.id;
@@ -81,10 +93,30 @@ export function getCompatibleProducts({ currentProduct, allProducts = [] }) {
 
 /**
  * Obtém recomendações personalizadas para a página do produto com distinção honesta de títulos.
+ * Suporta tanto chamada com objeto ({ currentProduct, allProducts, limit }) quanto posicional (currentProduct, allProducts, { limit }).
  */
-export function getRecommendedProducts({ currentProduct, allProducts = [], limit = 5 }) {
+export function getRecommendedProducts(arg1, arg2 = [], arg3 = {}) {
+  let currentProduct = null;
+  let allProducts = [];
+  let limit = 5;
+
+  if (arg1 && typeof arg1 === 'object' && ('currentProduct' in arg1 || 'allProducts' in arg1)) {
+    currentProduct = arg1.currentProduct || null;
+    allProducts = Array.isArray(arg1.allProducts) ? arg1.allProducts : [];
+    if (typeof arg1.limit === 'number' && arg1.limit > 0) limit = arg1.limit;
+  } else {
+    currentProduct = arg1 || null;
+    allProducts = Array.isArray(arg2) ? arg2 : [];
+    if (typeof arg3 === 'number' && arg3 > 0) {
+      limit = arg3;
+    } else if (arg3 && typeof arg3 === 'object' && typeof arg3.limit === 'number' && arg3.limit > 0) {
+      limit = arg3.limit;
+    }
+  }
+
   if (!currentProduct || !Array.isArray(allProducts)) {
     return {
+      products: [],
       all: [],
       curated: [],
       categoryFallbacks: [],
@@ -144,6 +176,7 @@ export function getRecommendedProducts({ currentProduct, allProducts = [], limit
   }
 
   return {
+    products: all,
     all,
     curated,
     categoryFallbacks,

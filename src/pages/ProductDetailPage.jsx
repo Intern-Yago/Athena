@@ -785,12 +785,12 @@ export default function ProductDetailPage({
   };
 
   // Motor Central de Recomendações e Compatibilidade (Pacote B)
-  const { products: relatedProducts, sectionTitle: recommendedSectionTitle } = useMemo(() => {
-    return getRecommendedProducts(product, products, { limit: 5 });
+  const { products: relatedProducts = [], sectionTitle: recommendedSectionTitle = 'Outros Produtos da Categoria' } = useMemo(() => {
+    return getRecommendedProducts({ currentProduct: product, allProducts: products, limit: 5 }) || {};
   }, [product, products]);
 
   const compatibleProductsList = useMemo(() => {
-    return getCompatibleProducts(product, products);
+    return getCompatibleProducts({ currentProduct: product, allProducts: products }) || [];
   }, [product, products]);
 
   const hasCompatibles = compatibleProductsList.length > 0;
