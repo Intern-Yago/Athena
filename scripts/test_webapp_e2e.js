@@ -35,7 +35,7 @@ async function runWebappTesting() {
     const testUrl = 'http://localhost:5173/?utm_source=meta_ads&utm_medium=cpc&utm_campaign=blackfriday2026&utm_term=elevador4t';
     console.log(`[WEBAPP TESTING] Navegando para: ${testUrl}`);
 
-    await page.goto(testUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     console.log('[WEBAPP TESTING] Pagina inicial carregada com sucesso.');
 
     // 1. Screenshot da Home com Catálogo

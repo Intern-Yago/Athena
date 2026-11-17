@@ -1,0 +1,14 @@
+node_modules/
+backend/node_modules/
+dist/
+.git/
+public/
+src/data/initialData.js
+backend/data/
+backend/scripts/audit_report.json
+*.webp
+*.jpg
+*.png
+*.pdf
+*.mp4
+*.log

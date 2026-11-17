@@ -9660,12 +9660,7 @@ app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
 app.get(['/api/products', '/api/produtos'], async (req, res) => {
   const isPublicCatalog = !req.headers.authorization && (!req.query.status || req.query.status === 'published');
   if (isPublicCatalog) {
-    const isPublicCatalog = !req.headers.authorization;
-  if (isPublicCatalog) {
     res.set('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
-  } else {
-    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
-  }
   } else {
     res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
   }
