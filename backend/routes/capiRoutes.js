@@ -15,6 +15,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
+const { isAnalyticsIgnoredIp } = require('../utils/network');
 
 const router = express.Router();
 
@@ -95,6 +96,12 @@ router.post('/capi', async (req, res) => {
       (req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : '') ||
       req.socket?.remoteAddress ||
       '';
+
+    // Ignora silenciosamente eventos vindos de IPs bloqueados nas análises (ex: 189.6.7.14)
+    if (isAnalyticsIgnoredIp(rawIp)) {
+      return;
+    }
+
     const userAgent = req.headers['user-agent'] || '';
     const finalEventId = eventId || `evt_${Date.now()}`;
     const finalUrl = eventSourceUrl || 'https://www.athenaconsultoria.com.br/';

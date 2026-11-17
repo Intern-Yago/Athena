@@ -12,6 +12,7 @@ import ShippingCalculator from '../components/ShippingCalculator';
 import { isProductPublished, normalizeProduct } from '../utils/imageUrl';
 import { trackMetaEvent } from '../utils/metaPixel';
 import { recordProductInterest } from '../utils/userInterestTracker';
+import { formatSeoProductTitle } from '../utils/seoManager';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -640,14 +641,18 @@ export default function ProductDetailPage({
     if (!product) return;
 
     const originalTitle = document.title;
-    const cleanDesc = stripFormattingTags(product.description || '').slice(0, 160) || 
-      `Conheça o equipamento ${product.name} da marca ${brand?.name || 'Athena'}. Especificações completas, fotos em alta resolução e cotação oficial com suporte técnico especializado.`;
+    const cleanProductTitle = formatSeoProductTitle(product.name);
+    const rawCleanDesc = stripFormattingTags(product.description || '').trim();
+    const ctrBoosterSuffix = ' Pronta-entrega, garantia oficial e faturamento CNPJ/CPF na Athena.';
+    const cleanDesc = rawCleanDesc
+      ? `${rawCleanDesc.slice(0, 105)}${rawCleanDesc.length > 105 ? '...' : ''}${ctrBoosterSuffix}`
+      : `Compre ${cleanProductTitle} (${brand?.name || 'Oficial'}) com pronta-entrega, garantia de fábrica, faturamento CNPJ/CPF e suporte técnico na Athena.`;
 
     // Smart SEO Title Enhancement: Previne que produtos técnicos fiquem sem a palavra-chave mãe no Google
-    const isScanner = (category?.name?.toLowerCase().includes('scanner') || category?.slug?.includes('scanner')) && !product.name.toLowerCase().includes('scanner');
-    const isElevador = (category?.name?.toLowerCase().includes('elevador') || category?.slug?.includes('elevador')) && !product.name.toLowerCase().includes('elevador');
+    const isScanner = (category?.name?.toLowerCase().includes('scanner') || category?.slug?.includes('scanner')) && !cleanProductTitle.toLowerCase().includes('scanner');
+    const isElevador = (category?.name?.toLowerCase().includes('elevador') || category?.slug?.includes('elevador')) && !cleanProductTitle.toLowerCase().includes('elevador');
     const titlePrefix = isScanner ? 'Scanner Automotivo ' : isElevador ? 'Elevador Automotivo ' : '';
-    const fullProductName = `${titlePrefix}${product.name}`;
+    const fullProductName = `${titlePrefix}${cleanProductTitle}`;
 
     document.title = `${fullProductName} | ${brand?.name ? brand.name + ' - ' : ''}Athena Soluções Automotivas`;
 
@@ -2032,6 +2037,31 @@ export default function ProductDetailPage({
         cashPrice={activePrice}
         maxInstallments={12}
       />
+
+      {/* BARRA FLUTUANTE DE CONVERSÃO MOBILE (Acima da BottomNavBar no celular) */}
+      <div className="md:hidden fixed bottom-[52px] left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-amber-500/30 px-3 py-2 shadow-[0_-8px_24px_rgba(0,0,0,0.25)]">
+        <div className="flex items-center justify-between gap-2.5 max-w-lg mx-auto">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold text-slate-300 truncate">
+              {productTitleWithVariant}
+            </p>
+            <p className="text-xs font-black text-amber-400 truncate">
+              {showPrice ? `${pixCustomerPrice} no PIX` : 'Condição Especial para Oficina'}
+            </p>
+          </div>
+
+          <a
+            href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleWhatsAppClick}
+            className="shrink-0 py-2 px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] flex items-center gap-1.5 shadow-md cursor-pointer transition-transform active:scale-95"
+          >
+            <MessageCircle className="w-3.5 h-3.5 fill-slate-950" />
+            <span>{canBuyOnline ? 'Dúvida / WhatsApp' : 'Cotar no WhatsApp'}</span>
+          </a>
+        </div>
+      </div>
 
     </div>
   );

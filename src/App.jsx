@@ -842,6 +842,18 @@ export default function App() {
             const vData = await versionRes.json();
             serverVersion = vData?.version || null;
             serverTotal = vData?.total || null;
+            try {
+              if (vData?.clientIp) {
+                window.localStorage.setItem('athena_client_ip', String(vData.clientIp));
+              }
+              if (Array.isArray(vData?.ignoredIps)) {
+                window.localStorage.setItem('athena_ignored_ips_list', JSON.stringify(vData.ignoredIps));
+              }
+              if (vData?.analyticsBlocked) {
+                window.localStorage.setItem('athena_analytics_blocked_ip', '1');
+                window['ga-disable-G-8LBCQ5SBNR'] = true;
+              }
+            } catch (_) {}
           }
         } catch (vErr) {
           console.warn('[Athena SWR] Verificação rápida de versão falhou:', vErr.message);

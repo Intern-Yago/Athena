@@ -33,6 +33,61 @@ function isAuditBot() {
  * 4. Isenção de Bots: robôs de auditoria do Google e Lighthouse não recebem o modal.
  * 5. Frequência controlada: 1 vez por sessão (sessionStorage) para não incomodar o cliente.
  */
+const POPUP_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 horas em milissegundos
+const POPUP_COOKIE_MAX_AGE = 12 * 60 * 60; // 12 horas em segundos (43.200s)
+
+function isPopupDismissedWithinCooldown(storageKey) {
+  if (typeof window === 'undefined') return false;
+
+  // 1. Verifica timestamp no localStorage (expira após 12 horas)
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      const dismissedAt = Number(raw);
+      if (!isNaN(dismissedAt) && Date.now() - dismissedAt < POPUP_COOLDOWN_MS) {
+        return true;
+      }
+      // Se já passaram 12 horas, limpa o registro antigo
+      localStorage.removeItem(storageKey);
+    }
+  } catch {
+    // Fallback para cookie
+  }
+
+  // 2. Verifica cookie (o próprio navegador expira automaticamente após max-age=43200s)
+  try {
+    if (typeof document !== 'undefined' && document.cookie) {
+      const cookies = document.cookie.split(';').map(c => c.trim());
+      if (cookies.some(c => c.startsWith(`${storageKey}=`))) {
+        return true;
+      }
+    }
+  } catch {
+    // Ignore cookie errors
+  }
+
+  return false;
+}
+
+function markPopupDismissedFor12Hours(storageKey) {
+  if (typeof window === 'undefined') return;
+  const nowStr = String(Date.now());
+
+  try {
+    localStorage.setItem(storageKey, nowStr);
+  } catch {}
+
+  try {
+    sessionStorage.setItem(storageKey, nowStr);
+  } catch {}
+
+  try {
+    if (typeof document !== 'undefined') {
+      document.cookie = `${storageKey}=${nowStr}; max-age=${POPUP_COOKIE_MAX_AGE}; path=/; SameSite=Lax`;
+    }
+  } catch {}
+}
+
 export default function PromoPopupModal({
   popup,
   onNavigate,
@@ -43,7 +98,7 @@ export default function PromoPopupModal({
   const hasTriggeredRef = useRef(false);
 
   const popupId = popup?.id || 'default_promo_popup';
-  const sessionKey = `athena_dismissed_popup_${popupId}`;
+  const dismissKey = `athena_dismissed_popup_12h_${popupId}`;
 
   // Verifica se o pop-up pode ser aberto
   useEffect(() => {
@@ -64,15 +119,10 @@ export default function PromoPopupModal({
       return;
     }
 
-    // 3. Checagem de dispensa na sessão atual (sessionStorage)
-    try {
-      const isDismissed = sessionStorage.getItem(sessionKey);
-      if (isDismissed === 'true' && popup.showOncePerSession !== false) {
-        setIsVisible(false);
-        return;
-      }
-    } catch {
-      // Ignore sessionStorage exceptions
+    // 3. Regra universal de 12 horas (usuários logados e deslogados, em todas as abas)
+    if (isPopupDismissedWithinCooldown(dismissKey)) {
+      setIsVisible(false);
+      return;
     }
 
     hasTriggeredRef.current = false;
@@ -112,19 +162,15 @@ export default function PromoPopupModal({
       window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [popup, forceOpen, sessionKey]);
+  }, [popup, forceOpen, dismissKey]);
 
   const handleClose = useCallback(() => {
     setIsVisible(false);
     if (!forceOpen) {
-      try {
-        sessionStorage.setItem(sessionKey, 'true');
-      } catch {
-        // Ignore sessionStorage exceptions
-      }
+      markPopupDismissedFor12Hours(dismissKey);
     }
     if (onClose) onClose();
-  }, [forceOpen, sessionKey, onClose]);
+  }, [forceOpen, dismissKey, onClose]);
 
   // Tecla Escape para fechar
   useEffect(() => {

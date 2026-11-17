@@ -36,11 +36,14 @@ const STAFF_ROLES = new Set([
   'logistica'
 ]);
 
+export const DEFAULT_IGNORED_IPS = ['189.6.7.14'];
+
 /**
- * Verifica se a sessão atual pertence a um membro da equipe interna (Admin / Funcionário).
- * Clientes logados ('cliente' / 'customer') retornam `false` e continuam sendo rastreados normalmente.
+ * Verifica se a sessão atual pertence a um membro da equipe interna (Admin / Funcionário)
+ * ou a um endereço IP bloqueado nas análises (ex: 189.6.7.14).
+ * Clientes logados ('cliente' / 'customer') de IPs externos retornam `false` e continuam sendo rastreados normalmente.
  *
- * @returns {boolean} `true` se o rastreamento deve ser bloqueado (Staff), `false` caso contrário.
+ * @returns {boolean} `true` se o rastreamento deve ser bloqueado (Staff ou IP ignorado), `false` caso contrário.
  */
 export function isStaffAnalyticsBlocked() {
   if (typeof window === 'undefined') return true;
@@ -50,6 +53,26 @@ export function isStaffAnalyticsBlocked() {
       return true;
     }
 
+    if (window.localStorage?.getItem('athena_analytics_blocked_ip') === '1') {
+      return true;
+    }
+
+    const clientIp = (window.localStorage?.getItem('athena_client_ip') || '').trim();
+    if (clientIp) {
+      if (DEFAULT_IGNORED_IPS.includes(clientIp)) {
+        return true;
+      }
+      const rawCustomIps = window.localStorage?.getItem('athena_ignored_ips_list');
+      if (rawCustomIps) {
+        try {
+          const parsedIps = JSON.parse(rawCustomIps);
+          if (Array.isArray(parsedIps) && parsedIps.includes(clientIp)) {
+            return true;
+          }
+        } catch (_) {}
+      }
+    }
+
     const raw = window.localStorage?.getItem('athena_user');
     if (!raw) return false;
 
@@ -57,7 +80,7 @@ export function isStaffAnalyticsBlocked() {
     if (!user || !user.role) return false;
 
     const role = String(user.role).toLowerCase().trim();
-    // Clientes reais da loja nunca são bloqueados
+    // Clientes reais da loja nunca são bloqueados (exceto se o IP estiver na lista de ignorados acima)
     if (role === 'cliente' || role === 'customer' || role === 'user') {
       return false;
     }

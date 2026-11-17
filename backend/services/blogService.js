@@ -13,6 +13,7 @@
 const { getPool, query, withTransaction } = require('./db');
 const { slugify, isValidSlug } = require('../utils/slugify');
 const { sanitizePostHtml, blockNoteToHtml } = require('../utils/blogSanitizer');
+const { isAnalyticsIgnoredIp } = require('../utils/network');
 
 // Cache em memória para deduplicação de visualizações de posts (evita spam de view_count)
 const recentViewsCache = new Map();
@@ -673,6 +674,10 @@ async function purgeOldCommentIps(daysToRetain = 30) {
  * Incrementa contador de visualização atômico com deduplicação em memória por IP
  */
 async function incrementPostView(postId, clientIp = 'unknown') {
+  if (clientIp && isAnalyticsIgnoredIp(clientIp)) {
+    return false; // IP excluído das análises não incrementa view_count
+  }
+
   const cacheKey = `${postId}:${clientIp}`;
   const lastSeen = recentViewsCache.get(cacheKey);
   const now = Date.now();

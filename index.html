@@ -1,11 +1,19 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
-    <!-- Filtro Automático de Tráfego Interno (Exclui Staff/Admin do GA4 & Meta Pixel, mantendo Clientes) -->
+    <!-- Filtro Automático de Tráfego Interno e IPs Bloqueados (Exclui Staff/Admin e IPs como 189.6.7.14 do GA4, Meta Pixel, TikTok & Clarity) -->
     <script>
+      window.__ATHENA_IGNORED_IPS__ = ['189.6.7.14'];
       window.__ATHENA_IS_STAFF__ = function() {
         try {
           if (window.location && window.location.pathname && window.location.pathname.indexOf('/admin') === 0) {
+            return true;
+          }
+          if (localStorage.getItem('athena_analytics_blocked_ip') === '1') {
+            return true;
+          }
+          var clientIp = localStorage.getItem('athena_client_ip') || '';
+          if (clientIp && window.__ATHENA_IGNORED_IPS__.indexOf(clientIp) !== -1) {
             return true;
           }
           var raw = localStorage.getItem('athena_user');
@@ -19,6 +27,37 @@
           return false;
         }
       };
+      if (window.__ATHENA_IS_STAFF__()) {
+        window['ga-disable-G-8LBCQ5SBNR'] = true;
+      }
+      (function() {
+        try {
+          fetch('https://www.cloudflare.com/cdn-cgi/trace', { cache: 'no-store' })
+            .then(function(r) { return r.text(); })
+            .then(function(txt) {
+              var m = txt && txt.match(/ip=([^\s\n]+)/);
+              if (m && m[1]) {
+                var ip = m[1].trim();
+                localStorage.setItem('athena_client_ip', ip);
+                var customRaw = localStorage.getItem('athena_ignored_ips_list');
+                var list = window.__ATHENA_IGNORED_IPS__.slice();
+                if (customRaw) {
+                  try {
+                    var parsed = JSON.parse(customRaw);
+                    if (Array.isArray(parsed)) list = list.concat(parsed);
+                  } catch (_) {}
+                }
+                if (list.indexOf(ip) !== -1) {
+                  localStorage.setItem('athena_analytics_blocked_ip', '1');
+                  window['ga-disable-G-8LBCQ5SBNR'] = true;
+                } else {
+                  localStorage.removeItem('athena_analytics_blocked_ip');
+                }
+              }
+            })
+            .catch(function() {});
+        } catch (_) {}
+      })();
     </script>
     <!-- Google Tag Manager (Deferred for zero-TBT and 90+ Lighthouse score) -->
     <script>
@@ -26,7 +65,7 @@
         window.dataLayer = window.dataLayer || [];
         window.gtag = window.gtag || function(){window.dataLayer.push(arguments);};
         function __loadGTM() {
-          if (window.__GTM_LOADED__) return;
+          if (window.__GTM_LOADED__ || window.__ATHENA_IS_STAFF__()) return;
           window.__GTM_LOADED__ = true;
           window.dataLayer.push({'gtm.start': new Date().getTime(), event:'gtm.js'});
           var f = document.getElementsByTagName('script')[0],

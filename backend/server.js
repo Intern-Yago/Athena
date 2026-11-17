@@ -447,7 +447,12 @@ const {
   isCloudflareIp,
   isInfrastructureOrPrivateIp,
   safeCompareTokens,
-  getClientIp
+  getClientIp,
+  DEFAULT_ANALYTICS_IGNORED_IPS,
+  parseIgnoredIpsList,
+  setRuntimeIgnoredIps,
+  getRuntimeIgnoredIps,
+  isAnalyticsIgnoredIp
 } = require('./utils/network');
 
 const isPrivateOrInternalIp = isInfrastructureOrPrivateIp;
@@ -1762,6 +1767,9 @@ async function getNotificationSettings() {
   const brevoApiKey = rawBrevo.trim();
   const brevoSenderEmail = (await getSystemSetting('brevo_sender_email', process.env.BREVO_SENDER || 'athena.consultoria.automotiva@gmail.com')).trim();
 
+  const rawIgnoredIps = (await getSystemSetting('analytics_ignored_ips', DEFAULT_ANALYTICS_IGNORED_IPS.join(', '))).trim();
+  const analyticsIgnoredIpsList = setRuntimeIgnoredIps(rawIgnoredIps);
+
   let activeProvider = 'log';
   if (resendApiKey) activeProvider = 'resend';
   else if (brevoApiKey) activeProvider = 'brevo';
@@ -1779,6 +1787,8 @@ async function getNotificationSettings() {
     brevoApiKey: brevoApiKey ? (brevoApiKey.slice(0, 5) + '••••••••' + brevoApiKey.slice(-4)) : '',
     hasBrevoApiKey: Boolean(brevoApiKey),
     brevoSenderEmail,
+    analyticsIgnoredIps: analyticsIgnoredIpsList.join(', '),
+    analyticsIgnoredIpsList,
     activeProvider,
     smtpConfigured: !!mailTransporter,
     smtpUser: SMTP_USER,
@@ -8734,6 +8744,10 @@ app.post('/api/admin/settings/notifications', authenticateToken, requireAdmin, a
     if (req.body.brevoSenderEmail !== undefined) {
       await setSystemSetting('brevo_sender_email', req.body.brevoSenderEmail.trim(), 'Remetente Brevo');
     }
+    if (req.body.analyticsIgnoredIps !== undefined) {
+      const normalizedIps = setRuntimeIgnoredIps(req.body.analyticsIgnoredIps);
+      await setSystemSetting('analytics_ignored_ips', normalizedIps.join(', '), 'Lista de endereços IP excluídos das análises (GA4, Meta Pixel, TikTok, Buscas e Blog)');
+    }
 
     const updatedConfig = await getNotificationSettings();
     return res.json({
@@ -9595,6 +9609,8 @@ app.put('/api/promo-popup', authenticateToken, requireStaff, async (req, res) =>
 // Dynamic Catalog Versioning & SWR Cache Invalidation Endpoint
 app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  const clientIp = getClientIp(req);
+  const analyticsBlocked = isAnalyticsIgnoredIp(clientIp);
   if (pool) {
     try {
       const result = await pool.query(`
@@ -9610,6 +9626,9 @@ app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
         version,
         total,
         lastUpdated,
+        clientIp,
+        analyticsBlocked,
+        ignoredIps: getRuntimeIgnoredIps(),
         serverTime: Date.now()
       });
     } catch (e) {
@@ -9618,6 +9637,9 @@ app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
         version: `fallback-${Date.now()}`,
         total: 0,
         lastUpdated: 0,
+        clientIp,
+        analyticsBlocked,
+        ignoredIps: getRuntimeIgnoredIps(),
         serverTime: Date.now()
       });
     }
@@ -9627,6 +9649,9 @@ app.get(['/api/catalog/version', '/api/catalogo/versao'], async (req, res) => {
     version: `fallback-${Date.now()}`,
     total: 0,
     lastUpdated: 0,
+    clientIp,
+    analyticsBlocked,
+    ignoredIps: getRuntimeIgnoredIps(),
     serverTime: Date.now()
   });
 });

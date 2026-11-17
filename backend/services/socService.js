@@ -15,7 +15,7 @@
 const net = require('net');
 const axios = require('axios');
 const { query, withTransaction, getPool } = require('./db.js');
-const { isInfrastructureOrPrivateIp } = require('../utils/network.js');
+const { isInfrastructureOrPrivateIp, isAnalyticsIgnoredIp, getRuntimeIgnoredIps } = require('../utils/network.js');
 const { recordAuditSecurityEvent } = require('./securityAuditService.js');
 
 // Mapa de memória compartilhado (ou fallback local) para bloqueios em tempo real
@@ -533,6 +533,7 @@ const recentSearchesBuffer = [];
  */
 async function recordSearchLog({ searchTerm, resultsCount = 0, trafficSource = 'Direto', referrer = null, ip = null }) {
   if (!searchTerm || typeof searchTerm !== 'string') return null;
+  if (ip && isAnalyticsIgnoredIp(ip)) return null;
   const cleanTerm = searchTerm.trim().slice(0, 255);
   if (!cleanTerm) return null;
 
@@ -570,6 +571,7 @@ async function getSearchStats({ limit = 10 } = {}) {
   let recentSearches = [];
 
   try {
+    const ignoredIps = getRuntimeIgnoredIps();
     const resTop = await query(`
       SELECT 
         search_term,
@@ -579,10 +581,11 @@ async function getSearchStats({ limit = 10 } = {}) {
         MAX(created_at) as last_searched
       FROM catalog_search_logs
       WHERE created_at >= NOW() - INTERVAL '30 days'
+        AND (ip IS NULL OR NOT (ip = ANY($2::text[])))
       GROUP BY search_term
       ORDER BY count DESC
       LIMIT $1
-    `, [limit]);
+    `, [limit, ignoredIps]);
 
     topSearches = resTop.rows.map(r => ({
       term: r.search_term,
@@ -595,9 +598,10 @@ async function getSearchStats({ limit = 10 } = {}) {
     const resRecent = await query(`
       SELECT search_term, results_count, traffic_source, created_at
       FROM catalog_search_logs
+      WHERE (ip IS NULL OR NOT (ip = ANY($2::text[])))
       ORDER BY created_at DESC
       LIMIT $1
-    `, [limit]);
+    `, [limit, ignoredIps]);
 
     recentSearches = resRecent.rows.map(r => ({
       term: r.search_term,

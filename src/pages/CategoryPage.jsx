@@ -55,16 +55,24 @@ export default function CategoryPage({
       "name": prod.name
     }));
 
+    const isScannerCat = catSlug.toLowerCase().includes('scanner') || catName.toLowerCase().includes('scanner');
+    const customCatTitle = isScannerCat
+      ? `Scanners Automotivos Profissionais (EAATA 90, 360Pro, Thinkcar Stärkx) | Athena`
+      : `${catName} para Oficina Mecânica | Pronta-Entrega - Athena Soluções Automotivas`;
+    const customCatDesc = isScannerCat
+      ? `Compare Scanners Automotivos com Topologia e IA: Scanner EAATA 90, EAATA 360Pro IMMO, Programadora PROG 5 e Thinkcar THINKTOOL LITE (Stärkx). Pronta-entrega na Athena!`
+      : desc;
+
     setPageSeo({
-      title: `${catName} para Oficina Mecânica | Athena Soluções Automotivas`,
-      description: desc,
+      title: customCatTitle,
+      description: customCatDesc,
       canonicalPath: category ? canonicalPath : slugFromUrl,
       schemaId: 'category-page-json-ld',
       schemaData: {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
-        "name": `${catName} - Athena Soluções Automotivas`,
-        "description": desc,
+        "name": customCatTitle,
+        "description": customCatDesc,
         "url": `https://www.athenaconsultoria.com.br${category ? canonicalPath : slugFromUrl}`,
         "mainEntity": {
           "@type": "ItemList",

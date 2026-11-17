@@ -144,6 +144,52 @@ function getClientIp(req, { forceStrictOrigin = false } = {}) {
   return (net.isIP(ip) ? ip : '127.0.0.1');
 }
 
+// -------------------------------------------------------------
+// ANALYTICS IGNORED IPS REGISTRY (EXCLUSÃO DE TRÁFEGO INTERNO)
+// -------------------------------------------------------------
+const DEFAULT_ANALYTICS_IGNORED_IPS = ['189.6.7.14'];
+
+let runtimeIgnoredIps = new Set(DEFAULT_ANALYTICS_IGNORED_IPS);
+
+function parseIgnoredIpsList(rawInput) {
+  if (!rawInput) return [...DEFAULT_ANALYTICS_IGNORED_IPS];
+  const rawStr = Array.isArray(rawInput) ? rawInput.join(',') : String(rawInput);
+  const parts = rawStr
+    .split(/[\s,;]+/)
+    .map(s => s.replace('::ffff:', '').trim())
+    .filter(s => Boolean(s) && (net.isIP(s) || /^\d{1,3}(\.\d{1,3}){1,3}\.?(\*)?$/.test(s)));
+
+  const merged = new Set([...DEFAULT_ANALYTICS_IGNORED_IPS, ...parts]);
+  return Array.from(merged);
+}
+
+function setRuntimeIgnoredIps(rawInput) {
+  const list = parseIgnoredIpsList(rawInput);
+  runtimeIgnoredIps = new Set(list);
+  return list;
+}
+
+function getRuntimeIgnoredIps() {
+  return Array.from(runtimeIgnoredIps);
+}
+
+function isAnalyticsIgnoredIp(ip) {
+  if (!ip || typeof ip !== 'string') return false;
+  const clean = ip.replace('::ffff:', '').trim();
+  if (!clean) return false;
+  if (runtimeIgnoredIps.has(clean)) return true;
+
+  for (const pattern of runtimeIgnoredIps) {
+    if (pattern.endsWith('*')) {
+      const prefix = pattern.slice(0, -1);
+      if (clean.startsWith(prefix)) return true;
+    } else if (pattern.endsWith('.')) {
+      if (clean.startsWith(pattern)) return true;
+    }
+  }
+  return false;
+}
+
 module.exports = {
   ALLOWED_CORS_ORIGINS,
   isOriginAllowed,
@@ -151,5 +197,10 @@ module.exports = {
   isCloudflareIp,
   isInfrastructureOrPrivateIp,
   safeCompareTokens,
-  getClientIp
+  getClientIp,
+  DEFAULT_ANALYTICS_IGNORED_IPS,
+  parseIgnoredIpsList,
+  setRuntimeIgnoredIps,
+  getRuntimeIgnoredIps,
+  isAnalyticsIgnoredIp
 };

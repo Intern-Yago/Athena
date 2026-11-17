@@ -11,6 +11,85 @@ const DEFAULT_TITLE = 'Athena Soluções Automotivas | Catálogo de Equipamentos
 const DEFAULT_DESC = 'Equipamentos para oficinas mecânicas e auto centers: elevadores hidráulicos, scanners de diagnóstico, alinhadores 3D e ferramentas especiais. Pronta-entrega!';
 const DEFAULT_IMAGE = `${SITE_URL}/logo.jpg`;
 
+const LOWERCASE_PREPOSITIONS = new Set([
+  'de', 'da', 'do', 'das', 'dos', 'com', 'para', 'em', 'por', 'sem', 'sob', 'sobre', 'ate', 'até', 'e', 'a', 'o', 'as', 'os', 'no', 'na', 'nos', 'nas', 'ao', 'aos', 'pelo', 'pela'
+]);
+
+const UPPERCASE_ACRONYMS = new Set([
+  'EAATA', 'MAHOVI', 'STÄRKX', 'STARKX', 'SGT', 'MXT', 'PRO', 'HVLP', 'PSI', 'KGF', 'NM', 'KGF.M', 'LED', 'LEDS', 'HD', 'USB', 'OBD', 'OBD-II', 'ECU', 'TCU', 'TCM', 'BCM', 'ABS', 'SRS', 'SAS', 'BMS', 'ADAS', 'TPMS', 'IMMO', 'CAN', 'CAN-FD', 'DOIP', 'EV', 'DC', 'AC', 'CCS2', 'GB/T', 'GBT', 'IP54', 'IP65', 'IP67', 'NBR', 'ISO', 'VG', 'CVT', 'ATF', 'DCT', 'DSG', 'DQ200', 'DQ250', 'MAH', 'WAL', 'LPK', 'SKX', 'DT', 'TC', 'EW', 'TTE', 'TTK', 'TPC', 'TFJ', 'TES', 'TBT', 'ACT20', 'EPD002', '360PRO', 'IA', '3D', '2D', '12V', '24V', '48V', '110V', '127V', '220V', '380V', '60HZ', 'HP', 'PCM', 'RPM', 'MM', 'CM', 'KG', 'KW', 'KWH', 'AH', 'PU', 'EVA', 'SUV', 'SUVS', 'NR-12', 'NR12', 'CNPJ', 'CPF', 'PIX', 'DF'
+]);
+
+/**
+ * Normaliza títulos de produtos e páginas para o Google Search Console:
+ * - Decodifica entidades HTML (&quot; -> ")
+ * - Converte títulos que estão 100% em CAIXA ALTA ou com preposições gritantes (DE, COM, PARA)
+ *   para Title Case técnico elegante, preservando siglas, códigos de modelo (MAH-1020, SGT-0555) e unidades (7kW, 32A).
+ */
+export function formatSeoProductTitle(rawTitle) {
+  if (!rawTitle || typeof rawTitle !== 'string') return '';
+  let clean = rawTitle
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Verifica se o título inteiro é predominantemente maiúsculo ou possui preposições em CAIXA ALTA
+  const hasUppercasePrepositions = /\b(DE|DA|DO|DAS|DOS|COM|PARA|EM|POR)\b/.test(clean);
+  const lettersOnly = clean.replace(/[^a-zA-ZÀ-ÿ]/g, '');
+  const upperLetters = clean.replace(/[^A-ZÀ-Ý]/g, '');
+  const isMostlyAllCaps = lettersOnly.length > 6 && (upperLetters.length / lettersOnly.length) > 0.72;
+
+  if (!hasUppercasePrepositions && !isMostlyAllCaps) {
+    return clean;
+  }
+
+  const words = clean.split(' ');
+  return words
+    .map((word, idx) => {
+      if (!word) return '';
+      const upperWord = word.toUpperCase();
+      const lowerWord = word.toLowerCase();
+
+      // Preserva códigos alfanuméricos de modelo/medida (ex: MAH-1020, SGT-0555, 30X33MM -> 30x33mm, 7kW, 32A, 1/2")
+      if (/^[A-Z]{2,5}-[0-9A-Z-]+$/i.test(word)) {
+        return upperWord;
+      }
+      if (/^[0-9]+[.,]?[0-9]*(kw|kwh|v|a|ah|nm|psi|hp|w|l|m|mm|cm|kg|t|un|hz|graus|"|″|”|°)$/i.test(word)) {
+        return word
+          .replace(/kw$/i, 'kW')
+          .replace(/kwh$/i, 'kWh')
+          .replace(/ah$/i, 'Ah')
+          .replace(/nm$/i, 'Nm')
+          .replace(/hz$/i, 'Hz')
+          .replace(/psi$/i, 'PSI')
+          .replace(/hp$/i, 'HP')
+          .replace(/mm$/i, 'mm')
+          .replace(/cm$/i, 'cm')
+          .replace(/kg$/i, 'kg')
+          .replace(/un$/i, 'un');
+      }
+      if (UPPERCASE_ACRONYMS.has(upperWord)) {
+        return upperWord;
+      }
+
+      // Se não for a primeira palavra nem após traço/barra, preposições ficam em minúsculo
+      const prevWord = idx > 0 ? words[idx - 1] : '';
+      const isAfterSeparator = prevWord === '-' || prevWord === '–' || prevWord === '|' || prevWord === ':';
+      if (idx > 0 && !isAfterSeparator && LOWERCASE_PREPOSITIONS.has(lowerWord)) {
+        return lowerWord;
+      }
+
+      // Se a palavra já estiver em Mixed Case normal (ex: "ThinkTool", "Stärkx") e não for toda maiúscula, preserva
+      if (word !== upperWord && word !== lowerWord) {
+        return word;
+      }
+
+      return lowerWord.charAt(0).toUpperCase() + lowerWord.slice(1);
+    })
+    .join(' ');
+}
+
 export function normalizeCanonicalPath(rawPath) {
   if (!rawPath || typeof rawPath !== 'string') return '/';
   let clean = rawPath.split('?')[0].split('#')[0].trim();

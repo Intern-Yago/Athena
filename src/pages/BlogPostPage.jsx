@@ -43,7 +43,7 @@ const FALLBACK_POST_DETAILS = {
     slug: 'recarga-veiculos-eletricos-adaptador-ccs2-gbt-carregador-portatil-7kw',
     title: 'Recarga de Veículos Elétricos no Brasil: Quando Usar Adaptador CCS2 para GB/T e Carregadores Portáteis Tipo 2 (7kW)',
     summary: 'Guia técnico definitivo sobre infraestrutura de recarga EV para oficinas e proprietários: entenda as diferenças entre Tipo 2, CCS2 e GB/T, como operar adaptadores DC de 80kW e escolher carregadores portáteis de 7kW 32A.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-recarga-ev-ccs2-8c5f677dbf04.webp',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-recarga-ev-ccs2-ew1135-bec0db13a09a.webp',
     published_at: '2026-11-12T20:45:00.000Z',
     reading_time_minutes: 8,
     views_count: 178,
@@ -146,6 +146,25 @@ Os sistemas ADAS utilizam câmeras frontais no para-brisa e radares de 77 GHz no
 ## Elevador Eletro-Hidráulico de Pórtico Mahovi vs. Elevador de Fuso
 
 Os modernos elevadores eletro-hidráulicos de 4,5 toneladas Mahovi MAH-1020 com pórtico superior entregam vão livre total no piso, duplo cilindro hidráulico, cabos de equalização e travas mecânicas multiponto em conformidade com a norma NR-12.
+    `
+  },
+  'organizacao-produtividade-oficina-carrinhos-detailer-armarios-wolfcar-ferramentas-sigma': {
+    id: 'post_organizacao_sigma_wolfcar',
+    slug: 'organizacao-produtividade-oficina-carrinhos-detailer-armarios-wolfcar-ferramentas-sigma',
+    title: 'Como Organizar um Box de Alta Produtividade: Carrinhos 360° Sigma Tools, Armários Modulares Wolfcar e Ferramentas Especiais',
+    summary: 'Descubra como reduzir em até 30% o tempo perdido procurando ferramentas no box combinando Carrinhos Detailer-Mecânico 360° e Extratores Sigma Tools com Bancadas Modulares Wolfcar e o Carrinho TTK 333.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1787748979250-e02135520788.webp',
+    published_at: '2026-11-17T13:50:00.000Z',
+    reading_time_minutes: 7,
+    views_count: 142,
+    author_name: 'Equipe Técnica Athena',
+    author_role: 'Consultoria de Produtividade & Layout de Oficina',
+    categories: [{ id: 'cat_gest', name: 'Gestão & Produtividade', slug: 'gestao-produtividade' }],
+    tags: ['Sigma Tools', 'Wolfcar', 'Carrinho Detailer 360', 'Organização de Oficina'],
+    content: `
+## Mobilidade e Produtividade no Box
+
+A organização ergonômica do box com Carrinhos 360° Detailer-Mecânico Sigma Tools, Extratores de Retentor, Acopladores de Graxeiro e Bancadas Modulares Wolfcar aumenta em até 30% a capacidade diária de entregas da oficina.
     `
   }
 };

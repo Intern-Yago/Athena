@@ -1075,6 +1075,7 @@ export default function AdminPanel({
     brevoApiKey: '',
     hasBrevoApiKey: false,
     brevoSenderEmail: '',
+    analyticsIgnoredIps: '189.6.7.14',
     activeProvider: 'smtp'
   });
   const [loadingNotifications, setLoadingNotifications] = useState(false);
@@ -4370,8 +4371,15 @@ export default function AdminPanel({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao salvar configurações.');
-      showNotification(data.message || 'Configurações de e-mail salvas com sucesso!', 'success');
-      if (data.settings) setNotificationSettings(data.settings);
+      showNotification(data.message || 'Configurações salvas com sucesso!', 'success');
+      if (data.settings) {
+        setNotificationSettings(data.settings);
+        if (Array.isArray(data.settings.analyticsIgnoredIpsList)) {
+          try {
+            window.localStorage.setItem('athena_ignored_ips_list', JSON.stringify(data.settings.analyticsIgnoredIpsList));
+          } catch (_) {}
+        }
+      }
     } catch (err) {
       showNotification(err.message, 'error');
     } finally {
@@ -6531,17 +6539,10 @@ export default function AdminPanel({
                   />
                 </div>
 
-                {/* Opções de Frequência de Exibição */}
-                <div className="flex flex-wrap items-center gap-6 pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={popupForm.showOncePerSession !== false}
-                      onChange={(e) => setPopupForm(p => ({ ...p, showOncePerSession: e.target.checked }))}
-                      className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
-                    />
-                    <span className="text-xs text-slate-700 font-medium">Exibir apenas 1 vez por sessão de navegação (Recomendado para Core Web Vitals)</span>
-                  </label>
+                {/* Regra Automática de Cooldown de 12 Horas */}
+                <div className="flex items-center gap-2 pt-1 text-xs text-slate-600 bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span><strong>Frequência Inteligente Ativa:</strong> Ao fechar o pop-up, ele ficará oculto por <strong>12 horas</strong> para o visitante (logado ou deslogado, mesmo abrindo novas abas).</span>
                 </div>
               </div>
 
@@ -8070,6 +8071,91 @@ export default function AdminPanel({
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* FILTRO DE TRÁFEGO INTERNO & EXCLUSÃO DE IPs NAS ANÁLISES */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 shrink-0">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-extrabold text-slate-900">
+                        Bloqueio de IPs nas Análises (Filtro de Tráfego Interno)
+                      </h3>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Proteção Ativa (GA4, Meta CAPI, TikTok, Clarity & Blog)
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Endereços IP listados abaixo (como <code className="font-mono font-bold text-slate-700">189.6.7.14</code>) navegam normalmente na loja, mas nunca são contabilizados nas métricas de tráfego, buscas ou visualizações.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveNotificationSettings} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                    <span>Endereços IP Ignorados nas Análises (Separados por vírgula)</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const myIp = window.localStorage?.getItem('athena_client_ip');
+                        if (!myIp) {
+                          showNotification('Não foi possível detectar o IP atual automaticamente.', 'warning');
+                          return;
+                        }
+                        const current = notificationSettings.analyticsIgnoredIps || '189.6.7.14';
+                        if (current.includes(myIp)) {
+                          showNotification(`Seu IP atual (${myIp}) já está na lista de ignorados!`, 'info');
+                          return;
+                        }
+                        setNotificationSettings({
+                          ...notificationSettings,
+                          analyticsIgnoredIps: current ? `${current}, ${myIp}` : myIp
+                        });
+                      }}
+                      className="text-[11px] font-extrabold text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg cursor-pointer transition-colors"
+                    >
+                      + Adicionar Meu IP Atual
+                    </button>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 189.6.7.14, 200.150.10.25"
+                    value={notificationSettings.analyticsIgnoredIps ?? '189.6.7.14'}
+                    onChange={(e) => setNotificationSettings({ ...notificationSettings, analyticsIgnoredIps: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white text-slate-900 text-xs sm:text-sm rounded-xl px-4 py-3 outline-none font-mono transition-colors"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    O IP principal <strong className="text-slate-800 font-mono">189.6.7.14</strong> já é bloqueado nativamente no navegador (Google Analytics 4, GTM, Meta Pixel, TikTok Pixel e Microsoft Clarity) e no servidor (Meta CAPI, buscas do catálogo e contador de visualizações do blog).
+                  </p>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingNotifications}
+                    className="btn-gold text-xs font-bold py-2.5 px-5 shadow-xs flex items-center gap-2 cursor-pointer"
+                  >
+                    {savingNotifications ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Salvando IPs...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Salvar Lista de IPs Ignorados</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
 
             {/* Lower Grid: Password and Profile Cards */}

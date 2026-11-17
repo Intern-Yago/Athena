@@ -38,28 +38,78 @@ export default function BrandPage({
 
   const rawBrandProducts = (products || []).filter((p) => brand && p.brandId === brand.id && isProductPublished(p));
 
-  // SEO Dinâmico (Title, Meta Description, Canonical e Schema Brand + ItemList)
+  // SEO Dinâmico (Title, Meta Description, Canonical e Schema Brand + ItemList + FAQPage para termos estratégicos como "scanner eaata")
   useEffect(() => {
     const slugFromUrl = typeof window !== 'undefined' ? window.location.pathname : `/marca/${brand?.slug || brandId}`;
     const bName = brand?.name || 'Marca Parceira';
-    const bSlug = brand?.slug || brand?.id || brandId;
-    const canonicalPath = `/marca/${bSlug}`;
-    const desc = brand?.description
-      ? `${brand.description.slice(0, 135)} Confira ${rawBrandProducts.length} equipamento(s) na Athena.`
-      : `Catálogo oficial de equipamentos ${bName} na Athena Soluções Automotivas (${rawBrandProducts.length} produtos disponíveis com garantia de fábrica).`;
+    const bSlug = (brand?.slug || brand?.id || brandId || '').toLowerCase();
+    const canonicalPath = `/marca/${brand?.slug || brand?.id || brandId}`;
+
+    const isEaata = bSlug.includes('eaata') || bName.toLowerCase().includes('eaata');
+    const customTitle = isEaata
+      ? `Scanner EAATA Brasil (EAATA 90, 360Pro, PROG 5 e ECM 45) | Distribuidor Oficial Athena`
+      : `Equipamentos ${bName} | Revenda Oficial - Athena Soluções Automotivas`;
+
+    const desc = isEaata
+      ? `Catálogo oficial EAATA Brasil na Athena: Scanner Automotivo EAATA 90 com Topologia e IA, EAATA 360Pro IMMO, Clonadora PROG 5 e ECM 45. Pronta-entrega e garantia!`
+      : brand?.description
+      ? `${brand.description.slice(0, 120)} Confira ${rawBrandProducts.length} equipamento(s) com pronta-entrega na Athena.`
+      : `Catálogo oficial de equipamentos ${bName} na Athena Soluções Automotivas (${rawBrandProducts.length} produtos disponíveis com garantia de fábrica e pronta-entrega).`;
+
+    const itemListElements = rawBrandProducts.slice(0, 20).map((prod, idx) => ({
+      "@type": "ListItem",
+      "position": idx + 1,
+      "url": `https://www.athenaconsultoria.com.br/produto/${prod.slug || prod.id}`,
+      "name": prod.name
+    }));
+
+    const schemaGraph = [
+      {
+        "@type": "CollectionPage",
+        "name": customTitle,
+        "description": desc,
+        "url": `https://www.athenaconsultoria.com.br${brand ? canonicalPath : slugFromUrl}`,
+        "mainEntity": {
+          "@type": "ItemList",
+          "numberOfItems": rawBrandProducts.length,
+          "itemListElement": itemListElements
+        }
+      }
+    ];
+
+    if (isEaata) {
+      schemaGraph.push({
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Qual a diferença entre o Scanner EAATA 90 e o EAATA 360Pro?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "O Scanner Automotivo EAATA 90 é focado em diagnóstico avançado por topologia de rede colorida, Inteligência Artificial, protocolos CAN-FD/DoIP e 35 funções especiais de oficina. Já o EAATA 360Pro soma todos os recursos de diagnóstico avançado ao hardware dedicado de programação de chaves e imobilizadores (IMMO)."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Onde comprar Scanner EAATA e PROG 5 com garantia oficial no Brasil?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A Athena Soluções Automotivas é distribuidora oficial homologada EAATA Brasil, com estoque próprio à pronta-entrega, faturamento para CNPJ e CPF, suporte técnico especializado e garantia de fábrica."
+            }
+          }
+        ]
+      });
+    }
 
     setPageSeo({
-      title: `Equipamentos ${bName} | Revenda Oficial - Athena Soluções Automotivas`,
+      title: customTitle,
       description: desc,
       canonicalPath: brand ? canonicalPath : slugFromUrl,
       image: brand?.logo,
       schemaId: 'brand-page-json-ld',
       schemaData: {
         "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        "name": `Equipamentos ${bName} - Athena Soluções Automotivas`,
-        "description": desc,
-        "url": `https://www.athenaconsultoria.com.br${brand ? canonicalPath : slugFromUrl}`
+        "@graph": schemaGraph
       }
     });
   }, [brand, brandId, rawBrandProducts.length]);
