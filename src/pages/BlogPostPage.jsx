@@ -27,59 +27,59 @@ const FALLBACK_POST_DETAILS = {
     id: 'post_prog5_ecm45',
     slug: 'clonagem-programacao-modulos-ecu-tcu-eaata-prog-5-ecm-45',
     title: 'Clonagem e Programação de Módulos ECU e TCU na Oficina: Guia Técnico da EAATA PROG 5 e ECM 45',
-    summary: 'Entenda como realizar leitura, backup e clonagem de centrais de injeção (ECU) e câmbio (TCU) em bancada com a EAATA PROG 5, além de reset de módulos de airbag, bateria BMS e direção elétrica (SAS) com o programador ECM 45.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/eaata-programadora-prog-5-c6e2e7396d01.webp',
+    summary: 'Domine a leitura, backup e clonagem 1:1 de centrais de injeção (ECU) e câmbio automático (TCU) em modo Bench e Boot com a EAATA PROG 5, além do reset de módulos de Airbag, baterias de lítio BMS e direção elétrica SAS com o ECM 45.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-prog5-ecm45-32ab4cdabc5f.webp',
     published_at: '2026-11-12T20:50:00.000Z',
-    reading_time_minutes: 7,
+    reading_time_minutes: 9,
     views_count: 195,
     author_name: 'Equipe Técnica Athena',
     author_role: 'Especialista em Eletrônica Embarcada & Módulos',
     categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
     tags: ['PROG 5', 'ECM 45', 'Clonagem ECU', 'TCU', 'Airbag'],
-    content_html: `<p>Com a eletrônica embarcada cada vez mais protegida por criptografia e sistemas anti-furto (IMMO de última geração), substituir uma central de injeção eletrônica (<strong>ECU</strong>) ou de transmissão automatizada/automática (<strong>TCU</strong>) deixou de ser uma simples troca física de peça. Hoje, a oficina que domina a <strong>clonagem de módulos em bancada e o reset de unidades de controle</strong> retém os serviços de maior margem de lucro do mercado.</p><h2>1. O Que Faz a Programadora e Clonadora EAATA PROG 5?</h2><p>A <strong>EAATA PROG 5</strong> permite que o técnico conecte-se diretamente à central (em modo <em>Bench</em> sem abrir a carcaça, ou em modo <em>Boot</em> na placa) para ler e salvar backup integral (Flash + EEPROM) e realizar clonagem 1:1 para módulos doadores.</p><div class="athena-blog-product-card" style="margin:28px 0;padding:24px;border-radius:16px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#ffffff;border:1px solid #334155;"><span style="display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(245,158,11,0.15);color:#fbbf24;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Equipamento em Destaque</span><h4 style="margin:0 0 8px 0;font-size:20px;font-weight:800;color:#ffffff;">Programadora e Clonadora de Módulos ECU/TCU PROG 5 – EAATA</h4><p style="margin:0 0 16px 0;font-size:14px;color:#cbd5e1;line-height:1.6;">Leitura e gravação de memória EEPROM e Flash de centrais de motor e câmbio em modo Bench e Boot.</p><a href="/produto/programadora-e-clonadora-de-modulos-ecu-tcu-prog-5-eaata-prog-5" style="display:inline-block;padding:10px 20px;border-radius:10px;background:#f59e0b;color:#020617;font-weight:800;font-size:13px;text-decoration:none;">Ver Ficha Técnica da PROG 5 →</a></div><h2>2. Reset de Airbag, Baterias de Lítio e Direção (SAS) com o EAATA ECM 45</h2><p>O <strong>EAATA ECM 45</strong> limpa o registro de impacto (Crash Data) em módulos de Airbag, destrava baterias de lítio BMS 12V/48V e recupera sensores de ângulo de direção SAS.</p>`
+    content_html: `<p>Com a evolução da arquitetura eletrônica embarcada e dos sistemas de proteção de componentes (<em>Component Protection</em> e imobilizadores de 4ª, 5ª e 6ª geração), substituir uma central de injeção eletrônica (<strong>ECU</strong>) ou uma unidade mecatrônica de transmissão (<strong>TCU</strong>) deixou de ser um procedimento meramente mecânico.</p><h2>1. Como Funciona a Clonagem de ECU e TCU na Prática?</h2><p>Com a <strong>EAATA PROG 5</strong>, o técnico extrai o arquivo completo (<em>Full Backup</em> de Flash e EEPROM) da peça defeituosa em modo Bench (sem abrir a central) ou Boot e o grava integralmente na peça substituta.</p><div class="athena-blog-product-card" style="margin:28px 0;padding:24px;border-radius:16px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#ffffff;border:1px solid #334155;"><span style="display:inline-block;padding:4px 10px;border-radius:999px;background:rgba(245,158,11,0.15);color:#fbbf24;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Clonagem de Motor e Câmbio</span><h4 style="margin:0 0 8px 0;font-size:20px;font-weight:800;color:#ffffff;">Programadora e Clonadora de Módulos ECU/TCU PROG 5 – EAATA</h4><p style="margin:0 0 16px 0;font-size:14px;color:#cbd5e1;line-height:1.6;">Cobertura para centenas de centrais Bosch, Continental, Delphi, Marelli e transmissões DSG, ZF, Mercedes e GM.</p><a href="/produto/programadora-e-clonadora-de-modulos-ecu-tcu-prog-5-eaata-prog-5" style="display:inline-block;padding:10px 20px;border-radius:10px;background:#f59e0b;color:#020617;font-weight:800;font-size:13px;text-decoration:none;">Ver Ficha Técnica da EAATA PROG 5 →</a></div><h2>2. Recuperação de Airbag (SRS), Baterias BMS de Lítio e Direção (SAS) com o EAATA ECM 45</h2><p>O <strong>EAATA ECM 45</strong> limpa o registro de impacto (Crash Data) em módulos de Airbag, destrava baterias de lítio BMS 12V/48V e recupera sensores de ângulo de direção SAS.</p>`
   },
   'recarga-veiculos-eletricos-adaptador-ccs2-gbt-carregador-portatil-7kw': {
     id: 'post_ev_ccs2_tc1108',
     slug: 'recarga-veiculos-eletricos-adaptador-ccs2-gbt-carregador-portatil-7kw',
     title: 'Recarga de Veículos Elétricos no Brasil: Quando Usar Adaptador CCS2 para GB/T e Carregadores Portáteis Tipo 2 (7kW)',
-    summary: 'Guia prático sobre padrões de recarga de carros elétricos e híbridos plug-in no Brasil: como funcionam os adaptadores rápidos DC CCS2 para GB/T (80kW) e os carregadores portáteis Tipo 2 de 7kW 32A.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/ew1135-173eeeb34c90.webp',
+    summary: 'Guia técnico definitivo sobre infraestrutura de recarga EV para oficinas e proprietários: entenda as diferenças entre Tipo 2, CCS2 e GB/T, como operar adaptadores DC de 80kW e escolher carregadores portáteis de 7kW 32A.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-recarga-ev-ccs2-8c5f677dbf04.webp',
     published_at: '2026-11-12T20:45:00.000Z',
-    reading_time_minutes: 6,
+    reading_time_minutes: 8,
     views_count: 178,
     author_name: 'Equipe Técnica Athena',
     author_role: 'Especialista em Eletromobilidade & Infraestrutura EV',
     categories: [{ id: 'cat_ev', name: 'Tendências Automotivas', slug: 'tendencias-automotivas' }],
     tags: ['CCS2 para GB/T', 'Carregador 7kW', 'Carros Elétricos', 'Top Charger'],
-    content_html: `<p>O crescimento acelerado da frota de veículos elétricos (BEV) e híbridos plug-in (PHEV) no Brasil trouxe uma nova demanda diária tanto para proprietários quanto para oficinas: a compatibilidade entre os padrões de plugues de recarga AC e DC.</p><h2>1. Adaptador CCS2 para GB/T 80kW (E-Wolf EW1135)</h2><p>Permite carregar veículos com entrada padrão GB/T em qualquer eletroposto rápido CCS2 nas rodovias brasileiras com potência de até 80kW.</p><h2>2. Carregador Portátil Tipo 2 de 7kW (32A) Top Charger TC1108</h2><p>Entrega velocidade de Wallbox (7kW em 220V) com 4 adaptadores intercambiáveis e proteção IP65.</p>`
+    content_html: `<p>A eletrificação da frota brasileira trouxe uma demanda essencial para oficinas e proprietários: a compatibilidade entre os padrões Tipo 2, CCS2 e GB/T.</p><h2>1. Adaptador CCS2 para GB/T 80kW (E-Wolf EW1135)</h2><p>Permite carregar veículos com entrada padrão GB/T em qualquer eletroposto rápido CCS2 nas rodovias brasileiras com potência de até 80kW.</p><h2>2. Carregador Portátil Tipo 2 de 7kW (32A) Top Charger TC1108</h2><p>Entrega velocidade de Wallbox (7kW em 220V) com 4 adaptadores intercambiáveis e proteção IP65.</p>`
   },
   'troca-oleo-cambio-automatico-dialise-maquina-100-automatica': {
     id: 'post_cambio_automatico',
     slug: 'troca-oleo-cambio-automatico-dialise-maquina-100-automatica',
-    title: 'Troca de Óleo de Câmbio Automático por Diálise vs. Gravidade: Como Faturar Alto na Oficina',
-    summary: 'Descubra por que a troca parcial por gravidade deixa até 50% de fluido contaminado no conversor de torque e como máquinas 100% automáticas elevam o ticket médio e a segurança da transmissão.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1788372279810-07af1d2e7d7b.webp',
+    title: 'Troca de Óleo de Câmbio Automático por Diálise vs. Gravidade: Como Faturar Alto com a Mahovi MAH-4001',
+    summary: 'Entenda tecnicamente por que a drenagem por gravidade substitui menos da metade do fluido ATF/CVT e como a Máquina 100% Automática Mahovi MAH-4001 por diálise protege o corpo de válvulas e multiplica o lucro do auto center.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-mahovi-mah4001-39c759f2a2a7.webp',
     published_at: '2026-11-12T20:40:00.000Z',
-    reading_time_minutes: 6,
+    reading_time_minutes: 8,
     views_count: 164,
     author_name: 'Equipe Técnica Athena',
     author_role: 'Engenharia de Transmissões & Equipamentos',
     categories: [{ id: 'cat_gest', name: 'Gestão & Produtividade', slug: 'gestao-produtividade' }],
-    tags: ['Câmbio Automático', 'Diálise', 'Transmissão', 'Oficina Lucrativa'],
-    content_html: `<p>A manutenção preventiva de câmbio automático tornou-se um dos serviços de maior rentabilidade por hora trabalhada em oficinas mecânicas e auto centers.</p><h2>Por Que Usar Máquina 100% Automática por Diálise?</h2><p>Enquanto a drenagem por gravidade substitui apenas 40% do fluido, a diálise computadorizada renova quase 100% do óleo retido no conversor de torque, corpo de válvulas e radiador com balança eletrônica de precisão.</p>`
+    tags: ['Mahovi MAH-4001', 'Câmbio Automático', 'Diálise', 'Oficina Lucrativa'],
+    content_html: `<p>A manutenção preventiva de câmbio automático tornou-se um dos serviços de maior rentabilidade por hora trabalhada em oficinas mecânicas e auto centers.</p><h2>Por Que Usar a Máquina 100% Automática Mahovi MAH-4001 por Diálise?</h2><p>Enquanto a drenagem por gravidade substitui apenas 40% do fluido, a diálise computadorizada na Mahovi MAH-4001 renova quase 100% do óleo retido no conversor de torque, corpo de válvulas e radiador com monitoramento duplo de pressão e visores graduados.</p>`
   },
   'scanner-topologia-de-rede-ia-eaata-90-oficina': {
     id: 'd7f7f07a-126d-4d68-8db9-6fc1438ad289',
     slug: 'scanner-topologia-de-rede-ia-eaata-90-oficina',
     title: 'Scanner com Topologia de Rede e IA: Vale a Pena o EAATA 90 para a Sua Oficina?',
-    summary: 'Análise técnica aprofundada sobre o scanner EAATA 90 com inteligência artificial, topologia de rede automotiva colorida em tempo real, suporte remoto integrado e vantagens competitivas para reparadores mecânicos.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/eaata-aa7d50879091.webp',
+    summary: 'Análise técnica completa do scanner automotivo EAATA 90: como o mapeamento visual colorido de barramentos CAN-FD / DoIP e o assistente de Inteligência Artificial reduzem horas de diagnóstico elétrico para poucos minutos.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-eaata-90-topologia-c2db7cf42be8.webp',
     published_at: '2026-11-12T15:56:37.269Z',
-    reading_time_minutes: 5,
+    reading_time_minutes: 7,
     views_count: 260,
     author_name: 'Equipe Técnica Athena',
     author_role: 'Especialista em Diagnóstico Avançado & Redes Veiculares',
-    categories: [{ id: 'cat_diag', name: 'Diagnóstico & IA', slug: 'diagnostico-ia' }],
+    categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
     tags: ['EAATA 90', 'Topologia de Rede', 'Inteligência Artificial', 'Scanner Automotivo'],
     related_product_slug: 'scanner-automotivo-eaata-90-com-diagnostico-por-topologia-e-ia-eaata',
     related_product_name: 'Scanner Automotivo EAATA 90 com Diagnóstico por Topologia e IA',
@@ -89,79 +89,63 @@ const FALLBACK_POST_DETAILS = {
 Nos veículos modernos, dezenas de módulos eletrônicos (ECU, TCU, ABS, ESP, BCM, Airbag, Painel e Gateway Central) comunicam-se ininterruptamente através de múltiplos barramentos: redes CAN High Speed, CAN Low Speed, LIN e Ethernet automotiva.
 
 Quando ocorre uma falha intermitente na linha de comunicação — como curto na fiação ou falha em um nó terminal —, um scanner comum apenas lista dezenas de códigos DTC sem hierarquia. O **EAATA 90**, por sua vez, desenha um diagrama topológico completo e colorido na tela em segundos. Módulos que respondem normalmente aparecem em verde; módulos com falhas em vermelho; e módulos que não responderam na linha aparecem destacados em cinza, revelando com precisão o ponto exato da interrupção.
-
----
-
-## Recursos Diferenciais do EAATA 90 para a Oficina
-
-1. **Topologia Dinâmica de Barramento CAN**: Visualize o mapa completo da arquitetura eletrônica do veículo em um único toque, eliminando horas de medições manuais com multímetro.
-2. **Assistente de Diagnóstico Integrado com IA**: Interpreta códigos de falha complexos, correlaciona causas prováveis com sintomas relatados e sugere testes de atuadores com base em bancos de dados de montadoras globais.
-3. **Funções Especiais de Oficina**: Calibração de ângulo de direção (SAS), sangria eletrônica de freio (EPB), regeneração de DPF, codificação de bicos injetores e reset de bateria BMS.
-4. **Hardware Robusto com VCI Sem Fio**: Tablet industrial resistente a quedas, poeira e derivados de petróleo com conexão sem fio de longo alcance para movimentação livre no pátio.
-
----
-
-## Retorno Financeiro e Eficiência de Mão de Obra
-
-Investir no EAATA 90 reduz expressivamente o tempo médio de triagem de veículos com panes elétricas misteriosas:
-- **Diagnóstico em Minutos**: O que antes demandava horas de desmontagem de painéis é identificado em uma varredura visual de 2 minutos.
-- **Relatório Profissional em PDF**: Gere relatórios com o logotipo da sua oficina mecânica e envie diretamente no WhatsApp do cliente antes e depois do reparo, transmitindo autoridade imediata.
-- **Suporte Técnico Dedicado Athena**: Garantia nacional, treinamento operacional e canal direto com especialistas em diagnóstico automotivo.
     `
   },
   'como-escolher-o-scanner-automotivo-ideal-para-sua-oficina': {
     id: 'a2faa5cc-757d-4b6c-89f3-76c19b2d1f16',
     slug: 'como-escolher-o-scanner-automotivo-ideal-para-sua-oficina',
-    title: 'Como Escolher o Scanner Automotivo Ideal para sua Oficina Mecânica',
-    summary: 'Descubra como o ThinkTool Lite e scanners modernos revolucionam oficinas mecânicas através de diagnósticos inteligentes, leitura rápida de módulos, funções especiais e atualização direta de fábrica.',
-    cover_image_url: 'https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp',
+    title: 'Qual Scanner Automotivo Escolher? Diferenças Entre Thinkcar THINKTOOL LITE (Stärkx), EAATA 90 e EAATA 360Pro',
+    summary: 'Conheça as diferenças e especialidades de cada scanner profissional do catálogo da Athena — Thinkcar THINKTOOL LITE (Stärkx), EAATA 90 e EAATA 360Pro — e descubra qual se encaixa melhor na operação da sua oficina.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-escolher-scanner-oficina-6ef9a5689d3f.webp',
     published_at: '2026-11-11T21:22:36.450Z',
-    reading_time_minutes: 6,
+    reading_time_minutes: 7,
     views_count: 342,
-    author_name: 'Eng. Ricardo Silveira',
+    author_name: 'Equipe Técnica Athena',
     author_role: 'Especialista em Diagnóstico Avançado Athena',
-    categories: [{ id: 'cat_diag', name: 'Diagnóstico & IA', slug: 'diagnostico-ia' }],
-    tags: ['Thinkcar', 'Scanner Automotivo', 'Diagnóstico', 'Inteligência Artificial'],
-    related_product_slug: 'prod_starkx_thinktool-lite',
-    related_product_name: 'Scanner Automotivo Multimarcas Thinkcar THINKTOOL LITE',
+    categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
+    tags: ['ThinkTool Lite Stärkx', 'EAATA 90', 'EAATA 360Pro', 'Scanner Automotivo'],
     content: `
-## A Importância da Escolha Certa do Scanner na Oficina Moderna
+## Diferenças e Especialidades de Cada Scanner Profissional
 
-Com a complexidade crescente dos veículos e sistemas híbridos e elétricos, escolher o equipamento de diagnóstico correto impacta diretamente a produtividade, a reputação e o faturamento de qualquer oficina mecânica.
-
-Equipamentos defasados geram perdas de tempo e recusas de serviços por falta de cobertura de sistemas como EPB, SAS e calibrações de transmissões automatizadas. Scanners multimarcas com suporte de inteligência artificial oferecem cobertura atualizada e orientação passo a passo nos testes.
-
----
-
-## 4 Fatores Essenciais na Escolha:
-
-1. **Cobertura de Frotas e Montadoras**: Verifique se o equipamento atende ampla linha de veículos nacionais e importados com protocolos modernos como DoIP e CAN FD.
-2. **Topologia de Rede Visual**: Facilita a localização rápida de perdas de sinal em barramentos CAN sem necessidade de osciloscópio prévio.
-3. **Custo de Atualização e Assinaturas**: Prefira equipamentos com atualizações inclusas ou modelos de pagamento claros e sem bloqueios surpresa.
-4. **Assistência Técnica e Garantia Nacional**: Comprar de distribuidores oficiais como a Athena assegura treinamento, garantia e reposição imediata de peças.
+Na Athena Soluções Automotivas, trabalhamos apenas com equipamentos de nível profissional superior: o **Thinkcar THINKTOOL LITE (distribuído pela Stärkx)**, o **EAATA 90** e o **EAATA 360Pro**. Entenda o foco de cada equipamento para a sua oficina.
     `
   },
-  'guia-definitivo-thinkcar-thinktool-lite-diagnostico-ia': {
-    id: 'post_thinktool_lite_guia',
-    slug: 'guia-definitivo-thinkcar-thinktool-lite-diagnostico-ia',
-    title: 'Guia Definitivo: Scanner Thinkcar THINKTOOL LITE e Diagnóstico com IA',
-    summary: 'Descubra como o ThinkTool Lite revoluciona oficinas mecânicas através de diagnósticos inteligentes, leitura rápida de módulos, funções especiais e atualização direta de fábrica.',
-    cover_image_url: 'https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp',
-    published_at: '2026-11-10T10:00:00.000Z',
-    reading_time_minutes: 6,
-    views_count: 342,
-    author_name: 'Eng. Ricardo Silveira',
-    author_role: 'Especialista em Diagnóstico Avançado Athena',
-    categories: [{ id: 'cat_diag', name: 'Diagnóstico & IA', slug: 'diagnostico-ia' }],
-    tags: ['Thinkcar', 'Scanner Automotivo', 'Diagnóstico', 'Inteligência Artificial'],
-    related_product_slug: 'prod_starkx_thinktool-lite',
-    related_product_name: 'Scanner Automotivo Multimarcas Thinkcar THINKTOOL LITE',
+  'calibracao-adas-e-sensores-radar-o-futuro-da-reparacao': {
+    id: 'post_calibracao_adas_2026',
+    slug: 'calibracao-adas-e-sensores-radar-o-futuro-da-reparacao',
+    title: 'Calibração ADAS e Alinhamento 3D Mahovi: Por Que Toda Oficina e Auto Center Precisa Integrar Esses Serviços',
+    summary: 'Frenagem autônoma, assistente de faixa e ACC exigem geometria perfeita do chassi antes da aferição dos sensores. Veja como integrar os Alinhadores 3D Mahovi (MAH-3D1, MAH-3D2 e MAH-3D3) ao Sistema ADAS Pro na sua oficina.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-calibracao-adas-70e7ab8b68e0.webp',
+    published_at: '2026-11-08T14:30:00.000Z',
+    reading_time_minutes: 8,
+    views_count: 519,
+    author_name: 'Consultoria Automotiva',
+    author_role: 'Engenharia de Sistemas ADAS & Alinhamento',
+    categories: [{ id: 'cat_adas', name: 'Tendências Automotivas', slug: 'tendencias-automotivas' }],
+    tags: ['ADAS', 'Alinhamento 3D Mahovi', 'Calibração', 'Segurança Ativa'],
     content: `
-## A Nova Era do Diagnóstico Automotivo com Inteligência Artificial
+## Por Que o Alinhamento 3D Mahovi é o Primeiro Passo Antes do ADAS?
 
-A evolução dos veículos modernos com dezenas de módulos eletrônicos interconectados tornou os scanners genéricos obsoletos. Falhas em redes exigem velocidade e diagramas práticos.
+Os sistemas ADAS utilizam câmeras frontais no para-brisa e radares de 77 GHz no para-choque que dependem do alinhamento perfeito do eixo traseiro aferido nos Alinhadores 3D Mahovi (MAH-3D1, MAH-3D2 e MAH-3D3).
+    `
+  },
+  'seguranca-e-manutencao-preventiva-em-elevadores-automotivos': {
+    id: 'post_manutencao_elevadores',
+    slug: 'seguranca-e-manutencao-preventiva-em-elevadores-automotivos',
+    title: 'Elevadores Automotivos Mahovi: Guia de Escolha (3,2T a 6T), Segurança e Manutenção NR-12',
+    summary: 'Do elevador pórtico eletro-hidráulico Mahovi MAH-1020 de 4,5 toneladas aos pantográficos embutidos e modelos de 6 toneladas para utilitários: veja como dimensionar o piso e aplicar o checklist da norma NR-12.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-mahovi-mah1020-88f2a638eb15.webp',
+    published_at: '2026-11-05T09:15:00.000Z',
+    reading_time_minutes: 7,
+    views_count: 288,
+    author_name: 'Engenharia de Equipamentos',
+    author_role: 'Especialista em Infraestrutura Pesada & NR-12',
+    categories: [{ id: 'cat_elev', name: 'Manutenção Preventiva', slug: 'manutencao-preventiva' }],
+    tags: ['Elevadores Mahovi', 'MAH-1020', 'NR-12', 'Oficina Segura'],
+    content: `
+## Elevador Eletro-Hidráulico de Pórtico Mahovi vs. Elevador de Fuso
 
-Nesse cenário, o **Thinkcar THINKTOOL LITE** se estabeleceu como o padrão ouro para auto centers que buscam diagnósticos rápidos, profundos e precisos sem mensalidades abusivas.
+Os modernos elevadores eletro-hidráulicos de 4,5 toneladas Mahovi MAH-1020 com pórtico superior entregam vão livre total no piso, duplo cilindro hidráulico, cabos de equalização e travas mecânicas multiponto em conformidade com a norma NR-12.
     `
   }
 };
@@ -190,7 +174,7 @@ function getInitialPostForSlug(slug) {
         return window.__ATHENA_PRELOADED_POST__;
       }
       // 2. Verifica cache completo do artigo no localStorage
-      const fullCached = localStorage.getItem(`athena_blog_post_full_${slug}`);
+      const fullCached = localStorage.getItem(`athena_blog_post_full_v3_${slug}`);
       if (fullCached) {
         const parsed = JSON.parse(fullCached);
         if (parsed && parsed.slug === slug) return parsed;
@@ -222,7 +206,7 @@ export default function BlogPostPage({ slug, onNavigate }) {
   const [allPosts, setAllPosts] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
-        const cached = localStorage.getItem('athena_blog_posts_cache_v1');
+        const cached = localStorage.getItem('athena_blog_posts_cache_v3');
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -372,7 +356,7 @@ export default function BlogPostPage({ slug, onNavigate }) {
             setIsLoading(false);
 
             try {
-              localStorage.setItem(`athena_blog_post_full_${slug}`, JSON.stringify(articleData));
+              localStorage.setItem(`athena_blog_post_full_v3_${slug}`, JSON.stringify(articleData));
             } catch {}
 
             // Incremento atômico de visualização silencioso

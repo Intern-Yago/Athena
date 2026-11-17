@@ -19,16 +19,16 @@ import {
 import BlogSidebar from '../components/BlogSidebar';
 import { setPageSeo } from '../utils/seoManager';
 
-// Artigos de fallback com imagens oficiais corretas (incluindo EAATA 90 e Thinkcar)
+// Artigos de fallback com as novas capas editoriais 16:9 no Cloudflare R2
 const FALLBACK_POSTS = [
   {
     id: 'post_prog5_ecm45',
     slug: 'clonagem-programacao-modulos-ecu-tcu-eaata-prog-5-ecm-45',
     title: 'Clonagem e Programação de Módulos ECU e TCU na Oficina: Guia Técnico da EAATA PROG 5 e ECM 45',
-    summary: 'Entenda como realizar leitura, backup e clonagem de centrais de injeção (ECU) e câmbio (TCU) em bancada com a EAATA PROG 5, além de reset de módulos de airbag, bateria BMS e direção elétrica (SAS) com o programador ECM 45.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/produtos/eaata-programadora-prog-5-c6e2e7396d01.webp',
+    summary: 'Domine a leitura, backup e clonagem 1:1 de centrais de injeção (ECU) e câmbio automático (TCU) em modo Bench e Boot com a EAATA PROG 5, além do reset de módulos de Airbag, baterias de lítio BMS e direção elétrica SAS com o ECM 45.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-prog5-ecm45-32ab4cdabc5f.webp',
     published_at: '2026-11-12T20:50:00.000Z',
-    reading_time_minutes: 7,
+    reading_time_minutes: 9,
     views_count: 195,
     author_name: 'Equipe Técnica Athena',
     categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
@@ -38,10 +38,10 @@ const FALLBACK_POSTS = [
     id: 'post_ev_ccs2_tc1108',
     slug: 'recarga-veiculos-eletricos-adaptador-ccs2-gbt-carregador-portatil-7kw',
     title: 'Recarga de Veículos Elétricos no Brasil: Quando Usar Adaptador CCS2 para GB/T e Carregadores Portáteis Tipo 2 (7kW)',
-    summary: 'Guia prático sobre padrões de recarga de carros elétricos e híbridos plug-in no Brasil: como funcionam os adaptadores rápidos DC CCS2 para GB/T (80kW) e os carregadores portáteis Tipo 2 de 7kW 32A.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/ew1135-173eeeb34c90.webp',
+    summary: 'Guia técnico definitivo sobre infraestrutura de recarga EV para oficinas e proprietários: entenda as diferenças entre Tipo 2, CCS2 e GB/T, como operar adaptadores DC de 80kW e escolher carregadores portáteis de 7kW 32A.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-recarga-ev-ccs2-8c5f677dbf04.webp',
     published_at: '2026-11-12T20:45:00.000Z',
-    reading_time_minutes: 6,
+    reading_time_minutes: 8,
     views_count: 178,
     author_name: 'Equipe Técnica Athena',
     categories: [{ id: 'cat_ev', name: 'Tendências Automotivas', slug: 'tendencias-automotivas' }],
@@ -50,67 +50,67 @@ const FALLBACK_POSTS = [
   {
     id: 'post_cambio_automatico',
     slug: 'troca-oleo-cambio-automatico-dialise-maquina-100-automatica',
-    title: 'Troca de Óleo de Câmbio Automático por Diálise vs. Gravidade: Como Faturar Alto na Oficina',
-    summary: 'Descubra por que a troca parcial por gravidade deixa até 50% de fluido contaminado no conversor de torque e como máquinas 100% automáticas elevam o ticket médio e a segurança da transmissão.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1788372279810-07af1d2e7d7b.webp',
+    title: 'Troca de Óleo de Câmbio Automático por Diálise vs. Gravidade: Como Faturar Alto com a Mahovi MAH-4001',
+    summary: 'Entenda tecnicamente por que a drenagem por gravidade substitui menos da metade do fluido ATF/CVT e como a Máquina 100% Automática Mahovi MAH-4001 por diálise protege o corpo de válvulas e multiplica o lucro do auto center.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-mahovi-mah4001-39c759f2a2a7.webp',
     published_at: '2026-11-12T20:40:00.000Z',
-    reading_time_minutes: 6,
+    reading_time_minutes: 8,
     views_count: 164,
     author_name: 'Equipe Técnica Athena',
     categories: [{ id: 'cat_gest', name: 'Gestão & Produtividade', slug: 'gestao-produtividade' }],
-    tags: ['Câmbio Automático', 'Diálise', 'Transmissão', 'Oficina Lucrativa']
+    tags: ['Mahovi MAH-4001', 'Câmbio Automático', 'Diálise', 'Oficina Lucrativa']
   },
   {
     id: 'post_eaata_90',
     slug: 'scanner-topologia-de-rede-ia-eaata-90-oficina',
     title: 'Scanner com Topologia de Rede e IA: Vale a Pena o EAATA 90 para a Sua Oficina?',
-    summary: 'Análise técnica completa do scanner EAATA 90: diagnóstico por inteligência artificial, visualização de topologia de rede colorida em tempo real, suporte remoto integrado e ganhos práticos de produtividade para mecânicas e auto centers.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/eaata-aa7d50879091.webp',
+    summary: 'Análise técnica completa do scanner automotivo EAATA 90: como o mapeamento visual colorido de barramentos CAN-FD / DoIP e o assistente de Inteligência Artificial reduzem horas de diagnóstico elétrico para poucos minutos.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-eaata-90-topologia-c2db7cf42be8.webp',
     published_at: '2026-11-12T15:56:37.269Z',
-    reading_time_minutes: 5,
+    reading_time_minutes: 7,
     views_count: 260,
     author_name: 'Equipe Técnica Athena',
-    categories: [{ id: 'cat_diag', name: 'Diagnóstico & IA', slug: 'diagnostico-ia' }],
+    categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
     tags: ['EAATA 90', 'Topologia de Rede', 'Inteligência Artificial', 'Scanner Automotivo']
   },
   {
     id: 'post_thinktool_lite_guia',
     slug: 'como-escolher-o-scanner-automotivo-ideal-para-sua-oficina',
-    title: 'Como Escolher o Scanner Automotivo Ideal para sua Oficina Mecânica',
-    summary: 'Descubra como o ThinkTool Lite e scanners modernos revolucionam oficinas mecânicas através de diagnósticos inteligentes, leitura rápida de módulos, funções especiais e atualização direta de fábrica.',
-    cover_image_url: 'https://images.athenaconsultoria.com.br/produtos/scanner-automotivo-thinkcar-thinktool-lite-fce404d4f151.webp',
+    title: 'Qual Scanner Automotivo Escolher? Diferenças Entre Thinkcar THINKTOOL LITE (Stärkx), EAATA 90 e EAATA 360Pro',
+    summary: 'Conheça as diferenças e especialidades de cada scanner profissional do catálogo da Athena — Thinkcar THINKTOOL LITE (Stärkx), EAATA 90 e EAATA 360Pro — e descubra qual se encaixa melhor na operação da sua oficina.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-escolher-scanner-oficina-6ef9a5689d3f.webp',
     published_at: '2026-11-11T21:22:36.450Z',
-    reading_time_minutes: 6,
+    reading_time_minutes: 7,
     views_count: 342,
     author_name: 'Equipe Técnica Athena',
-    categories: [{ id: 'cat_diag', name: 'Diagnóstico & IA', slug: 'diagnostico-ia' }],
-    tags: ['Thinkcar', 'Scanner Automotivo', 'Diagnóstico', 'Inteligência Artificial']
+    categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
+    tags: ['ThinkTool Lite Stärkx', 'EAATA 90', 'EAATA 360Pro', 'Scanner Automotivo']
   },
   {
     id: 'post_calibracao_adas_2026',
     slug: 'calibracao-adas-e-sensores-radar-o-futuro-da-reparacao',
-    title: 'Calibração ADAS e Câmeras de Para-brisa: Por Que Toda Oficina Precisa se Adaptar',
-    summary: 'A presença massiva de frenagem autônoma e piloto automático exige alinhamento e calibração milimétrica após trocas de para-brisa ou geometria da suspensão. Entenda as oportunidades de faturamento.',
-    cover_image_url: 'https://images.unsplash.com/photo-1486006920555-c77dce18193b?w=800&auto=format&fit=crop&q=80',
+    title: 'Calibração ADAS e Alinhamento 3D Mahovi: Por Que Toda Oficina e Auto Center Precisa Integrar Esses Serviços',
+    summary: 'Frenagem autônoma, assistente de faixa e ACC exigem geometria perfeita do chassi antes da aferição dos sensores. Veja como integrar os Alinhadores 3D Mahovi (MAH-3D1, MAH-3D2 e MAH-3D3) ao Sistema ADAS Pro na sua oficina.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-calibracao-adas-70e7ab8b68e0.webp',
     published_at: '2026-11-08T14:30:00.000Z',
     reading_time_minutes: 8,
     views_count: 519,
     author_name: 'Consultoria Automotiva',
-    categories: [{ id: 'cat_adas', name: 'Sistemas ADAS', slug: 'sistemas-adas' }],
-    tags: ['ADAS', 'Segurança Ativa', 'Calibração', 'Alinhamento 3D']
+    categories: [{ id: 'cat_adas', name: 'Tendências Automotivas', slug: 'tendencias-automotivas' }],
+    tags: ['ADAS', 'Alinhamento 3D Mahovi', 'Calibração', 'Segurança Ativa']
   },
   {
     id: 'post_manutencao_elevadores',
     slug: 'seguranca-e-manutencao-preventiva-em-elevadores-automotivos',
-    title: 'Segurança Operacional e Manutenção Preventiva em Elevadores Automotivos (NR-12)',
-    summary: 'Checklist prático diário e mensal para garantir vida útil longa, cabos de aço calibrados, travas pneumáticas e conformidade com as normas regulamentadoras NR-12 nas oficinas.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1787756310359-838a1d6700f8.webp',
+    title: 'Elevadores Automotivos Mahovi: Guia de Escolha (3,2T a 6T), Segurança e Manutenção NR-12',
+    summary: 'Do elevador pórtico eletro-hidráulico Mahovi MAH-1020 de 4,5 toneladas aos pantográficos embutidos e modelos de 6 toneladas para utilitários: veja como dimensionar o piso e aplicar o checklist da norma NR-12.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-mahovi-mah1020-88f2a638eb15.webp',
     published_at: '2026-11-05T09:15:00.000Z',
-    reading_time_minutes: 5,
+    reading_time_minutes: 7,
     views_count: 288,
     author_name: 'Engenharia de Equipamentos',
     categories: [{ id: 'cat_elev', name: 'Manutenção Preventiva', slug: 'manutencao-preventiva' }],
-    tags: ['Elevadores', 'Manutenção', 'NR-12', 'Oficina Segura']
+    tags: ['Elevadores Mahovi', 'MAH-1020', 'NR-12', 'Oficina Segura']
   }
 ];
 
@@ -132,7 +132,7 @@ export default function BlogListingPage({ onNavigate }) {
   const [posts, setPosts] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
-        const cached = localStorage.getItem('athena_blog_posts_cache_v1');
+        const cached = localStorage.getItem('athena_blog_posts_cache_v3');
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -298,7 +298,7 @@ export default function BlogListingPage({ onNavigate }) {
 
             if (page === 1 && selectedCategory === 'all') {
               try {
-                localStorage.setItem('athena_blog_posts_cache_v1', JSON.stringify(data.posts));
+                localStorage.setItem('athena_blog_posts_cache_v3', JSON.stringify(data.posts));
               } catch {}
             }
             return;
