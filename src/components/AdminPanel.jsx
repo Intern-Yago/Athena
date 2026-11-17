@@ -118,6 +118,9 @@ import { MACRO_DEPARTMENTS, getDepartmentByCategoryId, getDepartmentById } from 
 
 import { SearchableSelect, RadialProgressCircle, DEPT_AVAILABLE_ICONS, MacroIcon } from "./admin/AdminUiPrimitives";
 import SettingsSecurityTab from "./admin/SettingsSecurityTab";
+import OmieLoyaltyTab from "./admin/OmieLoyaltyTab";
+import BannersPopupTab from "./admin/BannersPopupTab";
+import CatalogTaxonomyTabs from "./admin/CatalogTaxonomyTabs";
 
 export default function AdminPanel({
   products,

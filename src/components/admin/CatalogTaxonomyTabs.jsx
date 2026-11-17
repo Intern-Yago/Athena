@@ -4,7 +4,7 @@ import {
   Sparkles, GripVertical, ExternalLink, EyeOff, Eye, ArrowUp, ArrowDown,
   Tag, Globe
 } from 'lucide-react';
-import { MACRO_DEPARTMENTS } from '../../constants/departments';
+import { MACRO_DEPARTMENTS } from '../../data/departmentsData';
 import { MacroIcon } from './AdminUiPrimitives';
 
 export default function CatalogTaxonomyTabs(props) {

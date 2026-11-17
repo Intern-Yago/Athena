@@ -100,7 +100,7 @@ export default function PromoPopupModal({
   const popupId = popup?.id || 'default_promo_popup';
   const dismissKey = `athena_dismissed_popup_12h_${popupId}`;
 
-  // Verifica se o pop-up pode ser aberto
+  // Se já disparou nesta montagem e não foi fechado pelo usuário, mantém visível mesmo se o objeto popup atualizar
   useEffect(() => {
     if (forceOpen) {
       setIsVisible(true);
@@ -125,7 +125,10 @@ export default function PromoPopupModal({
       return;
     }
 
-    hasTriggeredRef.current = false;
+    // Se já foi disparado nesta sessão do componente, não re-inicializa timers nem pisca
+    if (hasTriggeredRef.current) {
+      return;
+    }
 
     const triggerPopup = () => {
       if (hasTriggeredRef.current) return;
