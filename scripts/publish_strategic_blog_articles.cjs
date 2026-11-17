@@ -408,7 +408,7 @@ const STRATEGIC_ARTICLES = [
     excerpt: 'Descubra como reduzir em até 30% o tempo perdido procurando ferramentas no box combinando Carrinhos Detailer-Mecânico 360° e Extratores Sigma Tools com Bancadas Modulares Wolfcar e o Carrinho TTK 333.',
     meta_title: 'Carrinho 360 Detailer Sigma Tools, Armários Wolfcar e Ferramentas | Blog Athena',
     meta_description: 'Guia prático de organização e produtividade na oficina: Carrinho 360 Detailer-Mecânico Sigma Tools, Acoplador de Graxeiro, Extrator de Retentor e Armários Wolfcar.',
-    cover_image_key: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1787748979250-e02135520788.webp',
+    cover_image_key: `${R2_BASE}/blog-cover-box-produtividade-wolfcar-sigma-ttk-c964333a4775.webp`,
     reading_time_minutes: 7,
     category_slug: 'gestao-produtividade',
     content_html: `

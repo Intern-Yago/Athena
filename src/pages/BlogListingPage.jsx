@@ -117,7 +117,7 @@ const FALLBACK_POSTS = [
     slug: 'organizacao-produtividade-oficina-carrinhos-detailer-armarios-wolfcar-ferramentas-sigma',
     title: 'Como Organizar um Box de Alta Produtividade: Carrinhos 360° Sigma Tools, Armários Modulares Wolfcar e Ferramentas Especiais',
     summary: 'Descubra como reduzir em até 30% o tempo perdido procurando ferramentas no box combinando Carrinhos Detailer-Mecânico 360° e Extratores Sigma Tools com Bancadas Modulares Wolfcar e o Carrinho TTK 333.',
-    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/upload-1787748979250-e02135520788.webp',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-box-produtividade-wolfcar-sigma-ttk-c964333a4775.webp',
     published_at: '2026-11-17T13:50:00.000Z',
     reading_time_minutes: 7,
     views_count: 142,
