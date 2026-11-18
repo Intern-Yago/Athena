@@ -22,6 +22,32 @@ import { setPageSeo } from '../utils/seoManager';
 // Artigos de fallback com as novas capas editoriais 16:9 no Cloudflare R2
 const FALLBACK_POSTS = [
   {
+    id: 'post_topologia_eaata90',
+    slug: 'topologia-de-rede-vs-varredura-tradicional-scanner-eaata-90',
+    title: 'Topologia de Rede vs. Varredura Tradicional: Como o EAATA 90 Revolucionou o Diagnóstico CAN-FD e DoIP na Oficina',
+    summary: 'Descubra como a visualização em topologia de rede colorida do scanner EAATA 90 identifica interrupções em barramentos CAN-FD e DoIP em segundos, evitando horas de desmontagem inútil no chicote elétrico.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-eaata90-topologia-autentico-d13f3e1e068e.webp',
+    published_at: '2026-11-18T12:00:00.000Z',
+    reading_time_minutes: 8,
+    views_count: 215,
+    author_name: 'Equipe Técnica Athena',
+    categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
+    tags: ['EAATA 90', 'Topologia de Rede', 'CAN-FD', 'DoIP', 'Scanner Automotivo']
+  },
+  {
+    id: 'post_estabilizador_epd002',
+    slug: 'estabilizador-de-tensao-oficina-eaata-epd002-reprogramacao-ecu',
+    title: 'Estabilizador de Tensão para Oficinas: Por Que o EAATA EPD002 (70A) É Obrigatório na Reprogramação e Clonagem de Módulos',
+    summary: 'Quedas milimétricas de voltagem durante a reprogramação de ECU podem transformar um módulo de R$ 15.000 em sucata. Entenda por que fontes automotivas de 70A estabilizadas são essenciais.',
+    cover_image_url: 'https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/uploads/blog-cover-eaata-epd002-autentico-c9680d62eca0.webp',
+    published_at: '2026-11-18T11:45:00.000Z',
+    reading_time_minutes: 7,
+    views_count: 180,
+    author_name: 'Equipe Técnica Athena',
+    categories: [{ id: 'cat_diag', name: 'Equipamentos & Tecnologia', slug: 'equipamentos-tecnologia' }],
+    tags: ['EAATA EPD002', 'Estabilizador 70A', 'Reprogramação ECU', 'Pass-Thru', 'Oficina Eletrônica']
+  },
+  {
     id: 'post_prog5_ecm45',
     slug: 'clonagem-programacao-modulos-ecu-tcu-eaata-prog-5-ecm-45',
     title: 'Clonagem e Programação de Módulos ECU e TCU na Oficina: Guia Técnico da EAATA PROG 5 e ECM 45',

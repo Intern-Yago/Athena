@@ -45,6 +45,14 @@ export function getCommercialMode(product) {
  */
 export function shouldShowPrice(product) {
   if (!product || typeof product !== 'object') return false;
+  
+  // Regra Inviolável de Confidencialidade: Mahovi nunca exibe preços publicamente
+  const brandName = String(product.brand?.name || product.brand_name || product.brand || '').toLowerCase();
+  const productName = String(product.name || '').toLowerCase();
+  if (brandName.includes('mahovi') || productName.includes('mahovi')) {
+    return false;
+  }
+
   const price = Number(product.price || product.preco_venda || 0);
   if (price <= 0) return false;
 

@@ -642,14 +642,6 @@ export default function ProductCard({
           {canBuyOnline ? (
             <div className="grid grid-cols-12 gap-1.5">
               <button
-                onClick={() => onSelectProduct(product)}
-                className="col-span-5 btn-secondary text-xs py-2.5 px-1.5 w-full justify-center font-bold cursor-pointer truncate"
-              >
-                <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                <span>Detalhes</span>
-              </button>
-
-              <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -659,7 +651,7 @@ export default function ProductCard({
                     addToCart(product);
                   }
                 }}
-                className="col-span-3 py-2.5 px-1 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-extrabold text-slate-800 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer"
                 title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar ao Carrinho"}
               >
                 {hasVariants ? (
@@ -667,7 +659,7 @@ export default function ProductCard({
                 ) : (
                   <ShoppingCart className="w-3.5 h-3.5 text-amber-700" />
                 )}
-                <span className="hidden min-[400px]:inline">{hasVariants ? 'Opções' : '+'}</span>
+                <span>{hasVariants ? 'Opções' : '+ Carrinho'}</span>
               </button>
 
               <button
@@ -679,22 +671,14 @@ export default function ProductCard({
                     openDirectCheckout(product);
                   }
                 }}
-                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-600 shadow-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                className="col-span-8 py-2.5 px-2 rounded-xl text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-400 shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <CreditCard className="w-3.5 h-3.5 shrink-0" />
-                <span>{hasVariants ? 'Opção' : 'Comprar'}</span>
+                <span>{hasVariants ? 'Escolher Opção' : 'Comprar Agora'}</span>
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-12 gap-1.5">
-              <button
-                onClick={() => onSelectProduct(product)}
-                className="col-span-4 btn-secondary text-xs py-2.5 px-1.5 w-full justify-center font-bold cursor-pointer truncate"
-              >
-                <Eye className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                <span>Detalhes</span>
-              </button>
-
               <button
                 type="button"
                 onClick={(e) => {
@@ -705,7 +689,7 @@ export default function ProductCard({
                     addToCart(product);
                   }
                 }}
-                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-900 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer truncate"
+                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-900 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer truncate"
                 title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar à lista de orçamento"}
               >
                 {hasVariants ? (
@@ -721,11 +705,11 @@ export default function ProductCard({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleCardWhatsAppClick}
-                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-xs transition-colors bg-emerald-600 hover:bg-emerald-700 text-white truncate"
+                className="col-span-8 py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition-colors bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
                 title="Cotar este item no WhatsApp"
               >
                 <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
-                <span>Cotar</span>
+                <span>Cotar no WhatsApp</span>
               </a>
             </div>
           )}
