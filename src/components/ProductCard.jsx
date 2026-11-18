@@ -664,16 +664,37 @@ export default function ProductCard({
               </button>
             </div>
           ) : (
-            <div className="w-full">
+            <div className="grid grid-cols-12 gap-1.5">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasVariants) {
+                    setIsVariantModalOpen(true);
+                  } else {
+                    addToCart(product);
+                  }
+                }}
+                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-900 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer truncate"
+                title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar à lista de orçamento"}
+              >
+                {hasVariants ? (
+                  <Layers className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                ) : (
+                  <ShoppingCart className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                )}
+                <span className="text-[11px] font-black">{hasVariants ? '+ Opções' : '+ Orçamento'}</span>
+              </button>
+
               <a
                 href={`https://wa.me/5561983485671?text=${whatsappText}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleCardWhatsAppClick}
-                className="w-full py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition-all bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-[0.99]"
+                className="col-span-8 py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition-colors bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
                 title="Cotar este item no WhatsApp"
               >
-                <MessageCircle className="w-4 h-4 fill-current shrink-0" />
+                <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
                 <span>Cotar no WhatsApp</span>
               </a>
             </div>
