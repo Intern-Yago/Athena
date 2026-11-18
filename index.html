@@ -3,19 +3,37 @@
   <head>
     <!-- Filtro Automático de Tráfego Interno e IPs Bloqueados (Exclui Staff/Admin e IPs como 189.6.7.14 do GA4, Meta Pixel, TikTok & Clarity) -->
     <script>
-      window.__ATHENA_IGNORED_IPS__ = ['189.6.7.14'];
+            window.__ATHENA_IGNORED_IPS__ = ['189.6.7.14'];
       window.__ATHENA_IS_STAFF__ = function() {
         try {
-          if (window.location && window.location.pathname && window.location.pathname.indexOf('/admin') === 0) {
+          if (typeof window === 'undefined') return false;
+          // 1. Hostnames locais ou de desenvolvimento
+          var host = window.location.hostname || '';
+          if (host === 'localhost' || host === '127.0.0.1' || host.indexOf('192.168.') === 0) {
             return true;
           }
+          // 2. Rota administrativa ou preview
+          if (window.location && window.location.pathname && (window.location.pathname.indexOf('/admin') === 0 || window.location.search.indexOf('preview=true') !== -1)) {
+            return true;
+          }
+          // 3. Flag persistida de IP interno bloqueado
           if (localStorage.getItem('athena_analytics_blocked_ip') === '1') {
             return true;
           }
+          // 4. IP em cache local ou lista conhecida
           var clientIp = localStorage.getItem('athena_client_ip') || '';
-          if (clientIp && window.__ATHENA_IGNORED_IPS__.indexOf(clientIp) !== -1) {
+          var list = window.__ATHENA_IGNORED_IPS__.slice();
+          var customRaw = localStorage.getItem('athena_ignored_ips_list');
+          if (customRaw) {
+            try {
+              var parsed = JSON.parse(customRaw);
+              if (Array.isArray(parsed)) list = list.concat(parsed);
+            } catch (_) {}
+          }
+          if (clientIp && list.indexOf(clientIp) !== -1) {
             return true;
           }
+          // 5. Usuário logado com cargo interno
           var raw = localStorage.getItem('athena_user');
           if (!raw) return false;
           var user = JSON.parse(raw);
@@ -25,6 +43,16 @@
           return staffRoles.indexOf(role) !== -1;
         } catch (e) {
           return false;
+        }
+      };
+            // Helper para forçar bloqueio de tracking localmente a qualquer momento
+      window.athenaToggleTrackingBlock = function(enable) {
+        if (enable === false) {
+          localStorage.removeItem('athena_analytics_blocked_ip');
+          console.log('[Athena Analytics] Bloqueio removido deste navegador.');
+        } else {
+          localStorage.setItem('athena_analytics_blocked_ip', '1');
+          console.log('[Athena Analytics] Este navegador agora está 100% blindado contra GTM, GA4, Meta Pixel e Clarity.');
         }
       };
       if (window.__ATHENA_IS_STAFF__()) {
