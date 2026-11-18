@@ -502,30 +502,6 @@ export default function ProductCard({
           </button>
         )}
 
-        {/* Quick Add to Cart / Quote Button */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (hasVariants) {
-              setIsVariantModalOpen(true);
-            } else {
-              addToCart(product);
-            }
-          }}
-          className="absolute bottom-3 right-3 z-20 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs shadow-md border border-amber-300/80 flex items-center gap-1.5 transition-all cursor-pointer group/btn"
-          title={hasVariants ? "Escolher Opções e Quantidades" : (canBuyOnline ? "Adicionar ao Carrinho" : "Adicionar à Lista de Orçamento")}
-        >
-          {hasVariants ? (
-            <Layers className="w-4 h-4 text-slate-950 transition-transform group-hover/btn:scale-110" />
-          ) : (
-            <ShoppingCart className="w-4 h-4 text-slate-950 transition-transform group-hover/btn:scale-110" />
-          )}
-          <span className="hidden min-[380px]:inline font-extrabold text-[11px]">
-            {hasVariants ? '+ Opções' : (canBuyOnline ? '+ Carrinho' : '+ Orçamento')}
-          </span>
-        </button>
-
         {/* Quick View Hover Prompt */}
         <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none hidden sm:flex">
           <span className="px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md">
@@ -615,19 +591,29 @@ export default function ProductCard({
                 <span className="line-through">{formatBRL(product.originalPrice)}</span>
               </div>
             )}
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide">
-                {showPrice ? (canBuyOnline ? (discountPercent ? 'Por: À Vista PIX' : 'À Vista no PIX') : 'Preço de Referência') : 'Condição Comercial'}
-              </span>
-              <span className="text-xs font-extrabold text-amber-800 font-display bg-amber-100/70 px-2.5 py-0.5 rounded-lg border border-amber-300">
-                {showPrice ? pixCustomerPrice : (commercialBadge?.label || 'Consulte no WhatsApp')}
-              </span>
-            </div>
-            {showPrice && canBuyOnline && (
-              <span className="text-[10px] text-slate-500 font-medium block text-right">
-                {getBestInstallmentText(product.price, 12)}
-              </span>
+            
+            {showPrice ? (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider">
+                  {canBuyOnline ? (discountPercent ? 'Por: À Vista no PIX' : 'À Vista no PIX') : 'Preço de Referência'}
+                </span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl sm:text-2xl font-black text-slate-950 font-display tracking-tight">
+                    {pixCustomerPrice}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-1 py-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                  Condição Comercial
+                </span>
+                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                  {commercialBadge?.label || 'Consulte no WhatsApp'}
+                </span>
+              </div>
             )}
+
             {earnedPoints > 0 && (
               <div className="flex items-center justify-between pt-0.5">
                 <span className="text-[10px] text-slate-400 font-medium">Pontos no pedido:</span>
@@ -678,37 +664,16 @@ export default function ProductCard({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-12 gap-1.5">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (hasVariants) {
-                    setIsVariantModalOpen(true);
-                  } else {
-                    addToCart(product);
-                  }
-                }}
-                className="col-span-4 py-2.5 px-1 rounded-xl text-xs font-black text-slate-900 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer truncate"
-                title={hasVariants ? "Escolher Opções e Quantidades" : "Adicionar à lista de orçamento"}
-              >
-                {hasVariants ? (
-                  <Layers className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                ) : (
-                  <ShoppingCart className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                )}
-                <span className="text-[11px] font-black">{hasVariants ? '+ Opções' : '+ Orçamento'}</span>
-              </button>
-
+            <div className="w-full">
               <a
                 href={`https://wa.me/5561983485671?text=${whatsappText}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleCardWhatsAppClick}
-                className="col-span-8 py-2.5 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition-colors bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                className="w-full py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition-all bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-[0.99]"
                 title="Cotar este item no WhatsApp"
               >
-                <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
+                <MessageCircle className="w-4 h-4 fill-current shrink-0" />
                 <span>Cotar no WhatsApp</span>
               </a>
             </div>
