@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, X, ArrowRight, Package } from 'lucide-react';
 import { getSearchSuggestions, findUniqueDirectMatch } from '../utils/productSearch';
+import { shouldShowPrice, getCommercialBadge } from '../utils/commercialPolicy';
 
 /**
  * Universal SearchBar Component for Athena Catalogo
@@ -208,12 +209,8 @@ export default function SearchBar({
           {suggestions.map((item, index) => {
             const prod = item.product;
             const isHighlighted = selectedIndex === index;
-            const isQuoteOnly = Boolean(
-              prod.priceNegotiable === true ||
-              prod.price_negotiable === true ||
-              (prod.priceNegotiable !== false && prod.price_negotiable !== false)
-            );
-            const canBuyOnline = Number(prod.price) > 0 && !isQuoteOnly;
+            const showProdPrice = shouldShowPrice(prod);
+            const commercialBadge = getCommercialBadge(prod);
 
             return (
               <div
@@ -258,13 +255,13 @@ export default function SearchBar({
 
                 {/* Preço / Sob Consulta */}
                 <div className="shrink-0 text-right">
-                  {canBuyOnline ? (
+                  {showProdPrice ? (
                     <span className="text-xs font-black text-amber-900 font-display block">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.price)}
                     </span>
                   ) : (
                     <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100/80 border border-amber-300 px-2 py-0.5 rounded-lg block">
-                      Sob Consulta
+                      {commercialBadge?.label || 'Sob Consulta'}
                     </span>
                   )}
                 </div>

@@ -1824,11 +1824,11 @@ export default function ProductDetailPage({
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {compatibleProductsList.map((cProd) => {
                             const cBrand = (brands || []).find(b => b.id === cProd.brandId);
-                            const isCQuoteOnly = isProductQuoteOnly(cProd);
-                            const canCBuyOnline = !isCQuoteOnly && Number(cProd.price) > 0;
-                            const cPrice = canCBuyOnline 
+                            const showCPrice = shouldShowPrice(cProd);
+                            const cBadge = getCommercialBadge(cProd);
+                            const cPrice = showCPrice 
                               ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cProd.price)
-                              : 'Sob Consulta';
+                              : (cBadge?.label || 'Sob Consulta');
 
                             return (
                               <div
@@ -1856,13 +1856,13 @@ export default function ProductDetailPage({
                                       {cProd.name}
                                     </h5>
                                     <div className="mt-1">
-                                      {canCBuyOnline ? (
+                                      {showCPrice ? (
                                         <span className="text-xs font-extrabold text-amber-800 block">
                                           {cPrice}
                                         </span>
                                       ) : (
                                         <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md inline-block">
-                                          Sob Consulta
+                                          {cBadge?.label || 'Sob Consulta'}
                                         </span>
                                       )}
                                     </div>
@@ -1995,11 +1995,11 @@ export default function ProductDetailPage({
               {relatedProducts.map((relProduct) => {
                 const relCat = (categories || []).find((c) => c.id === relProduct.categoryId);
                 const relBrand = (brands || []).find((b) => b.id === relProduct.brandId);
-                const isRelQuoteOnly = isProductQuoteOnly(relProduct);
-                const canRelBuyOnline = !isRelQuoteOnly && Number(relProduct.price) > 0;
-                const relPrice = canRelBuyOnline 
+                const showRelPrice = shouldShowPrice(relProduct);
+                const relBadge = getCommercialBadge(relProduct);
+                const relPrice = showRelPrice 
                   ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(relProduct.price)
-                  : 'Sob Consulta';
+                  : (relBadge?.label || 'Sob Consulta');
 
                 return (
                   <div 
@@ -2042,13 +2042,13 @@ export default function ProductDetailPage({
                     {/* Price & Action */}
                     <div className="p-2.5 pt-0 space-y-1.5">
                       <div className="min-h-[22px] flex items-center">
-                        {canRelBuyOnline ? (
+                        {showRelPrice ? (
                           <span className="text-xs font-extrabold text-amber-700">
                             {relPrice}
                           </span>
                         ) : (
                           <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-md inline-block">
-                            Sob Consulta
+                            {relBadge?.label || 'Sob Consulta'}
                           </span>
                         )}
                       </div>

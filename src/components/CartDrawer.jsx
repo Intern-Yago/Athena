@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShoppingCart, 
   X, 
@@ -39,6 +39,24 @@ export function CartDrawer() {
     requireVerification
   } = useCart();
 
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimeoutRef = useRef(null);
+
+  const handleClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsCartOpen(false);
+      setIsClosing(false);
+    }, 230); // 230ms bate com animate-drawer-slide-right-out e animate-backdrop-fade-out
+  };
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
+
   // Lock background scroll when cart drawer is open to eliminate background lag
   useEffect(() => {
     if (isCartOpen) {
@@ -67,12 +85,16 @@ export function CartDrawer() {
     <div className="fixed inset-0 z-[120] overflow-hidden overscroll-none">
       {/* Backdrop */}
       <div 
-        onClick={() => setIsCartOpen(false)}
-        className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs animate-backdrop-fade cursor-pointer"
+        onClick={handleClose}
+        className={`absolute inset-0 bg-slate-950/70 backdrop-blur-xs cursor-pointer ${
+          isClosing ? 'animate-backdrop-fade-out' : 'animate-backdrop-fade'
+        }`}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
-        <div className="w-screen max-w-md h-[100dvh] max-h-[100dvh] bg-white shadow-2xl flex flex-col justify-between border-l border-slate-200 animate-drawer-slide-right">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10 pointer-events-none">
+        <div className={`w-screen max-w-md h-[100dvh] max-h-[100dvh] bg-white shadow-2xl flex flex-col justify-between border-l border-slate-200 pointer-events-auto ${
+          isClosing ? 'animate-drawer-slide-right-out' : 'animate-drawer-slide-right'
+        }`}>
           
           {/* Header */}
           <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
@@ -103,7 +125,7 @@ export function CartDrawer() {
               )}
               <button
                 type="button"
-                onClick={() => setIsCartOpen(false)}
+                onClick={handleClose}
                 className="w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -440,8 +462,8 @@ export function CartDrawer() {
 
                 <button
                   type="button"
-                  onClick={() => setIsCartOpen(false)}
-                  className="w-full py-2 text-center text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                  onClick={handleClose}
+                  className="w-full py-2 text-center text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
                 >
                   Continuar Comprando
                 </button>

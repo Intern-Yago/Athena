@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { safeStorageGet, safeStorageSet } from '../utils/storage';
 import { isProductQuoteOnly, getVariantAvailability, isDigitalProduct, doesProductRequireEquipmentSerial } from '../utils/productVariants';
-import { canCheckout, buildCartWhatsAppMessage } from '../utils/commercialPolicy';
+import { canCheckout, shouldShowPrice, buildCartWhatsAppMessage } from '../utils/commercialPolicy';
 import { trackMetaEvent } from '../utils/metaPixel';
 
 const CartContext = createContext();
@@ -51,12 +51,12 @@ export function CartProvider({ children, showNotification, brands = [], categori
       }
     }
 
-    // Price with fallback: if variant has custom price, use it; otherwise use product base price
-    const effectivePrice = isQuoteItem
-      ? 0
-      : (selectedVariant?.price != null && Number(selectedVariant.price) > 0
-          ? Number(selectedVariant.price)
-          : Number(product.price) || 0);
+    // Price with fallback: se o produto tiver preço visível (shouldShowPrice), preserva o valor numérico mesmo que seja consultivo
+    const showPrice = shouldShowPrice(product);
+    const rawPrice = selectedVariant?.price != null && Number(selectedVariant.price) > 0
+      ? Number(selectedVariant.price)
+      : Number(product.price) || 0;
+    const effectivePrice = (!isQuoteItem || showPrice) ? rawPrice : 0;
 
     const brandObj = brands.find(b => b.id === product.brandId);
     const catObj = categories.find(c => c.id === product.categoryId);
@@ -155,11 +155,11 @@ export function CartProvider({ children, showNotification, brands = [], categori
         if (!product || !quantity || quantity <= 0) return;
 
         const isQuoteItem = !canCheckout(product) || (variant && Number(variant.price) <= 0);
-        const effectivePrice = isQuoteItem
-          ? 0
-          : (variant?.price != null && Number(variant.price) > 0
-              ? Number(variant.price)
-              : Number(product.price) || 0);
+        const showPrice = shouldShowPrice(product);
+        const rawPrice = variant?.price != null && Number(variant.price) > 0
+          ? Number(variant.price)
+          : Number(product.price) || 0;
+        const effectivePrice = (!isQuoteItem || showPrice) ? rawPrice : 0;
 
         const cartItemId = variant ? `cart_${product.id}_${variant.id}` : `cart_${product.id}`;
         const effectiveImage = variant?.image || product.image || (Array.isArray(product.images) && product.images[0]) || '';
