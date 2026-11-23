@@ -77,36 +77,36 @@ export default function AboutPage({ onNavigate, brands = [] }) {
               {/* Technical Eyebrow Badge */}
               <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-slate-900 border border-amber-500/40 text-amber-400 text-xs font-mono font-bold tracking-wider uppercase">
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                Athena Soluções Automotivas • Brasília, DF
+                Distribuidora de Equipamentos Automotivos em Brasília • DF
               </div>
 
               {/* Punchy, Non-AI Headline */}
               <h1 className="text-3xl sm:text-5xl lg:text-5xl font-black tracking-tight text-white leading-[1.15]">
-                Equipando as oficinas mais produtivas do Brasil.
+                Equipando as oficinas mais produtivas de Brasília e do Brasil.
               </h1>
 
               {/* Content-Grounded Copy */}
               <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl font-normal">
-                Do projeto civil da fundação de um elevador de 4 toneladas ao scanner de diagnóstico com Inteligência Artificial. Fornecemos o maquinário pesado, a consultoria técnica e o suporte que mantém os boxes da sua oficina faturando sem surpresas.
+                A Athena Consultoria é a sua distribuidora e parceira técnica no Distrito Federal e entorno de Goiás. Oferecemos ferramentas automotivas, maquinário pesado de elevação, equipamentos para lanternagem e pintura, soluções para estética automotiva e diagnóstico eletrônico com suporte técnico especializado, atendimento humanizado e assistência técnica presencial.
               </p>
 
               {/* Authentic Fact Bullets */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs text-slate-300">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Marcas líderes homologadas de fábrica</span>
+                  <span>Distribuidora oficial com showroom em Águas Claras</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Estoque físico próprio e despacho nacional</span>
+                  <span>Assistência técnica presencial no DF e Goiás</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Consultoria técnica antes e pós-compra</span>
+                  <span>Consultoria para oficinas automotivas & pós-venda ativo</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Garantia oficial e peças de reposição</span>
+                  <span>Cursos para profissionais automotivos em Brasília</span>
                 </div>
               </div>
 
@@ -406,21 +406,33 @@ export default function AboutPage({ onNavigate, brands = [] }) {
                     <FileCheck className="w-4 h-4 text-amber-400" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white">Análise Prévia da Planta e Fundação</h4>
+                    <h4 className="text-xs font-bold text-white">Consultoria para Oficinas & Análise de Planta</h4>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Verificamos medidas mínimas de vão, resistência do concreto para fixação de parabolts e capacidade elétrica (trifásica vs monofásica) antes do fechamento do pedido.
+                      Dimensionamento de pé-direito, capacidade de fundação de concreto para elevadores e planejamento de produtividade para oficinas mecânicas, centros de lanternagem, pintura e estética automotiva.
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3 bg-slate-950/60 border border-slate-800 p-4 rounded-2xl">
                   <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <Clock className="w-4 h-4 text-amber-400" />
+                    <Wrench className="w-4 h-4 text-amber-400" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white">Suporte Direto no WhatsApp Sem Burocracia</h4>
+                    <h4 className="text-xs font-bold text-white">Assistência Técnica Presencial & Pós-Venda Ativo</h4>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
-                      Você fala com técnicos de verdade em Brasília que entendem de mecânica e eletrônica, e não com atendentes de call center lendo scripts genéricos.
+                      Nossos técnicos especializados realizam visitas presenciais nas oficinas de Brasília e cidades vizinhas de Goiás para regulagens, revisões, calibrações de alinhadores e suporte operacional contínuo.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 bg-slate-950/60 border border-slate-800 p-4 rounded-2xl">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <Users className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Capacitação Profissional & Cursos em Brasília</h4>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Treinamentos práticos em tecnologia automotiva, injeção eletrônica, diagnóstico por imagem CAN-FD/DoIP e procedimentos seguros em veículos híbridos e elétricos (VEs).
                     </p>
                   </div>
                 </div>
@@ -483,7 +495,8 @@ export default function AboutPage({ onNavigate, brands = [] }) {
               className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold inline-flex items-center gap-2 transition-all self-start md:self-auto cursor-pointer shadow-xs shrink-0"
             >
               <MapPin className="w-3.5 h-3.5 text-amber-400" />
-              <span>Abrir no Google Maps ↗</span>
+              <span>Abrir no Google Maps</span>
+              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
             </a>
           </div>
 
