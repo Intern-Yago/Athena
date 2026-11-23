@@ -474,7 +474,7 @@ export default function LoginPage({ onLoginSuccess, onNavigate, API_BASE_URL }) 
             onClick={() => onNavigate('catalog')}
             className="w-16 h-16 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center mx-auto text-amber-400 p-1 shadow-md cursor-pointer group"
           >
-            <img src="/logo.jpg" alt="Athena Logo" className="w-full h-full object-contain rounded-xl group-hover:scale-105 transition-transform" />
+            <img src="/athena-consultoria-logo-df.jpg" alt="Athena Logo" className="w-full h-full object-contain rounded-xl group-hover:scale-105 transition-transform" />
           </div>
           
           <div className="space-y-1">

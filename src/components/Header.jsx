@@ -58,7 +58,7 @@ export default function Header({
             >
               <div className="relative w-9 h-9 sm:w-12 sm:h-12 rounded-xl border border-slate-200 overflow-hidden bg-slate-950 p-0.5 sm:p-1 shadow-xs shrink-0">
                 <img 
-                  src="/logo.jpg" 
+                  src="/athena-consultoria-logo-df.jpg" 
                   alt="Athena Soluções Automotivas Logo" 
                   width="48"
                   height="48"

@@ -24,7 +24,7 @@ export default function Footer({ setActiveTab, currentUser }) {
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl border border-slate-700 overflow-hidden bg-slate-900 p-0.5 shadow-md">
                 <img 
-                  src="/logo.jpg" 
+                  src="/athena-consultoria-logo-df.jpg" 
                   alt="Athena Soluções Automotivas Logo" 
                   width="44"
                   height="44"

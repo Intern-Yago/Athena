@@ -119,7 +119,7 @@ export default function MobileDrawer({
         <div className="shrink-0">
           <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
             <div className="flex items-center gap-2.5">
-              <img src="/logo.jpg" alt="Athena Logo" className="w-8 h-8 rounded-lg object-contain bg-slate-950 p-0.5 border border-slate-700" />
+              <img src="/athena-consultoria-logo-df.jpg" alt="Athena Logo" className="w-8 h-8 rounded-lg object-contain bg-slate-950 p-0.5 border border-slate-700" />
               <div>
                 <span className="font-extrabold text-sm block leading-tight">ATHENA</span>
                 <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Soluções Automotivas</span>

@@ -9,7 +9,7 @@
 const SITE_URL = 'https://www.athenaconsultoria.com.br';
 const DEFAULT_TITLE = 'Athena Soluções Automotivas | Catálogo de Equipamentos';
 const DEFAULT_DESC = 'Equipamentos para oficinas mecânicas e auto centers: elevadores hidráulicos, scanners de diagnóstico, alinhadores 3D e ferramentas especiais. Pronta-entrega!';
-const DEFAULT_IMAGE = `${SITE_URL}/logo.jpg`;
+const DEFAULT_IMAGE = `${SITE_URL}/athena-consultoria-logo-df.jpg`;
 
 const LOWERCASE_PREPOSITIONS = new Set([
   'de', 'da', 'do', 'das', 'dos', 'com', 'para', 'em', 'por', 'sem', 'sob', 'sobre', 'ate', 'até', 'e', 'a', 'o', 'as', 'os', 'no', 'na', 'nos', 'nas', 'ao', 'aos', 'pelo', 'pela'

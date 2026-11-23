@@ -286,7 +286,7 @@ export default function BlogPostPage({ slug, onNavigate }) {
     if (!activeSlug) return;
     const pTitle = post?.meta_title || post?.title || 'Artigo Técnico | Blog Athena Soluções Automotivas';
     const pDesc = post?.meta_description || post?.summary || post?.excerpt || 'Artigo técnico sobre diagnóstico automotivo, scanners com IA e equipamentos para oficinas mecânicas.';
-    const pCover = post?.cover_image_url || post?.cover_image_key || 'https://www.athenaconsultoria.com.br/logo.jpg';
+    const pCover = post?.cover_image_url || post?.cover_image_key || 'https://www.athenaconsultoria.com.br/athena-consultoria-logo-df.jpg';
 
     setPageSeo({
       title: pTitle.includes('Athena') ? pTitle : `${pTitle} | Blog Athena`,
@@ -312,7 +312,7 @@ export default function BlogPostPage({ slug, onNavigate }) {
           "name": "Athena Soluções Automotivas",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://www.athenaconsultoria.com.br/logo.jpg"
+            "url": "https://www.athenaconsultoria.com.br/athena-consultoria-logo-df.jpg"
           }
         },
         "mainEntityOfPage": {

@@ -401,7 +401,7 @@ export default function PdfCatalogGenerator({ products = [], categories = [], br
       <body>
         <header>
           <div class="logo-area">
-            <img src="${window.location.origin}/logo.jpg" onError="this.style.display='none'" />
+            <img src="${window.location.origin}/athena-consultoria-logo-df.jpg" onError="this.style.display='none'" />
             <div>
               <div class="brand-title">ATHENA</div>
               <div class="brand-sub">Soluções Automotivas</div>
