@@ -19,6 +19,7 @@ const LegalPage = lazyWithRetry(() => import('./pages/LegalPage'));
 const ThankYouPage = lazyWithRetry(() => import('./pages/ThankYouPage'));
 const BlogListingPage = lazyWithRetry(() => import('./pages/BlogListingPage'));
 const BlogPostPage = lazyWithRetry(() => import('./pages/BlogPostPage'));
+const FaqPage = lazyWithRetry(() => import('./pages/FaqPage'));
 
 import Footer from './components/Footer';
 import Toast from './components/Toast';
@@ -637,6 +638,10 @@ export default function App() {
       secao = 'Institucional / Sobre a Athena';
       itemNome = 'Sobre a Athena Soluções Automotivas';
       descricaoPageView = `Acessou Página Institucional Sobre a Athena (${diretorio})`;
+    } else if (cleanRoute === 'faq' || cleanRoute === 'duvidas' || cleanRoute === 'perguntas-frequentes') {
+      secao = 'Central de Dúvidas / FAQ';
+      itemNome = 'Perguntas Frequentes (FAQ)';
+      descricaoPageView = `Acessou Perguntas Frequentes FAQ (${diretorio})`;
     } else if (cleanRoute === 'minha-conta' || cleanRoute === 'account' || cleanRoute === 'pedidos') {
       secao = 'Área do Cliente';
       itemNome = 'Minha Conta / Pedidos';
@@ -1753,6 +1758,10 @@ export default function App() {
 
     if (currentRoute === 'about' || currentRoute === 'sobre') {
       return <AboutPage onNavigate={navigateTo} brands={brands} />;
+    }
+
+    if (currentRoute === 'faq' || currentRoute === 'duvidas' || currentRoute === 'perguntas-frequentes') {
+      return <FaqPage onNavigate={navigateTo} />;
     }
 
     if (currentRoute === 'blog' || currentRoute === 'artigos' || currentRoute === 'noticias') {

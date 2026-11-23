@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, Layers, Tag, PackageCheck, Info, ChevronDown, ChevronRight, ChevronLeft,
   PhoneCall, Grid, User, LogOut, Package, Gift, Shield, Store, FolderTree,
-  Sparkles, Disc, Cpu, Droplet, Wrench, Wind, Box, ArrowRight, Receipt, Truck, Zap, BookOpen
+  Sparkles, Disc, Cpu, Droplet, Wrench, Wind, Box, ArrowRight, Receipt, Truck, Zap, BookOpen, HelpCircle
 } from 'lucide-react';
 import { MACRO_DEPARTMENTS, getCategoriesForDepartment } from '../data/departmentsData';
 import { isProductPublished } from '../utils/imageUrl';
@@ -573,6 +573,20 @@ export default function MobileDrawer({
                   <span>Blog & Artigos Técnicos</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
+              </button>
+
+              <button
+                onClick={() => {
+                  onNavigate('faq');
+                  onClose();
+                }}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-amber-50/70 hover:bg-amber-100/80 text-amber-950 font-bold text-xs border border-amber-200 cursor-pointer transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <HelpCircle className="w-4 h-4 text-amber-700" />
+                  <span>Perguntas Frequentes (FAQ)</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-amber-600" />
               </button>
 
               <a
