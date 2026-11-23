@@ -163,7 +163,20 @@ export function buildProductWhatsAppMessage({ product, brand, category, variant,
     );
   }
 
-  // Modalidade consultiva (variable_tax ou technical_consultative): ZERO referência a preço
+  // Modalidade consultiva com preço demonstrativo visível (ex: EAATA 90, ECM-45, TFJ-340)
+  if (showPrice && Number(variant?.price || product.price || 0) > 0) {
+    const activePrice = Number(variant?.price || product.price || 0);
+    const formattedVal = formatBRL(activePrice);
+    const closingText = shippingText
+      ? 'Vi o valor de referência no site e gostaria de confirmar as condições especiais de faturamento (CPF / CNPJ), opções de parcelamento e fecharmos com essa opção de frete.'
+      : 'Vi o valor de referência no site e gostaria de confirmar as condições especiais de faturamento (CPF / CNPJ), opções de parcelamento e frete para a minha oficina.';
+
+    return encodeURIComponent(
+      `Olá Athena Soluções Automotivas!\n\nGostaria de uma cotação para o equipamento:\n*${productName}${variantDisplay}*${skuText}\nMarca: ${brandName}\nCategoria: ${categoryName}\n${qtyText}\nValor de referência no site: ${formattedVal} à vista no PIX.${shippingText}\n\n${closingText}${attributionTag}`
+    );
+  }
+
+  // Modalidade consultiva sem preço público (ex: elevadores Mahovi, alinhadores 3D)
   const closingText = shippingText
     ? 'Poderia me informar as condições comerciais para o meu faturamento (CPF / CNPJ) e opções de pagamento para fecharmos com essa opção de frete?'
     : 'Poderia me informar as condições comerciais para o meu faturamento (CPF / CNPJ), opções de frete e formas de pagamento?';

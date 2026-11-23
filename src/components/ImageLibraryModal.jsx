@@ -104,6 +104,7 @@ export default function ImageLibraryModal({
   brands = [],
   categories = [],
   banners = [],
+  blogPosts = [],
   API_BASE_URL,
   getAuthHeaders,
   showNotification,
@@ -118,7 +119,7 @@ export default function ImageLibraryModal({
   const [totalCount, setTotalCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [usageFilter, setUsageFilter] = useState(initialUsageFilter || 'all'); // 'all' | 'in_use' | 'brands' | 'banners' | 'unused' | 'current_product'
+  const [usageFilter, setUsageFilter] = useState(initialUsageFilter || 'all'); // 'all' | 'in_use' | 'brands' | 'banners' | 'blog' | 'unused' | 'current_product'
   const [expandedImage, setExpandedImage] = useState(null);
   const [deletingKey, setDeletingKey] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -138,7 +139,7 @@ export default function ImageLibraryModal({
 
   const apiUrl = API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001/api' : import.meta.env?.VITE_API_URL)) || 'https://athena-backend-hu1m.onrender.com/api';
 
-  // Mapa de registro global de uso: token (minúsculo) -> { brands: Set(nomes), products: Set(nomes), categories: Set(nomes), banners: Set(nomes) }
+  // Mapa de registro global de uso: token (minúsculo) -> { brands: Set(nomes), products: Set(nomes), categories: Set(nomes), banners: Set(nomes), blog: Set(nomes) }
   const mediaUsageRegistry = useMemo(() => {
     if (!isOpen) return new Map();
     const registry = new Map();
@@ -147,13 +148,14 @@ export default function ImageLibraryModal({
       if (!token || !name) return;
       const key = token.toLowerCase();
       if (!registry.has(key)) {
-        registry.set(key, { brands: new Set(), products: new Set(), categories: new Set(), banners: new Set() });
+        registry.set(key, { brands: new Set(), products: new Set(), categories: new Set(), banners: new Set(), blog: new Set() });
       }
       const entry = registry.get(key);
       if (type === 'brand') entry.brands.add(name);
       else if (type === 'product') entry.products.add(name);
       else if (type === 'category') entry.categories.add(name);
       else if (type === 'banner') entry.banners.add(name);
+      else if (type === 'blog') entry.blog.add(name);
     };
 
     const registerUrl = (url, type, name) => {
@@ -215,8 +217,25 @@ export default function ImageLibraryModal({
       if (mobile) registerUrl(mobile, 'banner', `${bannerTitle} (Mobile)`);
     });
 
+    // Indexa Artigos do Blog (Imagens de Capa e Imagens Inseridas no Corpo HTML)
+    (blogPosts || []).forEach((post, idx) => {
+      if (!post) return;
+      const postTitle = post.title || `Artigo #${idx + 1}`;
+      const coverUrl = post.cover_image_url || post.cover_image_key || post.coverImage;
+      if (coverUrl) {
+        registerUrl(coverUrl, 'blog', `${postTitle} (Capa)`);
+      }
+      if (post.content_html || post.contentHtml) {
+        const html = post.content_html || post.contentHtml || '';
+        const matches = html.matchAll(/src=["']([^"']+)["']/g);
+        for (const m of matches) {
+          if (m[1]) registerUrl(m[1], 'blog', `${postTitle} (Conteúdo)`);
+        }
+      }
+    });
+
     return registry;
-  }, [isOpen, products, brands, categories, banners]);
+  }, [isOpen, products, brands, categories, banners, blogPosts]);
 
   // Pré-carrega instantaneamente banners e marcas cadastrados no banco de dados (Zero Scroll / Zero Latência)
   const instantMediaItems = useMemo(() => {
@@ -267,8 +286,15 @@ export default function ImageLibraryModal({
       if (logo) addMedia(logo, 'marcas', brand.name || 'Marca');
     });
 
+    // Indexa todos os artigos do Blog (capas cadastradas)
+    (blogPosts || []).forEach((p, idx) => {
+      const title = p.title || `Artigo #${idx + 1}`;
+      const cover = p.cover_image_url || p.cover_image_key || p.coverImage;
+      if (cover) addMedia(cover, 'blog', `${title} (Capa)`);
+    });
+
     return list;
-  }, [banners, brands]);
+  }, [banners, brands, blogPosts]);
 
   // Pre-tokenized sets for instant O(1) membership checks without repeated string parsing
   const currentImagesTokensSet = useMemo(() => {
@@ -302,6 +328,7 @@ export default function ImageLibraryModal({
     const matchedProducts = new Set();
     const matchedCategories = new Set();
     const matchedBanners = new Set();
+    const matchedBlog = new Set();
 
     tokens.forEach(tok => {
       const entry = mediaUsageRegistry.get(tok);
@@ -310,14 +337,22 @@ export default function ImageLibraryModal({
         entry.products.forEach(p => matchedProducts.add(p));
         entry.categories.forEach(c => matchedCategories.add(c));
         entry.banners.forEach(bn => matchedBanners.add(bn));
+        if (entry.blog) entry.blog.forEach(bg => matchedBlog.add(bg));
       }
     });
 
-    // 🛡️ BLINDAGEM DE MARCAS: Se a imagem está na pasta 'marcas' ou tem 'marcas/' no caminho/chave:
+    // 🛡️ BLINDAGEM DO BLOG: Se a imagem está na pasta 'blog', 'uploads' ou tem 'blog' no nome
     const itemKeyLower = (item.key || '').toLowerCase();
     const itemUrlLower = (item.url || '').toLowerCase();
     const itemFilenameLower = (item.filename || '').toLowerCase();
     const itemFolderLower = (item.folder || '').toLowerCase();
+
+    const isBlogFolder = itemFolderLower === 'blog' || itemKeyLower.startsWith('blog/') || itemUrlLower.includes('/blog/') || itemKeyLower.startsWith('uploads/blog-') || itemFilenameLower.includes('blog-cover-') || itemFilenameLower.includes('blog_');
+    if (isBlogFolder) {
+      if (matchedBlog.size === 0) {
+        matchedBlog.add('Artigo do Blog');
+      }
+    }
 
     const isBrandFolder = itemFolderLower === 'marcas' || itemKeyLower.startsWith('marcas/') || itemUrlLower.includes('/marcas/');
     if (isBrandFolder) {
@@ -371,13 +406,15 @@ export default function ImageLibraryModal({
     const productsList = Array.from(matchedProducts);
     const categoriesList = Array.from(matchedCategories);
     const bannersList = Array.from(matchedBanners);
+    const blogList = Array.from(matchedBlog);
 
     return {
-      isUsed: brandsList.length > 0 || productsList.length > 0 || categoriesList.length > 0 || bannersList.length > 0,
+      isUsed: brandsList.length > 0 || productsList.length > 0 || categoriesList.length > 0 || bannersList.length > 0 || blogList.length > 0,
       brands: brandsList,
       products: productsList,
       categories: categoriesList,
       banners: bannersList,
+      blog: blogList,
       isCurrentProduct,
       isCurrentCover
     };
@@ -590,13 +627,14 @@ export default function ImageLibraryModal({
 
         const authHeaders = getAuthHeadersRef.current ? getAuthHeadersRef.current() : {};
         const cleanFilename = (file.name || 'foto').replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const uploadFolder = usageFilter === 'blog' ? 'blog' : (usageFilter === 'brands' ? 'marcas' : (usageFilter === 'banners' ? 'banners' : 'athena_produtos'));
         const res = await fetch(`${apiUrl}/upload`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...authHeaders
           },
-          body: JSON.stringify({ file: base64, folder: 'athena_produtos', filename: cleanFilename })
+          body: JSON.stringify({ file: base64, folder: uploadFolder, filename: cleanFilename })
         });
 
         if (res.ok) {
@@ -694,13 +732,14 @@ export default function ImageLibraryModal({
   }, [isOpen, items, getItemUsage]);
 
   // Aggregate tab counts in one single pass from the pre-computed map
-  const { countInUse, countBrands, countBanners, countUnused, countCurrentProduct } = useMemo(() => {
+  const { countInUse, countBrands, countBanners, countBlog, countUnused, countCurrentProduct } = useMemo(() => {
     if (!isOpen) {
-      return { countInUse: 0, countBrands: 0, countBanners: 0, countUnused: 0, countCurrentProduct: 0 };
+      return { countInUse: 0, countBrands: 0, countBanners: 0, countBlog: 0, countUnused: 0, countCurrentProduct: 0 };
     }
     let inUse = 0;
     let brandsC = 0;
     let bannersC = 0;
+    let blogC = 0;
     let unused = 0;
     let currProd = 0;
     for (let i = 0; i < items.length; i++) {
@@ -709,6 +748,7 @@ export default function ImageLibraryModal({
       if (usage.products.length > 0) inUse++;
       if (usage.brands.length > 0) brandsC++;
       if (usage.banners.length > 0) bannersC++;
+      if (usage.blog && usage.blog.length > 0) blogC++;
       if (!usage.isUsed) unused++;
       if (usage.isCurrentProduct) currProd++;
     }
@@ -716,6 +756,7 @@ export default function ImageLibraryModal({
       countInUse: inUse,
       countBrands: brandsC,
       countBanners: bannersC,
+      countBlog: blogC,
       countUnused: unused,
       countCurrentProduct: currProd
     };
@@ -731,6 +772,7 @@ export default function ImageLibraryModal({
       if (usageFilter === 'in_use') return usage.products.length > 0;
       if (usageFilter === 'brands') return usage.brands.length > 0;
       if (usageFilter === 'banners') return usage.banners.length > 0;
+      if (usageFilter === 'blog') return usage.blog && usage.blog.length > 0;
       if (usageFilter === 'unused') return !usage.isUsed;
       if (usageFilter === 'current_product') return usage.isCurrentProduct;
       return true;
@@ -964,6 +1006,23 @@ export default function ImageLibraryModal({
 
               <button
                 type="button"
+                onClick={() => setUsageFilter('blog')}
+                className={`px-3 py-1 rounded-xl font-bold transition-all cursor-pointer shrink-0 text-xs flex items-center gap-1.5 ${
+                  usageFilter === 'blog'
+                    ? 'bg-sky-500 text-slate-950 shadow-xs'
+                    : 'bg-slate-800/90 text-slate-300 hover:bg-slate-800'
+                }`}
+                title="Imagens e capas de artigos do Blog Athena"
+              >
+                <Images className="w-3.5 h-3.5 text-sky-300" />
+                <span>Blog / Artigos</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${usageFilter === 'blog' ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-900 text-sky-400 font-bold'}`}>
+                  {countBlog}
+                </span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setUsageFilter('unused')}
                 className={`px-3 py-1 rounded-xl font-bold transition-all cursor-pointer shrink-0 text-xs flex items-center gap-1.5 ${
                   usageFilter === 'unused'
@@ -1112,8 +1171,17 @@ export default function ImageLibraryModal({
                           </span>
                         )}
 
-                        {/* Status indicators (Brand / Banner / Product / Livre) */}
+                        {/* Status indicators (Brand / Banner / Blog / Product / Livre) */}
                         <div className="absolute top-1.5 right-1.5 flex flex-col items-end gap-1 z-10 max-w-[70%]">
+                          {usage.blog && usage.blog.length > 0 && (
+                            <span 
+                              className="px-1.5 py-0.5 rounded-md bg-sky-900/90 text-sky-200 font-bold text-[8px] flex items-center gap-1 shadow-2xs border border-sky-500/30 truncate max-w-full"
+                              title={`Blog Athena: ${usage.blog.join(', ')}`}
+                            >
+                              <Images className="w-2.5 h-2.5 text-sky-300 shrink-0" />
+                              <span className="truncate">Blog</span>
+                            </span>
+                          )}
                           {usage.banners.length > 0 && (
                             <span 
                               className="px-1.5 py-0.5 rounded-md bg-amber-900/90 text-amber-200 font-bold text-[8px] flex items-center gap-1 shadow-2xs border border-amber-500/30 truncate max-w-full"
@@ -1398,6 +1466,14 @@ export default function ImageLibraryModal({
 
               {/* Usage Details Info */}
               <div className="text-xs space-y-1.5">
+                {usage.blog && usage.blog.length > 0 && (
+                  <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 flex items-center gap-2 text-sky-900">
+                    <Images className="w-4 h-4 text-sky-600 shrink-0" />
+                    <span className="text-[11px]">
+                      Em uso no Blog Athena: <strong>{usage.blog.join(', ')}</strong>
+                    </span>
+                  </div>
+                )}
                 {usage.banners.length > 0 && (
                   <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2 text-amber-900">
                     <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />

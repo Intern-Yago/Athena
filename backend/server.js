@@ -9212,7 +9212,7 @@ app.get('/api/brands', async (req, res) => {
   }
   if (pool) {
     try {
-      const result = await pool.query('SELECT id, name, slug, description, logo, website_url as "websiteUrl", "order", is_authorized as "isAuthorized", authorization_label as "authorizationLabel" FROM brands ORDER BY "order" ASC, name ASC');
+      const result = await pool.query('SELECT id, name, slug, description, logo, website_url as "websiteUrl", "order", is_authorized as "isAuthorized", authorization_label as "authorizationLabel", show_installment_options as "showInstallmentOptions" FROM brands ORDER BY "order" ASC, name ASC');
       return res.json(result.rows);
     } catch (e) {
       console.error(e);
@@ -9236,7 +9236,7 @@ app.get('/api/brands/:identifier', async (req, res) => {
   if (pool) {
     try {
       const result = await pool.query(
-        'SELECT id, name, slug, description, logo, website_url as "websiteUrl", "order", is_authorized as "isAuthorized", authorization_label as "authorizationLabel" FROM brands WHERE id = $1 OR slug = $1 LIMIT 1',
+        'SELECT id, name, slug, description, logo, website_url as "websiteUrl", "order", is_authorized as "isAuthorized", authorization_label as "authorizationLabel", show_installment_options as "showInstallmentOptions" FROM brands WHERE id = $1 OR slug = $1 LIMIT 1',
         [cleanId]
       );
       if (result.rows.length > 0) {
@@ -9258,13 +9258,14 @@ app.post('/api/brands', authenticateToken, requireStaff, async (req, res) => {
     id: req.body.id || `brand_${Date.now()}`, 
     ...req.body,
     isAuthorized: Boolean(req.body.isAuthorized),
-    authorizationLabel: req.body.authorizationLabel ? String(req.body.authorizationLabel).trim() : null
+    authorizationLabel: req.body.authorizationLabel ? String(req.body.authorizationLabel).trim() : null,
+    showInstallmentOptions: req.body.showInstallmentOptions !== undefined ? Boolean(req.body.showInstallmentOptions) : true
   };
   if (pool) {
     try {
       await pool.query(
-        'INSERT INTO brands (id, name, slug, description, logo, website_url, "order", is_authorized, authorization_label) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO UPDATE SET name=$2, slug=$3, description=$4, logo=$5, website_url=$6, "order"=$7, is_authorized=$8, authorization_label=$9',
-        [newBrand.id, newBrand.name, newBrand.slug || '', newBrand.description || '', newBrand.logo || '', newBrand.websiteUrl || '', newBrand.order || 0, newBrand.isAuthorized, newBrand.authorizationLabel]
+        'INSERT INTO brands (id, name, slug, description, logo, website_url, "order", is_authorized, authorization_label, show_installment_options) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO UPDATE SET name=$2, slug=$3, description=$4, logo=$5, website_url=$6, "order"=$7, is_authorized=$8, authorization_label=$9, show_installment_options=$10',
+        [newBrand.id, newBrand.name, newBrand.slug || '', newBrand.description || '', newBrand.logo || '', newBrand.websiteUrl || '', newBrand.order || 0, newBrand.isAuthorized, newBrand.authorizationLabel, newBrand.showInstallmentOptions]
       );
       return res.status(201).json(newBrand);
     } catch (e) {
@@ -9319,13 +9320,14 @@ app.put('/api/brands/:id', authenticateToken, requireStaff, async (req, res) => 
     id: req.params.id, 
     ...req.body,
     isAuthorized: req.body.isAuthorized !== undefined ? Boolean(req.body.isAuthorized) : false,
-    authorizationLabel: req.body.authorizationLabel ? String(req.body.authorizationLabel).trim() : null
+    authorizationLabel: req.body.authorizationLabel ? String(req.body.authorizationLabel).trim() : null,
+    showInstallmentOptions: req.body.showInstallmentOptions !== undefined ? Boolean(req.body.showInstallmentOptions) : true
   };
   if (pool) {
     try {
       await pool.query(
-        'UPDATE brands SET name=$1, slug=$2, description=$3, logo=$4, website_url=$5, "order"=$6, is_authorized=$7, authorization_label=$8 WHERE id=$9',
-        [updatedBrand.name, updatedBrand.slug || '', updatedBrand.description || '', updatedBrand.logo || '', updatedBrand.websiteUrl || '', updatedBrand.order || 0, updatedBrand.isAuthorized, updatedBrand.authorizationLabel, req.params.id]
+        'UPDATE brands SET name=$1, slug=$2, description=$3, logo=$4, website_url=$5, "order"=$6, is_authorized=$7, authorization_label=$8, show_installment_options=$9 WHERE id=$10',
+        [updatedBrand.name, updatedBrand.slug || '', updatedBrand.description || '', updatedBrand.logo || '', updatedBrand.websiteUrl || '', updatedBrand.order || 0, updatedBrand.isAuthorized, updatedBrand.authorizationLabel, updatedBrand.showInstallmentOptions, req.params.id]
       );
       return res.json(updatedBrand);
     } catch (e) {
@@ -9755,6 +9757,10 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
           p.model_3d as "model3d",
           COALESCE(p.variants, '[]'::jsonb) as "variants",
           p.warranty_months as "warrantyMonths",
+          p.installment_total_price as "installmentTotalPrice",
+          p.installment_count as "installmentCount",
+          p.show_installment_options as "showInstallmentOptions",
+          b.show_installment_options as "brandShowInstallmentOptions",
           b.is_authorized as "brandIsAuthorized",
           b.authorization_label as "brandAuthorizationLabel",
           p.created_at
@@ -9891,6 +9897,10 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
           p.model_3d as "model3d",
           COALESCE(p.variants, '[]'::jsonb) as "variants",
           p.warranty_months as "warrantyMonths",
+          p.installment_total_price as "installmentTotalPrice",
+          p.installment_count as "installmentCount",
+          p.show_installment_options as "showInstallmentOptions",
+          b.show_installment_options as "brandShowInstallmentOptions",
           b.is_authorized as "brandIsAuthorized",
           b.authorization_label as "brandAuthorizationLabel",
           p.created_at
@@ -10185,6 +10195,10 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
     ? parseSafeNumeric(req.body.originalPrice ?? req.body.original_price)
     : null;
 
+  const incomingShowInstallmentOptions = (req.body.showInstallmentOptions !== undefined || req.body.show_installment_options !== undefined)
+    ? ((req.body.showInstallmentOptions ?? req.body.show_installment_options) !== null && (req.body.showInstallmentOptions ?? req.body.show_installment_options) !== '' ? Boolean(req.body.showInstallmentOptions ?? req.body.show_installment_options) : null)
+    : null;
+
   const newProduct = { 
     id: assignedId || `prod_${Date.now()}`, 
     ...req.body,
@@ -10211,7 +10225,7 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           status, is_featured, image, images, alt_text, description, specs, 
           attachments, in_stock, video_url, custom_tabs, product_type, a_points,
           sku, estoque_quantidade, omie_code, variants, model_3d, requires_equipment_serial, price_source, stock_source,
-          commercial_mode, is_price_visible, warranty_months, original_price
+          commercial_mode, is_price_visible, warranty_months, original_price, show_installment_options
         )
         VALUES (
           $1, $2, $3, $4, $5, $6::numeric, $6::numeric, 
@@ -10220,7 +10234,7 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           $12, $13, $14, $15::jsonb, $16, $17, $18::jsonb, 
           $19::jsonb, $20, $21, $22::jsonb, $23, $24,
           $25, $26, $27, $28::jsonb, $29::jsonb, $30, $31, $32,
-          COALESCE($33, 'variable_tax'), COALESCE($34, false), $35, $36::numeric
+          COALESCE($33, 'variable_tax'), COALESCE($34, false), $35, $36::numeric, $37::boolean
         )
         ON CONFLICT (id) DO UPDATE SET 
           name=$2, slug=$3, category_id=$4, brand_id=$5, price=$6::numeric, preco_venda=$6::numeric, 
@@ -10234,7 +10248,9 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
           product_type=$23, a_points=$24, sku=$25, estoque_quantidade=$26, omie_code=$27,
           variants=$28::jsonb, model_3d=$29::jsonb, requires_equipment_serial=$30,
           price_source=$31, stock_source=$32, warranty_months=COALESCE($35, products.warranty_months),
-          original_price=COALESCE($36::numeric, products.original_price), updated_at=NOW()
+          original_price=COALESCE($36::numeric, products.original_price),
+          show_installment_options=COALESCE($37::boolean, products.show_installment_options),
+          updated_at=NOW()
       `, [
         newProduct.id,
         newProduct.name,
@@ -10271,7 +10287,8 @@ app.post('/api/products', authenticateToken, requireStaff, async (req, res) => {
         incomingCommercialMode,
         incomingIsPriceVisible,
         incomingWarrantyMonths,
-        incomingOriginalPrice
+        incomingOriginalPrice,
+        incomingShowInstallmentOptions
       ]);
 
       // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,
@@ -10382,6 +10399,12 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
     ? parseSafeNumeric(req.body.originalPrice ?? req.body.original_price)
     : null;
 
+  const hasShowInstallmentOptionsUpdate = req.body.showInstallmentOptions !== undefined || req.body.show_installment_options !== undefined;
+  const showInstallmentOptionsVal = (req.body.showInstallmentOptions !== undefined ? req.body.showInstallmentOptions : req.body.show_installment_options);
+  const showInstallmentOptionsBool = (showInstallmentOptionsVal !== null && showInstallmentOptionsVal !== '' && showInstallmentOptionsVal !== undefined)
+    ? Boolean(showInstallmentOptionsVal)
+    : null;
+
   const updatedProduct = { 
     id: req.params.id, 
     ...req.body,
@@ -10432,6 +10455,7 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
           warranty_months=CASE WHEN $35::boolean THEN $36::integer ELSE warranty_months END,
           original_price=CASE WHEN $37::boolean THEN $38::numeric ELSE original_price END,
           priority=CASE WHEN $39::boolean THEN $40::integer ELSE priority END,
+          show_installment_options=CASE WHEN $41::boolean THEN $42::boolean ELSE show_installment_options END,
           updated_at=NOW()
         WHERE id=$30
       `, [
@@ -10474,7 +10498,9 @@ app.put('/api/products/:id', authenticateToken, requireStaff, async (req, res) =
         hasOriginalPriceUpdate,
         originalPriceVal,
         hasPriorityUpdate,
-        priorityVal
+        priorityVal,
+        hasShowInstallmentOptionsUpdate,
+        showInstallmentOptionsBool
       ]);
 
       // Se o produto possui SKU/Omie e algum campo (preço, estoque ou medidas) está vazio,

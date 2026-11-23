@@ -176,7 +176,7 @@ export default function ProductVariantSelectModal({
                   </span>
                 )}
                 <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                  {variants.length} opções disponíveis
+                  {variants.length} {variants.length === 1 ? 'opção disponível' : 'opções disponíveis'}
                 </span>
               </div>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-900 leading-snug truncate mt-1">

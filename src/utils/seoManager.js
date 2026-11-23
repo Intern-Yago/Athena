@@ -16,7 +16,7 @@ const LOWERCASE_PREPOSITIONS = new Set([
 ]);
 
 const UPPERCASE_ACRONYMS = new Set([
-  'EAATA', 'MAHOVI', 'STÄRKX', 'STARKX', 'SGT', 'MXT', 'PRO', 'HVLP', 'PSI', 'KGF', 'NM', 'KGF.M', 'LED', 'LEDS', 'HD', 'USB', 'OBD', 'OBD-II', 'ECU', 'TCU', 'TCM', 'BCM', 'ABS', 'SRS', 'SAS', 'BMS', 'ADAS', 'TPMS', 'IMMO', 'CAN', 'CAN-FD', 'DOIP', 'EV', 'DC', 'AC', 'CCS2', 'GB/T', 'GBT', 'IP54', 'IP65', 'IP67', 'NBR', 'ISO', 'VG', 'CVT', 'ATF', 'DCT', 'DSG', 'DQ200', 'DQ250', 'MAH', 'WAL', 'LPK', 'SKX', 'DT', 'TC', 'EW', 'TTE', 'TTK', 'TPC', 'TFJ', 'TES', 'TBT', 'ACT20', 'EPD002', '360PRO', 'IA', '3D', '2D', '12V', '24V', '48V', '110V', '127V', '220V', '380V', '60HZ', 'HP', 'PCM', 'RPM', 'MM', 'CM', 'KG', 'KW', 'KWH', 'AH', 'PU', 'EVA', 'SUV', 'SUVS', 'NR-12', 'NR12', 'CNPJ', 'CPF', 'PIX', 'DF'
+  'EAATA', 'MAHOVI', 'STÄRKX', 'STARKX', 'SGT', 'MXT', 'PRO', 'HVLP', 'PSI', 'KGF', 'NM', 'KGF.M', 'LED', 'LEDS', 'HD', 'USB', 'OBD', 'OBD-II', 'ECU', 'TCU', 'TCM', 'BCM', 'ABS', 'SRS', 'SAS', 'BMS', 'ADAS', 'TPMS', 'IMMO', 'CAN', 'CAN-FD', 'DOIP', 'EV', 'DC', 'AC', 'CCS2', 'GB/T', 'GBT', 'IP54', 'IP65', 'IP67', 'NBR', 'ISO', 'VG', 'CVT', 'ATF', 'DCT', 'DSG', 'DQ200', 'DQ250', 'MAH', 'WAL', 'LPK', 'SKX', 'DT', 'TC', 'EW', 'TTE', 'TTK', 'TPC', 'TFJ', 'TES', 'TBT', 'ACT20', 'ACT-20', 'EPD002', 'EPD-002', 'ECM45', 'ECM-45', '360PRO', 'IA', '3D', '2D', '12V', '24V', '48V', '110V', '127V', '220V', '380V', '60HZ', 'HP', 'PCM', 'RPM', 'MM', 'CM', 'KG', 'KW', 'KWH', 'AH', 'PU', 'EVA', 'SUV', 'SUVS', 'NR-12', 'NR12', 'CNPJ', 'CPF', 'PIX', 'DF'
 ]);
 
 /**

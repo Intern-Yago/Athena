@@ -28,7 +28,8 @@ export default function ProductCard({
   const variants = Array.isArray(product.variants) 
     ? product.variants.filter(v => isVariantVisibleInCatalog(v, product))
     : [];
-  const hasVariants = variants.length > 0;
+  // Só considera que tem variações para seleção se houver mais de 1 opção real (evita botão "+ Opções" em produto simples)
+  const hasVariants = variants.length > 1;
 
   // Imagem base do card: foto principal do produto ou primeira variação com foto (Cenário B.1)
   const fallbackVariantImage = variants.find(v => v.image && typeof v.image === 'string' && v.image.trim() !== '')?.image || '';
@@ -42,7 +43,9 @@ export default function ProductCard({
   const commercialBadge = getCommercialBadge(product);
   const discountPercent = showPrice ? getDiscountPercentage(product.price, product.originalPrice) : null;
 
-  const paymentGateways = showPrice ? calculatePaymentGateways(product.price) : null;
+  const manualInstallmentTotal = product?.installmentTotalPrice ?? product?.installment_total_price ?? null;
+  const manualInstallmentCount = product?.installmentCount ?? product?.installment_count ?? 12;
+  const paymentGateways = showPrice ? calculatePaymentGateways(product.price, manualInstallmentTotal, manualInstallmentCount) : null;
   const pixCustomerPrice = showPrice 
     ? (paymentGateways?.pix?.formattedCustomerAmount || formatBRL(product.price))
     : (commercialBadge?.label || 'Consulte no WhatsApp');
@@ -240,7 +243,7 @@ export default function ProductCard({
                       </div>
                     ) : (
                       <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                        {variants.length} opções disponíveis
+                        {variants.length} {variants.length === 1 ? 'opção disponível' : 'opções disponíveis'}
                       </span>
                     )}
                   </div>
@@ -305,9 +308,9 @@ export default function ProductCard({
               <span className="text-sm font-extrabold text-amber-800 font-display bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 inline-block mt-0.5">
                 {showPrice ? pixCustomerPrice : (commercialBadge?.label || 'Consulte no WhatsApp')}
               </span>
-              {showPrice && canBuyOnline && (
+              {showPrice && (
                 <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
-                  {getBestInstallmentText(product.price, 12)}
+                  {getBestInstallmentText(product.price, manualInstallmentCount, manualInstallmentTotal)}
                 </span>
               )}
               {earnedPoints > 0 && (
@@ -549,7 +552,7 @@ export default function ProductCard({
                   </div>
                 ) : (
                   <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                    {variants.length} opções
+                    {variants.length} {variants.length === 1 ? 'opção' : 'opções'}
                   </span>
                 )}
               </div>
@@ -602,6 +605,9 @@ export default function ProductCard({
                     {pixCustomerPrice}
                   </span>
                 </div>
+                <span className="text-[11px] text-slate-500 font-medium block">
+                  {getBestInstallmentText(product.price, manualInstallmentCount, manualInstallmentTotal)}
+                </span>
               </div>
             ) : (
               <div className="flex items-center justify-between gap-1 py-1">

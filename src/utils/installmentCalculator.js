@@ -1,17 +1,9 @@
 /**
  * Athena Intelligent Payment & Asaas Gateway Calculator
  * 
- * Precisely matches the real rate contract of Asaas:
- * - Credit Card Online Intermediation (MDR):
- *     1x: 2.99% + R$ 0.49
- *     2x to 6x: 3.49% + R$ 0.49
- *     7x to 12x: 3.99% + R$ 0.49
- * - Automatic Anticipation (Antecipação Automática):
- *     1x à vista: 1.15% a.m.
- *     2x to 12x parceladas: 1.60% a.m.
- * - PIX Dinâmico API: R$ 0.99 (promocional) / R$ 1.99 padrão (D+0)
- * - Cartão de Débito Online: 1.89% + R$ 0.35 (D+3)
- * - Boleto Bancário: R$ 0.99 (promocional) / R$ 1.99 padrão (D+1)
+ * Supports both:
+ * 1. Fixed Manufacturer/Table Installments (Tabela Fixa da Montadora / Parcelamento Manual)
+ * 2. Automatic Asaas Gateway Rates (MDR + Antecipação Automática)
  */
 
 /**
@@ -69,25 +61,47 @@ export function getAsaasCreditCardTotalRate(installments) {
 }
 
 /**
- * Calculate all installments from 1x to maxInstallments with exact Asaas auto-anticipation formula:
+ * Calculate all installments from 1x to maxInstallments.
+ * If manualInstallmentTotal is provided, uses fixed manufacturer installment pricing.
+ * Otherwise, applies exact Asaas auto-anticipation formula:
  * TotalToCharge = (NetPrice + 0.49) / (1 - TotalRate)
  * @param {number|string} cashPrice - The net cash price you want to receive
  * @param {number} maxInstallments - Maximum number of installments (default: 12)
+ * @param {number|string|null} manualInstallmentTotal - Fixed total installment price (e.g. 10450 for EAATA 90)
  * @returns {Array} List of installment objects
  */
-export function calculateInstallments(cashPrice, maxInstallments = 12) {
+export function calculateInstallments(cashPrice, maxInstallments = 12, manualInstallmentTotal = null) {
   const numPrice = parseNumericPrice(cashPrice);
   if (!numPrice || numPrice <= 0) return [];
 
   const max = Math.min(Math.max(1, maxInstallments), 12);
+  const manualTotal = parseNumericPrice(manualInstallmentTotal);
+  const isManual = manualTotal > 0 && manualTotal >= numPrice;
+
   const result = [];
-  const fixedFee = 0.49; // R$ 0,49 por transação no cartão Asaas
+  const fixedFee = 0.49;
 
   for (let i = 1; i <= max; i++) {
-    const totalRate = getAsaasCreditCardTotalRate(i);
-    // Exact gross charge needed so that: Gross * (1 - totalRate) - 0.49 === numPrice
-    const totalValue = Math.round(((numPrice + fixedFee) / (1 - totalRate)) * 100) / 100;
-    const installmentValue = Math.round((totalValue / i) * 100) / 100;
+    let totalValue;
+    let installmentValue;
+
+    if (isManual) {
+      if (i === 1) {
+        totalValue = numPrice;
+        installmentValue = numPrice;
+      } else {
+        // Proporcional de 2x até max, atingindo manualTotal em max
+        const ratio = (i - 1) / (max - 1);
+        totalValue = Math.round((numPrice + (manualTotal - numPrice) * ratio) * 100) / 100;
+        if (i === max) totalValue = manualTotal;
+        installmentValue = Math.round((totalValue / i) * 100) / 100;
+      }
+    } else {
+      const totalRate = getAsaasCreditCardTotalRate(i);
+      totalValue = Math.round(((numPrice + fixedFee) / (1 - totalRate)) * 100) / 100;
+      installmentValue = Math.round((totalValue / i) * 100) / 100;
+    }
+
     const diff = Math.round((totalValue - numPrice) * 100) / 100;
     const percentage = Math.round(((totalValue - numPrice) / numPrice) * 1000) / 10;
 
@@ -109,50 +123,47 @@ export function calculateInstallments(cashPrice, maxInstallments = 12) {
 }
 
 /**
- * Helper to get the best installment summary text (e.g. "ou 12x de R$ 58,45")
+ * Helper to get the best installment summary text (e.g. "ou 12x de R$ 870,83")
  * @param {number|string} cashPrice 
  * @param {number} maxInstallments 
+ * @param {number|string|null} manualInstallmentTotal
  * @returns {string}
  */
-export function getBestInstallmentText(cashPrice, maxInstallments = 12) {
-  const list = calculateInstallments(cashPrice, maxInstallments);
+export function getBestInstallmentText(cashPrice, maxInstallments = 12, manualInstallmentTotal = null) {
+  const list = calculateInstallments(cashPrice, maxInstallments, manualInstallmentTotal);
   if (list.length === 0) return '';
   const best = list[list.length - 1];
   return `ou em até ${best.installments}x de ${best.formattedInstallment}`;
 }
 
 /**
- * Comprehensive Gateway Payment Simulation based on user's exact Asaas account rates:
- * Ensures the merchant receives 100% OF THE NET CASH PRICE (R$ 600,00 líquido) across all methods:
- * - PIX: R$ 0,99 taxa embutida -> Você recebe 100% líquido (D+0)
- * - Débito: 1,89% + R$ 0,35 taxa embutida -> Você recebe 100% líquido (D+3)
- * - Boleto: R$ 0,99 taxa embutida -> Você recebe 100% líquido (D+1)
- * - Crédito: MDR + Antecipação Automática (1,15%-1,60% a.m.) embutidos -> Você recebe 100% líquido à vista (D+2)
+ * Comprehensive Gateway Payment Simulation
  * @param {number|string} cashPrice 
+ * @param {number|string|null} manualInstallmentTotal
+ * @param {number} maxInstallments
  * @returns {object|null}
  */
-export function calculatePaymentGateways(cashPrice) {
+export function calculatePaymentGateways(cashPrice, manualInstallmentTotal = null, maxInstallments = 12) {
   const numPrice = parseNumericPrice(cashPrice);
   if (!numPrice || numPrice <= 0) return null;
 
-  // 1. PIX Dinâmico via API Asaas (R$ 0,99 promocional por cobrança recebida)
-  const pixFee = 0.99;
-  const pixCustomer = Math.round((numPrice + pixFee) * 100) / 100;
+  // 1. PIX Dinâmico: Valor líquido exato cadastrado (sem repassar centavos de taxa para o cliente)
+  const pixCustomer = numPrice;
+  const pixFee = 0;
   const pixNet = numPrice;
 
-  // 2. Boleto Bancário Asaas (R$ 0,99 promocional por boleto pago)
+  // 2. Boleto Bancário Asaas
   const boletoFee = 0.99;
   const boletoCustomer = Math.round((numPrice + boletoFee) * 100) / 100;
   const boletoNet = numPrice;
 
-  // 3. Cartão de Débito Online Asaas (1,89% + R$ 0,35)
-  // Cobrado = (numPrice + 0.35) / (1 - 0.0189)
+  // 3. Cartão de Débito Online Asaas
   const debitCustomer = Math.round(((numPrice + 0.35) / (1 - 0.0189)) * 100) / 100;
   const debitFee = Math.round((debitCustomer - numPrice) * 100) / 100;
   const debitNet = numPrice;
 
-  // 4. Cartão de Crédito com Antecipação Automática Asaas (1x até 12x)
-  const installments = calculateInstallments(numPrice, 12);
+  // 4. Cartão de Crédito
+  const installments = calculateInstallments(numPrice, maxInstallments, manualInstallmentTotal);
 
   return {
     basePrice: numPrice,

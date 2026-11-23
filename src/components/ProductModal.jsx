@@ -26,7 +26,9 @@ export default function ProductModal({
   const commercialBadge = getCommercialBadge(product);
   const discountPercent = showPrice ? getDiscountPercentage(product.price, product.originalPrice) : null;
 
-  const paymentGateways = showPrice ? calculatePaymentGateways(product.price) : null;
+  const manualInstallmentTotal = product?.installmentTotalPrice ?? product?.installment_total_price ?? null;
+  const manualInstallmentCount = product?.installmentCount ?? product?.installment_count ?? 12;
+  const paymentGateways = showPrice ? calculatePaymentGateways(product.price, manualInstallmentTotal, manualInstallmentCount) : null;
   const pixCustomerPrice = showPrice 
     ? (paymentGateways?.pix?.formattedCustomerAmount || formatBRL(product.price))
     : (commercialBadge?.label || 'Consulte no WhatsApp');
@@ -153,7 +155,7 @@ export default function ProductModal({
                     </span>
                   </div>
                   <span className="text-[11px] text-slate-600 font-medium block">
-                    {getBestInstallmentText(product.price, 12)}
+                    {getBestInstallmentText(product.price, manualInstallmentCount, manualInstallmentTotal)}
                   </span>
                 </div>
               ) : (

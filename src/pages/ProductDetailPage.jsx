@@ -349,7 +349,8 @@ export default function ProductDetailPage({
 
   // Dynamic Variants handling with smart fallback to base product
   const variants = Array.isArray(product?.variants) ? product.variants : [];
-  const hasVariants = variants.length > 0;
+  // Só considera que tem variações para exibir seletor/botões se houver mais de 1 opção
+  const hasVariants = variants.length > 1;
 
   // Regra 1: Se o produto principal estiver "Sob Consulta", TODAS as variações ficam sob consulta
   const isQuoteOnly = isProductQuoteOnly(product);
@@ -416,6 +417,29 @@ export default function ProductDetailPage({
     product?.brandName ? { id: product.brandId, name: product.brandName, slug: product.brandSlug } : null
   );
 
+  // Controle inteligente de exibição do botão "Opções de parcelamento e pagamento":
+  // Prioridade: override do produto (se definido) -> regra da marca -> padrão true
+  const showInstallmentOptionsBtn = useMemo(() => {
+    if (product?.showInstallmentOptions !== undefined && product?.showInstallmentOptions !== null) {
+      return Boolean(product.showInstallmentOptions);
+    }
+    if (product?.show_installment_options !== undefined && product?.show_installment_options !== null) {
+      return Boolean(product.show_installment_options);
+    }
+    if (brand?.showInstallmentOptions !== undefined && brand?.showInstallmentOptions !== null) {
+      return Boolean(brand.showInstallmentOptions);
+    }
+    if (brand?.show_installment_options !== undefined && brand?.show_installment_options !== null) {
+      return Boolean(brand.show_installment_options);
+    }
+    if (product?.brandShowInstallmentOptions !== undefined && product?.brandShowInstallmentOptions !== null) {
+      return Boolean(product.brandShowInstallmentOptions);
+    }
+    const bName = String(brand?.name || product?.brandName || '').toLowerCase();
+    if (bName.includes('eaata')) return false;
+    return true;
+  }, [product, brand]);
+
   const isDigitalProduct = Boolean(
     product?.productType === 'digital' ||
     product?.product_type === 'digital' ||
@@ -432,7 +456,10 @@ export default function ProductDetailPage({
   const commercialBadge = getCommercialBadge(product);
   const discountPercent = showPrice ? getDiscountPercentage(activePrice, product?.originalPrice) : null;
 
-  const paymentGateways = showPrice ? calculatePaymentGateways(activePrice) : null;
+  const manualInstallmentTotal = selectedVariant?.installmentTotalPrice ?? selectedVariant?.installment_total_price ?? product?.installmentTotalPrice ?? product?.installment_total_price ?? null;
+  const manualInstallmentCount = selectedVariant?.installmentCount ?? selectedVariant?.installment_count ?? product?.installmentCount ?? product?.installment_count ?? 12;
+
+  const paymentGateways = showPrice ? calculatePaymentGateways(activePrice, manualInstallmentTotal, manualInstallmentCount) : null;
   const pixCustomerPrice = showPrice 
     ? (paymentGateways?.pix?.formattedCustomerAmount || formatBRL(activePrice))
     : (commercialBadge?.label || 'Consulte no WhatsApp');
@@ -649,9 +676,10 @@ export default function ProductDetailPage({
       : `Compre ${cleanProductTitle} (${brand?.name || 'Oficial'}) com pronta-entrega, garantia de fábrica, faturamento CNPJ/CPF e suporte técnico na Athena.`;
 
     // Smart SEO Title Enhancement: Previne que produtos técnicos fiquem sem a palavra-chave mãe no Google
-    const isScanner = (category?.name?.toLowerCase().includes('scanner') || category?.slug?.includes('scanner')) && !cleanProductTitle.toLowerCase().includes('scanner');
+    const isScanner = (category?.name?.toLowerCase().includes('scanner') || category?.slug?.includes('scanner') || /eaata 90|360pro|ecm-?45|thinktool/i.test(cleanProductTitle)) && !cleanProductTitle.toLowerCase().includes('scanner');
     const isElevador = (category?.name?.toLowerCase().includes('elevador') || category?.slug?.includes('elevador')) && !cleanProductTitle.toLowerCase().includes('elevador');
-    const titlePrefix = isScanner ? 'Scanner Automotivo ' : isElevador ? 'Elevador Automotivo ' : '';
+    const isMacaco = (category?.name?.toLowerCase().includes('macaco') || category?.slug?.includes('macaco') || /tfj-?340/i.test(cleanProductTitle)) && !cleanProductTitle.toLowerCase().includes('macaco');
+    const titlePrefix = isScanner ? 'Scanner Automotivo ' : isElevador ? 'Elevador Automotivo ' : isMacaco ? 'Macaco Hidráulico ' : '';
     const fullProductName = `${titlePrefix}${cleanProductTitle}`;
 
     document.title = `${fullProductName} | ${brand?.name ? brand.name + ' - ' : ''}Athena Soluções Automotivas`;
@@ -1348,15 +1376,17 @@ export default function ProductDetailPage({
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-amber-200/60 text-xs">
                   <span className="font-bold text-slate-700 flex items-center gap-1.5">
                     <CreditCard className="w-3.5 h-3.5 text-amber-700" />
-                    {getBestInstallmentText(activePrice, 12)}
+                    {getBestInstallmentText(activePrice, manualInstallmentCount, manualInstallmentTotal)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsInstallmentModalOpen(true)}
-                    className="text-amber-900 hover:text-amber-950 font-black underline cursor-pointer text-[11px] flex items-center gap-1"
-                  >
-                    <span>Opções de parcelamento e pagamento</span>
-                  </button>
+                  {showInstallmentOptionsBtn && (
+                    <button
+                      type="button"
+                      onClick={() => setIsInstallmentModalOpen(true)}
+                      className="text-amber-800 hover:text-amber-950 font-extrabold text-[11px] underline underline-offset-2 decoration-amber-400 hover:decoration-amber-700 cursor-pointer transition-colors"
+                    >
+                      Opções de parcelamento e pagamento
+                    </button>
+                  )}
                 </div>
 
                 {!canBuyOnline && (
@@ -1484,26 +1514,26 @@ export default function ProductDetailPage({
                 </>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
-                    className="py-3 px-5 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all text-slate-900 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 shadow-xs cursor-pointer"
-                    title="Adicionar este equipamento à sua lista de orçamento para cotar múltiplos itens juntos"
-                  >
-                    <ShoppingCart className="w-4 h-4 text-amber-800 shrink-0" />
-                    <span>+ Adicionar ao Orçamento{selectedQuantity > 1 ? ` (${selectedQuantity})` : ''}</span>
-                  </button>
-
                   <a
                     href={`https://wa.me/5561983485671?text=${whatsappMessage}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={handleWhatsAppClick}
-                    className="btn-gold text-xs sm:text-sm py-3 px-6 shadow-md font-extrabold flex items-center gap-2 cursor-pointer"
+                    className="btn-gold text-xs sm:text-sm py-3 px-6 shadow-md font-black flex items-center gap-2 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    <MessageCircle className="w-4 h-4 fill-current" />
+                    <MessageCircle className="w-4 h-4 fill-current text-slate-950" />
                     <span>{selectedVariant ? `Cotar "${selectedVariant.name}" no WhatsApp` : 'Solicitar Orçamento no WhatsApp'}</span>
                   </a>
+
+                  <button
+                    type="button"
+                    onClick={handleAddToCart}
+                    className="py-3 px-5 rounded-xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs cursor-pointer"
+                    title="Adicionar este equipamento à sua lista de orçamento para cotar múltiplos itens juntos"
+                  >
+                    <ShoppingCart className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span>+ Adicionar ao Orçamento{selectedQuantity > 1 ? ` (${selectedQuantity})` : ''}</span>
+                  </button>
                 </>
               )}
 
@@ -2054,7 +2084,10 @@ export default function ProductDetailPage({
         onClose={() => setIsInstallmentModalOpen(false)}
         productName={selectedVariant ? `${product.name} (${selectedVariant.name})` : product.name}
         cashPrice={activePrice}
-        maxInstallments={12}
+        maxInstallments={manualInstallmentCount || 12}
+        canBuyOnline={canBuyOnline}
+        product={product}
+        selectedVariant={selectedVariant}
       />
 
       {/* BARRA FLUTUANTE DE CONVERSÃO MOBILE (Acima da BottomNavBar no celular) */}

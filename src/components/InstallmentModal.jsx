@@ -45,9 +45,12 @@ export default function InstallmentModal({
   maxInstallments = 12,
   items = [],
   currentUser = null,
-  onOrderCompleted
+  onOrderCompleted,
+  canBuyOnline = true,
+  product = null,
+  selectedVariant = null
 }) {
-  const [selectedTab, setSelectedTab] = useState('pix');
+  const [selectedTab, setSelectedTab] = useState('credit');
 
   // Lock background scroll when modal is open to eliminate background lag and prevent page scrolling
   useEffect(() => {
@@ -1391,7 +1394,7 @@ export default function InstallmentModal({
               </div>
 
               {/* CARD DETAILS FORM IF CREDIT CARD */}
-              {!isFreeOrder && selectedTab === 'credit' && (
+              {!isFreeOrder && selectedTab === 'credit' && canBuyOnline && (
                 <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 animate-in fade-in">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -1477,6 +1480,42 @@ export default function InstallmentModal({
                 </div>
               )}
 
+              {/* SIMULAÇÃO DE PARCELAMENTO EXCLUSIVA PARA COTAÇÃO (SEM CAMPOS DE CARTÃO) */}
+              {!isFreeOrder && selectedTab === 'credit' && !canBuyOnline && (
+                <div className="space-y-3 bg-amber-50/50 p-4 rounded-2xl border border-amber-200/80 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <CreditCard className="w-4 h-4 text-amber-600" />
+                      <span>Simulação de Parcelamento no Cartão</span>
+                    </h4>
+                    <span className="text-[10px] text-amber-800 font-bold bg-amber-100/90 px-2 py-0.5 rounded-full">
+                      Condição de Cotação
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                      Selecione a condição de parcelamento desejada:
+                    </label>
+                    <select
+                      value={card.installments}
+                      onChange={(e) => setCard({ ...card, installments: Number(e.target.value) })}
+                      className="form-input text-xs font-semibold bg-white border-amber-300"
+                    >
+                      {installments.map((inst) => (
+                        <option key={inst.installments} value={inst.installments}>
+                          {inst.installments}x de {inst.formattedMonthly} (Total: {inst.formattedTotal})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    *Esta simulação é demonstrativa. Ao solicitar a cotação, nossa equipe comercial confirmará a disponibilidade de faturamento e taxas vigentes para a sua região.
+                  </p>
+                </div>
+              )}
+
               {/* ERROR MESSAGE DISPLAY */}
               {errorMessage && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold flex items-center gap-2">
@@ -1487,7 +1526,31 @@ export default function InstallmentModal({
 
               {/* ACTION SUBMIT BUTTON */}
               <div className="pt-2 space-y-2">
-                {isFreeOrder ? (
+                {!canBuyOnline ? (
+                  /* BOTÃO DE SOLICITAR COTAÇÃO NO WHATSAPP PARA PRODUTOS SEM COMPRA DIRETA */
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prodName = productName || (activeItems.length > 0 ? activeItems[0].name : 'Equipamento');
+                      const selectedInst = selectedInstallmentData ? `${selectedInstallmentData.installments}x de ${selectedInstallmentData.formattedMonthly} (Total: ${selectedInstallmentData.formattedTotal})` : '';
+                      const methodLabel = selectedTab === 'credit' ? `Cartão de Crédito (${selectedInst})` : selectedTab === 'pix' ? `À vista no PIX (${gateways.pix.formattedCustomerAmount})` : selectedTab === 'debit' ? `Débito (${gateways.debit.formattedCustomerAmount})` : 'Boleto Bancário';
+                      
+                      let clientDetails = '';
+                      if (customer.name) clientDetails += `\nCliente: ${customer.name}`;
+                      if (customer.cpfCnpj) clientDetails += `\nDocumento: ${customer.cpfCnpj}`;
+                      if (customer.companyName) clientDetails += `\nEmpresa: ${customer.companyName}`;
+                      if (address.cep) clientDetails += `\nCEP para entrega: ${address.cep}${address.city ? ` (${address.city}/${address.state})` : ''}`;
+
+                      const msg = `Olá Athena Soluções Automotivas!\n\nGostaria de solicitar uma cotação para o equipamento:\n*${prodName}*\n\nSimulação de pagamento selecionada no site:\n- Condição: ${methodLabel}${clientDetails}\n\nPoderia me confirmar a disponibilidade e condições para fecharmos?`;
+                      
+                      window.open(`https://wa.me/5561983485671?text=${encodeURIComponent(msg)}`, '_blank');
+                    }}
+                    className="w-full btn-gold text-slate-950 font-black text-sm py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all border border-amber-400 hover:scale-[1.01] active:scale-[0.99]"
+                  >
+                    <MessageCircle className="w-5 h-5 text-slate-950 fill-current" />
+                    <span>Solicitar Cotação</span>
+                  </button>
+                ) : isFreeOrder ? (
                   <button
                     type="button"
                     disabled={isSubmitting}

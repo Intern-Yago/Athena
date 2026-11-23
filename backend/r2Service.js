@@ -11,7 +11,7 @@ const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-fd5d45a1dd144e14
 
 const isR2Configured = Boolean(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY);
 
-const ALLOWED_R2_FOLDERS = ['produtos', 'marcas', 'banners', 'documentos', 'catalogos', 'uploads', 'temp'];
+const ALLOWED_R2_FOLDERS = ['produtos', 'marcas', 'banners', 'blog', 'documentos', 'catalogos', 'uploads', 'temp', 'athena_produtos', 'athena_marcas', 'athena_variacoes'];
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 
 let r2Client = null;

@@ -174,6 +174,21 @@ export default function AdminPanel({
   const [isSelectingBannerMedia, setIsSelectingBannerMedia] = useState(null); // 'desktop' | 'mobile' | null
   const [isSelectingBrandMedia, setIsSelectingBrandMedia] = useState(false);
   const [pendingBlogMediaCallback, setPendingBlogMediaCallback] = useState(null);
+  const [adminBlogPosts, setAdminBlogPosts] = useState([]);
+
+  // Sincroniza artigos do Blog para registro de uso inteligente de imagens
+  useEffect(() => {
+    const token = currentUser?.token || localStorage.getItem('athena_token') || sessionStorage.getItem('athena_token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    fetch('/api/blog/admin/posts', { headers })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAdminBlogPosts(data);
+        }
+      })
+      .catch(() => {});
+  }, [currentUser]);
 
   // Promo Popup State (Modal Promocional da Loja)
   const [popupForm, setPopupForm] = useState(() => promoPopup || {
@@ -3126,6 +3141,7 @@ export default function AdminPanel({
       websiteUrl: brandObj.websiteUrl || '',
       isAuthorized: Boolean(brandObj.isAuthorized ?? brandObj.is_authorized),
       authorizationLabel: brandObj.authorizationLabel || brandObj.authorization_label || '',
+      showInstallmentOptions: brandObj.showInstallmentOptions !== undefined ? Boolean(brandObj.showInstallmentOptions) : (brandObj.show_installment_options !== undefined ? Boolean(brandObj.show_installment_options) : true),
       imageSourceMode: 'upload'
     });
     setIsBrandModalOpen(true);
@@ -3149,6 +3165,7 @@ export default function AdminPanel({
       websiteUrl: brandForm.websiteUrl.trim() || '',
       isAuthorized: isAuth,
       authorizationLabel: isAuth ? (brandForm.authorizationLabel.trim() || 'Distribuidor Autorizado') : null,
+      showInstallmentOptions: brandForm.showInstallmentOptions !== undefined ? Boolean(brandForm.showInstallmentOptions) : true,
       order: editingBrand ? editingBrand.order : brands.length + 1
     };
 
@@ -7703,6 +7720,79 @@ export default function AdminPanel({
                               </label>
                             </div>
                           )}
+
+                          {/* PARCELAMENTO MANUAL / TABELADO */}
+                          <div className="mt-3 p-3.5 bg-blue-50/80 border border-blue-200/90 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="space-y-0.5 min-w-0">
+                                <div className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                                  <CreditCard className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+                                  <span>Tabela Fixa de Parcelamento (Ex: EAATA / Fabricante)</span>
+                                </div>
+                                <p className="text-[11px] text-blue-700/80 leading-snug">
+                                  Ative para sobrepor o cálculo automático do gateway com um valor total tabelado fixo no cartão (ex: EAATA 90 ou 360).
+                                </p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                              <div>
+                                <label className="block text-[11px] font-bold text-blue-900 mb-1">
+                                  Total a Prazo em 12x (R$)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="Ex: 10450.00 ou 29250.00"
+                                  value={productForm.installmentTotalPrice ?? productForm.installment_total_price ?? ''}
+                                  onChange={(e) => setProductForm({ 
+                                    ...productForm, 
+                                    installmentTotalPrice: e.target.value ? parseFloat(e.target.value) : null,
+                                    installment_total_price: e.target.value ? parseFloat(e.target.value) : null
+                                  })}
+                                  className="w-full bg-white border border-blue-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:outline-blue-500 font-medium"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-blue-900 mb-1">
+                                  Qtd Máxima de Parcelas
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="12"
+                                  placeholder="12"
+                                  value={productForm.installmentCount ?? productForm.installment_count ?? 12}
+                                  onChange={(e) => setProductForm({ 
+                                    ...productForm, 
+                                    installmentCount: e.target.value ? parseInt(e.target.value) : 12,
+                                    installment_count: e.target.value ? parseInt(e.target.value) : 12
+                                  })}
+                                  className="w-full bg-white border border-blue-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:outline-blue-500 font-medium"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-blue-200/60">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={productForm.showInstallmentOptions !== undefined ? Boolean(productForm.showInstallmentOptions) : (productForm.show_installment_options !== undefined ? Boolean(productForm.show_installment_options) : true)}
+                                  onChange={(e) => setProductForm({
+                                    ...productForm,
+                                    showInstallmentOptions: e.target.checked,
+                                    show_installment_options: e.target.checked
+                                  })}
+                                  className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
+                                />
+                                <span className="text-xs font-bold text-slate-800">
+                                  Exibir botão "Opções de parcelamento e pagamento" na página deste produto
+                                </span>
+                              </label>
+                              <p className="text-[10px] text-slate-500 ml-6">
+                                Deixe desmarcado para ocultar o popup de parcelas neste equipamento (o texto resumido de 12x continua visível).
+                              </p>
+                            </div>
+                          </div>
                         </div>
 
                         {/* TOGGLEABLE GATEWAY SIMULATION PREVIEW */}
@@ -8660,6 +8750,23 @@ export default function AdminPanel({
                     />
                     <Globe className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={brandForm.showInstallmentOptions !== undefined ? Boolean(brandForm.showInstallmentOptions) : true}
+                      onChange={(e) => setBrandForm({ ...brandForm, showInstallmentOptions: e.target.checked })}
+                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="text-xs font-bold text-slate-800">
+                      Exibir botão "Opções de parcelamento e pagamento" nos produtos desta marca
+                    </span>
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Quando desmarcado (ex: EAATA), o link do popup de parcelamento fica oculto na página do produto, mantendo apenas a simulação de 12x visível.
+                  </p>
                 </div>
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
@@ -9694,8 +9801,9 @@ export default function AdminPanel({
           brands={brands}
           categories={categories}
           banners={banners}
+          blogPosts={adminBlogPosts}
           initialUsageFilter={
-            isSelectingPopupMedia ? 'banners' : (isSelectingBannerMedia ? 'banners' : isSelectingBrandMedia ? 'brands' : 'all')
+            pendingBlogMediaCallback ? 'blog' : (isSelectingPopupMedia ? 'banners' : (isSelectingBannerMedia ? 'banners' : isSelectingBrandMedia ? 'brands' : 'all'))
           }
           currentImages={
             isSelectingPopupMedia
