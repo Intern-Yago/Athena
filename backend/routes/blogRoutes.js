@@ -9,10 +9,36 @@
 
 const express = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
 const blogService = require('../services/blogService');
 const { requireStaff } = require('../utils/authMiddlewares');
+const { isAnalyticsIgnoredIp } = require('../utils/network');
 
 const router = express.Router();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'athena_jwt_fallback_secret_local';
+
+function safeVerifyStaffToken(authHeader) {
+  if (!authHeader || typeof authHeader !== 'string') return false;
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+  if (!token) return false;
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  const [encodedHeader, encodedPayload, signature] = parts;
+  const data = `${encodedHeader}.${encodedPayload}`;
+  try {
+    const expectedSig = crypto.createHmac('sha256', JWT_SECRET).update(data).digest('base64url');
+    const bSig = Buffer.from(signature);
+    const bExp = Buffer.from(expectedSig);
+    if (bSig.length !== bExp.length || !crypto.timingSafeEqual(bSig, bExp)) return false;
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) return false;
+    return ['admin', 'vendedor', 'editor', 'edicao'].includes(payload.role);
+  } catch {
+    return false;
+  }
+}
 
 // Helper para extração confiável de IP através de proxies (Cloudflare -> Render)
 function getClientIp(req) {
@@ -182,7 +208,19 @@ router.post('/posts/:id/comments', async (req, res) => {
 router.post('/posts/:id/view', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 1. Ignorar se for sessão autenticada de Staff/Equipe
+    const authHeader = req.headers['authorization'];
+    if (safeVerifyStaffToken(authHeader)) {
+      return res.json({ success: true, counted: false, reason: 'staff_session_ignored' });
+    }
+
+    // 2. Extrair IP e ignorar se pertencer aos IPs de staff/administração ou configurados para exclusão
     const clientIp = getClientIp(req);
+    if (isAnalyticsIgnoredIp(clientIp)) {
+      return res.json({ success: true, counted: false, reason: 'ip_ignored' });
+    }
+
     const incremented = await blogService.incrementPostView(id, clientIp);
     res.json({ success: true, counted: incremented });
   } catch (err) {

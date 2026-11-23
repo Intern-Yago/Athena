@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import BlogSidebar from '../components/BlogSidebar';
 import { setPageSeo } from '../utils/seoManager';
+import { isStaffAnalyticsBlocked } from '../utils/metaPixel';
 
 // Fallback detalhado para artigos técnicos caso a API esteja indisponível
 const FALLBACK_POST_DETAILS = {
@@ -408,9 +409,11 @@ export default function BlogPostPage({ slug, onNavigate }) {
               localStorage.setItem(`athena_blog_post_full_v3_${slug}`, JSON.stringify(articleData));
             } catch {}
 
-            // Incremento atômico de visualização silencioso
-            if (articleData?.id) {
-              fetch(`/api/blog/posts/${articleData.id}/view`, { method: 'POST' }).catch(() => {});
+            // Incremento atômico de visualização silencioso (bloqueado para staff / IP próprio)
+            if (articleData?.id && !isStaffAnalyticsBlocked()) {
+              const staffToken = localStorage.getItem('athena_staff_token') || sessionStorage.getItem('athena_staff_token');
+              const headers = staffToken ? { 'Authorization': `Bearer ${staffToken}` } : {};
+              fetch(`/api/blog/posts/${articleData.id}/view`, { method: 'POST', headers }).catch(() => {});
             }
             return;
           }
