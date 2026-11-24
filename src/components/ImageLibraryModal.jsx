@@ -22,7 +22,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  RefreshCw
+  RefreshCw,
+  Clock,
+  ArrowDownUp
 } from 'lucide-react';
 import { INITIAL_BRANDS } from '../data/initialData';
 
@@ -120,6 +122,7 @@ export default function ImageLibraryModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [usageFilter, setUsageFilter] = useState(initialUsageFilter || 'all'); // 'all' | 'in_use' | 'brands' | 'banners' | 'blog' | 'unused' | 'current_product'
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'name'
   const [expandedImage, setExpandedImage] = useState(null);
   const [deletingKey, setDeletingKey] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -762,22 +765,44 @@ export default function ImageLibraryModal({
     };
   }, [isOpen, items, itemsUsageMap]);
 
-  // Filter items according to usageFilter using the pre-computed map
+  // Filter and sort items according to usageFilter and sortBy using the pre-computed map
   const displayedItems = useMemo(() => {
     if (!isOpen) return [];
-    if (usageFilter === 'all') return items;
-    return items.filter(item => {
-      const usage = itemsUsageMap.get(item.key);
-      if (!usage) return true;
-      if (usageFilter === 'in_use') return usage.products.length > 0;
-      if (usageFilter === 'brands') return usage.brands.length > 0;
-      if (usageFilter === 'banners') return usage.banners.length > 0;
-      if (usageFilter === 'blog') return usage.blog && usage.blog.length > 0;
-      if (usageFilter === 'unused') return !usage.isUsed;
-      if (usageFilter === 'current_product') return usage.isCurrentProduct;
-      return true;
+    let list = items;
+    if (usageFilter !== 'all') {
+      list = items.filter(item => {
+        const usage = itemsUsageMap.get(item.key);
+        if (!usage) return true;
+        if (usageFilter === 'in_use') return usage.products.length > 0;
+        if (usageFilter === 'brands') return usage.brands.length > 0;
+        if (usageFilter === 'banners') return usage.banners.length > 0;
+        if (usageFilter === 'blog') return usage.blog && usage.blog.length > 0;
+        if (usageFilter === 'unused') return !usage.isUsed;
+        if (usageFilter === 'current_product') return usage.isCurrentProduct;
+        return true;
+      });
+    }
+
+    // Ordenação dinâmica: 'newest' (mais recente primeiro), 'oldest' ou 'name'
+    const sorted = [...list].sort((a, b) => {
+      if (sortBy === 'name') {
+        const nameA = (a.filename || a.key || '').toLowerCase();
+        const nameB = (b.filename || b.key || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
+      
+      const timeA = a.lastModified ? new Date(a.lastModified).getTime() : 0;
+      const timeB = b.lastModified ? new Date(b.lastModified).getTime() : 0;
+      
+      if (sortBy === 'oldest') {
+        return timeA - timeB;
+      }
+      // 'newest' (padrão absoluto)
+      return timeB - timeA;
     });
-  }, [isOpen, items, usageFilter, itemsUsageMap]);
+
+    return sorted;
+  }, [isOpen, items, usageFilter, sortBy, itemsUsageMap]);
 
   const handleSelectAllUnused = () => {
     const unusedItems = items.filter(i => !(itemsUsageMap.get(i.key)?.isUsed));
@@ -1056,6 +1081,21 @@ export default function ImageLibraryModal({
                   </span>
                 </button>
               )}
+
+              {/* Seletor de Ordenação (Mais recentes por padrão) */}
+              <div className="ml-auto pl-2 shrink-0 flex items-center gap-1.5 border-l border-slate-700/60">
+                <Clock className="w-3 h-3 text-amber-400 shrink-0" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="bg-slate-900 text-slate-200 text-[11px] font-bold py-1 px-2 rounded-lg border border-slate-700 focus:outline-none focus:border-amber-500 cursor-pointer"
+                  title="Ordenar imagens da biblioteca"
+                >
+                  <option value="newest">Mais recentes primeiro</option>
+                  <option value="oldest">Mais antigas primeiro</option>
+                  <option value="name">Ordem alfabética (A-Z)</option>
+                </select>
+              </div>
             </div>
           </div>
 
