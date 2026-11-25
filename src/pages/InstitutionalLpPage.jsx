@@ -14,12 +14,13 @@ import {
   Sparkles,
   ArrowRight,
   Star,
-  Quote,
+  Building,
   GraduationCap
 } from 'lucide-react';
 import { setPageSeo } from '../utils/seoManager';
 import { trackMetaEvent, trackMetaCustom } from '../utils/metaPixel';
 
+// Ícone Oficial Vetorial do WhatsApp
 function WhatsAppIcon({ className = "w-5 h-5" }) {
   return (
     <svg 
@@ -40,32 +41,28 @@ const googleReviews = [
     role: "Proprietário de Oficina no DF",
     badge: "Local Guide • 177 avaliações",
     rating: 5,
-    text: "A Athena veio para trazer soluções, se o problema é treinamento técnico ela traz, se o problema é manutenção de equipamentos ela resolve. Sou cliente, sou fã e indico a todos!",
-    reply: "Que satisfação receber um depoimento como esse! Muito obrigado pela confiança em nossa equipe."
+    text: "A Athena veio para trazer soluções, se o problema é treinamento técnico ela traz, se o problema é manutenção de equipamentos ela resolve. Sou cliente, sou fã e indico a todos!"
   },
   {
     name: "Wellington Gonçalves de Oliveira",
     role: "Centro de Diagnóstico Automotivo",
     badge: "Cliente Verificado",
     rating: 5,
-    text: "Alta tecnologia dos equipamentos, qualidade das ferramentas e expertise fora da média nos cursos ofertados. Tudo aliado a um atendimento comercial de excelência no DF.",
-    reply: "Nossa prioridade é garantir suporte técnico e produtos com garantia real para você faturar mais."
+    text: "Alta tecnologia dos equipamentos, qualidade das ferramentas e expertise fora da média nos cursos ofertados. Tudo aliado a um atendimento comercial de excelência no DF."
   },
   {
     name: "Jeferson Muniz",
     role: "Auto Center Especializado",
     badge: "Local Guide • 6 avaliações",
     rating: 5,
-    text: "Excelente atendimento, resolveu todas as minhas demandas! Pronta-entrega de equipamentos e agilidade que faz toda a diferença.",
-    reply: "Agradecemos muito pela sua avaliação e por escolher a Athena Consultoria no DF!"
+    text: "Excelente atendimento, resolveu todas as minhas demandas! Pronta-entrega de equipamentos e agilidade que faz toda a diferença."
   },
   {
     name: "Eldinei",
     role: "Oficina Mecânica",
     badge: "Local Guide • 26 avaliações",
     rating: 5,
-    text: "Empresa parceira para toda hora. Atendimento rápido, peças de procedência e suporte técnico nota 10. Recomendo de olhos fechados!",
-    reply: "Muito obrigado pelo carinho e pela parceria constante com a Athena!"
+    text: "Empresa parceira para toda hora. Atendimento rápido, peças de procedência e suporte técnico nota 10. Recomendo de olhos fechados!"
   }
 ];
 
@@ -88,7 +85,7 @@ export default function InstitutionalLpPage({ onNavigate }) {
         "@context": "https://schema.org",
         "@type": "LocalBusiness",
         "name": "Athena Soluções Automotivas",
-        "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/gemini-generated-image-v4xrowv4xrowv4xr-a9d07fc0c935.webp",
+        "image": "https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/athena-04-ffdac6cbd374.webp",
         "telephone": "+55-61-98348-5671",
         "address": {
           "@type": "PostalAddress",
@@ -115,7 +112,7 @@ export default function InstitutionalLpPage({ onNavigate }) {
       descricao: `Iniciou conversa via WhatsApp (${origem})`
     });
 
-    const msg = encodeURIComponent(`Olá! Estou na página da Athena Distribuidora no DF e gostaria de atendimento sobre equipamentos para oficina.`);
+    const msg = encodeURIComponent(`Olá! Vim pela página da Athena Distribuidora no DF e gostaria de atendimento sobre equipamentos para oficina.`);
     window.open(`https://wa.me/5561983485671?text=${msg}`, '_blank');
   };
 
@@ -156,30 +153,29 @@ export default function InstitutionalLpPage({ onNavigate }) {
   ];
 
   const marqueeList = [...marqueeBrands, ...marqueeBrands];
-  // Duplicamos a lista de reviews para scroll infinito contínuo e sem cortes
   const marqueeReviews = [...googleReviews, ...googleReviews];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-amber-100 selection:text-amber-900">
+    <div className="min-h-screen bg-white text-slate-900 font-sans antialiased selection:bg-amber-100 selection:text-amber-900">
       
-      {/* 1. TOP NOTICE BAR COM DESIGN LIMPO */}
+      {/* 1. TOP ANNOUNCEMENT BAR */}
       <div className="bg-slate-900 text-slate-200 text-xs py-2 px-4 border-b border-slate-800">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-1 text-center sm:text-left">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
             <span className="font-medium text-slate-300">
-              Distribuidora Oficial no DF: Pronta-entrega em Brasília, assistência técnica e faturamento PJ
+              Distribuidora Oficial no DF: Pronta-entrega em Brasília, visita presencial e faturamento PJ
             </span>
           </div>
           <div className="hidden md:flex items-center gap-3 text-slate-400">
-            <span>Showroom: Arniqueira - DF</span>
+            <span>Showroom Físico: Arniqueira - DF</span>
             <span>•</span>
             <span className="text-amber-400 font-bold">(61) 98348-5671</span>
           </div>
         </div>
       </div>
 
-      {/* 2. HEADER DA LP (LAYOUT NONE ISOLADO) */}
+      {/* 2. HEADER DA LP (LAYOUT TOTALMENTE INDEPENDENTE) */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
         <div className="max-w-6xl mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
           
@@ -210,172 +206,134 @@ export default function InstitutionalLpPage({ onNavigate }) {
         </div>
       </header>
 
-      {/* 3. HERO SECTION COM A FOTO REAL DO SHOWROOM ATHENA NO FUNDO */}
-      <section className="relative bg-white border-b border-slate-200 overflow-hidden">
-        
-        {/* Foto Oficial do Showroom Athena no Fundo do Header com Gradiente de Legibilidade */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <img 
-            src="https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/athena-04-ffdac6cbd374.webp" 
-            alt="Showroom Athena Distribuidora DF" 
-            className="w-full h-full object-cover object-right md:object-center opacity-30 md:opacity-45"
-            onError={(e) => {
-              e.currentTarget.src = "/athena-showroom-distribuidora-df.jpg";
-            }}
-          />
-          {/* Gradiente suave da esquerda para direita para garantir leitura perfeita da copy */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 md:via-white/85 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
-        </div>
-
-        <div className="max-w-6xl mx-auto px-4 py-12 sm:py-20 relative z-10">
+      {/* 3. HERO SECTION - 100% LIMPO COM FOTO REAL DO SHOWROOM NÍTIDA LADO A LADO */}
+      <section className="bg-slate-50 border-b border-slate-200 py-10 sm:py-16">
+        <div className="max-w-6xl mx-auto px-4">
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
             
-            {/* Coluna de Texto e Proposta de Valor */}
-            <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+            {/* Coluna da Esquerda: Copy Direta + Selos Locais */}
+            <div className="lg:col-span-7 space-y-5 text-center lg:text-left">
               
               <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200/90 py-1.5 px-3.5 rounded-full text-xs font-semibold text-amber-900">
                 <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-                <span>Distribuidora Direta de Equipamentos para Oficinas no DF</span>
+                <span>Distribuidora Autorizada no Distrito Federal & Entorno</span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-950 tracking-tight leading-[1.15]">
-                Equipamentos de alta performance para sua oficina, com estoque e suporte em Brasília.
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-950 tracking-tight leading-[1.15]">
+                Equipamentos de oficina direto da fábrica, com estoque e assistência técnica em Brasília.
               </h1>
 
               <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                Elimine o frete interestadual e a espera de semanas. Fornecemos elevadores hidráulicos de 4 toneladas, alinhadores 3D, scanners multimarcas com IA e químicos da Sigma Tools com entrega rápida e visita técnica na sua oficina.
+                Sem esperar semanas por transportadora interestadual. Atendemos mecânicas, auto centers e centros de estética em todo o DF com entrega imediata, faturamento para CNPJ e visita presencial na sua oficina.
               </p>
 
-              {/* Pilares rápidos em destaque */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs sm:text-sm text-slate-700 text-left">
-                <div className="flex items-center gap-2.5 bg-white/90 backdrop-blur-xs p-3 rounded-xl border border-slate-200/80 shadow-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span className="font-medium">Pronta-entrega e estoque físico no DF</span>
-                </div>
-                <div className="flex items-center gap-2.5 bg-white/90 backdrop-blur-xs p-3 rounded-xl border border-slate-200/80 shadow-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span className="font-medium">Assistência técnica presencial</span>
-                </div>
-                <div className="flex items-center gap-2.5 bg-white/90 backdrop-blur-xs p-3 rounded-xl border border-slate-200/80 shadow-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span className="font-medium">Faturamento direto no boleto para CNPJ</span>
-                </div>
-                <div className="flex items-center gap-2.5 bg-white/90 backdrop-blur-xs p-3 rounded-xl border border-slate-200/80 shadow-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span className="font-medium">Garantia oficial e cursos M3</span>
-                </div>
-              </div>
-
-              {/* CTAs */}
+              {/* Botão de WhatsApp Principal (Mobile & Desktop) */}
               <div className="pt-2 flex flex-col sm:flex-row items-center gap-3 justify-center lg:justify-start">
                 <button 
-                  onClick={() => handleWhatsappClick('Hero CTA Principal')}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white text-base font-bold py-3.5 px-8 rounded-xl shadow-md transition-all cursor-pointer"
+                  onClick={() => handleWhatsappClick('Hero CTA WhatsApp')}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white text-base font-extrabold py-4 px-8 rounded-xl shadow-md transition-all cursor-pointer"
                 >
                   <WhatsAppIcon className="w-5 h-5 fill-white shrink-0" />
-                  <span>Solicitar Cotação no WhatsApp</span>
+                  <span>Falar com Consultor Técnico no DF</span>
                 </button>
                 <button 
                   onClick={() => onNavigate('catalog')}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-950 text-sm font-semibold py-3.5 px-6 rounded-xl border border-slate-300 transition-all cursor-pointer shadow-xs"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-950 text-sm font-semibold py-4 px-6 rounded-xl border border-slate-300 transition-all cursor-pointer shadow-xs"
                 >
-                  <span>Ver Catálogo Completo</span>
+                  <span>Ver Catálogo Online</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
 
+              {/* 4 Pilares Rápidos */}
+              <div className="grid grid-cols-2 gap-3 pt-3 text-xs text-slate-700 text-left">
+                <div className="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-medium">Estoque pronta-entrega no DF</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-medium">Técnico na sua oficina</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-medium">Faturamento no boleto PJ</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-medium">Treinamento oficial M3</span>
+                </div>
+              </div>
+
             </div>
 
-            {/* Formulário de Captura Clean */}
-            <div className="lg:col-span-5">
-              <div className="bg-white border border-slate-200/90 p-6 sm:p-8 rounded-2xl shadow-xl relative">
-                <div className="mb-5">
-                  <span className="inline-block bg-emerald-50 text-emerald-700 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-2 border border-emerald-200/60">
-                    Atendimento de Segunda a Sexta
-                  </span>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                    Receba uma Proposta Comercial
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Preencha para receber valores, condições de faturamento e catálogo técnico em minutos.
-                  </p>
+            {/* Coluna da Direita: Quadro Nítido do Showroom Real da Athena no DF */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xl">
+                
+                {/* Foto Real 100% Nítida (Cores Originais, Sem Filtro Escuro) */}
+                <div className="relative">
+                  <img 
+                    src="https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/athena-04-ffdac6cbd374.webp"
+                    alt="Centro Técnico e Showroom Athena Soluções Automotivas em Arniqueira DF" 
+                    className="w-full h-64 sm:h-72 object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "/athena-showroom-distribuidora-df.jpg";
+                    }}
+                  />
+                  <div className="absolute top-3 left-3 bg-slate-900/90 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>Showroom Real • Arniqueira / DF</span>
+                  </div>
                 </div>
 
+                <div className="p-5 bg-white space-y-3">
+                  <h3 className="text-base font-bold text-slate-900">
+                    Venha testar nossos elevadores e ferramentas
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Localizado em Arniqueira, nosso espaço técnico conta com elevadores hidráulicos 4T montados, alinhadores e scanners para demonstração prática.
+                  </p>
+                  <div className="pt-1 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100">
+                    <span className="flex items-center gap-1 text-slate-700 font-semibold">
+                      <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                      Arniqueira, Brasília - DF
+                    </span>
+                    <button 
+                      onClick={() => handleWhatsappClick('Card Showroom Hero')}
+                      className="text-amber-800 font-bold hover:underline"
+                    >
+                      Agendar Visita &rarr;
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Box de Cotação Rápida */}
+              <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
                 {formSent ? (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center space-y-3">
-                    <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                    <h4 className="text-base font-bold text-slate-900">Solicitação Enviada!</h4>
-                    <p className="text-xs text-slate-600">
-                      Abrindo seu atendimento no WhatsApp agora mesmo para te enviar as melhores condições...
-                    </p>
+                  <div className="text-center py-2 space-y-1">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto" />
+                    <p className="text-xs font-bold text-slate-900">Abrindo seu WhatsApp...</p>
                   </div>
                 ) : (
-                  <form onSubmit={handleFormSubmit} className="space-y-3.5 text-left">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Seu Nome *</label>
-                      <input 
-                        type="text" 
-                        required
-                        placeholder="Ex: Carlos Silva"
-                        value={leadForm.name}
-                        onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white rounded-lg px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">WhatsApp com DDD *</label>
-                      <input 
-                        type="tel" 
-                        required
-                        placeholder="(61) 98765-4321"
-                        value={leadForm.phone}
-                        onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white rounded-lg px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Nome da Oficina / Auto Center (Opcional)</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: Mecânica Silva Centro Automotivo"
-                        value={leadForm.workshop}
-                        onChange={(e) => setLeadForm({ ...leadForm, workshop: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white rounded-lg px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Linha de Interesse</label>
-                      <select 
-                        value={leadForm.interest}
-                        onChange={(e) => setLeadForm({ ...leadForm, interest: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 focus:border-amber-500 focus:bg-white rounded-lg px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-colors"
-                      >
-                        <option value="Elevadores Automotivos">Elevadores Hidráulicos 4T / Tesoura Mahovi</option>
-                        <option value="Scanners EAATA e Thinkcar">Scanners de Diagnóstico Avançado (EAATA / Thinkcar)</option>
-                        <option value="Alinhadores 3D e Balanceadoras">Alinhamento 3D, Desmontadoras & Balanceadoras</option>
-                        <option value="Produtos Químicos Sigma Tools">Linha Química Sigma Tools & Veneto (Atacado)</option>
-                        <option value="Ferramentas Manuais Delta">Ferramentas Delta / Stärkx / Carrinhos Wolfcar</option>
-                        <option value="Montagem Completa de Oficina">Montagem / Expansão Completa de Oficina</option>
-                      </select>
-                    </div>
-
+                  <form onSubmit={handleFormSubmit} className="flex flex-col sm:flex-row gap-2">
+                    <input 
+                      type="tel"
+                      required
+                      placeholder="Seu WhatsApp com DDD"
+                      value={leadForm.phone}
+                      onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
+                      className="flex-1 bg-slate-50 border border-slate-300 focus:border-amber-500 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none"
+                    />
                     <button 
                       type="submit"
-                      className="w-full mt-2 inline-flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white font-bold py-3.5 px-5 rounded-lg shadow-sm transition-all cursor-pointer text-sm"
+                      className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2 px-4 rounded-lg whitespace-nowrap cursor-pointer transition-colors"
                     >
-                      <WhatsAppIcon className="w-4 h-4" />
-                      <span>Receber Cotação no WhatsApp</span>
+                      Receber Cotação
                     </button>
-
-                    <p className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1 pt-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      Atendimento direto e sem compromisso no DF.
-                    </p>
                   </form>
                 )}
               </div>
@@ -386,21 +344,21 @@ export default function InstitutionalLpPage({ onNavigate }) {
       </section>
 
       {/* 4. CARROSSEL SUAVE DE MARCAS HOMOLOGADAS */}
-      <section className="py-8 bg-slate-50 border-b border-slate-200 overflow-hidden relative">
+      <section className="py-8 bg-white border-b border-slate-200 overflow-hidden relative">
         <div className="max-w-6xl mx-auto px-4 text-center mb-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
             Marcas parceiras homologadas & treinamentos oficiais
           </p>
         </div>
 
-        <div className="absolute left-0 top-0 bottom-0 w-16 sm:w-28 bg-gradient-to-r from-slate-50 to-transparent z-10 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-28 bg-gradient-to-l from-slate-50 to-transparent z-10 pointer-events-none" />
+        <div className="absolute left-0 top-0 bottom-0 w-16 sm:w-28 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-16 sm:w-28 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
 
         <div className="animate-infinite-marquee flex items-center gap-12 sm:gap-16 py-1">
           {marqueeList.map((item, idx) => (
             <div 
               key={`${item.name}-${idx}`}
-              className="flex items-center justify-center h-12 sm:h-14 px-4 shrink-0 opacity-80 hover:opacity-100 transition-opacity bg-white rounded-lg border border-slate-200 shadow-xs"
+              className="flex items-center justify-center h-12 sm:h-14 px-4 shrink-0 opacity-80 hover:opacity-100 transition-opacity bg-slate-50 rounded-lg border border-slate-200/80"
               title={item.name}
             >
               <img 
@@ -416,8 +374,8 @@ export default function InstitutionalLpPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 5. AVALIAÇÕES REAIS DO GOOGLE MEU NEGÓCIO EM CARROSSEL INFINITO COM PAUSA NO HOVER */}
-      <section className="py-16 sm:py-20 bg-white border-b border-slate-200 overflow-hidden relative">
+      {/* 5. AVALIAÇÕES REAIS DO GOOGLE MEU NEGÓCIO (CARROSSEL COM HOVER PAUSE) */}
+      <section className="py-14 sm:py-18 bg-slate-50 border-b border-slate-200 overflow-hidden relative">
         <div className="max-w-6xl mx-auto px-4">
           
           <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
@@ -425,32 +383,32 @@ export default function InstitutionalLpPage({ onNavigate }) {
               <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
               <span>Avaliações Verificadas no Google (Nota 5.0)</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
               O que dizem os clientes e parceiros da Athena no DF
             </h2>
             <p className="text-sm text-slate-600">
-              Depoimentos reais de donos de oficina postados diretamente no Google Meu Negócio. Passe o mouse para pausar a leitura.
+              Depoimentos reais postados publicamente no Google Meu Negócio por donos de oficinas.
             </p>
           </div>
 
         </div>
 
         {/* Gradientes laterais suaves para fade */}
-        <div className="absolute left-0 top-36 bottom-0 w-16 sm:w-28 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
-        <div className="absolute right-0 top-36 bottom-0 w-16 sm:w-28 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
+        <div className="absolute left-0 top-32 bottom-0 w-16 sm:w-28 bg-gradient-to-r from-slate-50 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-32 bottom-0 w-16 sm:w-28 bg-gradient-to-l from-slate-50 to-transparent z-10 pointer-events-none" />
 
         {/* Marquee de Cards de Depoimento */}
         <div className="animate-reviews-marquee flex items-stretch gap-6 py-4 px-4 cursor-grab">
           {marqueeReviews.map((rev, idx) => (
             <div 
               key={`${rev.name}-${idx}`}
-              className="w-[320px] sm:w-[380px] shrink-0 bg-slate-50 border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-amber-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4 select-none"
+              className="w-[300px] sm:w-[360px] shrink-0 bg-white border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-amber-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4 select-none"
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-base font-bold text-slate-900">{rev.name}</h4>
-                    <p className="text-xs text-amber-800 font-medium">{rev.role} • <span className="text-slate-500 font-normal">{rev.badge}</span></p>
+                    <p className="text-xs text-amber-800 font-medium">{rev.role} • <span className="text-slate-400 font-normal">{rev.badge}</span></p>
                   </div>
                   <div className="flex text-amber-400">
                     {[...Array(rev.rating)].map((_, i) => (
@@ -479,7 +437,7 @@ export default function InstitutionalLpPage({ onNavigate }) {
       </section>
 
       {/* 6. SETORES PRINCIPAIS DE EQUIPAMENTOS */}
-      <section className="py-16 sm:py-20 bg-slate-100/60 border-b border-slate-200">
+      <section className="py-16 sm:py-20 bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4">
           
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-12">
@@ -487,7 +445,7 @@ export default function InstitutionalLpPage({ onNavigate }) {
               <span className="text-xs font-bold text-amber-700 uppercase tracking-wider block">
                 Soluções para sua Oficina
               </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight mt-1">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight mt-1">
                 Equipamentos em Estoque no DF
               </h2>
             </div>
@@ -503,14 +461,14 @@ export default function InstitutionalLpPage({ onNavigate }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Card 1: Elevadores */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between hover:shadow-md transition-all group">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between hover:shadow-md transition-all group">
               <div className="space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
                   <Layers className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">Elevadores Automotivos</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Elevadores hidráulicos 4T Mahovi de 2 colunas, modelos pantográficos tesoura de embutir e sobrepor, e mesas para baterias de veículos híbridos e elétricos (EV).
+                  Elevadores hidráulicos 4T Mahovi de 2 colunas, pantográficos tesoura de embutir e sobrepor, e mesas para baterias de veículos híbridos e elétricos (EV).
                 </p>
               </div>
               <button 
@@ -523,14 +481,14 @@ export default function InstitutionalLpPage({ onNavigate }) {
             </div>
 
             {/* Card 2: Scanners */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between hover:shadow-md transition-all group">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between hover:shadow-md transition-all group">
               <div className="space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
                   <Cpu className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">Scanners & Diagnóstico IA</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Scanners multimarcas EAATA 90 e 360Pro com topologia de rede CAN, Thinkcar Thinktool Lite (Stärkx), programadoras de chave e osciloscópios com demonstração presencial.
+                  Scanners multimarcas EAATA 90 e 360Pro com topologia de rede CAN, Thinkcar Thinktool Lite (Stärkx), programadoras de chave e osciloscópios com teste presencial.
                 </p>
               </div>
               <button 
@@ -543,9 +501,9 @@ export default function InstitutionalLpPage({ onNavigate }) {
             </div>
 
             {/* Card 3: Estética e Sigma Tools */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between hover:shadow-md transition-all group">
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col justify-between hover:shadow-md transition-all group">
               <div className="space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">Químicos & Sigma Tools</h3>
@@ -566,123 +524,62 @@ export default function InstitutionalLpPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 7. SEÇÃO DEDICADA COM A IMAGEM ILUSTRATIVA DA OFICINA MODERNA NO FUNDO */}
-      <section className="relative py-20 sm:py-28 overflow-hidden text-white border-b border-slate-800">
-        
-        {/* Imagem Oficina Moderna no Fundo com Overlay Cinematográfico */}
-        <div className="absolute inset-0 z-0">
-          <img 
-            src="https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/gemini-generated-image-v4xrowv4xrowv4xr-a9d07fc0c935.webp" 
-            alt="Centro Técnico e Oficina Moderna Athena DF" 
-            className="w-full h-full object-cover object-center"
-            onError={(e) => {
-              e.currentTarget.src = "/hero-banner-oficina-df.webp";
-            }}
-          />
-          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-[1px]" />
-        </div>
-
-        <div className="max-w-6xl mx-auto px-4 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      {/* 7. BLOCO INSTITUCIONAL: ESPAÇO FÍSICO E ATENDIMENTO NO DF */}
+      <section className="py-14 sm:py-20 bg-slate-50 border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-4">
+          
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 sm:p-12 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             
-            <div className="lg:col-span-8 space-y-4 text-center lg:text-left">
-              <span className="inline-block bg-amber-500 text-slate-950 text-xs font-black uppercase px-3 py-1 rounded-md">
-                Espaço Físico & Centro Técnico no DF
+            <div className="space-y-4">
+              <span className="text-xs font-bold text-amber-700 uppercase tracking-wider block">
+                Atendimento Presencial
               </span>
-              <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-                Venha conhecer o Showroom da Athena em Arniqueira
-              </h2>
-              <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-                Teste elevadores, scanners e ferramentas especiais em operação real antes de tomar sua decisão. Nosso centro técnico está à sua disposição de segunda a sexta.
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
+                Receba nosso consultor na sua oficina ou visite nosso showroom
+              </h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Atendemos todo o Distrito Federal e cidades do entorno com visita técnica direta, suporte pós-venda e garantia homologada.
               </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 text-xs text-slate-200">
-                <div className="flex items-start gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-700">
-                  <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <span>ST SHA Conjunto 6 Chácara 517, Loja 05 — Arniqueira, Brasília – DF</span>
+              
+              <div className="space-y-3 pt-2 text-xs sm:text-sm text-slate-700">
+                <div className="flex items-start gap-3">
+                  <MapPin className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>ST SHA Conjunto 6 Chácara 517, Loja 05 — Arniqueira, Brasília – DF (CEP 71996-413)</span>
                 </div>
-                <div className="flex items-center gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-700">
-                  <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>(61) 98348-5671 • Consultoria Direta</span>
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>(61) 98348-5671 • Consultoria Técnica Direta</span>
                 </div>
-                <div className="flex items-center gap-2.5 bg-slate-900/80 p-3 rounded-xl border border-slate-700">
-                  <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Segunda a Sexta, das 8h às 18h</span>
+                <div className="flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Segunda a Sexta-feira, das 8h às 18h</span>
                 </div>
               </div>
             </div>
 
-            <div className="lg:col-span-4 text-center lg:text-right">
+            <div className="bg-slate-50 border border-slate-200/80 p-8 rounded-2xl text-center space-y-4">
+              <div className="w-14 h-14 rounded-full bg-[#25D366]/15 flex items-center justify-center text-[#25D366] mx-auto">
+                <WhatsAppIcon className="w-7 h-7" />
+              </div>
+              <h4 className="text-lg font-bold text-slate-900">Atendimento Imediato no WhatsApp</h4>
+              <p className="text-xs text-slate-600">
+                Fale agora com o consultor responsável pelo atendimento a oficinas mecânicas no DF.
+              </p>
               <button 
-                onClick={() => handleWhatsappClick('CTA Showroom Fundo')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white font-bold py-4 px-8 rounded-xl shadow-xl transition-all cursor-pointer text-sm"
+                onClick={() => handleWhatsappClick('Card Localizacao Final')}
+                className="w-full inline-flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all cursor-pointer text-sm"
               >
-                <WhatsAppIcon className="w-5 h-5 fill-white" />
-                <span>Agendar Visita no Showroom</span>
+                <WhatsAppIcon className="w-5 h-5" />
+                <span>Conversar no WhatsApp</span>
               </button>
             </div>
 
           </div>
-        </div>
-      </section>
-
-      {/* 8. OS 4 PILARES DA DISTRIBUIDORA LOCAL */}
-      <section className="py-16 sm:py-20 max-w-6xl mx-auto px-4">
-        <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
-          <span className="text-xs font-bold text-amber-700 uppercase tracking-wider block">
-            Por que comprar localmente
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight">
-            Vantagens diretas para sua oficina em Brasília e Entorno
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs space-y-3 hover:border-amber-400 transition-all">
-            <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
-              <Truck className="w-5 h-5" />
-            </div>
-            <h4 className="text-base font-bold text-slate-900">Pronta-Entrega no DF</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Estoque físico para envio rápido no SIA, Taguatinga, Ceilândia, Plano Piloto, Gama e cidades vizinhas.
-            </p>
-          </div>
-
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs space-y-3 hover:border-emerald-400 transition-all">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-              <Wrench className="w-5 h-5" />
-            </div>
-            <h4 className="text-base font-bold text-slate-900">Visita na sua Oficina</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Equipe técnica presencial para demonstração de scanners, instalação de elevadores e aferição de alinhadores.
-            </p>
-          </div>
-
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs space-y-3 hover:border-sky-400 transition-all">
-            <div className="w-11 h-11 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <h4 className="text-base font-bold text-slate-900">Faturamento Direto PJ</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Condições no boleto para CNPJ, opções de parcelamento facilitado e desconto especial para compra à vista.
-            </p>
-          </div>
-
-          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-xs space-y-3 hover:border-purple-400 transition-all">
-            <div className="w-11 h-11 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600">
-              <GraduationCap className="w-5 h-5" />
-            </div>
-            <h4 className="text-base font-bold text-slate-900">Cursos e Capacitação M3</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Acesso aos treinamentos presenciais da M3 para sua equipe extrair o máximo potencial dos equipamentos adquiridos.
-            </p>
-          </div>
 
         </div>
       </section>
 
-      {/* 9. FOOTER EXCLUSIVO DA LP */}
+      {/* 8. FOOTER EXCLUSIVO DA LP */}
       <footer className="border-t border-slate-200 bg-white py-8 px-4 text-center text-xs text-slate-500">
         <p className="font-semibold text-slate-700">
           © 2026 Athena Soluções Automotivas. Todos os direitos reservados. CNPJ homologado • Brasília - DF.
