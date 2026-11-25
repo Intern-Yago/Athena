@@ -47,6 +47,19 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'data', 'athena-db.json');
 
+// Funções utilitárias de parse seguro para rotas de produto (POST e PUT)
+const parseSafeNumeric = (val) => {
+  if (val === null || val === undefined || val === '') return null;
+  const num = parseFloat(val);
+  return !isNaN(num) && isFinite(num) && num >= 0 ? num : null;
+};
+
+const parseSafeInt = (val) => {
+  if (val === null || val === undefined || val === '') return null;
+  const num = parseInt(val, 10);
+  return !isNaN(num) && isFinite(num) && num >= 0 ? num : null;
+};
+
 // -------------------------------------------------------------
 // GOOGLE SMTP & NODEMAILER CONFIGURATION (GMAIL EMAIL SERVICE)
 // -------------------------------------------------------------
@@ -556,6 +569,7 @@ if (ATHENA_ORIGIN_SECRET) {
       req.path === '/health' || 
       req.path.startsWith('/api/share/') ||
       req.path.startsWith('/api/payments/webhook') ||
+      req.path.startsWith('/api/webhooks/omie') ||
       req.path.startsWith('/api/telegram') ||
       req.path.startsWith('/api/feeds/') ||
       req.headers['user-agent']?.includes('Render/') ||

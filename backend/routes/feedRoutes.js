@@ -15,6 +15,8 @@ const WHATSAPP_PHONE = '5561983485671';
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { r2Client, R2_BUCKET_NAME, isR2Configured } = require('../r2Service');
 
+let lastR2SyncTime = 0;
+
 async function generateAndSyncCatalogToR2(force = false) {
   if (!isR2Configured || !r2Client) return;
   const now = Date.now();
