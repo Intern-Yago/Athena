@@ -582,3 +582,24 @@ h1, h2, h3, h4, h5, h6 {
   background-color: #ecfdf5;
   color: #064e3b;
 }
+
+/* Infinite Marquee Animation for Brands */
+@keyframes infiniteMarquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-infinite-marquee {
+  display: flex;
+  width: max-content;
+  animation: infiniteMarquee 26s linear infinite;
+  will-change: transform;
+}
+
+.animate-infinite-marquee:hover {
+  animation-play-state: paused;
+}

@@ -20,6 +20,7 @@ const ThankYouPage = lazyWithRetry(() => import('./pages/ThankYouPage'));
 const BlogListingPage = lazyWithRetry(() => import('./pages/BlogListingPage'));
 const BlogPostPage = lazyWithRetry(() => import('./pages/BlogPostPage'));
 const FaqPage = lazyWithRetry(() => import('./pages/FaqPage'));
+const InstitutionalLpPage = lazyWithRetry(() => import('./pages/InstitutionalLpPage'));
 
 import Footer from './components/Footer';
 import Toast from './components/Toast';
@@ -1793,6 +1794,15 @@ export default function App() {
       currentRoute === 'thank-you'
     ) {
       return <ThankYouPage onNavigate={navigateTo} />;
+    }
+
+    if (
+      currentRoute === 'distribuidora-equipamentos-automotivos-brasilia-df' ||
+      currentRoute === 'distribuidora-df' ||
+      currentRoute === 'distribuidora' ||
+      currentRoute === 'lp'
+    ) {
+      return <InstitutionalLpPage onNavigate={navigateTo} brands={brands} />;
     }
 
     if (currentRoute === 'admin') {
