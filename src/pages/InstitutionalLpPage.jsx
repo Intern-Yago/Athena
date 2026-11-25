@@ -208,21 +208,21 @@ export default function InstitutionalLpPage({ onNavigate }) {
         </div>
       </header>
 
-      {/* 3. HERO SECTION COM A IMAGEM ILUSTRATIVA HERO-BANNER (GEMINI) */}
+      {/* 3. HERO SECTION COM A FOTO REAL DO SHOWROOM ATHENA NO FUNDO */}
       <section className="relative bg-white border-b border-slate-200 overflow-hidden">
         
-        {/* Banner Ilustrativo Dedicado no Fundo com Gradiente de Contraste Lateral */}
+        {/* Foto Oficial do Showroom Athena no Fundo do Header com Gradiente de Legibilidade */}
         <div className="absolute inset-0 z-0 pointer-events-none">
           <img 
-            src="https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/gemini-generated-image-v4xrowv4xrowv4xr-a9d07fc0c935.webp" 
-            alt="Oficina Mecânica Moderna Equipada com Elevadores Athena DF" 
-            className="w-full h-full object-cover object-right md:object-center opacity-30 md:opacity-40"
+            src="https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/athena-04-ffdac6cbd374.webp" 
+            alt="Showroom Athena Distribuidora DF" 
+            className="w-full h-full object-cover object-right md:object-center opacity-30 md:opacity-45"
             onError={(e) => {
-              e.currentTarget.src = "/hero-banner-oficina-df.webp";
+              e.currentTarget.src = "/athena-showroom-distribuidora-df.jpg";
             }}
           />
           {/* Gradiente suave da esquerda para direita para garantir leitura perfeita da copy */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 md:via-white/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 md:via-white/85 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
         </div>
 
@@ -564,17 +564,17 @@ export default function InstitutionalLpPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 7. SEÇÃO DEDICADA COM A FOTO REAL DO SHOWROOM EM ARNIQUEIRA NO FUNDO */}
+      {/* 7. SEÇÃO DEDICADA COM A IMAGEM ILUSTRATIVA DA OFICINA MODERNA NO FUNDO */}
       <section className="relative py-20 sm:py-28 overflow-hidden text-white border-b border-slate-800">
         
-        {/* Foto Oficial do Showroom Athena no Fundo com Overlay Escuro Focado */}
+        {/* Imagem Oficina Moderna no Fundo com Overlay Cinematográfico */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/athena-04-ffdac6cbd374.webp" 
-            alt="Showroom Athena Soluções Automotivas Arniqueira Brasília DF" 
-            className="w-full h-full object-cover"
+            src="https://pub-fd5d45a1dd144e14aa81b6a686385df9.r2.dev/athena_produtos/gemini-generated-image-v4xrowv4xrowv4xr-a9d07fc0c935.webp" 
+            alt="Centro Técnico e Oficina Moderna Athena DF" 
+            className="w-full h-full object-cover object-center"
             onError={(e) => {
-              e.currentTarget.src = "/athena-showroom-distribuidora-df.jpg";
+              e.currentTarget.src = "/hero-banner-oficina-df.webp";
             }}
           />
           <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-[1px]" />
