@@ -73,5 +73,5 @@ export function isProductPublished(p) {
   if (s === 'draft' || s === 'rascunho' || s === 'hidden' || s === 'oculto' || s === 'inactive') {
     return false;
   }
-  return s === 'published' || s === 'publicado';
+  return s === 'published' || s === 'publicado' || s === 'active' || s === 'ativo';
 }
