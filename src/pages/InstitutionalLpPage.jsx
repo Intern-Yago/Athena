@@ -463,11 +463,6 @@ export default function InstitutionalLpPage({ onNavigate }) {
                   "{rev.text}"
                 </p>
               </div>
-
-              <div className="bg-white border-l-4 border-amber-500 p-3 rounded-r-lg text-xs text-slate-600 space-y-1 shadow-xs">
-                <span className="font-bold text-slate-900 block">Resposta da Athena Consultoria:</span>
-                <p>{rev.reply}</p>
-              </div>
             </div>
           ))}
         </div>
