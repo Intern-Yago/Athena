@@ -596,7 +596,7 @@ h1, h2, h3, h4, h5, h6 {
 .animate-infinite-marquee {
   display: flex;
   width: max-content;
-  animation: infiniteMarquee 26s linear infinite;
+  animation: infiniteMarquee 45s linear infinite;
   will-change: transform;
 }
 
