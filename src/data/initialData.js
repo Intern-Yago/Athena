@@ -208,8 +208,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0101000401",
     "omieCode": "11946185236",
     "stock": 25,
-    "badge": "3 em 1 Premium",
-    "tags": [
+        "tags": [
       "Composto Polidor",
       "Veneto",
       "Sigma Tools",
@@ -260,8 +259,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0102000101",
     "omieCode": "11946185249",
     "stock": 25,
-    "badge": "Carnaúba + SiO2",
-    "tags": [
+        "tags": [
       "Cera Híbrida",
       "Carnaúba",
       "SiO2",
@@ -310,8 +308,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0102000201",
     "omieCode": "11946185243",
     "stock": 25,
-    "badge": "Proteção SiO2",
-    "tags": [
+        "tags": [
       "Selante Cerâmico",
       "SiO2",
       "SGT Chemicals",
@@ -361,8 +358,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0103000101",
     "omieCode": "11946185305",
     "stock": 25,
-    "badge": "Solvente Seguro",
-    "tags": [
+        "tags": [
       "Removedor de Cola e Piche",
       "SGT Flash",
       "Sigma Tools",
@@ -409,8 +405,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0103000201",
     "omieCode": "11946185285",
     "stock": 25,
-    "badge": "pH Neutro",
-    "tags": [
+        "tags": [
       "Lava Autos Neutro",
       "Shampoo Automotivo",
       "SGT Wash",
@@ -458,8 +453,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0103000502",
     "omieCode": "11946185298",
     "stock": 25,
-    "badge": "Pré-Lavagem Desengraxante",
-    "tags": [
+        "tags": [
       "Lava Autos Desengraxante",
       "SGT Mol",
       "Sigma Tools",
@@ -506,8 +500,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0103000701",
     "omieCode": "11946185272",
     "stock": 25,
-    "badge": "Espuma Ativa",
-    "tags": [
+        "tags": [
       "Limpador de Pneu",
       "SGT Duon",
       "Sigma Tools",
@@ -554,8 +547,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0103000801",
     "omieCode": "11946185290",
     "stock": 25,
-    "badge": "Desengraxante Pesado",
-    "tags": [
+        "tags": [
       "Limpador de Motor",
       "Desengraxante Chassi",
       "SGT Motor",
@@ -602,8 +594,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0107000201",
     "omieCode": "11946185259",
     "stock": 25,
-    "badge": "Wet Look Pneus",
-    "tags": [
+        "tags": [
       "Selante de Pneus",
       "Pretinho Brilhante",
       "SGT Glaze",
@@ -651,8 +642,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0107000401",
     "omieCode": "11946185266",
     "stock": 25,
-    "badge": "Restauração Plástica",
-    "tags": [
+        "tags": [
       "Renovador de Plástico",
       "Back to Black",
       "SGT Chemicals",
@@ -700,8 +690,7 @@ export const INITIAL_PRODUCTS = [
     "sku": "0107000601",
     "omieCode": "11946185278",
     "stock": 25,
-    "badge": "Custo-Benefício",
-    "tags": [
+        "tags": [
       "Pneu Pretinho",
       "SGT Jet Black",
       "Sigma Tools",
