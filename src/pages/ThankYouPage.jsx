@@ -1,7 +1,22 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CheckCircle2, Home, MessageCircle, ArrowRight } from 'lucide-react';
+import { isStaffAnalyticsBlocked } from '../utils/metaPixel';
 
 export default function ThankYouPage({ onNavigate }) {
+  // Dispara a conversão oficial do Google Ads (Contato / Orçamento)
+  useEffect(() => {
+    if (isStaffAnalyticsBlocked()) return;
+    if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+      try {
+        window.gtag('event', 'conversion', {
+          'send_to': 'AW-18529036413/etVPCIqb4b4dEP3QqoNF'
+        });
+      } catch (err) {
+        console.warn('[Google Ads Conversion Error]:', err.message);
+      }
+    }
+  }, []);
+
   return (
     <div className="min-h-[70vh] flex items-center justify-center py-16 px-4">
       <div className="max-w-xl w-full text-center space-y-6 bg-white p-8 sm:p-12 rounded-3xl border border-slate-200 shadow-xl relative overflow-hidden">

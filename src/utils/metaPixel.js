@@ -537,6 +537,19 @@ export function trackMetaEvent(eventName, params = {}) {
       pushGtmEvent(mapped.gaName, mapped.gaParams);
     }
   }
+
+  // Google Ads Conversion tracking para eventos comerciais (Lead / Contact / WhatsApp)
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    if (eventName === 'Contact' || eventName === 'Lead' || eventName === 'WhatsApp') {
+      try {
+        window.gtag('event', 'conversion', {
+          'send_to': 'AW-18529036413/etVPCIqb4b4dEP3QqoNF'
+        });
+      } catch (gErr) {
+        // silencioso
+      }
+    }
+  }
 }
 
 /**
