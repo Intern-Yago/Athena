@@ -156,6 +156,8 @@ export default function InstitutionalLpPage({ onNavigate }) {
   ];
 
   const marqueeList = [...marqueeBrands, ...marqueeBrands];
+  // Duplicamos a lista de reviews para scroll infinito contínuo e sem cortes
+  const marqueeReviews = [...googleReviews, ...googleReviews];
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-amber-100 selection:text-amber-900">
@@ -414,11 +416,11 @@ export default function InstitutionalLpPage({ onNavigate }) {
         </div>
       </section>
 
-      {/* 5. AVALIAÇÕES REAIS DO GOOGLE MEU NEGÓCIO */}
-      <section className="py-16 sm:py-20 bg-white border-b border-slate-200">
+      {/* 5. AVALIAÇÕES REAIS DO GOOGLE MEU NEGÓCIO EM CARROSSEL INFINITO COM PAUSA NO HOVER */}
+      <section className="py-16 sm:py-20 bg-white border-b border-slate-200 overflow-hidden relative">
         <div className="max-w-6xl mx-auto px-4">
           
-          <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
+          <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
             <div className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3.5 py-1 rounded-full text-xs font-bold text-amber-900">
               <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
               <span>Avaliações Verificadas no Google (Nota 5.0)</span>
@@ -427,52 +429,57 @@ export default function InstitutionalLpPage({ onNavigate }) {
               O que dizem os clientes e parceiros da Athena no DF
             </h2>
             <p className="text-sm text-slate-600">
-              Depoimentos reais de donos de oficina postados diretamente no Google Meu Negócio.
+              Depoimentos reais de donos de oficina postados diretamente no Google Meu Negócio. Passe o mouse para pausar a leitura.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {googleReviews.map((rev, idx) => (
-              <div 
-                key={idx}
-                className="bg-slate-50 border border-slate-200 p-6 sm:p-7 rounded-2xl shadow-xs hover:border-amber-400 hover:shadow-sm transition-all flex flex-col justify-between space-y-4"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-base font-bold text-slate-900">{rev.name}</h4>
-                      <p className="text-xs text-amber-800 font-medium">{rev.role} • <span className="text-slate-500 font-normal">{rev.badge}</span></p>
-                    </div>
-                    <div className="flex text-amber-400">
-                      {[...Array(rev.rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-amber-400" />
-                      ))}
-                    </div>
-                  </div>
+        </div>
 
-                  <p className="text-sm text-slate-700 italic leading-relaxed pt-1">
-                    "{rev.text}"
-                  </p>
-                </div>
+        {/* Gradientes laterais suaves para fade */}
+        <div className="absolute left-0 top-36 bottom-0 w-16 sm:w-28 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-36 bottom-0 w-16 sm:w-28 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
 
-                <div className="bg-white border-l-4 border-amber-500 p-3.5 rounded-r-lg text-xs text-slate-600 space-y-1 shadow-xs">
-                  <span className="font-bold text-slate-900 block">Resposta da Athena Consultoria:</span>
-                  <p>{rev.reply}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-10 text-center">
-            <button 
-              onClick={() => handleWhatsappClick('Secao Avaliacoes')}
-              className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white font-bold text-xs sm:text-sm py-3 px-6 rounded-xl shadow-xs transition-all cursor-pointer"
+        {/* Marquee de Cards de Depoimento */}
+        <div className="animate-reviews-marquee flex items-stretch gap-6 py-4 px-4 cursor-grab">
+          {marqueeReviews.map((rev, idx) => (
+            <div 
+              key={`${rev.name}-${idx}`}
+              className="w-[320px] sm:w-[380px] shrink-0 bg-slate-50 border border-slate-200 p-6 rounded-2xl shadow-xs hover:border-amber-400 hover:shadow-md transition-all flex flex-col justify-between space-y-4 select-none"
             >
-              <WhatsAppIcon className="w-4 h-4" />
-              <span>Solicitar Atendimento no WhatsApp</span>
-            </button>
-          </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900">{rev.name}</h4>
+                    <p className="text-xs text-amber-800 font-medium">{rev.role} • <span className="text-slate-500 font-normal">{rev.badge}</span></p>
+                  </div>
+                  <div className="flex text-amber-400">
+                    {[...Array(rev.rating)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-amber-400" />
+                    ))}
+                  </div>
+                </div>
 
+                <p className="text-sm text-slate-700 italic leading-relaxed pt-1">
+                  "{rev.text}"
+                </p>
+              </div>
+
+              <div className="bg-white border-l-4 border-amber-500 p-3 rounded-r-lg text-xs text-slate-600 space-y-1 shadow-xs">
+                <span className="font-bold text-slate-900 block">Resposta da Athena Consultoria:</span>
+                <p>{rev.reply}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 mt-8 text-center">
+          <button 
+            onClick={() => handleWhatsappClick('Secao Avaliacoes')}
+            className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white font-bold text-xs sm:text-sm py-3 px-6 rounded-xl shadow-xs transition-all cursor-pointer"
+          >
+            <WhatsAppIcon className="w-4 h-4" />
+            <span>Falar com quem entende da sua oficina no DF</span>
+          </button>
         </div>
       </section>
 

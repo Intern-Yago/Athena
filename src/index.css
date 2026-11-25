@@ -583,7 +583,7 @@ h1, h2, h3, h4, h5, h6 {
   color: #064e3b;
 }
 
-/* Infinite Marquee Animation for Brands */
+/* Infinite Marquee Animation for Brands & Reviews */
 @keyframes infiniteMarquee {
   0% {
     transform: translate3d(0, 0, 0);
@@ -601,5 +601,17 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .animate-infinite-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Marquee específico para Depoimentos (velocidade confortável para leitura) */
+.animate-reviews-marquee {
+  display: flex;
+  width: max-content;
+  animation: infiniteMarquee 50s linear infinite;
+  will-change: transform;
+}
+
+.animate-reviews-marquee:hover {
   animation-play-state: paused;
 }
