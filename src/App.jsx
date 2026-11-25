@@ -1925,6 +1925,12 @@ export default function App() {
     return <NotFoundPage onNavigate={navigateTo} />;
   };
 
+  const isInstitutionalLp = 
+    currentRoute === 'distribuidora-equipamentos-automotivos-brasilia-df' ||
+    currentRoute === 'distribuidora-df' ||
+    currentRoute === 'distribuidora' ||
+    currentRoute === 'lp';
+
   return (
     <ErrorBoundary>
       <CartProvider 
@@ -1935,32 +1941,34 @@ export default function App() {
       >
         <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-amber-500 selection:text-white">
           
-          {/* Header */}
-          <Header
-            activeTab={currentRoute}
-            onNavigate={navigateTo}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            productsCount={(publicProducts || []).length}
-            categoriesCount={(categories || []).length}
-            brandsCount={(brands || []).length}
-            categories={categories || []}
-            brands={brands || []}
-            departments={departments || []}
-            products={publicProducts || []}
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            activeAdminTab={activeAdminTab}
-            onSelectAdminTab={(tab) => {
-              setActiveAdminTab(tab);
-              if (currentRoute !== 'admin') {
-                navigateTo('admin');
-              }
-            }}
-          />
+          {/* Header (Ocultado na LP institucional para foco total na conversão) */}
+          {!isInstitutionalLp && (
+            <Header
+              activeTab={currentRoute}
+              onNavigate={navigateTo}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              productsCount={(publicProducts || []).length}
+              categoriesCount={(categories || []).length}
+              brandsCount={(brands || []).length}
+              categories={categories || []}
+              brands={brands || []}
+              departments={departments || []}
+              products={publicProducts || []}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+              activeAdminTab={activeAdminTab}
+              onSelectAdminTab={(tab) => {
+                setActiveAdminTab(tab);
+                if (currentRoute !== 'admin') {
+                  navigateTo('admin');
+                }
+              }}
+            />
+          )}
 
           {/* Main Page Content */}
-          <main className="flex-1 pt-16 sm:pt-20">
+          <main className={`flex-1 ${isInstitutionalLp ? 'pt-0' : 'pt-16 sm:pt-20'}`}>
             <React.Suspense fallback={<PageLoadingFallback />}>
               {renderCurrentPage()}
             </React.Suspense>
@@ -2007,8 +2015,10 @@ export default function App() {
             onNavigate={navigateTo}
           />
 
-          {/* App-style Bottom Navigation Bar for Mobile */}
-          <BottomNavBar activeTab={currentRoute} onNavigate={navigateTo} currentUser={currentUser} />
+          {/* App-style Bottom Navigation Bar for Mobile (Oculto na LP institucional) */}
+          {!isInstitutionalLp && (
+            <BottomNavBar activeTab={currentRoute} onNavigate={navigateTo} currentUser={currentUser} />
+          )}
 
           {/* Cart Drawer */}
           <CartDrawer />
@@ -2057,10 +2067,12 @@ export default function App() {
           {/* Toast Notification */}
           <Toast toast={toast} onClose={() => setToast(null)} />
 
-          {/* Footer */}
-          <div className="pb-14 md:pb-0">
-            <Footer setActiveTab={navigateTo} currentUser={currentUser} />
-          </div>
+          {/* Footer (Oculto na LP institucional) */}
+          {!isInstitutionalLp && (
+            <div className="pb-14 md:pb-0">
+              <Footer setActiveTab={navigateTo} currentUser={currentUser} />
+            </div>
+          )}
 
           {/* Cookie & LGPD Consent Floating Banner */}
           <CookieConsentBanner onNavigate={navigateTo} />
