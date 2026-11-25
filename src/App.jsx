@@ -704,7 +704,7 @@ export default function App() {
           const normProds = idbProds.map(normalizeProduct);
           setProducts((prev) => {
             const safePrev = Array.isArray(prev) ? prev : [];
-            if (safePrev.length === 0 || safePrev.length <= (INITIAL_PRODUCTS || []).length) {
+            if (safePrev.length === 0 || normProds.length >= safePrev.length) {
               return normProds;
             }
             return prev;
@@ -713,13 +713,13 @@ export default function App() {
         if (Array.isArray(idbCats) && idbCats.length > 0) {
           setCategories((prev) => {
             const safePrev = Array.isArray(prev) ? prev : [];
-            return safePrev.length <= (INITIAL_CATEGORIES || []).length ? idbCats : prev;
+            return safePrev.length === 0 || idbCats.length >= safePrev.length ? idbCats : prev;
           });
         }
         if (Array.isArray(idbBrands) && idbBrands.length > 0) {
           setBrands((prev) => {
             const safePrev = Array.isArray(prev) ? prev : [];
-            return safePrev.length <= (INITIAL_BRANDS || []).length ? idbBrands.map(normalizeBrand) : prev;
+            return safePrev.length === 0 || idbBrands.length >= safePrev.length ? idbBrands.map(normalizeBrand) : prev;
           });
         }
       } catch (e) {
