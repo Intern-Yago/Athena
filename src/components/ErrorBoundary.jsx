@@ -28,8 +28,11 @@ export default class ErrorBoundary extends React.Component {
     } else {
       // Dispara telemetria de erro para notificar no Telegram
       try {
-        const apiBase = import.meta.env?.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com';
-        fetch(`${apiBase}/api/telemetry/report-error`, {
+        const rawBase = import.meta.env?.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com/api';
+        const apiBase = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`;
+        const endpoint = `${apiBase}/telemetry/report-error`;
+        
+        fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -38,7 +41,9 @@ export default class ErrorBoundary extends React.Component {
             url: typeof window !== 'undefined' ? window.location.href : '',
             userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
           })
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn('[ErrorBoundary] Falha ao enviar telemetria:', err);
+        });
       } catch (_) {}
     }
   }
