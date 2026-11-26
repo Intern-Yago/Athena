@@ -116,6 +116,22 @@ async function runWebappTesting() {
     await page.goto('http://localhost:5173/blog', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForSelector('aside[aria-label="Barra Lateral do Blog"]', { timeout: 15000 });
 
+    console.log('[WEBAPP TESTING] Testando rota da Landing Page /distribuidora-df...');
+    await page.goto('http://localhost:5173/distribuidora-df', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1000);
+    const lpBodyText = await page.locator('body').innerText();
+    if (lpBodyText.includes('Erro Interno no Servidor') || lpBodyText.includes('Instabilidade Temporária')) {
+      throw new Error(`ErrorBoundary disparado na Landing Page /distribuidora-df: ${lpBodyText.slice(0, 300)}`);
+    }
+
+    console.log('[WEBAPP TESTING] Testando rota /catalogo com filtros...');
+    await page.goto('http://localhost:5173/catalogo?q=scanner', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(1000);
+    const catBodyText = await page.locator('body').innerText();
+    if (catBodyText.includes('Erro Interno no Servidor') || catBodyText.includes('Instabilidade Temporária')) {
+      throw new Error(`ErrorBoundary disparado em /catalogo?q=scanner: ${catBodyText.slice(0, 300)}`);
+    }
+
     console.log('[WEBAPP TESTING] Testando carregamento frio (cold load) de /produto/:slug...');
     await page.goto('http://localhost:5173/produto/programadora-e-clonadora-de-modulos-ecu-tcu-prog-5-eaata-prog-5', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await page.waitForTimeout(1000);
@@ -125,11 +141,11 @@ async function runWebappTesting() {
       throw new Error(`ErrorBoundary disparado em /produto/:slug: ${bodyText.slice(0, 300)}`);
     }
 
-    if (consoleErrors.some(err => err.includes('TypeError') || err.includes('ReferenceError'))) {
-      throw new Error(`Erro de runtime detectado: ${consoleErrors.join(' | ')}`);
+    if (consoleErrors.some(err => err.includes('TypeError') || err.includes('ReferenceError') || err.includes('is not defined'))) {
+      throw new Error(`Erro critico de runtime detectado: ${consoleErrors.join(' | ')}`);
     }
 
-    console.log('[WEBAPP TESTING] Bateria de testes E2E do Anthropic Webapp-Testing concluida com SUCESSO!');
+    console.log('[WEBAPP TESTING] Bateria de testes E2E do Playwright concluida com ZERO ERROS 500!');
   } catch (error) {
     console.error('[WEBAPP TESTING ERROR]:', error);
     const errScreenshot = path.join(SCREENSHOTS_DIR, 'error_state.png');

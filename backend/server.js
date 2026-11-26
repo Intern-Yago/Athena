@@ -570,6 +570,7 @@ if (ATHENA_ORIGIN_SECRET) {
       req.path.startsWith('/api/share/') ||
       req.path.startsWith('/api/payments/webhook') ||
       req.path.startsWith('/api/webhooks/omie') ||
+      req.path.startsWith('/api/telemetry/report-error') ||
       req.path.startsWith('/api/telegram') ||
       req.path.startsWith('/api/feeds/') ||
       req.headers['user-agent']?.includes('Render/') ||
@@ -1025,6 +1026,35 @@ app.get('/api/openapi.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.json(swaggerDocument);
+});
+
+// =============================================================
+// TELEMETRIA DE ERROS DO CLIENTE (NOTIFICAÇÃO TELEGRAM)
+// =============================================================
+app.post('/api/telemetry/report-error', async (req, res) => {
+  try {
+    const { message, stack, url, userAgent } = req.body || {};
+    const clientIp = getClientIp(req);
+
+    console.error(`🚨 [CLIENT ERROR 500 REPORTED]: ${message} at ${url} (IP: ${clientIp})`);
+
+    const { sendTelegramAlert } = require('./services/telegramAlertService');
+    await sendTelegramAlert({
+      level: 'CRITICAL',
+      title: '🚨 Erro 500 no Navegador do Cliente!',
+      message: `*Página:* \`${(url || '').slice(0, 150)}\`\n*Erro:* \`${(message || 'Erro Desconhecido').slice(0, 200)}\`\n*IP:* \`${clientIp}\``,
+      details: {
+        'Página': url,
+        'Erro': message,
+        'Stack': (stack || '').slice(0, 250),
+        'Dispositivo': (userAgent || '').slice(0, 100)
+      }
+    });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // =============================================================

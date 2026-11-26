@@ -25,6 +25,21 @@ export default class ErrorBoundary extends React.Component {
         sessionStorage.setItem(reloadKey, String(now));
         window.location.reload();
       }
+    } else {
+      // Dispara telemetria de erro para notificar no Telegram
+      try {
+        const apiBase = import.meta.env?.VITE_API_URL || 'https://athena-backend-hu1m.onrender.com';
+        fetch(`${apiBase}/api/telemetry/report-error`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: errorMessage,
+            stack: error?.stack || errorInfo?.componentStack || '',
+            url: typeof window !== 'undefined' ? window.location.href : '',
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
+          })
+        }).catch(() => {});
+      } catch (_) {}
     }
   }
 
