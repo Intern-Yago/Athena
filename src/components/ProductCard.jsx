@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { stripFormattingTags } from './FormattedDescription';
-import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles, Layers } from 'lucide-react';
+import { Eye, MessageCircle, Edit3, Trash2, Tag, CheckCircle2, ArrowLeftRight, FileText, CreditCard, ShoppingCart, Zap, Link2, Sparkles, Layers, Package } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { getBestInstallmentText, calculatePaymentGateways, formatBRL } from '../utils/installmentCalculator';
 import { canCheckout, shouldShowPrice, getCommercialBadge, buildProductWhatsAppMessage, getDiscountPercentage } from '../utils/commercialPolicy';
