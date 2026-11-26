@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Truck, MapPin, Search, Loader2, CheckCircle2, AlertCircle, Info, ExternalLink, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { getFallbackShippingOptions } from '../utils/fallbackShipping';
 import { trackMetaCustom, trackMetaEvent } from '../utils/metaPixel';
