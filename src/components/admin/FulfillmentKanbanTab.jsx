@@ -16,8 +16,10 @@ import {
   ChevronRight,
   RotateCcw,
   Globe,
-  Building2
+  Building2,
+  ExternalLink
 } from 'lucide-react';
+import { buildTrackingUrl } from '../../utils/trackingUtils';
 import {
   decodeHtmlEntities,
   getMacroRegionByState,
@@ -848,9 +850,21 @@ export default function FulfillmentKanbanTab({
 
                             {col.key === 'shipped' && (
                               <div className="w-full space-y-1">
-                                <div className="text-[9px] text-slate-500 font-mono flex justify-between truncate">
+                                <div className="text-[9px] text-slate-500 font-mono flex items-center justify-between gap-1 truncate">
                                   <span className="truncate">{s.carrier || 'Transportadora'}</span>
-                                  <strong className="text-slate-800 shrink-0">{s.tracking_code}</strong>
+                                  {s.tracking_code && (
+                                    <a
+                                      href={buildTrackingUrl(s.carrier, s.tracking_code)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="text-amber-700 hover:text-amber-900 font-bold underline flex items-center gap-0.5 shrink-0"
+                                      title="Rastrear envio em tempo real"
+                                    >
+                                      <span>{s.tracking_code}</span>
+                                      <ExternalLink className="w-2.5 h-2.5" />
+                                    </a>
+                                  )}
                                 </div>
                                 <button
                                   type="button"

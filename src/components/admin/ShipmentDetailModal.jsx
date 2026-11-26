@@ -10,9 +10,11 @@ import {
   Truck,
   CheckCircle2,
   Globe,
-  Building2
+  Building2,
+  ExternalLink
 } from 'lucide-react';
 import { decodeHtmlEntities, resolveOrderOrigin } from '../../utils/orderUtils';
+import { buildTrackingUrl } from '../../utils/trackingUtils';
 
 /**
  * ShipmentDetailModal
@@ -108,8 +110,13 @@ export default function ShipmentDetailModal({
                 {shipment.customer_snapshot?.name || 'Cliente'}
               </p>
               {shipment.customer_snapshot?.document && (
-                <p className="text-[11px] font-mono text-slate-500">
-                  CPF/CNPJ: {shipment.customer_snapshot.document}
+                <p className="text-[11px] font-mono font-bold text-slate-700">
+                  CNPJ/CPF: {shipment.customer_snapshot.document}
+                </p>
+              )}
+              {shipment.customer_snapshot?.ie && (
+                <p className="text-[11px] font-mono text-slate-600">
+                  Inscrição Estadual: {shipment.customer_snapshot.ie}
                 </p>
               )}
               {shipment.customer_snapshot?.email && (
@@ -144,6 +151,11 @@ export default function ShipmentDetailModal({
                       CEP: {shipment.shipping_address.zip_code || shipment.shipping_address.zipCode || shipment.shipping_address.cep}
                     </p>
                   )}
+                  {shipment.shipping_address?.neighborhood && (
+                    <p className="text-[11px] text-slate-500">
+                      Bairro: {shipment.shipping_address.neighborhood}
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="text-slate-400 italic">Endereço não detalhado</p>
@@ -151,7 +163,31 @@ export default function ShipmentDetailModal({
             </div>
           </div>
 
-          {/* Items List Header + Quick Filter inside Popup */}
+          {/* Rastreio e Despacho */}
+          {shipment.tracking_code && (
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black uppercase text-amber-800 flex items-center gap-1">
+                  <Truck className="w-3.5 h-3.5 text-amber-700" /> Rastreamento do Envio ({shipment.carrier || 'Transportadora'})
+                </span>
+                <p className="font-mono font-black text-xs sm:text-sm text-slate-900">
+                  Código: {shipment.tracking_code}
+                </p>
+              </div>
+
+              {buildTrackingUrl(shipment.carrier, shipment.tracking_code) && (
+                <a
+                  href={buildTrackingUrl(shipment.carrier, shipment.tracking_code)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-gold text-[11px] font-bold py-1.5 px-3 rounded-xl flex items-center gap-1.5 shadow-2xs shrink-0"
+                >
+                  <span>Ver Rastreio em Tempo Real</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          )}
           <div className="space-y-2.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">

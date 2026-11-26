@@ -29,6 +29,7 @@ import {
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
+import { buildTrackingUrl } from '../../utils/trackingUtils';
 import { decodeHtmlEntities, resolveOrderOrigin } from '../../utils/orderUtils';
 import {
   ADMIN_CACHE_KEYS,
@@ -873,9 +874,24 @@ export default function OrdersManagementTab({
                         </td>
 
                         <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className="text-[11px] font-semibold text-slate-700">
-                            {fulfillmentStatusLabels[effectiveFulfillmentStatus] || effectiveFulfillmentStatus}
-                          </span>
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-semibold text-slate-700 block">
+                              {fulfillmentStatusLabels[effectiveFulfillmentStatus] || effectiveFulfillmentStatus}
+                            </span>
+                            {primaryShipment?.tracking_code && (
+                              <a
+                                href={buildTrackingUrl(primaryShipment.carrier, primaryShipment.tracking_code)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200 transition-colors"
+                                title="Rastrear entrega da transportadora"
+                              >
+                                <Truck className="w-2.5 h-2.5 text-amber-700" />
+                                <span>{primaryShipment.tracking_code}</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                          </div>
                         </td>
 
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
