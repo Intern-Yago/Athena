@@ -353,17 +353,61 @@ export function ShippingCalculator({
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
+  // Identifica a opção mais rápida e mais econômica entre todas as opções
+  const cheapestOptionId = useMemo(() => {
+    if (!Array.isArray(shippingOptions) || shippingOptions.length === 0) return null;
+    let minPrice = Infinity;
+    let minId = null;
+    shippingOptions.forEach(opt => {
+      const p = Number(opt.price) || 0;
+      if (p > 0 && p < minPrice) {
+        minPrice = p;
+        minId = opt.id;
+      }
+    });
+    return minId;
+  }, [shippingOptions]);
+
+  const fastestOptionId = useMemo(() => {
+    if (!Array.isArray(shippingOptions) || shippingOptions.length === 0) return null;
+    let minDays = Infinity;
+    let minId = null;
+    shippingOptions.forEach(opt => {
+      const d = Number(opt.delivery_time) || 0;
+      if (d > 0 && d < minDays) {
+        minDays = d;
+        minId = opt.id;
+      }
+    });
+    return minId;
+  }, [shippingOptions]);
+
   const visibleShippingOptions = (() => {
     if (!Array.isArray(shippingOptions) || shippingOptions.length === 0) return [];
-    const maxCollapsed = compact ? 1 : 3;
-    if (showAllCarriers || shippingOptions.length <= maxCollapsed) {
-      return shippingOptions;
+    
+    // Lista ordenada priorizando: 1º Mais Econômico, 2º Mais Rápido, depois o restante por menor preço
+    const sorted = [...shippingOptions].sort((a, b) => {
+      // Se um deles for o mais econômico absoluto, vem em 1º
+      if (a.id === cheapestOptionId) return -1;
+      if (b.id === cheapestOptionId) return 1;
+
+      // Se um deles for o mais rápido absoluto, vem em 2º
+      if (a.id === fastestOptionId) return -1;
+      if (b.id === fastestOptionId) return 1;
+
+      // Restante ordena por preço crescente
+      return (Number(a.price) || 0) - (Number(b.price) || 0);
+    });
+
+    const maxCollapsed = compact ? 1 : 2;
+    if (showAllCarriers || sorted.length <= maxCollapsed) {
+      return sorted;
     }
-    const selectedOpt = shippingOptions.find(o => String(o.id) === String(selectedOptionId)) || shippingOptions[0];
+    const selectedOpt = sorted.find(o => String(o.id) === String(selectedOptionId)) || sorted[0];
     if (compact) {
-      return selectedOpt ? [selectedOpt] : shippingOptions.slice(0, 1);
+      return selectedOpt ? [selectedOpt] : sorted.slice(0, 1);
     }
-    const topSlice = shippingOptions.slice(0, maxCollapsed);
+    const topSlice = sorted.slice(0, maxCollapsed);
     if (selectedOpt && !topSlice.some(o => String(o.id) === String(selectedOpt.id))) {
       return [selectedOpt, ...topSlice.slice(0, maxCollapsed - 1)];
     }
@@ -498,9 +542,14 @@ export function ShippingCalculator({
                         <span className="text-xs font-black text-slate-900 truncate">
                           {carrierName} — {serviceName}
                         </span>
-                        {opt.id === shippingOptions[0]?.id && (
+                        {opt.id === cheapestOptionId && (
                           <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                             Mais Econômico
+                          </span>
+                        )}
+                        {opt.id === fastestOptionId && opt.id !== cheapestOptionId && (
+                          <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-sky-100 text-sky-800 border border-sky-200">
+                            ⚡ Mais Rápido
                           </span>
                         )}
                         {isSelected && (
