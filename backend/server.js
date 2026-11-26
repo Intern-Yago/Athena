@@ -9807,6 +9807,10 @@ app.get(['/api/products', '/api/produtos'], async (req, res) => {
           b.show_installment_options as "brandShowInstallmentOptions",
           b.is_authorized as "brandIsAuthorized",
           b.authorization_label as "brandAuthorizationLabel",
+          p.weight::float,
+          p.width::float,
+          p.height::float,
+          p.length::float,
           p.created_at
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
@@ -9947,6 +9951,10 @@ app.get(['/api/products/:identifier', '/api/produtos/:identifier'], async (req, 
           b.show_installment_options as "brandShowInstallmentOptions",
           b.is_authorized as "brandIsAuthorized",
           b.authorization_label as "brandAuthorizationLabel",
+          p.weight::float,
+          p.width::float,
+          p.height::float,
+          p.length::float,
           p.created_at
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
