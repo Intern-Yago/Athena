@@ -38,12 +38,12 @@ export default function BottomNavBar({ activeTab, onNavigate, currentUser }) {
         <button
           onClick={() => onNavigate('brands')}
           className={`flex flex-col items-center justify-center gap-0.5 py-1 px-1 rounded-xl transition-colors w-full cursor-pointer ${
-            activeTab === 'brands' || activeTab.startsWith('brand')
+            activeTab === 'brands' || activeTab === 'marcas' || activeTab.startsWith('brand') || activeTab.startsWith('marca')
               ? 'text-amber-600 font-extrabold'
               : 'text-slate-500 hover:text-slate-900 font-medium'
           }`}
         >
-          <Tag className={`w-4 h-4 ${activeTab === 'brands' || activeTab.startsWith('brand') ? 'text-amber-600' : 'text-slate-500'}`} />
+          <Tag className={`w-4 h-4 ${activeTab === 'brands' || activeTab === 'marcas' || activeTab.startsWith('brand') || activeTab.startsWith('marca') ? 'text-amber-600' : 'text-slate-500'}`} />
           <span className="text-[9px] tracking-tight">Marcas</span>
         </button>
 

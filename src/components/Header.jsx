@@ -109,7 +109,7 @@ export default function Header({
               <button
                 onClick={() => toggleMegaMenu('brands')}
                 className={`flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                  activeMegaMenu === 'brands' || activeTab.startsWith('brand')
+                  activeMegaMenu === 'brands' || activeTab === 'brands' || activeTab === 'marcas' || activeTab.startsWith('brand') || activeTab.startsWith('marca')
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white'
                 }`}
