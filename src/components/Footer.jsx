@@ -106,6 +106,12 @@ export default function Footer({ setActiveTab, currentUser }) {
                 </button>
               </li>
               <li>
+                <button onClick={() => { setActiveTab('assistencia-tecnica'); scrollToTop(); }} className="hover:text-amber-400 transition-colors cursor-pointer flex items-center gap-1.5 text-emerald-300 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  <span>Assistência Técnica & Manutenção (DF)</span>
+                </button>
+              </li>
+              <li>
                 <button onClick={() => { setActiveTab(currentUser ? 'minha-conta' : 'login'); scrollToTop(); }} className="text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer flex items-center gap-1">
                   <span>Minha Conta & Pedidos</span>
                 </button>

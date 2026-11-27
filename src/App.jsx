@@ -21,6 +21,7 @@ const BlogListingPage = lazyWithRetry(() => import('./pages/BlogListingPage'));
 const BlogPostPage = lazyWithRetry(() => import('./pages/BlogPostPage'));
 const FaqPage = lazyWithRetry(() => import('./pages/FaqPage'));
 const InstitutionalLpPage = lazyWithRetry(() => import('./pages/InstitutionalLpPage'));
+const MaintenanceLpPage = lazyWithRetry(() => import('./pages/MaintenanceLpPage'));
 
 import Footer from './components/Footer';
 import Toast from './components/Toast';
@@ -1805,6 +1806,15 @@ export default function App() {
       return <InstitutionalLpPage onNavigate={navigateTo} brands={brands} />;
     }
 
+    if (
+      currentRoute === 'assistencia-tecnica' ||
+      currentRoute === 'manutencao' ||
+      currentRoute === 'conserto-elevadores' ||
+      currentRoute === 'conserto-equipamentos'
+    ) {
+      return <MaintenanceLpPage onNavigate={navigateTo} />;
+    }
+
     if (currentRoute === 'admin') {
       // Guard admin route: if not logged in, redirect to login page!
       if (!currentUser) {
@@ -1929,7 +1939,11 @@ export default function App() {
     currentRoute === 'distribuidora-equipamentos-automotivos-brasilia-df' ||
     currentRoute === 'distribuidora-df' ||
     currentRoute === 'distribuidora' ||
-    currentRoute === 'lp';
+    currentRoute === 'lp' ||
+    currentRoute === 'assistencia-tecnica' ||
+    currentRoute === 'manutencao' ||
+    currentRoute === 'conserto-elevadores' ||
+    currentRoute === 'conserto-equipamentos';
 
   return (
     <ErrorBoundary>
