@@ -1935,15 +1935,23 @@ export default function App() {
     return <NotFoundPage onNavigate={navigateTo} />;
   };
 
+  const isMaintenanceLp =
+    currentRoute === 'assistencia-tecnica' ||
+    currentRoute === 'manutencao' ||
+    currentRoute === 'conserto-elevadores' ||
+    currentRoute === 'conserto-equipamentos';
+
   const isInstitutionalLp = 
     currentRoute === 'distribuidora-equipamentos-automotivos-brasilia-df' ||
     currentRoute === 'distribuidora-df' ||
     currentRoute === 'distribuidora' ||
     currentRoute === 'lp' ||
-    currentRoute === 'assistencia-tecnica' ||
-    currentRoute === 'manutencao' ||
-    currentRoute === 'conserto-elevadores' ||
-    currentRoute === 'conserto-equipamentos';
+    isMaintenanceLp;
+
+  const floatingWhatsappHref = isMaintenanceLp
+    ? 'https://wa.me/5561984884099?text=Ol%C3%A1%2C+equipe+t%C3%A9cnica+da+Athena%21+Preciso+de+assist%C3%AAncia+t%C3%A9cnica+na+minha+oficina.'
+    : 'https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento.';
+  const floatingWhatsappDisplay = isMaintenanceLp ? '(61) 98488-4099' : '(61) 98348-5671';
 
   return (
     <ErrorBoundary>
@@ -1990,22 +1998,22 @@ export default function App() {
 
           {/* Floating WhatsApp Action Button (Desktop Only) */}
           <a
-            href="https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento."
+            href={floatingWhatsappHref}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => {
               if (requireVerification(() => {
-                window.open('https://wa.me/5561983485671?text=Ol%C3%A1%21+Vim+pelo+site+da+Athena+Solu%C3%A7%C3%B5es+Automotivas+e+gostaria+de+um+or%C3%A7amento.', '_blank');
+                window.open(floatingWhatsappHref, '_blank');
               })) {
                 e.preventDefault();
               }
             }}
             className="hidden md:flex fixed bottom-6 right-6 z-40 p-3.5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-500 hover:scale-110 active:scale-95 transition-all items-center gap-2 group text-xs font-extrabold"
-            title="Falar no WhatsApp (61) 98348-5671"
+            title={`Falar no WhatsApp ${floatingWhatsappDisplay}`}
           >
             <MessageCircle className="w-6 h-6 fill-current text-white shrink-0" />
             <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 text-white font-bold">
-              (61) 98348-5671
+              {floatingWhatsappDisplay}
             </span>
           </a>
 
