@@ -29,7 +29,15 @@ export default function BrandPage({
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [shuffleSeed, setShuffleSeed] = useState(() => Math.floor(Math.random() * 1000000));
 
-  const brand = (brands || []).find((b) => b.id === brandId || b.slug === brandId);
+  const brand = useMemo(() => {
+    if (!brands || brands.length === 0) return null;
+    const target = String(brandId || '').trim().toLowerCase();
+    return brands.find((b) => 
+      (b.id && String(b.id).toLowerCase() === target) || 
+      (b.slug && String(b.slug).toLowerCase() === target) ||
+      (b.name && String(b.name).toLowerCase() === target)
+    ) || null;
+  }, [brands, brandId]);
 
   // Reset to page 1 when brand, search, sort or shuffle changes
   useEffect(() => {
@@ -213,6 +221,10 @@ export default function BrandPage({
                   src={brand.logo} 
                   alt={brand.name} 
                   loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80';
+                  }}
                   className="max-h-full max-w-full object-contain"
                 />
               ) : (

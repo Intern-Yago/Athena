@@ -147,9 +147,11 @@ export default function MegaMenu({ type, categories, brands, products, onNavigat
             </div>
 
             <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(brands || [])
-                .filter((b) => (products || []).some((p) => p.brandId === b.id && isProductPublished(p)))
-                .map((b) => {
+              {(() => {
+                const rawBrands = brands && brands.length > 0 ? brands : [];
+                const activeBrands = rawBrands.filter((b) => (products || []).some((p) => p.brandId === b.id && isProductPublished(p)));
+                const listToRender = activeBrands.length > 0 ? activeBrands : rawBrands;
+                return listToRender.map((b) => {
                   const count = (products || []).filter(p => p.brandId === b.id && isProductPublished(p)).length;
                   return (
                     <div
@@ -171,7 +173,8 @@ export default function MegaMenu({ type, categories, brands, products, onNavigat
                       <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-sky-600" />
                     </div>
                   );
-                })}
+                });
+              })()}
             </div>
           </div>
         </div>

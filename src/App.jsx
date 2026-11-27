@@ -1621,12 +1621,17 @@ export default function App() {
     }
 
     if (currentRoute.startsWith('marca/') || currentRoute.startsWith('brand:')) {
-      const brandSlugOrId = currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1];
-      const targetBrand = brands.find(b => b.slug === brandSlugOrId || b.id === brandSlugOrId) || brands[0];
+      const brandSlugOrId = (currentRoute.includes('/') ? currentRoute.split('/')[1] : currentRoute.split(':')[1] || '').split('?')[0].split('#')[0].toLowerCase();
+      const allAvailableBrands = (brands && brands.length > 0) ? brands : INITIAL_BRANDS;
+      const targetBrand = allAvailableBrands.find(b => 
+        (b.slug && b.slug.toLowerCase() === brandSlugOrId) || 
+        (b.id && b.id.toLowerCase() === brandSlugOrId) ||
+        (b.name && b.name.toLowerCase() === brandSlugOrId)
+      ) || allAvailableBrands[0];
       return (
         <BrandPage
-          brandId={targetBrand.id}
-          brands={brands}
+          brandId={targetBrand ? targetBrand.id : brandSlugOrId}
+          brands={allAvailableBrands}
           products={publicProducts}
           categories={categories}
           onSelectProduct={(p) => navigateTo(`produto/${p.slug || p.id}`)}
@@ -1640,7 +1645,8 @@ export default function App() {
       );
     }
 
-    if (currentRoute === 'categories') {
+    if (currentRoute === 'categories' || currentRoute === 'categorias') {
+      const allCats = (categories && categories.length > 0) ? categories : INITIAL_CATEGORIES;
       return (
         <div className="py-12">
           <div className="container-custom space-y-8">
@@ -1657,10 +1663,10 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-              {categories
-                .filter((cat) => (publicProducts || []).some((p) => p.categoryId === cat.id))
+              {allCats
+                .filter((cat) => (publicProducts || []).length === 0 || (publicProducts || []).some((p) => p.categoryId === cat.id))
                 .map((cat) => {
-                const catProducts = publicProducts.filter((p) => p.categoryId === cat.id);
+                const catProducts = (publicProducts || []).filter((p) => p.categoryId === cat.id);
                 return (
                   <div 
                     key={cat.id} 
@@ -1698,7 +1704,11 @@ export default function App() {
       );
     }
 
-    if (currentRoute === 'brands') {
+    if (currentRoute === 'brands' || currentRoute === 'marcas') {
+      const allBrands = (brands && brands.length > 0) ? brands : INITIAL_BRANDS;
+      const displayBrands = allBrands.filter((b) => (publicProducts || []).length === 0 || (publicProducts || []).some((p) => p.brandId === b.id));
+      const brandsToShow = displayBrands.length > 0 ? displayBrands : allBrands;
+
       return (
         <div className="py-12">
           <div className="container-custom space-y-8">
@@ -1715,10 +1725,8 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {brands
-                .filter((b) => (publicProducts || []).some((p) => p.brandId === b.id))
-                .map((b) => {
-                const brandProducts = publicProducts.filter((p) => p.brandId === b.id);
+              {brandsToShow.map((b) => {
+                const brandProducts = (publicProducts || []).filter((p) => p.brandId === b.id);
                 return (
                   <div 
                     key={b.id}
@@ -1730,6 +1738,10 @@ export default function App() {
                         <img 
                           src={b.logo || 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80'} 
                           alt={b.name} 
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=200&auto=format&fit=crop&q=80';
+                          }}
                           className="max-h-full object-contain filter group-hover:scale-105 transition-transform"
                         />
                       </div>
